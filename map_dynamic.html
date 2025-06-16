@@ -165,6 +165,36 @@
     box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     display: none;
   }
+/* Legend styling */
+  .legend {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    background: white;
+    padding: 10px 14px;
+    border-radius: 6px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    font-size: 14px;
+    line-height: 1.4;
+    color: #222;
+    z-index: 10000;
+    max-width: 220px;
+  }
+  .legend h4 {
+    margin: 0 0 8px 0;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .legend-color {
+    width: 18px;
+    height: 18px;
+    margin-right: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
   #searchSuggestions div {
     padding: 5px 8px;
     cursor: pointer;
@@ -189,7 +219,8 @@
     #toggles {
       gap: 15px;
     }
-  }
+  
+ 
 </style>
 </head>
 <body>
