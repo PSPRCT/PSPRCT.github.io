@@ -895,6 +895,36 @@
 
 })();
 </script>
+<script>
+  document.getElementById("printBtn").addEventListener("click", function () {
+    const rows = document.querySelectorAll(".leaflet-marker-icon[data-store-info]");
+    if (!rows.length) {
+      alert("No store markers currently visible to print.");
+      return;
+    }
+
+    let content = `<h2>Visible Store List</h2><ul>`;
+    rows.forEach(marker => {
+      const data = JSON.parse(marker.dataset.storeInfo);
+      content += `<li><strong>${data.store_number}</strong> - ${data.city}, ${data.state}</li>`;
+    });
+    content += `</ul>`;
+
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(`
+      <html><head><title>Store List</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        h2 { margin-top: 0; }
+        ul { line-height: 1.6; }
+      </style>
+      </head><body>${content}</body></html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  });
+</script>
 
 </body>
 </html>
