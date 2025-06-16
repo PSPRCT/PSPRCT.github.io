@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Premium Retail Trainer Map with Dynamic Filters & Toggles</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+  #filters {
+    background: #f8f8f8;
+    border-bottom: 1px solid #ddd;
+    padding: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+  }
+  #filters > div {
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+  label {
+    font-weight: bold;
+    margin-right: 5px;
+    white-space: nowrap;
+  }
+  select, button, input {
+    padding: 4px 8px;
+    font-size: 14px;
+  }
+  select[multiple] {
+    width: 160px;
+    height: 110px;
+  }
+  button {
+    cursor: pointer;
+  }
+  #searchContainer {
+    display: flex;
+    align-items: center;
+    max-width: 300px;
+    position: relative;
+    gap: 5px;
+  }
+  #searchBox {
+    flex: 1;
+    padding: 4px 8px;
+    font-size: 14px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+  }
+  #clearSearchBtn {
+    padding: 4px 8px;
+    font-size: 14px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: white;
+    transition: background-color 0.3s;
+  }
+  #clearSearchBtn:hover {
+    background-color: #ddd;
+  }
+  #searchSuggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 160px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    background: white;
+    z-index: 1500;
+    font-size: 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    display: none;
+  }
+  #searchSuggestions div {
+    padding: 5px 8px;
+    cursor: pointer;
+  }
+  #searchSuggestions div.highlighted {
+    background-color: #3399FF;
+    color: white;
+  }
+  /* Legend styles */
+  .legend {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    box-shadow: 0 0 8px rgba(0,0,0,0.2);
+    font-size: 14px;
+    line-height: 1.4;
+    z-index: 1000;
+  }
+  .legend h4 {
+    margin: 0 0 6px 0;
+    font-weight: bold;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .legend-color {
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<div id="filters">
+  <div id="searchContainer">
+    <label for="searchBox">Search store # or city:</label>
+    <input type="text" id="searchBox" autocomplete="off" placeholder="Search store # or city" />
+    <button id="clearSearchBtn" title="Clear search">Clear</button>
+    <div id="searchSuggestions"></div>
+  </div>
+
+  <div>
+    <label for="coverageFilter">Coverage Type:</label>
+    <select id="coverageFilter" multiple title="Select coverage types">
+      <option value="All">All</option>
+      <option value="Premium + Acosta" selected>Premium + Acosta</option>
+      <option value="Premium Only" selected>Premium Only</option>
+      <option value="Acosta Only">Acosta Only</option>
+      <option value="Uncovered">Uncovered</option>
+    </select>
+  </div>
+  <div>
+    <label for="regionalFilter">Regional Manager:</label>
+    <select id="regionalFilter" multiple title="Select regional managers">
+      <option value="All" selected>All</option>
+    </select>
+  </div>
+  <div>
+    <label for="areaFilter">Area Manager:</label>
+    <select id="areaFilter" multiple title="Select area managers">
+      <option value="All" selected>All</option>
+    </select>
+  </div>
+  <div>
+    <label for="trainerHubFilter">Trainer Hub Filter:</label>
+    <select id="trainerHubFilter" multiple title="Select trainer hubs"></select>
+  </div>
+  <div>
+    <label for="zoomHub">Zoom to Hub:</label>
+    <select id="zoomHub" title="Select a trainer hub to zoom">
+      <option value="">-- Select Hub --</option>
+    </select>
+  </div>
+
+  <div id="toggles">
+    <label><input type="checkbox" id="toggleHubs" checked /> Show Trainer Hubs</label>
+    <label><input type="checkbox" id="toggleRadius" checked /> Show Coverage Radius</label>
+  </div>
+
+  <div>
+    <button id="resetFilters">Reset Filters</button>
+  </div>
+  <div>
+    <button id="exportVisibleCSV">Export Visible Stores CSV</button>
+  </div>
+  <div>
+    <button id="exportFilteredCSV">Export Filtered Stores CSV</button>
+  </div>
+  <div>
+    <button id="printMap">Print Store List</button>
+  </div>
+
+  <div id="filterCount" style="font-weight:bold; margin-left:15px; min-width:180px;">
+    Showing 0 of 0 stores
+  </div>
+</div>
+
+<div id="map" style="flex:1;"></div>
+
+<div class="legend" id="legend">
+  <h4>Legend</h4>
+  <div class="legend-item"><div class="legend-color" style="background:blue"></div>Premium + Acosta</div>
+  <div class="legend-item"><div class="legend-color" style="background:green"></div>Premium Only</div>
+  <div class="legend-item"><div class="legend-color" style="background:orange"></div>Acosta Only</div>
+  <div class="legend-item"><div class="legend-color" style="background:red"></div>Uncovered</div>
+  <div class="legend-item">
+    <img src="https://cdn-icons-png.flaticon.com/512/190/190411.png" 
+         alt="Trainer Hub" 
+         style="height:18px; width:18px; margin-right:8px; vertical-align:middle;" />
+    Trainer Hub
+  </div>
+</div>
