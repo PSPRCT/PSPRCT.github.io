@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Premium Retail Trainer Map with Dynamic Filters & Toggles</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #filters {
+    background: #fafafa;
+    border-bottom: 1px solid #ddd;
+    padding: 12px 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: center;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.08);
+  }
+  #filters > div {
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+  label {
+    font-weight: 600;
+    margin-right: 8px;
+    white-space: nowrap;
+    color: #333;
+  }
+  select, input[type="text"], button {
+    padding: 6px 10px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  select[multiple] {
+    width: 170px;
+    height: 120px;
+  }
+  select:focus, input[type="text"]:focus {
+    outline: none;
+    border-color: #3399ff;
+    box-shadow: 0 0 6px rgba(51,153,255,0.6);
+  }
+  button {
+    cursor: pointer;
+    background: #3399ff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 15px;
+    font-weight: 600;
+    user-select: none;
+    transition: background-color 0.2s ease;
+  }
+  button:hover {
+    background: #2673cc;
+  }
+  #map {
+    flex: 1;
+    margin: 15px 15px 25px 15px;
+    border-radius: 10px;
+    box-shadow: 0 3px 12px rgb(0 0 0 / 0.1);
+  }
+
+  /* Modern toggle switches */
+  #toggles {
+    display: flex;
+    gap: 25px;
+    align-items: center;
+    margin-left: 10px;
+  }
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 24px;
+  }
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #ccc;
+    transition: .3s;
+    border-radius: 34px;
+  }
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+  }
+  .toggle-switch input:checked + .slider {
+    background-color: #3399ff;
+  }
+  .toggle-switch input:checked + .slider:before {
+    transform: translateX(22px);
+  }
+  /* Toggle label text */
+  .toggle-label-text {
+    margin-left: 8px;
+    font-weight: 500;
+    user-select: none;
+    color: #444;
+  }
+
+  /* Clear search button */
+  #searchClearBtn {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: #888;
+    padding: 0;
+    user-select: none;
+    transition: color 0.2s ease;
+  }
+  #searchClearBtn:hover {
+    color: #3399ff;
+  }
+  /* Position relative wrapper for search input */
+  #searchWrapper {
+    flex-grow: 1;
+    max-width: 320px;
+    position: relative;
+  }
+
+  /* Autocomplete dropdown styles */
+  #searchSuggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 160px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    background: white;
+    z-index: 1500;
+    font-size: 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    display: none;
+  }
+  #searchSuggestions div {
+    padding: 5px 8px;
+    cursor: pointer;
+  }
+  #searchSuggestions div.highlighted {
+    background-color: #3399FF;
+    color: white;
+  }
+
+  /* Responsive tweaks */
+  @media (max-width: 600px) {
+    #filters {
+      gap: 12px;
+    }
+    select[multiple] {
+      width: 140px;
+      height: 100px;
+    }
+    #searchWrapper {
+      max-width: 100%;
+    }
+    #toggles {
+      gap: 15px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div id="filters">
+  <div id="searchWrapper">
+    <label for="searchBox">Search store # or city:</label>
+    <input type="text" id="searchBox" autocomplete="off" placeholder="Search store # or city" style="width: 100%;" />
+    <button id="searchClearBtn" title="Clear search">&times;</button>
+    <div id="searchSuggestions"></div>
+  </div>
+
+  <div>
+    <label for="coverageFilter">Coverage Type:</label>
+    <select id="coverageFilter" multiple title="Select coverage types">
+      <option value="All">All</option>
+      <option value="Premium + Acosta" selected>Premium + Acosta</option>
+      <option value="Premium Only" selected>Premium Only</option>
+      <option value="Acosta Only">Acosta Only</option>
+      <option value="Uncovered">Uncovered</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="regionalFilter">Regional Manager:</label>
+    <select id="regionalFilter" multiple title="Select regional managers">
+      <option value="All" selected>All</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="areaFilter">Area Manager:</label>
+    <select id="areaFilter" multiple title="Select area managers">
+      <option value="All" selected>All</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="trainerHubFilter">Trainer Hub Filter:</label>
+    <select id="trainerHubFilter" multiple title="Select trainer hubs"></select>
+  </div>
+
+  <div>
+    <label for="zoomHub">Zoom to Hub:</label>
+    <select id="zoomHub" title="Select a trainer hub to zoom">
+      <option value="">-- Select Hub --</option>
+    </select>
+  </div>
+
+  <div id="toggles">
+    <label class="toggle-switch">
+      <input type="checkbox" id="toggleHubs" checked />
+      <span class="slider"></span>
+    </label>
+    <span class="toggle-label-text">Show Trainer Hubs</span>
+
+    <label class="toggle-switch">
+      <input type="checkbox" id="toggleRadius" checked />
+      <span class="slider"></span>
+    </label>
+    <span class="toggle-label-text">Show Coverage Radius</span>
+  </div>
+
+  <div>
+    <button id="resetFilters">Reset Filters</button>
+  </div>
+  <div>
+    <button id="exportVisibleCSV">Export Visible Stores CSV</button>
+  </div>
+  <div>
+    <button id="exportFilteredCSV">Export Filtered Stores CSV</button>
+  </div>
+  <div>
+    <button id="printMap">Print Store List</button>
+  </div>
+
+  <div id="filterCount" style="font-weight:bold; margin-left:15px; min-width:180px;">
+    Showing 0 of 0 stores
+  </div>
+</div>
+
+<div id="map"></div>
+
+<div class="legend" id="legend">
+  <h4>Legend</h4>
+  <div class="legend-item"><div class="legend-color" style="background:blue"></div>Premium + Acosta</div>
+  <div class="legend-item"><div class="legend-color" style="background:green"></div>Premium Only</div>
+  <div class="legend-item"><div class="legend-color" style="background:orange"></div>Acosta Only</div>
+  <div class="legend-item"><div class="legend-color" style="background:red"></div>Uncovered</div>
+  <div class="legend-item">
+    <img src="https://cdn-icons-png.flaticon.com/512/190/190411.png" alt="Trainer Hub" style="height:18px; width:18px; margin-right:8px; vertical-align:middle;">
+    Trainer Hub
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+(async function(){
+  const coverageColors = {
+    "Premium + Acosta": 'blue',
+    "Premium Only": 'green',
+    "Acosta Only": 'orange',
+    "Uncovered": 'red'
+  };
+
+  const trainerHubs = [
+    { name: "Athens, TN", coords: [35.45749, -84.6398] },
+    { name: "Belle Vernon, PA", coords: [40.12507, -79.8664] },
+    { name: "Blair, NE", coords: [41.5461, -96.1202] },
+    { name: "Casa Grande, AZ", coords: [32.89055, -111.754] },
+    { name: "Centennial, CO", coords: [39.62732, -104.779] },
+    { name: "Centerville, UT", coords: [40.92955, -111.89] },
+    { name: "Colton, CA", coords: [34.0739, -117.314] },
+    { name: "Coral Springs, FL", coords: [26.2882, -80.2522] },
+    { name: "Dallas, TX", coords: [32.96356, -96.7706] },
+    { name: "Dunwoody, GA", coords: [33.94254, -84.2696] },
+    { name: "Elk Grove Village, IL", coords: [42.00865, -87.9974] },
+    { name: "Fairfax, VA", coords: [38.85323, -77.3051] },
+    { name: "Fairlawn, OH", coords: [41.13315, -81.6352] },
+    { name: "Fort Wayne, IN", coords: [41.0654, -85.1584] },
+    { name: "Houston, TX", coords: [29.8535, -95.5095] },
+    { name: "Jefferson, WI", coords: [42.98769, -88.8079] },
+    { name: "Kansas City, MO", coords: [39.04512, -94.4429] },
+    { name: "Lakeland, FL", coords: [28.03591, -81.8997] },
+    { name: "Lincoln, IL", coords: [40.16278, -89.3984] },
+    { name: "Longview, TX", coords: [32.51785, -94.7303] },
+    { name: "Millington, TN", coords: [35.35767, -89.8977] },
+    { name: "Mobile, AL", coords: [30.70114, -88.1032] },
+    { name: "Muskogee, OK", coords: [35.70582, -95.5003] },
+    { name: "North Little Rock, AR", coords: [34.83217, -92.3949] },
+    { name: "Nashville, TN", coords: [36.16569, -86.7781] },
+    { name: "Newberry, SC", coords: [34.31003, -81.6086] },
+    { name: "Newcastle, OK", coords: [35.2936, -97.6065] },
+    { name: "Oneonta, AL", coords: [33.94815, -86.4728] },
+    { name: "Palatka, FL", coords: [29.69091, -81.7081] },
+    { name: "Parkesburg, PA", coords: [39.95872, -75.9194] },
+    { name: "Plainfield, IN", coords: [39.70421, -86.3994] },
+    { name: "Poulsbo, WA", coords: [47.75105, -122.614] },
+    { name: "Prairieville, LA", coords: [30.30297, -90.9721] },
+    { name: "Punta Gorda, FL", coords: [26.90299, -82.0462] },
+    { name: "Rogers, AR", coords: [36.31331, -94.1242] },
+    { name: "Roseville, MN", coords: [45.00608, -93.1566] },
+    { name: "Salem, OR", coords: [44.9429, -123.035] },
+    { name: "Salisbury, NC", coords: [35.68044, -80.4532] },
+    { name: "San Marcos, TX", coords: [29.97291, -97.9972] },
+    { name: "Secaucus, NJ", coords: [40.78885, -74.056] },
+    { name: "Shelbyville, KY", coords: [38.22245, -85.1721] },
+    { name: "Shrewsbury, MO", coords: [38.59033, -90.3368] },
+    { name: "Smithfield, NC", coords: [35.53654, -78.336] },
+    { name: "Stockton, CA", coords: [37.6722, -121.299] },
+    { name: "Waterloo, NY", coords: [42.89256, -76.8823] },
+    { name: "White Lake, MI", coords: [42.66065, -83.4676] },
+    { name: "Whiteville, NC", coords: [34.33878, -78.7031] },
+    { name: "Williamsburg, VA", coords: [37.31045, -76.7468] },
+    { name: "Wilmington, OH", coords: [39.44499, -83.8244] },
+    { name: "Worcester, MA", coords: [42.26528, -71.8794] }
+  ];
+
+  let allStores = [];
+  let filteredStores = [];
+  const storeMarkersMap = new Map();
+  let currentOpenPopup = null;
+  let hubsMarkers = [];
+  let coverageCircles = [];
+
+  function getDistanceMiles(lat1, lon1, lat2, lon2) {
+    const R = 3958.8;
+    const toRad = angle => angle * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  try {
+    const response = await fetch('store_data.json');
+    if (!response.ok) throw new Error('Failed to load store_data.json');
+    let rawStores = await response.json();
+
+    allStores = rawStores.map(s => ({
+      ...s,
+      city: s.city ? s.city.trim().toLowerCase() : '',
+      cityDisplay: s.city ? s.city.trim() : '',
+      state: s.state ? s.state.trim() : '',
+      trainerCity: s.trainerCity ? s.trainerCity.trim() : '',
+      storeNumber: s.storeNumber.toString()
+    }));
+  } catch (err) {
+    alert(err.message);
+    return;
+  }
+
+  const map = L.map('map').setView([39.5, -98.35], 5);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  const markers = L.markerClusterGroup();
+  map.addLayer(markers);
+
+  const hubIcon = L.icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/190/190411.png',
+    iconSize: [25, 25],
+    iconAnchor: [12, 25],
+    popupAnchor: [0, -25]
+  });
+
+  function addTrainerHubsAndCircles(hubsToShow) {
+    hubsMarkers.forEach(m => map.removeLayer(m));
+    coverageCircles.forEach(c => map.removeLayer(c));
+    hubsMarkers = [];
+    coverageCircles = [];
+
+    hubsToShow.forEach(hub => {
+      const coveredCount = allStores.filter(s => getDistanceMiles(hub.coords[0], hub.coords[1], s.latitude, s.longitude) <= 75).length;
+
+      const hubMarker = L.marker(hub.coords, { icon: hubIcon })
+        .bindPopup(`<b>${hub.name} — Trainer Hub</b><br>Stores covered within 75 miles: ${coveredCount}`)
+        .addTo(map);
+      hubsMarkers.push(hubMarker);
+
+      const circle = L.circle(hub.coords, {
+        radius: 75 * 1609.34,
+        color: 'purple',
+        weight: 1,
+        fillOpacity: 0.1,
+        dashArray: '5,10'
+      }).addTo(map);
+      coverageCircles.push(circle);
+    });
+  }
+
+  const regionalSet = new Set(allStores.map(s => s.regionalManager));
+  const areaSet = new Set(allStores.map(s => s.areaManager));
+
+  const regionalFilter = document.getElementById('regionalFilter');
+  const areaFilter = document.getElementById('areaFilter');
+  const zoomHubSelect = document.getElementById('zoomHub');
+  const trainerHubFilter = document.getElementById('trainerHubFilter');
+  const coverageFilter = document.getElementById('coverageFilter');
+  const toggleHubsCheckbox = document.getElementById('toggleHubs');
+  const toggleRadiusCheckbox = document.getElementById('toggleRadius');
+
+  function populateSelect(selectElem, optionsSet) {
+    [...selectElem.options].forEach(o => { if (o.value !== 'All') selectElem.removeChild(o); });
+    optionsSet.forEach(opt => {
+      const option = document.createElement('option');
+      option.value = opt;
+      option.textContent = opt;
+      selectElem.appendChild(option);
+    });
+  }
+
+  populateSelect(regionalFilter, regionalSet);
+  populateSelect(areaFilter, areaSet);
+
+  function updateTrainerHubFilter() {
+    const hubsWithStores = new Set();
+    trainerHubs.forEach(hub => {
+      const coversAny = filteredStores.some(store => getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude) <= 75);
+      if (coversAny) hubsWithStores.add(hub.name);
+    });
+
+    [...trainerHubFilter.options].forEach(option => {
+      if (option.value === '') return;
+      if (hubsWithStores.has(option.value)) {
+        option.disabled = false;
+        option.style.display = '';
+      } else {
+        option.disabled = true;
+        option.style.display = 'none';
+        option.selected = false;
+      }
+    });
+
+    [...zoomHubSelect.options].forEach(option => {
+      if (option.value === '') return;
+      const hub = trainerHubs.find(h => h.name === option.textContent);
+      if (!hub) return;
+      if (hubsWithStores.has(hub.name)) {
+        option.disabled = false;
+        option.style.display = '';
+      } else {
+        option.disabled = true;
+        option.style.display = 'none';
+        if (zoomHubSelect.value === option.value) {
+          zoomHubSelect.value = '';
+        }
+      }
+    });
+  }
+
+  trainerHubs.forEach(hub => {
+    const option = document.createElement('option');
+    option.value = JSON.stringify(hub.coords);
+    option.textContent = hub.name;
+    zoomHubSelect.appendChild(option);
+  });
+
+  function populateTrainerHubFilterOptions() {
+    trainerHubFilter.innerHTML = '';
+    trainerHubs.forEach(hub => {
+      const option = document.createElement('option');
+      option.value = hub.name;
+      option.textContent = hub.name;
+      trainerHubFilter.appendChild(option);
+    });
+  }
+  populateTrainerHubFilterOptions();
+
+  zoomHubSelect.addEventListener('change', () => {
+    if (zoomHubSelect.value) {
+      const coords = JSON.parse(zoomHubSelect.value);
+      map.setView(coords, 11);
+    }
+  });
+
+  regionalFilter.addEventListener('change', () => {
+    const selectedRegionals = Array.from(regionalFilter.selectedOptions).map(o => o.value);
+    if (selectedRegionals.includes('All')) {
+      populateSelect(areaFilter, areaSet);
+    } else {
+      const filteredAreas = new Set(allStores.filter(s => selectedRegionals.includes(s.regionalManager)).map(s => s.areaManager));
+      populateSelect(areaFilter, filteredAreas);
+    }
+    areaFilter.querySelector('option[value="All"]').selected = true;
+    onFilterChange();
+  });
+
+  areaFilter.addEventListener('change', onFilterChange);
+  trainerHubFilter.addEventListener('change', onFilterChange);
+  coverageFilter.addEventListener('change', onFilterChange);
+
+  toggleHubsCheckbox.addEventListener('change', () => {
+    if (toggleHubsCheckbox.checked) {
+      hubsMarkers.forEach(m => m.addTo(map));
+    } else {
+      hubsMarkers.forEach(m => map.removeLayer(m));
+    }
+  });
+
+  toggleRadiusCheckbox.addEventListener('change', () => {
+    if (toggleRadiusCheckbox.checked) {
+      coverageCircles.forEach(c => c.addTo(map));
+    } else {
+      coverageCircles.forEach(c => map.removeLayer(c));
+    }
+  });
+
+  function filterStores() {
+    const selectedCoverage = Array.from(coverageFilter.selectedOptions).map(o => o.value);
+    const selectedRegional = Array.from(regionalFilter.selectedOptions).map(o => o.value);
+    const selectedArea = Array.from(areaFilter.selectedOptions).map(o => o.value);
+    const selectedTrainerHubs = Array.from(trainerHubFilter.selectedOptions).map(o => o.value);
+
+    filteredStores = allStores.filter(store => {
+      const covMatch = selectedCoverage.includes('All') || selectedCoverage.includes(store.coverageType);
+      const regMatch = selectedRegional.includes('All') || selectedRegional.includes(store.regionalManager);
+      const areaMatch = selectedArea.includes('All') || selectedArea.includes(store.areaManager);
+
+      if (selectedTrainerHubs.length === 0) {
+        return covMatch && regMatch && areaMatch;
+      }
+
+      return selectedTrainerHubs.some(hubName => {
+        const hub = trainerHubs.find(h => h.name === hubName);
+        if (!hub) return false;
+        return getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude) <= 75;
+      }) && covMatch && regMatch && areaMatch;
+    });
+  }
+
+  function addLazyLoadedMarkers(stores) {
+    markers.clearLayers();
+    storeMarkersMap.clear();
+
+    const bounds = map.getBounds();
+    const bufferLat = 50 / 69;
+
+    const extendedBounds = L.latLngBounds(
+      [bounds.getSouth() - bufferLat, bounds.getWest() - bufferLat],
+      [bounds.getNorth() + bufferLat, bounds.getEast() + bufferLat]
+    );
+
+    stores.filter(store => extendedBounds.contains([store.latitude, store.longitude]))
+      .forEach(store => {
+        const marker = L.circleMarker([store.latitude, store.longitude], {
+          radius: 6,
+          color: coverageColors[store.coverageType] || 'gray',
+          fillColor: coverageColors[store.coverageType] || 'gray',
+          fillOpacity: 0.8,
+          weight: 1
+        }).bindPopup(`
+          <strong>Store #${store.storeNumber}</strong><br>
+          ${store.storeName}<br>
+          ${store.address}<br>
+          ${store.cityDisplay}, ${store.state}<br>
+          Coverage: ${store.coverageType}<br>
+          Trainer City: ${store.trainerCity}<br>
+          Area Manager: ${store.areaManager}<br>
+          Regional Manager: ${store.regionalManager}
+        `);
+        markers.addLayer(marker);
+        storeMarkersMap.set(store.storeNumber.replace(/^0+/, ''), marker);
+      });
+  }
+
+  function updateFilterCount() {
+    document.getElementById('filterCount').textContent =
+      `Showing ${filteredStores.length} of ${allStores.length} stores`;
+  }
+
+  function onFilterChange() {
+    filterStores();
+    addLazyLoadedMarkers(filteredStores);
+    updateFilterCount();
+
+    updateTrainerHubFilter();
+
+    const hubsToShow = trainerHubs.filter(hub => {
+      return filteredStores.some(store => getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude) <= 75);
+    });
+    addTrainerHubsAndCircles(hubsToShow);
+
+    if (!toggleHubsCheckbox.checked) hubsMarkers.forEach(m => map.removeLayer(m));
+    if (!toggleRadiusCheckbox.checked) coverageCircles.forEach(c => map.removeLayer(c));
+  }
+
+  ['coverageFilter', 'regionalFilter', 'areaFilter', 'trainerHubFilter'].forEach(id => {
+    document.getElementById(id).addEventListener('change', onFilterChange);
+  });
+
+  document.getElementById('resetFilters').addEventListener('click', () => {
+    for (let option of coverageFilter.options) {
+      option.selected = (option.value === "Premium + Acosta" || option.value === "Premium Only");
+    }
+    ['regionalFilter', 'areaFilter'].forEach(id => {
+      const sel = document.getElementById(id);
+      for (let option of sel.options) {
+        option.selected = (option.value === "All");
+      }
+    });
+    trainerHubFilter.selectedIndex = -1;
+    zoomHubSelect.value = "";
+    map.setView([39.5, -98.35], 5);
+    onFilterChange();
+  });
+
+  // Export CSV and Print functionality
+
+  document.getElementById('exportFilteredCSV').addEventListener('click', () => {
+    if (filteredStores.length === 0) {
+      alert('No filtered stores to export.');
+      return;
+    }
+    const headers = ['Store Number', 'Store Name', 'Address', 'City', 'State', 'Coverage Type', 'Trainer City', 'Area Manager', 'Regional Manager'];
+    const csvRows = [headers.join(',')];
+    filteredStores.forEach(s => {
+      const row = [
+        `"${s.storeNumber}"`,
+        `"${s.storeName.replace(/"/g, '""')}"`,
+        `"${s.address.replace(/"/g, '""')}"`,
+        `"${s.cityDisplay.replace(/"/g, '""')}"`,
+        `"${s.state}"`,
+        `"${s.coverageType}"`,
+        `"${s.trainerCity}"`,
+        `"${s.areaManager}"`,
+        `"${s.regionalManager}"`
+      ];
+      csvRows.push(row.join(','));
+    });
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'filtered_stores.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('exportVisibleCSV').addEventListener('click', () => {
+    const visibleStores = filteredStores.filter(store => map.getBounds().contains([store.latitude, store.longitude]));
+    if (visibleStores.length === 0) {
+      alert('No visible stores to export.');
+      return;
+    }
+    const headers = ['Store Number', 'Store Name', 'Address', 'City', 'State', 'Coverage Type', 'Trainer City', 'Area Manager', 'Regional Manager'];
+    const csvRows = [headers.join(',')];
+    visibleStores.forEach(s => {
+      const row = [
+        `"${s.storeNumber}"`,
+        `"${s.storeName.replace(/"/g, '""')}"`,
+        `"${s.address.replace(/"/g, '""')}"`,
+        `"${s.cityDisplay.replace(/"/g, '""')}"`,
+        `"${s.state}"`,
+        `"${s.coverageType}"`,
+        `"${s.trainerCity}"`,
+        `"${s.areaManager}"`,
+        `"${s.regionalManager}"`
+      ];
+      csvRows.push(row.join(','));
+    });
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'visible_stores.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('printMap').addEventListener('click', () => {
+    const tbody = document.getElementById('printableBody');
+    tbody.innerHTML = '';
+    filteredStores.forEach(store => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${store.storeNumber}</td>
+        <td>${store.storeName}</td>
+        <td>${store.address}</td>
+        <td>${store.cityDisplay}</td>
+        <td>${store.state}</td>
+        <td>${store.coverageType}</td>
+        <td>${store.trainerCity}</td>
+        <td>${store.areaManager}</td>
+        <td>${store.regionalManager}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+    document.getElementById('printable').style.display = 'block';
+    window.print();
+    document.getElementById('printable').style.display = 'none';
+  });
+
+  // Search with autosuggest and popup opening
+
+  const searchBox = document.getElementById('searchBox');
+  const searchClearBtn = document.getElementById('searchClearBtn');
+  const suggestionsBox = document.getElementById('searchSuggestions');
+  let selectedSuggestionIndex = -1;
+  let suggestionResults = [];
+
+  function closeSuggestions() {
+    suggestionsBox.style.display = 'none';
+    selectedSuggestionIndex = -1;
+    suggestionResults = [];
+  }
+
+  function openPopupForMarker(marker) {
+    if (currentOpenPopup) currentOpenPopup.closePopup();
+    marker.openPopup();
+    currentOpenPopup = marker;
+  }
+
+  function zoomToMarker(marker, zoomLevel=14) {
+    map.setView(marker.getLatLng(), zoomLevel);
+  }
+
+  function populateSuggestions(term) {
+    const t = term.toLowerCase();
+    if (!t) {
+      closeSuggestions();
+      onFilterChange();
+      return;
+    }
+    suggestionResults = allStores.filter(store => {
+      const storeNumNoLeadingZeros = store.storeNumber.replace(/^0+/, '');
+      return storeNumNoLeadingZeros === t
+          || store.storeNumber.toLowerCase().includes(t)
+          || store.city.toLowerCase().includes(t)
+          || store.cityDisplay.toLowerCase().includes(t);
+    }).slice(0, 20);
+
+    if (suggestionResults.length === 0) {
+      closeSuggestions();
+      return;
+    }
+
+    suggestionsBox.innerHTML = '';
+    suggestionResults.forEach((store, idx) => {
+      const div = document.createElement('div');
+      div.textContent = `#${store.storeNumber} - ${store.storeName} (${store.cityDisplay}, ${store.state})`;
+      div.dataset.index = idx;
+      div.addEventListener('click', () => {
+        selectSuggestion(idx);
+      });
+      suggestionsBox.appendChild(div);
+    });
+    suggestionsBox.style.display = 'block';
+    selectedSuggestionIndex = -1;
+  }
+
+  function selectSuggestion(index) {
+    if (index < 0 || index >= suggestionResults.length) return;
+    const store = suggestionResults[index];
+    searchBox.value = `#${store.storeNumber} - ${store.storeName} (${store.cityDisplay})`;
+    closeSuggestions();
+
+    // Update filters to show only the selected store
+    filteredStores = [store];
+    addLazyLoadedMarkers(filteredStores);
+    updateFilterCount();
+
+    const markerKey = store.storeNumber.replace(/^0+/, '');
+    const marker = storeMarkersMap.get(markerKey);
+    if (marker) {
+      zoomToMarker(marker);
+      openPopupForMarker(marker);
+    }
+  }
+
+  searchBox.addEventListener('input', () => {
+    populateSuggestions(searchBox.value.trim());
+  });
+
+  searchBox.addEventListener('keydown', e => {
+    if (suggestionsBox.style.display === 'none') return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (selectedSuggestionIndex < suggestionResults.length - 1) {
+        selectedSuggestionIndex++;
+        highlightSuggestion(selectedSuggestionIndex);
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (selectedSuggestionIndex > 0) {
+        selectedSuggestionIndex--;
+        highlightSuggestion(selectedSuggestionIndex);
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedSuggestionIndex >= 0) {
+        selectSuggestion(selectedSuggestionIndex);
+      }
+    } else if (e.key === 'Escape') {
+      closeSuggestions();
+    }
+  });
+
+  function highlightSuggestion(index) {
+    [...suggestionsBox.children].forEach(child => child.classList.remove('highlighted'));
+    if (index >= 0 && index < suggestionsBox.children.length) {
+      suggestionsBox.children[index].classList.add('highlighted');
+    }
+  }
+
+  searchClearBtn.addEventListener('click', () => {
+    searchBox.value = '';
+    closeSuggestions();
+    zoomHubSelect.value = '';
+    map.setView([39.5, -98.35], 5);
+    onFilterChange();
+    searchBox.focus();
+  });
+
+  document.addEventListener('click', e => {
+    if (!searchBox.contains(e.target) && !suggestionsBox.contains(e.target)) {
+      closeSuggestions();
+    }
+  });
+
+  // Initial load
+  onFilterChange();
+
+})();
+</script>
+
+</body>
+</html>
