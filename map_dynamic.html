@@ -294,7 +294,7 @@
     <button id="exportFilteredCSV">Export Filtered Stores CSV</button>
   </div>
   <div>
-    <button id="printBtn">Print Store List</button>
+    <button id="printMap">Print Store List</button>
   </div>
 
   <div id="filterCount" style="font-weight:bold; margin-left:15px; min-width:180px;">
@@ -902,7 +902,8 @@
       alert("No store markers currently visible to print.");
       return;
     }
-
+// 🔁 Trigger initial rendering of markers
+applyFilters();
     let content = `<h2>Visible Store List</h2><ul>`;
     rows.forEach(marker => {
       const data = JSON.parse(marker.dataset.storeInfo);
