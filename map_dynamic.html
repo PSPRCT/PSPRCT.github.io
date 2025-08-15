@@ -285,51 +285,35 @@
     </select>
   </div>
 
-div id="toggles
-/* Row layout */
-.toggles-row{display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin-left:10px}
+<div id="toggles" class="toggles-row">
+  <label class="toggle-inline" title="Show accepted trainer hubs">
+    <span class="text">Accepted hubs</span>
+    <input type="checkbox" id="toggleHubs" checked role="switch" aria-label="Show accepted hubs" />
+    <span class="tgl-slider" aria-hidden="true"></span>
+  </label>
 
-/* “Pill” toggle that includes its text */
-.toggle-inline{
-  display:inline-flex;align-items:center;gap:10px;
-  padding:6px 10px;border:1px solid #e5e7eb;border-radius:999px;
-  background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);cursor:pointer;
-}
-.toggle-inline .text{font-weight:600;color:#333;}
+  <label class="toggle-inline" title="Show coverage radius circles">
+    <span class="text">Coverage radius</span>
+    <input type="checkbox" id="toggleRadius" checked role="switch" aria-label="Show coverage radius" />
+    <span class="tgl-slider" aria-hidden="true"></span>
+  </label>
 
-/* Reuse the same slider visuals for this pattern */
-.toggle-inline input{opacity:0;width:0;height:0;position:absolute;}
-.toggle-inline .slider{
-  position:relative;display:inline-block;width:46px;height:24px;background:#ccc;border-radius:34px;transition:.3s;flex-shrink:0;
-}
-.toggle-inline .slider:before{
-  content:"";position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;
-}
-.toggle-inline input:checked + .slider{background:#3399ff;}
-.toggle-inline input:checked + .slider:before{transform:translateX(22px);}
-
-/* Radius sub-group keeps the slider visually tied to its label */
-.radius-group{display:inline-flex;align-items:center;gap:10px;padding:6px 10px;border-radius:999px;border:1px solid #e5e7eb;background:#fff}
-.radius-group .radius-title{font-weight:600;color:#333}
-.radius-group input[type="range"]{width:120px}
-
-/* Small screens */
-@media (max-width: 700px){
-  .toggles-row{gap:10px}
-  .toggle-inline{padding:6px 8px}
-  .radius-group{flex-wrap:wrap}
-}
+  <div class="radius-group">
+    <span class="radius-title">Radius:</span>
+    <input type="range" id="radiusMiles" min="25" max="150" step="5" value="75" />
+    <span id="radiusLabel">75 mi</span>
+  </div>
 
   <label class="toggle-inline" title="Allow changing the default 75mi radius">
     <span class="text">Custom radius</span>
     <input type="checkbox" id="allowCustomRadius" role="switch" aria-label="Allow custom radius" />
-    <span class="slider" aria-hidden="true"></span>
+    <span class="tgl-slider" aria-hidden="true"></span>
   </label>
 
   <label class="toggle-inline" title="Show placeholder open hubs">
     <span class="text">Open hubs</span>
     <input type="checkbox" id="showOpenHubs" checked role="switch" aria-label="Show open hubs" />
-    <span class="slider" aria-hidden="true"></span>
+    <span class="tgl-slider" aria-hidden="true"></span>
   </label>
 </div>
 
