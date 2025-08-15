@@ -227,7 +227,7 @@
   border: 2px solid #fff;
   box-shadow: 0 0 0 1px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.15);
 }
-.hub-accepted { background: #2e7d32; } /* green */
+.hub-accepted { background: #6a1b9a; } /* purple */
 .hub-open { background: #9e9e9e; }     /* gray */
 .hub-badge {
   display:inline-block; padding:2px 6px; border-radius:10px; font-size:12px; font-weight:600; color:#fff;
@@ -235,8 +235,9 @@
 .hub-badge.accepted { background:#2e7d32; }
 .hub-badge.open { background:#9e9e9e; }
 #hubCount { font-weight: 600; font-size: 14px; color: #333; }
-.hubCount-accepted { color: #2e7d32; } /* green */
-.hubCount-open { color: #9e9e9e; }     /* gray */
+.hubCount-accepted { color: #6a1b9a; } /* match Accepted Hub purple */
+.hubCount-open { color: #9e9e9e; }     /* match Open Hub gray */
+
 
 </style>
 </head>
@@ -334,8 +335,9 @@
   <div class="legend-item"><div class="legend-color" style="background:green"></div>Premium Only</div>
   <div class="legend-item"><div class="legend-color" style="background:orange"></div>Acosta Only</div>
   <div class="legend-item"><div class="legend-color" style="background:red"></div>Uncovered</div>
-  <div class="legend-item"><span class="legend-color" style="background:#2e7d32"></span>Accepted Hub</div>
-  <div class="legend-item"><span class="legend-color" style="background:#9e9e9e"></span>Open Hub</div>
+<div class="legend-item"><span class="legend-color" style="background:#6a1b9a"></span>Accepted Hub</div>
+<div class="legend-item"><span class="legend-color" style="background:#9e9e9e"></span>Open Hub</div>
+
 </div>
 
 
@@ -442,6 +444,7 @@
     const response = await fetch('store_data.json');
     if (!response.ok) throw new Error('Failed to load store_data.json');
     let rawStores = await response.json();
+console.log('Loaded stores:', Array.isArray(rawStores) ? rawStores.length : '(not an array)');
 
     allStores = rawStores.map(s => ({
       ...s,
@@ -736,6 +739,17 @@ if (!toggleRadiusCheckbox.checked) coverageCircles.forEach(c => map.removeLayer(
     getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude) <= 75
   );
 });
+// ---- Hub counter + render (ADD these lines) ----
+const acceptedCount = hubsToShow.filter(h => h.status === 'accepted').length;
+const openCount = hubsToShow.filter(h => h.status === 'open').length;
+document.getElementById('hubCount')?.innerHTML =
+  `Hubs shown: <span class="hubCount-accepted">${acceptedCount} accepted</span> / <span class="hubCount-open">${openCount} open</span>`;
+
+addTrainerHubsAndCircles(hubsToShow);
+
+if (!toggleHubsCheckbox.checked) hubsMarkers.forEach(m => map.removeLayer(m));
+if (!toggleRadiusCheckbox.checked) coverageCircles.forEach(c => map.removeLayer(c));
+// ---- end add ----
 
 
   document.getElementById('resetFilters').addEventListener('click', () => {
