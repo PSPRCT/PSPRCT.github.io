@@ -604,10 +604,10 @@ function applyStateFromObject(s){
 // Load state from URL hash (#s=<urlencoded json>) if present
 function loadStateFromHash(){
   if (!location.hash.startsWith('#s=')) return false;
-  if (typeof s.v === 'undefined') { s.v = 0; }
-
   try {
     const s = JSON.parse(decodeURIComponent(location.hash.slice(3)));
+    if (typeof s.v === 'undefined') { s.v = 0; }
+
     applyStateFromObject(s);
     return true;
   } catch(err){
@@ -634,17 +634,17 @@ function getDistanceMiles(lat1, lon1, lat2, lon2, lat1Rad, lon1Rad, lat2Rad, lon
     if (!response.ok) throw new Error('Failed to load store_data.json');
     const rawStores = await response.json();
 
-    allStores = rawStores.map(s => ({
-      ...s,
-      city: s.city ? s.city.trim().toLowerCase() : '',
-      cityDisplay: s.city ? s.city.trim() : '',
-      state: s.state ? s.state.trim() : '',
-      trainerCity: s.trainerCity ? s.trainerCity.trim() : '',
-      storeNumber: s.storeNumber.toString()
-      latRad: (s.latitude ?? 0) * Math.PI/180,
-lngRad: (s.longitude ?? 0) * Math.PI/180,
+allStores = rawStores.map(s => ({
+  ...s,
+  city: s.city ? s.city.trim().toLowerCase() : '',
+  cityDisplay: s.city ? s.city.trim() : '',
+  state: s.state ? s.state.trim() : '',
+  trainerCity: s.trainerCity ? s.trainerCity.trim() : '',
+  storeNumber: s.storeNumber.toString(),
+  latRad: (s.latitude ?? 0) * Math.PI/180,
+  lngRad: (s.longitude ?? 0) * Math.PI/180,
+}));
 
-    }));
   } catch (err) {
     alert(err.message);
     return;
@@ -692,8 +692,10 @@ map.on('moveend zoomend', updateInViewCount);
   if (radiusInput) { radiusInput.disabled = true; radiusInput.value = 75; }
   if (radiusLabel) radiusLabel.textContent = '75 mi';
 
-  const getRadiusMiles = () =>
-  function typeAllowed(hub){
+const getRadiusMiles = () =>
+  (allowCustom && allowCustom.checked ? (parseInt(radiusInput.value, 10) || 75) : 75);
+
+function typeAllowed(hub){
   return (hub.status === 'accepted' && toggleHubsCheckbox.checked) ||
          (hub.status === 'open' && showOpenHubsCheckbox.checked);
 }
@@ -701,13 +703,12 @@ function findNearestAllowedHub(store){
   let best=null, bestD=Infinity;
   for (const h of trainerHubs){
     if (!typeAllowed(h)) continue;
-    const d = getDistanceMiles(h.coords[0], h.coords[1], store.latitude, store.longitude);
+    const d = getDistanceMiles(h.coords[0], h.coords[1], store.latitude, store.longitude, h.latRad, h.lngRad, store.latRad, store.lngRad);
     if (d < bestD){ bestD = d; best = h; }
   }
   return { hub: best, miles: bestD };
 }
 
-    allowCustom && allowCustom.checked ? (parseInt(radiusInput.value, 10) || 75) : 75;
 
 if (radiusInput) radiusInput.addEventListener('input', () => {
   radiusLabel.textContent = `${getRadiusMiles()} mi`;
@@ -1016,9 +1017,10 @@ function filterStores() {
     const areaMatch = selectedArea.includes('All') || selectedArea.includes(store.areaManager);
 
     // Only keep stores within the chosen hub radius (if any hub constraint is active)
-    const hubMatch = !hubCoordsList.length || hubCoordsList.some(([lat,lng]) =>
-     hubCoordsList.some(([lat,lng]) => getDistanceMiles(lat, lng, store.latitude, store.longitude, undefined, undefined, store.latRad, store.lngRad) <= getRadiusMiles())
-    );
+const hubMatch = !hubCoordsList.length || hubCoordsList.some(([lat,lng]) =>
+  getDistanceMiles(lat, lng, store.latitude, store.longitude, undefined, undefined, store.latRad, store.lngRad) <= getRadiusMiles()
+);
+
 
     return covMatch && regMatch && areaMatch && hubMatch;
   });
@@ -1081,6 +1083,8 @@ const marker = L.circleMarker([store.latitude, store.longitude], {
       // 1) filter + draw stores
       filterStores();
       addLazyLoadedMarkers(filteredStores);
+      updateInViewCount();
+
       updateFilterCount();
       updateKPI();
 renderHeatmapIfOn();
@@ -1100,8 +1104,9 @@ renderHeatmapIfOn();
         if (!typeAllowed) return false;
 
         return filteredStores.some(store =>
-          getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude) <= getRadiusMiles()
-        );
+  getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude, hub.latRad, hub.lngRad, store.latRad, store.lngRad) <= getRadiusMiles()
+);
+
       });
 // compute covered counts for export and rendering
 lastHubsToShow = hubsToShow.map(h => ({
@@ -1258,6 +1263,15 @@ function renderHeatmapIfOn(){
   heatLayer = L.heatLayer(pts, { radius: 25, blur: 15 });
   heatLayer.addTo(map);
 }
+  document.addEventListener('click', (e) => {
+  const a = e.target.closest('a.zoom-both');
+  if (!a) return;
+  e.preventDefault();
+  const slat = parseFloat(a.dataset.slat), slng = parseFloat(a.dataset.slng);
+  const hlat = parseFloat(a.dataset.hlat), hlng = parseFloat(a.dataset.hlng);
+  map.fitBounds(L.latLngBounds([[slat,slng],[hlat,hlng]]), { padding:[30,30] });
+});
+
 const heatToggle = document.getElementById('toggleHeatmap');
 if (heatToggle) heatToggle.addEventListener('change', renderHeatmapIfOn);
 
@@ -1300,14 +1314,7 @@ exportHubsBtn.addEventListener('click', () => {
       h.coveredCount
     ].join(','));
   });
-  document.addEventListener('click', (e) => {
-  const a = e.target.closest('a.zoom-both');
-  if (!a) return;
-  e.preventDefault();
-  const slat = parseFloat(a.dataset.slat), slng = parseFloat(a.dataset.slng);
-  const hlat = parseFloat(a.dataset.hlat), hlng = parseFloat(a.dataset.hlng);
-  map.fitBounds(L.latLngBounds([[slat,slng],[hlat,hlng]]), { padding:[30,30] });
-});
+
 
   const csv = rows.join('\n');
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
