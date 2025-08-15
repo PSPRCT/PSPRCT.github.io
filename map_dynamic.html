@@ -74,56 +74,38 @@
     box-shadow: 0 3px 12px rgb(0 0 0 / 0.1);
   }
 
-  /* Modern toggle switches */
-  #toggles {
-    display: flex;
-    gap: 25px;
-    align-items: center;
-    margin-left: 10px;
-  }
-  .toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 46px;
-    height: 24px;
-  }
-  .toggle-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-  .slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-color: #ccc;
-    transition: .3s;
-    border-radius: 34px;
-  }
-  .slider:before {
-    position: absolute;
-    content: "";
-    height: 18px;
-    width: 18px;
-    left: 3px;
-    bottom: 3px;
-    background-color: white;
-    transition: .3s;
-    border-radius: 50%;
-  }
-  .toggle-switch input:checked + .slider {
-    background-color: #3399ff;
-  }
-  .toggle-switch input:checked + .slider:before {
-    transform: translateX(22px);
-  }
-  /* Toggle label text */
-  .toggle-label-text {
-    margin-left: 8px;
-    font-weight: 500;
-    user-select: none;
-    color: #444;
-  }
+
+/* --- New pill toggles (collision-safe) --- */
+.toggles-row{display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin-left:10px}
+.toggle-inline{
+  display:inline-flex;align-items:center;gap:10px;
+  padding:6px 10px;border:1px solid #e5e7eb;border-radius:999px;
+  background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);cursor:pointer;
+}
+.toggle-inline .text{font-weight:600;color:#333}
+.toggle-inline input{opacity:0;width:0;height:0;position:absolute}
+
+/* use .tgl-slider to avoid clashing with existing .slider styles */
+.toggle-inline .tgl-slider{
+  position:relative;display:inline-block;width:46px;height:24px;background:#ccc;border-radius:34px;transition:.3s;flex-shrink:0;
+}
+.toggle-inline .tgl-slider:before{
+  content:"";position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;
+}
+.toggle-inline input:checked + .tgl-slider{background:#3399ff}
+.toggle-inline input:checked + .tgl-slider:before{transform:translateX(22px)}
+
+/* radius group */
+.radius-group{display:inline-flex;align-items:center;gap:10px;padding:6px 10px;border-radius:999px;border:1px solid #e5e7eb;background:#fff}
+.radius-group .radius-title{font-weight:600;color:#333}
+.radius-group input[type="range"]{width:120px}
+
+@media (max-width:700px){
+  .toggles-row{gap:10px}
+  .toggle-inline{padding:6px 8px}
+  .radius-group{flex-wrap:wrap}
+}
+
 
   /* Clear search button */
   #searchClearBtn {
@@ -303,24 +285,7 @@
     </select>
   </div>
 
- <div id="toggles" class="toggles-row">
-  <label class="toggle-inline" title="Show accepted trainer hubs">
-    <span class="text">Accepted hubs</span>
-    <input type="checkbox" id="toggleHubs" checked role="switch" aria-label="Show accepted hubs" />
-    <span class="slider" aria-hidden="true"></span>
-  </label>
-
-  <label class="toggle-inline" title="Show coverage radius circles">
-    <span class="text">Coverage radius</span>
-    <input type="checkbox" id="toggleRadius" checked role="switch" aria-label="Show coverage radius" />
-    <span class="slider" aria-hidden="true"></span>
-  </label>
-
-  <div class="radius-group">
-    <span class="radius-title">Radius:</span>
-    <input type="range" id="radiusMiles" min="25" max="150" step="5" value="75" />
-    <span id="radiusLabel">75 mi</span>
-  </div>
+div id="toggles
 /* Row layout */
 .toggles-row{display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin-left:10px}
 
