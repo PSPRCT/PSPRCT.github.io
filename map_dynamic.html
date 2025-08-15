@@ -305,7 +305,8 @@
       <input type="checkbox" id="toggleHubs" checked />
       <span class="slider"></span>
     </label>
-    <span class="toggle-label-text">Show Trainer Hubs</span>
+    <span class="toggle-label-text">Show Accepted Hubs</span>
+
 
     <label class="toggle-switch">
       <input type="checkbox" id="toggleRadius" checked />
@@ -529,7 +530,8 @@ function addTrainerHubsAndCircles(hubsToShow) {
       .bindPopup(`
         <b>${hub.name}</b><br>
         ${badge}${person}<br>
-        Stores covered within 75 miles (filtered): ${coveredCount}
+       Stores covered within ${getRadiusMiles()} miles (filtered): ${coveredCount}
+
       `)
       .addTo(map);
 
@@ -838,68 +840,86 @@ async function onFilterChange() {
   const mask = document.getElementById('busyMask');
   if (mask) mask.hidden = false;
   try {
+    // 1) filter + draw stores
+    filterStores();
+    addLazyLoadedMarkers(filteredStores);
+    updateFilterCount();
 
-  // 1) filter + draw stores
-  filterStores();
-  addLazyLoadedMarkers(filteredStores);
-  updateFilterCount();
+    // 2) enable/disable hub options based on filtered stores
+    updateTrainerHubFilter();
 
-  // 2) enable/disable hub options based on filtered stores
-  updateTrainerHubFilter();
+    // 3) choose which hubs to show (accepted vs open as independent toggles)
+    const includeAccepted = toggleHubsCheckbox.checked;
+    const includeOpen     = showOpenHubsCheckbox.checked;
 
-  // 3) choose which hubs to show
-// Independent toggles: accepted vs open
-const includeAccepted = toggleHubsCheckbox.checked;   // accepted hubs
-const includeOpen     = showOpenHubsCheckbox.checked; // open hubs
+    const hubsToShow = trainerHubs.filter(hub => {
+      const typeAllowed =
+        (hub.status === 'accepted' && includeAccepted) ||
+        (hub.status === 'open'     && includeOpen);
+      if (!typeAllowed) return false;
 
-const hubsToShow = trainerHubs.filter(hub => {
-  const typeAllowed =
-    (hub.status === 'accepted' && includeAccepted) ||
-    (hub.status === 'open'     && includeOpen);
-  if (!typeAllowed) return false;
+      return filteredStores.some(store =>
+        getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude) <= getRadiusMiles()
+      );
+    });
 
-  return filteredStores.some(store =>
-    getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude) <= 75
-  );
-});
+    // 4) update hub counter (colored) and render hubs
+    const acceptedCount = hubsToShow.filter(h => h.status === 'accepted').length;
+    const openCount     = hubsToShow.filter(h => h.status === 'open').length;
+    const hubCountEl = document.getElementById('hubCount');
+    if (hubCountEl) {
+      hubCountEl.innerHTML =
+        `Hubs shown: <span class="hubCount-accepted">${acceptedCount} accepted</span> / ` +
+        `<span class="hubCount-open">${openCount} open</span>`;
+    }
 
+    addTrainerHubsAndCircles(hubsToShow);
 
-  // 4) update hub counter (colored) and render hubs
-  const acceptedCount = hubsToShow.filter(h => h.status === 'accepted').length;
-  const openCount = hubsToShow.filter(h => h.status === 'open').length;
-  const hubCountEl = document.getElementById('hubCount');
-  if (hubCountEl) {
-    hubCountEl.innerHTML =
-      `Hubs shown: <span class="hubCount-accepted">${acceptedCount} accepted</span> / <span class="hubCount-open">${openCount} open</span>`;
+    // 5) respect radius toggle for drawing
+    if (!toggleRadiusCheckbox.checked) coverageCircles.forEach(c => map.removeLayer(c));
+  } finally {
+    requestAnimationFrame(() => { if (mask) mask.hidden = true; });
   }
-
-  addTrainerHubsAndCircles(hubsToShow);
-
-  // 5) respect hub/radius toggles
-   if (!toggleRadiusCheckbox.checked) coverageCircles.forEach(c => map.removeLayer(c));
 }
 
 
 
-  document.getElementById('resetFilters').addEventListener('click', () => {
-    for (let option of coverageFilter.options) {
-      option.selected = (option.value === "Premium + Acosta" || option.value === "Premium Only");
-    }
-    ['regionalFilter', 'areaFilter'].forEach(id => {
-      const sel = document.getElementById(id);
-      for (let option of sel.options) {
-        option.selected = (option.value === "All");
-      }
-    });
-    trainerHubFilter.selectedIndex = -1;
-    zoomHubSelect.value = "";
-    map.setView([39.5, -98.35], 5);
-    onFilterChange();
-  });
     } finally {
     requestAnimationFrame(() => { if (mask) mask.hidden = true; });
   }
 }
+document.getElementById('resetFilters').addEventListener('click', () => {
+  // coverage defaults
+  for (let option of coverageFilter.options) {
+    option.selected = (option.value === "Premium + Acosta" || option.value === "Premium Only");
+  }
+
+  // managers back to All
+  ['regionalFilter', 'areaFilter'].forEach(id => {
+    const sel = document.getElementById(id);
+    Array.from(sel.options).forEach(o => o.selected = (o.value === "All"));
+  });
+
+  // hub filters cleared
+  trainerHubFilter.selectedIndex = -1;
+  zoomHubSelect.value = "";
+
+  // radius back to locked 75
+  allowCustom.checked = false;
+  radiusInput.disabled = true;
+  radiusInput.value = 75;
+  radiusLabel.textContent = '75 mi';
+
+  // toggles default
+  toggleHubsCheckbox.checked   = true;  // accepted hubs ON
+  toggleRadiusCheckbox.checked = true;  // circles ON
+  showOpenHubsCheckbox.checked = true;  // open hubs ON
+
+  // map + refresh + persist
+  map.setView([39.5, -98.35], 5);
+  onFilterChange();
+  saveState();
+});
 
 
   function fitToResults() {
