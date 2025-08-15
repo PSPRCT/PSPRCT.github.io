@@ -938,15 +938,16 @@ document.getElementById('printMap').addEventListener('click', () => {
   const searchClearBtn = document.getElementById('searchClearBtn');
   const suggestionsBox = document.getElementById('searchSuggestions');
 
-  // persist on changes
-  ['coverageFilter','regionalFilter','areaFilter','trainerHubFilter'].forEach(id =>
-    document.getElementById(id).addEventListener('change', saveState)
-  );
-  zoomHubSelect.addEventListener('change', saveState);
-  showOpenHubsCheckbox.addEventListener('change', saveState);
-  toggleHubsCheckbox.addEventListener('change', saveState);
-  toggleRadiusCheckbox.addEventListener('change', saveState);
-  searchBox.addEventListener('input', saveState);
+// persist on changes (now that searchBox exists)
+['coverageFilter','regionalFilter','areaFilter','trainerHubFilter'].forEach(id =>
+  document.getElementById(id).addEventListener('change', saveState)
+);
+zoomHubSelect.addEventListener('change', saveState);
+showOpenHubsCheckbox.addEventListener('change', saveState);
+toggleHubsCheckbox.addEventListener('change', saveState);
+toggleRadiusCheckbox.addEventListener('change', saveState);
+if (searchBox) searchBox.addEventListener('input', saveState);
+
 
   let selectedSuggestionIndex = -1;
   let suggestionResults = [];
