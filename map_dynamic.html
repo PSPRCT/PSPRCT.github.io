@@ -633,7 +633,24 @@
       hubsMarkers.push(hubMarker);
 
       /* Tooltip with live count */
-      hubMarker.bindTooltip(`${coveredCount} in ${getRadiusMiles()} mi`, {direction:'top', offset:[0,-8], sticky:true});
+     // Build a richer hover tooltip (total + mix + % uncovered + status/person)
+const storesInR = getStoresCoveredByHub(hub);
+const { counts, total, pctUncov } = summarizeCoverage(storesInR);
+const statusLabelTT = (hub.status === 'accepted') ? 'Staffed' : 'Open';
+const personTT = hub.person ? ` — ${escapeHtml(hub.person)}` : '';
+const ttHtml = `
+  <div class="hub-tooltip">
+    <div class="line1"><strong>${total}</strong> in ${getRadiusMiles()} mi — ${statusLabelTT}${personTT}</div>
+    <div class="mix">
+      <span><span class="dot blue"></span>P+A: ${counts['Premium + Acosta']||0}</span>
+      <span><span class="dot green"></span>Premium: ${counts['Premium Only']||0}</span>
+      <span><span class="dot orange"></span>Acosta: ${counts['Acosta Only']||0}</span>
+      <span><span class="dot red"></span>Uncovered: ${counts['Uncovered']||0} (${pctUncov}%)</span>
+    </div>
+  </div>
+`;
+hubMarker.bindTooltip(ttHtml, {direction:'top', offset:[0,-8], sticky:true, className:'leaflet-tooltip-own'});
+
 
       const circle = L.circle(hub.coords, {
         radius: getRadiusMiles() * 1609.34, color: 'purple', weight: 1, fillOpacity: 0.1, dashArray: '5,10'
