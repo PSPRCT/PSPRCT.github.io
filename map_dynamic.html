@@ -586,9 +586,10 @@ function closeHubPanel(){
   if (panel) panel.style.display = 'none';
   if (overlay) {
     overlay.style.display = 'none';
-    overlay.setAttribute('aria-hidden','true');
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.setAttribute('hidden', '');         // hide via [hidden]
   }
-}
+
 
 // Header & footer Close buttons
 const closeTopBtn = document.getElementById('hubPanelClose');
@@ -612,17 +613,24 @@ function openHubPanel(hub){
 
   panel.style.display = 'block';
   if (overlay) {
+    overlay.removeAttribute('hidden');          // SHOW via removing [hidden]
     overlay.style.display = 'block';
-    overlay.setAttribute('aria-hidden','false');
+    overlay.setAttribute('aria-hidden', 'false');
   }
 
   const btn = document.getElementById('exportHubPanelCsv');
   btn.onclick = () => exportStoresCsv(list, `stores_for_${hub.id}`);
 }
 
-// click outside (overlay) closes
-const hubOverlay = document.getElementById('hubOverlay');
-if (hubOverlay) hubOverlay.addEventListener('click', closeHubPanel);
+// one-time listeners (keep just one set)
+const hubOverlayEl = document.getElementById('hubOverlay');
+if (hubOverlayEl) hubOverlayEl.addEventListener('click', closeHubPanel);
+
+const closeTopBtn = document.getElementById('hubPanelClose');
+if (closeTopBtn) closeTopBtn.addEventListener('click', closeHubPanel);
+
+const closeFooterBtn = document.getElementById('hubPanelCloseFooter');
+if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeHubPanel);
 
 // Esc to close
 document.addEventListener('keydown', (e) => {
@@ -633,32 +641,6 @@ document.addEventListener('keydown', (e) => {
 });
 
   // helpers
-function closeHubPanel(){
-  const panel = document.getElementById('hubPanel');
-  const overlay = document.getElementById('hubOverlay');
-  if (panel) panel.style.display = 'none';
-  if (overlay) overlay.style.display = 'none', overlay.setAttribute('aria-hidden','true');
-}
-  document.getElementById('hubPanelCloseFooter')
-  .addEventListener('click', closeHubPanel);
-
-document.getElementById('hubPanelClose').addEventListener('click', closeHubPanel);
-
-// show overlay when opening the panel
-
-
-// click outside (overlay) closes
-const hubOverlay = document.getElementById('hubOverlay');
-if (hubOverlay) hubOverlay.addEventListener('click', closeHubPanel);
-
-// Esc to close (add to your existing document keydown handlers is fine too)
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    const panel = document.getElementById('hubPanel');
-    if (panel && panel.style.display === 'block') closeHubPanel();
-  }
-});
-
 
 // Build the current UI state (used by save/link)
 function getUIState(){
@@ -889,18 +871,6 @@ function exportStoresCsv(list, filename){
   const blob = new Blob(["\uFEFF"+rows.join('\n')], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob); const a=document.createElement('a');
   a.href=url; a.download = `${filename}.csv`; a.click(); URL.revokeObjectURL(url);
-}
-function openHubPanel(hub){
-  const panel = document.getElementById('hubPanel');
-  const list = getStoresCoveredByHub(hub);
-  panel.querySelector('.title').textContent = hub.name;
-  panel.querySelector('.summary').textContent = `${list.length} stores within ${getRadiusMiles()} mi`;
-  panel.querySelector('.list').innerHTML = list.slice(0,800).map(s =>
-    `<div class="row">#${escapeHtml(s.storeNumber)} — ${escapeHtml(s.cityDisplay)}, ${escapeHtml(s.state)}</div>`
-  ).join('');
-  panel.style.display = 'block';
-  const btn = document.getElementById('exportHubPanelCsv');
-  btn.onclick = () => exportStoresCsv(list, `stores_for_${hub.id}`);
 }
 
 
