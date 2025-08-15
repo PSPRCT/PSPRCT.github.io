@@ -644,13 +644,18 @@ function loadStateFromHash(){
   const getRadiusMiles = () =>
     allowCustom && allowCustom.checked ? (parseInt(radiusInput.value, 10) || 75) : 75;
 
-  if (radiusInput) radiusInput.addEventListener('input', () => {
-    radiusLabel.textContent = `${getRadiusMiles()} mi`;
-    onFilterChange();
-    if (zoomHubSelect.value) fitToHubArea(JSON.parse(zoomHubSelect.value));
+if (radiusInput) radiusInput.addEventListener('input', () => {
+  radiusLabel.textContent = `${getRadiusMiles()} mi`;
+  debouncedOnFilterChange();
+  saveState && saveState();
+});
+if (allowCustom) allowCustom.addEventListener('change', () => {
+  radiusInput.disabled = !allowCustom.checked;
+  radiusLabel.textContent = `${getRadiusMiles()} mi`;
+  debouncedOnFilterChange();
+  saveState && saveState();
+});
 
-    saveState && saveState();
-  });
   if (allowCustom) allowCustom.addEventListener('change', () => {
     radiusInput.disabled = !allowCustom.checked;
     radiusLabel.textContent = `${getRadiusMiles()} mi`;
@@ -700,9 +705,12 @@ function loadStateFromHash(){
     coverageCircles = [];
 
     hubsToShow.forEach(hub => {
-      const coveredCount = filteredStores.filter(s =>
-        getDistanceMiles(hub.coords[0], hub.coords[1], s.latitude, s.longitude) <= getRadiusMiles()
-      ).length;
+      const coveredCount = (typeof hub.coveredCount === 'number')
+  ? hub.coveredCount
+  : filteredStores.filter(
+      s => getDistanceMiles(hub.coords[0], hub.coords[1], s.latitude, s.longitude) <= getRadiusMiles()
+    ).length;
+
 
       const statusKey = hub.status === "accepted" ? "accepted" : "open";
       const badge = `<span class="hub-badge ${statusKey}">${statusKey.toUpperCase()}</span>`;
@@ -949,6 +957,8 @@ toggleHubsCheckbox.addEventListener('change', debouncedOnFilterChange);
       filterStores();
       addLazyLoadedMarkers(filteredStores);
       updateFilterCount();
+      updateKPI();
+
 
       // 2) enable/disable hub options based on filtered stores
       updateTrainerHubFilter();
@@ -967,6 +977,13 @@ toggleHubsCheckbox.addEventListener('change', debouncedOnFilterChange);
           getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude) <= getRadiusMiles()
         );
       });
+// compute covered counts for export and rendering
+lastHubsToShow = hubsToShow.map(h => ({
+  ...h,
+  coveredCount: filteredStores.filter(s =>
+    getDistanceMiles(h.coords[0], h.coords[1], s.latitude, s.longitude) <= getRadiusMiles()
+  ).length
+}));
 
       // 4) update hub counter + render hubs
       const acceptedCount = hubsToShow.filter(h => h.status === 'accepted').length;
@@ -978,7 +995,8 @@ toggleHubsCheckbox.addEventListener('change', debouncedOnFilterChange);
           `<span class="hubCount-open">${openCount} open</span>`;
       }
 
-      addTrainerHubsAndCircles(hubsToShow);
+addTrainerHubsAndCircles(lastHubsToShow);
+
 
       // 5) respect radius toggle
       if (!toggleRadiusCheckbox.checked) coverageCircles.forEach(c => map.removeLayer(c));
@@ -1264,16 +1282,18 @@ if (searchBox) searchBox.addEventListener('input', saveState);
 
     if (e.key === 'r') { document.getElementById('resetFilters').click(); }
     if (e.key === 'f') { fitToResults(); }
-    if (e.key === 'h') { toggleHubsCheckbox.checked = !toggleHubsCheckbox.checked; onFilterChange(); saveState(); }
-    if (e.key === 'o') { showOpenHubsCheckbox.checked = !showOpenHubsCheckbox.checked; onFilterChange(); saveState(); }
-    if (e.key === 'c') { toggleRadiusCheckbox.checked = !toggleRadiusCheckbox.checked; onFilterChange(); saveState(); }
+    if (e.key === 'h') { toggleHubsCheckbox.checked = !toggleHubsCheckbox.checked; debouncedOnFilterChange(); saveState(); }
+    if (e.key === 'o') { showOpenHubsCheckbox.checked = !showOpenHubsCheckbox.checked; debouncedOnFilterChange(); saveState(); }
+    if (e.key === 'c') { toggleRadiusCheckbox.checked = !toggleRadiusCheckbox.checked; debouncedOnFilterChange(); saveState(); }
     if (e.key === '/') { e.preventDefault(); searchBox.focus(); }
     if (e.key === 'z') { e.preventDefault(); zoomHubSelect.focus(); }
   });
 
-  // Initial restore + draw
-  loadState();
-  onFilterChange();
+ // Initial restore: prefer URL hash, otherwise localStorage
+const usedHash = loadStateFromHash();
+if (!usedHash) loadState();
+onFilterChange();
+
 })();
 </script>
 </body>
