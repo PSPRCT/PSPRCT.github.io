@@ -711,45 +711,38 @@ populateHubControls();
   }
 
   function onFilterChange() {
-    filterStores();
-    addLazyLoadedMarkers(filteredStores);
-    updateFilterCount();
+  // 1) filter + draw stores
+  filterStores();
+  addLazyLoadedMarkers(filteredStores);
+  updateFilterCount();
 
-    updateTrainerHubFilter();
+  // 2) enable/disable hub options based on filtered stores
+  updateTrainerHubFilter();
 
-const hubsToShow = trainerHubs.filter(hub => {
-  // Count accepted vs open hubs currently shown
-const acceptedCount = hubsToShow.filter(h => h.status === 'accepted').length;
-const openCount = hubsToShow.filter(h => h.status === 'open').length;
-document.getElementById('hubCount').innerHTML =
-  `Hubs shown: <span class="hubCount-accepted">${acceptedCount} accepted</span> / <span class="hubCount-open">${openCount} open</span>`;
+  // 3) choose which hubs to show
+  const hubsToShow = trainerHubs.filter(hub => {
+    if (!showOpenHubsCheckbox.checked && hub.status !== 'accepted') return false;
+    return filteredStores.some(store =>
+      getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude) <= 75
+    );
+  });
 
-// Draw hubs + circles for those hubs
-addTrainerHubsAndCircles(hubsToShow);
+  // 4) update hub counter (colored) and render hubs
+  const acceptedCount = hubsToShow.filter(h => h.status === 'accepted').length;
+  const openCount = hubsToShow.filter(h => h.status === 'open').length;
+  const hubCountEl = document.getElementById('hubCount');
+  if (hubCountEl) {
+    hubCountEl.innerHTML =
+      `Hubs shown: <span class="hubCount-accepted">${acceptedCount} accepted</span> / <span class="hubCount-open">${openCount} open</span>`;
+  }
 
-// Respect the hub/radius toggles
-if (!toggleHubsCheckbox.checked) hubsMarkers.forEach(m => map.removeLayer(m));
-if (!toggleRadiusCheckbox.checked) coverageCircles.forEach(c => map.removeLayer(c));
+  addTrainerHubsAndCircles(hubsToShow);
 
-  // If the toggle is OFF, hide any hub that isn't accepted
-  if (!showOpenHubsCheckbox.checked && hub.status !== 'accepted') return false;
+  // 5) respect hub/radius toggles
+  if (!toggleHubsCheckbox.checked) hubsMarkers.forEach(m => map.removeLayer(m));
+  if (!toggleRadiusCheckbox.checked) coverageCircles.forEach(c => map.removeLayer(c));
+}
 
-  // Only show hubs that cover at least one of the currently filtered stores
-  return filteredStores.some(store =>
-    getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude) <= 75
-  );
-});
-// ---- Hub counter + render (ADD these lines) ----
-const acceptedCount = hubsToShow.filter(h => h.status === 'accepted').length;
-const openCount = hubsToShow.filter(h => h.status === 'open').length;
-document.getElementById('hubCount')?.innerHTML =
-  `Hubs shown: <span class="hubCount-accepted">${acceptedCount} accepted</span> / <span class="hubCount-open">${openCount} open</span>`;
-
-addTrainerHubsAndCircles(hubsToShow);
-
-if (!toggleHubsCheckbox.checked) hubsMarkers.forEach(m => map.removeLayer(m));
-if (!toggleRadiusCheckbox.checked) coverageCircles.forEach(c => map.removeLayer(c));
-// ---- end add ----
 
 
   document.getElementById('resetFilters').addEventListener('click', () => {
