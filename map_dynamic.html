@@ -339,9 +339,7 @@
     <button id="resetFilters">Reset Filters</button>
     <button id="fitToResults">Fit to Results</button>
   </div>
-  <div>
-    <button id="exportVisibleCSV">Export Visible Stores CSV</button>
-  </div>
+ 
   <div>
     <button id="exportFilteredCSV">Export Filtered Stores CSV</button>
   </div>
@@ -652,18 +650,16 @@ if (radiusInput) radiusInput.addEventListener('input', () => {
 if (allowCustom) allowCustom.addEventListener('change', () => {
   radiusInput.disabled = !allowCustom.checked;
   radiusLabel.textContent = `${getRadiusMiles()} mi`;
+  if (zoomHubSelect.value) {
+    try { fitToHubArea(JSON.parse(zoomHubSelect.value)); } catch {}
+  }
   debouncedOnFilterChange();
   saveState && saveState();
 });
 
-  if (allowCustom) allowCustom.addEventListener('change', () => {
-    radiusInput.disabled = !allowCustom.checked;
-    radiusLabel.textContent = `${getRadiusMiles()} mi`;
-    onFilterChange();
-    if (zoomHubSelect.value) fitToHubArea(JSON.parse(zoomHubSelect.value));
+});
 
-    saveState && saveState();
-  });
+
 
   function populateHubControls() {
     // Zoom select
@@ -1080,6 +1076,43 @@ document.getElementById('printMap').addEventListener('click', () => {
 
   const panel = document.getElementById('printable');
   panel.style.display = 'block';
+document.getElementById('exportFilteredCSV').addEventListener('click', () => {
+  if (!filteredStores || filteredStores.length === 0) {
+    alert('No filtered stores to export.');
+    return;
+  }
+
+  const headers = [
+    'Store Number','Store Name','Address','City','State',
+    'Coverage Type','Trainer City','Area Manager','Regional Manager'
+  ];
+
+  const q = (v) => `"${String(v ?? '').replace(/"/g,'""')}"`;
+
+  const rows = [ headers.join(',') ];
+  for (const s of filteredStores) {
+    rows.push([
+      q(s.storeNumber),
+      q(s.storeName),
+      q(s.address),
+      q(s.cityDisplay),
+      q(s.state),
+      q(s.coverageType),
+      q(s.trainerCity),
+      q(s.areaManager),
+      q(s.regionalManager)
+    ].join(','));
+  }
+
+  const csv = rows.join('\n');
+  const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `filtered_stores_${filteredStores.length}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
 
   // Print, then hide the panel again
   setTimeout(() => {
