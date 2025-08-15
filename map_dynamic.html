@@ -244,17 +244,7 @@
 }
 .chip:hover{background:#2673cc;border-color:#2673cc}
 .chip-active{background:#ffe5e5;border-color:#ff9999;color:#b42318}
-  <!-- overlay (click to close) -->
-<div id="hubOverlay" aria-hidden="true" style="display:none;"></div>
-
-<!-- header -->
-<header>
-  <span class="title">Hub</span>
-  <button id="hubPanelClose" class="close" title="Close panel" aria-label="Close panel">
-    Close
-  </button>
-</header>
-
+ /* Hub panel + overlay (clean) */
 #hubPanel{
   position:absolute; top:130px; right:20px; width:340px; max-height:70vh; overflow:auto;
   background:#fff; border:1px solid #ddd; border-radius:12px; box-shadow:0 8px 20px rgba(0,0,0,.12);
@@ -263,56 +253,25 @@
 #hubPanel header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #eee;font-weight:700}
 #hubPanel .body{padding:10px 12px;font-size:13px}
 #hubPanel .list{max-height:52vh; overflow:auto; margin-top:8px}
-  <div class="footer">
-  <button id="hubPanelCloseFooter" class="close" title="Close panel" aria-label="Close panel">
-    Close
-  </button>
-</div>
-
 #hubPanel .row{padding:4px 0;border-bottom:1px dashed #eee}
-#hubPanel .close{background:transparent;border:none;font-size:18px;cursor:pointer}
-/* Dimmed backdrop behind the panel */
-#hubOverlay{
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.25);
-  z-index: 11000; /* just below #hubPanel (12000) */
-}
 
-/* Make the close control look like an obvious button */
+/* Obvious “Close” pill */
 #hubPanel .close{
-  background:#3399ff;
-  color:#fff;
-  border:0;
-  padding:6px 12px;
-  border-radius:999px;
-  font-size:13px;
-  font-weight:700;
-  cursor:pointer;
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
+  background:#3399ff; color:#fff; border:0; padding:6px 12px; border-radius:999px;
+  font-size:13px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
 }
-#hubPanel .close::before{
-  content:"×";
-  font-size:16px;
-  line-height:1;
-}
+#hubPanel .close::before{ content:"×"; font-size:16px; line-height:1; }
 #hubPanel .close:hover{ background:#2673cc; }
 
-#hubPanel .footer{
-  position: sticky;
-  bottom: 0;
-  background:#fff;
-  padding:10px 12px;
-  border-top:1px solid #eee;
-}
+/* Sticky footer with a full-width Close */
+#hubPanel .footer{ position:sticky; bottom:0; background:#fff; padding:10px 12px; border-top:1px solid #eee; }
+#hubPanel .footer .close{ width:100%; }
 
-/* reuse the same “close” pill style from the header */
-#hubPanel .footer .close{
-  width:100%;
+/* Dimmed backdrop */
+#hubOverlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.25); z-index:11000;
 }
-
+#hubOverlay[hidden]{ display:none !important; }
 
 </style>
 </head>
@@ -434,17 +393,27 @@
 <div id="hubCount"></div>
 
 <div id="map"></div>
-  <div id="hubPanel" aria-live="polite">
+<!-- Dimmed backdrop (click to close) -->
+<div id="hubOverlay" aria-hidden="true" hidden></div>
+
+<!-- Hub panel -->
+<div id="hubPanel" role="dialog" aria-modal="true" aria-live="polite">
   <header>
     <span class="title">Hub</span>
-    <button id="hubPanelClose" class="close" title="Close">&times;</button>
+    <button id="hubPanelClose" class="close" title="Close panel" aria-label="Close panel">Close</button>
   </header>
   <div class="body">
     <div class="summary"></div>
     <button id="exportHubPanelCsv">Export stores CSV</button>
     <div class="list"></div>
+
+    <!-- Sticky footer with another Close button -->
+    <div class="footer">
+      <button id="hubPanelCloseFooter" class="close" title="Close panel" aria-label="Close panel">Close</button>
+    </div>
   </div>
 </div>
+
 
 <div id="busyMask" class="busy-mask" hidden>
   <div class="spinner"></div>
@@ -615,6 +584,59 @@ function closeHubPanel(){
   const panel = document.getElementById('hubPanel');
   const overlay = document.getElementById('hubOverlay');
   if (panel) panel.style.display = 'none';
+  if (overlay) {
+    overlay.style.display = 'none';
+    overlay.setAttribute('aria-hidden','true');
+  }
+}
+
+// Header & footer Close buttons
+const closeTopBtn = document.getElementById('hubPanelClose');
+if (closeTopBtn) closeTopBtn.addEventListener('click', closeHubPanel);
+
+const closeFooterBtn = document.getElementById('hubPanelCloseFooter');
+if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeHubPanel);
+
+// show overlay when opening the panel
+function openHubPanel(hub){
+  const panel = document.getElementById('hubPanel');
+  const overlay = document.getElementById('hubOverlay');
+  const list = getStoresCoveredByHub(hub);
+
+  panel.querySelector('.title').textContent = hub.name;
+  panel.querySelector('.summary').textContent =
+    `${list.length} stores within ${getRadiusMiles()} mi`;
+  panel.querySelector('.list').innerHTML = list.slice(0,800).map(s =>
+    `<div class="row">#${escapeHtml(s.storeNumber)} — ${escapeHtml(s.cityDisplay)}, ${escapeHtml(s.state)}</div>`
+  ).join('');
+
+  panel.style.display = 'block';
+  if (overlay) {
+    overlay.style.display = 'block';
+    overlay.setAttribute('aria-hidden','false');
+  }
+
+  const btn = document.getElementById('exportHubPanelCsv');
+  btn.onclick = () => exportStoresCsv(list, `stores_for_${hub.id}`);
+}
+
+// click outside (overlay) closes
+const hubOverlay = document.getElementById('hubOverlay');
+if (hubOverlay) hubOverlay.addEventListener('click', closeHubPanel);
+
+// Esc to close
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const panel = document.getElementById('hubPanel');
+    if (panel && panel.style.display === 'block') closeHubPanel();
+  }
+});
+
+  // helpers
+function closeHubPanel(){
+  const panel = document.getElementById('hubPanel');
+  const overlay = document.getElementById('hubOverlay');
+  if (panel) panel.style.display = 'none';
   if (overlay) overlay.style.display = 'none', overlay.setAttribute('aria-hidden','true');
 }
   document.getElementById('hubPanelCloseFooter')
@@ -623,20 +645,7 @@ function closeHubPanel(){
 document.getElementById('hubPanelClose').addEventListener('click', closeHubPanel);
 
 // show overlay when opening the panel
-function openHubPanel(hub){
-  const panel = document.getElementById('hubPanel');
-  const overlay = document.getElementById('hubOverlay');
-  const list = getStoresCoveredByHub(hub);
-  panel.querySelector('.title').textContent = hub.name;
-  panel.querySelector('.summary').textContent = `${list.length} stores within ${getRadiusMiles()} mi`;
-  panel.querySelector('.list').innerHTML = list.slice(0,800).map(s =>
-    `<div class="row">#${escapeHtml(s.storeNumber)} — ${escapeHtml(s.cityDisplay)}, ${escapeHtml(s.state)}</div>`
-  ).join('');
-  panel.style.display = 'block';
-  if (overlay) overlay.style.display = 'block', overlay.setAttribute('aria-hidden','false');
-  const btn = document.getElementById('exportHubPanelCsv');
-  btn.onclick = () => exportStoresCsv(list, `stores_for_${hub.id}`);
-}
+
 
 // click outside (overlay) closes
 const hubOverlay = document.getElementById('hubOverlay');
@@ -893,9 +902,7 @@ function openHubPanel(hub){
   const btn = document.getElementById('exportHubPanelCsv');
   btn.onclick = () => exportStoresCsv(list, `stores_for_${hub.id}`);
 }
-document.getElementById('hubPanelClose').addEventListener('click', () => {
-  document.getElementById('hubPanel').style.display = 'none';
-});
+
 
   function addTrainerHubsAndCircles(hubsToShow) {
     hubsMarkers.forEach(m => map.removeLayer(m));
