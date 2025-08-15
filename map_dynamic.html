@@ -237,6 +237,18 @@
 #hubCount { font-weight: 600; font-size: 14px; color: #333; }
 .hubCount-accepted { color: #6a1b9a; } /* match Accepted Hub purple */
 .hubCount-open { color: #9e9e9e; }     /* match Open Hub gray */
+.busy-mask {
+  position: fixed; inset: 0; background: rgba(255,255,255,0.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 20000;
+}
+.spinner {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 4px solid rgba(0,0,0,0.15);
+  border-top-color: #3399ff;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 
 </style>
@@ -300,6 +312,17 @@
       <span class="slider"></span>
     </label>
     <span class="toggle-label-text">Show Coverage Radius</span>
+    <span style="margin-left:10px">
+  <label>Radius:</label>
+  <input type="range" id="radiusMiles" min="25" max="150" step="5" value="75" style="width:120px" />
+  <span id="radiusLabel">75 mi</span>
+</span>
+<label class="toggle-switch" title="Allow changing the 75 mi radius">
+  <input type="checkbox" id="allowCustomRadius" />
+  <span class="slider"></span>
+</label>
+<span class="toggle-label-text">Custom radius</span>
+
         <label class="toggle-switch" title="Show hubs that are still open placeholders">
       <input type="checkbox" id="showOpenHubs" checked />
       <span class="slider"></span>
@@ -310,6 +333,8 @@
 
   <div>
     <button id="resetFilters">Reset Filters</button>
+    <button id="fitToResults">Fit to Results</button>
+
   </div>
   <div>
     <button id="exportVisibleCSV">Export Visible Stores CSV</button>
@@ -328,6 +353,9 @@
 <div id="hubCount"></div>
 
 <div id="map"></div>
+<div id="busyMask" class="busy-mask" hidden>
+  <div class="spinner"></div>
+</div>
 
   <div class="legend" id="legend">
   <h4>Legend</h4>
@@ -489,8 +517,9 @@ function addTrainerHubsAndCircles(hubsToShow) {
 
   hubsToShow.forEach(hub => {
     const coveredCount = filteredStores.filter(
-      s => getDistanceMiles(hub.coords[0], hub.coords[1], s.latitude, s.longitude) <= 75
-    ).length;
+  s => getDistanceMiles(hub.coords[0], hub.coords[1], s.latitude, s.longitude) <= getRadiusMiles()
+).length;
+
 
     const statusKey = hub.status === "accepted" ? "accepted" : "open";
     const badge = `<span class="hub-badge ${statusKey}">${statusKey.toUpperCase()}</span>`;
@@ -506,14 +535,24 @@ function addTrainerHubsAndCircles(hubsToShow) {
 
     hubsMarkers.push(hubMarker);
 
-    const circle = L.circle(hub.coords, {
-      radius: 75 * 1609.34,
+const circle = L.circle(hub.coords, {
+  radius: getRadiusMiles() * 1609.34,
+
       color: 'purple',
       weight: 1,
       fillOpacity: 0.1,
       dashArray: '5,10'
     }).addTo(map);
     coverageCircles.push(circle);
+    function highlight(on) {
+  circle.setStyle({ weight: on ? 3 : 1, fillOpacity: on ? 0.18 : 0.1 });
+  if (on && circle.bringToFront) circle.bringToFront();
+}
+hubMarker.on('mouseover', () => highlight(true));
+hubMarker.on('mouseout',  () => highlight(false));
+circle.on('mouseover', () => highlight(true));
+circle.on('mouseout',  () => highlight(false));
+
   });
 }
 
@@ -529,6 +568,31 @@ function addTrainerHubsAndCircles(hubsToShow) {
   const toggleHubsCheckbox = document.getElementById('toggleHubs');
   const toggleRadiusCheckbox = document.getElementById('toggleRadius');
   const showOpenHubsCheckbox = document.getElementById('showOpenHubs');
+const radiusInput  = document.getElementById('radiusMiles');
+const radiusLabel  = document.getElementById('radiusLabel');
+const allowCustom  = document.getElementById('allowCustomRadius');
+
+// default: locked to 75
+
+   if (allowCustom) allowCustom.checked = false;
+  if (radiusInput) { radiusInput.disabled = true; radiusInput.value = 75; }
+  if (radiusLabel) radiusLabel.textContent = '75 mi';
+
+const getRadiusMiles = () => allowCustom && allowCustom.checked
+  ? (parseInt(radiusInput.value, 10) || 75)
+  : 75;
+
+if (radiusInput) radiusInput.addEventListener('input', () => {
+  radiusLabel.textContent = `${getRadiusMiles()} mi`;
+  onFilterChange();
+  saveState && saveState();
+});
+if (allowCustom) allowCustom.addEventListener('change', () => {
+  radiusInput.disabled = !allowCustom.checked;
+  radiusLabel.textContent = `${getRadiusMiles()} mi`;
+  onFilterChange();
+  saveState && saveState();
+});
 
 
   function populateHubControls() {
@@ -567,11 +631,15 @@ populateHubControls();
 
   populateSelect(regionalFilter, regionalSet);
   populateSelect(areaFilter, areaSet);
+loadState();
 
   function updateTrainerHubFilter() {
     const hubsWithStores = new Set();
     trainerHubs.forEach(hub => {
-      const coversAny = filteredStores.some(store => getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude) <= 75);
+      const coversAny = filteredStores.some(store =>
+  getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude) <= getRadiusMiles()
+);
+
       if (coversAny) hubsWithStores.add(hub.name);
     });
 
@@ -629,6 +697,15 @@ populateHubControls();
   trainerHubFilter.addEventListener('change', onFilterChange);
   coverageFilter.addEventListener('change', onFilterChange);
   showOpenHubsCheckbox.addEventListener('change', onFilterChange);
+  ['coverageFilter','regionalFilter','areaFilter','trainerHubFilter'].forEach(id =>
+  document.getElementById(id).addEventListener('change', saveState)
+);
+zoomHubSelect.addEventListener('change', saveState);
+showOpenHubsCheckbox.addEventListener('change', saveState);
+toggleHubsCheckbox.addEventListener('change', saveState);
+toggleRadiusCheckbox.addEventListener('change', saveState);
+searchBox.addEventListener('input', saveState);
+
 
 
 toggleHubsCheckbox.addEventListener('change', onFilterChange);
@@ -640,6 +717,58 @@ toggleHubsCheckbox.addEventListener('change', onFilterChange);
       coverageCircles.forEach(c => map.removeLayer(c));
     }
   });
+function saveState() {
+  const state = {
+    coverage: Array.from(coverageFilter.selectedOptions).map(o => o.value),
+    regional: Array.from(regionalFilter.selectedOptions).map(o => o.value),
+    area:     Array.from(areaFilter.selectedOptions).map(o => o.value),
+    hubs:     Array.from(trainerHubFilter.selectedOptions).map(o => o.value),
+    zoomHub:  zoomHubSelect.value,
+    toggles: {
+      showHubs: toggleHubsCheckbox.checked,
+      showRadius: toggleRadiusCheckbox.checked,
+      showOpen: showOpenHubsCheckbox.checked
+    },
+    search: searchBox.value,
+    radius: {
+      allowCustom: allowCustom.checked,
+      value: radiusInput.value
+    }
+  };
+  localStorage.setItem('trainerMapState', JSON.stringify(state));
+}
+
+function loadState() {
+  const raw = localStorage.getItem('trainerMapState');
+  if (!raw) return;
+  const s = JSON.parse(raw);
+
+  function restoreMulti(select, values) {
+    if (!select || !values) return;
+    Array.from(select.options).forEach(o => o.selected = values.includes(o.value));
+  }
+
+  restoreMulti(coverageFilter, s.coverage);
+  restoreMulti(regionalFilter, s.regional);
+  restoreMulti(areaFilter, s.area);
+  restoreMulti(trainerHubFilter, s.hubs);
+  if (s.zoomHub) zoomHubSelect.value = s.zoomHub;
+
+  if (s.toggles) {
+    if ('showHubs' in s.toggles) toggleHubsCheckbox.checked = s.toggles.showHubs;
+    if ('showRadius' in s.toggles) toggleRadiusCheckbox.checked = s.toggles.showRadius;
+    if ('showOpen' in s.toggles) showOpenHubsCheckbox.checked = s.toggles.showOpen;
+  }
+
+  if (typeof s.search === 'string') searchBox.value = s.search;
+
+  if (s.radius) {
+    allowCustom.checked = !!s.radius.allowCustom;
+    radiusInput.disabled = !allowCustom.checked;
+    if (s.radius.value) radiusInput.value = s.radius.value;
+    radiusLabel.textContent = `${getRadiusMiles()} mi`;
+  }
+}
 
   function filterStores() {
     const selectedCoverage = Array.from(coverageFilter.selectedOptions).map(o => o.value);
@@ -659,7 +788,8 @@ toggleHubsCheckbox.addEventListener('change', onFilterChange);
       return selectedTrainerHubs.some(hubName => {
         const hub = trainerHubs.find(h => h.name === hubName);
         if (!hub) return false;
-        return getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude) <= 75;
+        return getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude) <= getRadiusMiles();
+
       }) && covMatch && regMatch && areaMatch;
     });
   }
@@ -704,7 +834,11 @@ toggleHubsCheckbox.addEventListener('change', onFilterChange);
       `Showing ${filteredStores.length} of ${allStores.length} stores`;
   }
 
-  function onFilterChange() {
+async function onFilterChange() {
+  const mask = document.getElementById('busyMask');
+  if (mask) mask.hidden = false;
+  try {
+
   // 1) filter + draw stores
   filterStores();
   addLazyLoadedMarkers(filteredStores);
@@ -762,6 +896,19 @@ const hubsToShow = trainerHubs.filter(hub => {
     map.setView([39.5, -98.35], 5);
     onFilterChange();
   });
+    } finally {
+    requestAnimationFrame(() => { if (mask) mask.hidden = true; });
+  }
+}
+
+
+  function fitToResults() {
+  if (!filteredStores.length) return;
+  const latLngs = filteredStores.map(s => [s.latitude, s.longitude]);
+  map.fitBounds(L.latLngBounds(latLngs), { padding: [20,20] });
+}
+document.getElementById('fitToResults').addEventListener('click', fitToResults);
+
 
   // Export CSV and Print functionality
 
@@ -947,11 +1094,14 @@ const hubsToShow = trainerHubs.filter(hub => {
         selectedSuggestionIndex--;
         highlightSuggestion(selectedSuggestionIndex);
       }
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (selectedSuggestionIndex >= 0) {
-        selectSuggestion(selectedSuggestionIndex);
-      }
+   } else if (e.key === 'Enter') {
+  e.preventDefault();
+  if (selectedSuggestionIndex >= 0) {
+    selectSuggestion(selectedSuggestionIndex);
+  } else if (suggestionResults.length > 0) {
+    selectSuggestion(0);
+  }
+
     } else if (e.key === 'Escape') {
       closeSuggestions();
     }
@@ -978,6 +1128,20 @@ const hubsToShow = trainerHubs.filter(hub => {
       closeSuggestions();
     }
   });
+
+  document.addEventListener('keydown', (e) => {
+  const tag = document.activeElement?.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+
+  if (e.key === 'r') { document.getElementById('resetFilters').click(); }
+  if (e.key === 'f') { fitToResults(); }
+  if (e.key === 'h') { toggleHubsCheckbox.checked = !toggleHubsCheckbox.checked; onFilterChange(); saveState(); }
+  if (e.key === 'o') { showOpenHubsCheckbox.checked = !showOpenHubsCheckbox.checked; onFilterChange(); saveState(); }
+  if (e.key === 'c') { toggleRadiusCheckbox.checked = !toggleRadiusCheckbox.checked; onFilterChange(); saveState(); }
+  if (e.key === '/') { e.preventDefault(); searchBox.focus(); }
+  if (e.key === 'z') { e.preventDefault(); zoomHubSelect.focus(); }
+});
+
 
   // Initial load
   onFilterChange();
