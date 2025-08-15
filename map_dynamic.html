@@ -533,12 +533,16 @@
   if (radiusInput) radiusInput.addEventListener('input', () => {
     radiusLabel.textContent = `${getRadiusMiles()} mi`;
     onFilterChange();
+    if (zoomHubSelect.value) fitToHubArea(JSON.parse(zoomHubSelect.value));
+
     saveState && saveState();
   });
   if (allowCustom) allowCustom.addEventListener('change', () => {
     radiusInput.disabled = !allowCustom.checked;
     radiusLabel.textContent = `${getRadiusMiles()} mi`;
     onFilterChange();
+    if (zoomHubSelect.value) fitToHubArea(JSON.parse(zoomHubSelect.value));
+
     saveState && saveState();
   });
 
@@ -656,12 +660,30 @@
     });
   }
 
-  zoomHubSelect.addEventListener('change', () => {
-    if (zoomHubSelect.value) {
-      const coords = JSON.parse(zoomHubSelect.value);
-      map.setView(coords, 11);
-    }
-  });
+  function fitToHubArea(hubCoords) {
+  const r = getRadiusMiles();
+  const inRadius = filteredStores.filter(s =>
+    getDistanceMiles(hubCoords[0], hubCoords[1], s.latitude, s.longitude) <= r
+  );
+
+  if (inRadius.length) {
+    // include the hub itself so the circle center is in view
+    const latLngs = inRadius.map(s => [s.latitude, s.longitude]);
+    latLngs.push(hubCoords);
+    map.fitBounds(L.latLngBounds(latLngs), { padding: [30, 30] });
+  } else {
+    // no stores in radius — just center on the hub
+    map.setView(hubCoords, 11);
+  }
+}
+
+
+zoomHubSelect.addEventListener('change', () => {
+  if (!zoomHubSelect.value) return;
+  const coords = JSON.parse(zoomHubSelect.value);
+  fitToHubArea(coords);
+});
+
 
   regionalFilter.addEventListener('change', () => {
     const selectedRegionals = Array.from(regionalFilter.selectedOptions).map(o => o.value);
