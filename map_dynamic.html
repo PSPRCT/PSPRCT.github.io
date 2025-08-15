@@ -263,8 +263,8 @@
     <label for="coverageFilter">Coverage Type:</label>
     <select id="coverageFilter" multiple title="Select coverage types">
       <option value="All">All</option>
-      <option value="Premium + Acosta" selected>Premium + Acosta</option>
-      <option value="Premium Only" selected>Premium Only</option>
+      <option value="Premium + Acosta" >Premium + Acosta</option>
+      <option value="Premium Only" >Premium Only</option>
       <option value="Acosta Only">Acosta Only</option>
       <option value="Uncovered">Uncovered</option>
     </select>
@@ -1015,9 +1015,11 @@ addTrainerHubsAndCircles(lastHubsToShow);
   // Reset Filters (top-level handler)
   document.getElementById('resetFilters').addEventListener('click', () => {
     // coverage defaults
-    for (let option of coverageFilter.options) {
-      option.selected = (option.value === "Premium + Acosta" || option.value === "Premium Only");
-    }
+    // coverage defaults → All
+for (let option of coverageFilter.options) {
+  option.selected = (option.value === "All");
+}
+
 
     // managers back to All
     ['regionalFilter', 'areaFilter'].forEach(id => {
@@ -1320,6 +1322,12 @@ if (searchBox) searchBox.addEventListener('input', saveState);
  // Initial restore: prefer URL hash, otherwise localStorage
 const usedHash = loadStateFromHash();
 if (!usedHash) loadState();
+  // If no state restored and nothing is selected, default to All
+if (![...coverageFilter.options].some(o => o.selected)) {
+  const allOpt = coverageFilter.querySelector('option[value="All"]');
+  if (allOpt) allOpt.selected = true;
+}
+
 onFilterChange();
 
 })();
