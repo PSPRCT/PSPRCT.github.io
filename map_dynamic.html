@@ -231,9 +231,20 @@
 .kpi-pct{margin-left:8px;font-size:12px;color:#444}
 .quick-actions{display:flex;gap:10px;align-items:center}
 
-/* “Uncovered only” chip */
-.chip{border:1px solid #ccc;background:#fff;border-radius:999px;padding:5px 10px;font-size:12px;cursor:pointer}
-.chip-active{background:#ffe5e5;border-color:#ff9999}
+/* “Uncovered only” chip — blue by default */
+.chip{
+  border:1px solid #3399ff;
+  background:#3399ff;
+  color:#fff;
+  border-radius:999px;
+  padding:6px 12px;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+}
+.chip:hover{background:#2673cc;border-color:#2673cc}
+.chip-active{background:#ffe5e5;border-color:#ff9999;color:#b42318}
+
 
 
 </style>
@@ -627,9 +638,13 @@ function loadStateFromHash(){
 
 if (radiusInput) radiusInput.addEventListener('input', () => {
   radiusLabel.textContent = `${getRadiusMiles()} mi`;
+  if (zoomHubSelect.value) {
+    try { fitToHubArea(JSON.parse(zoomHubSelect.value)); } catch {}
+  }
   debouncedOnFilterChange();
   saveState && saveState();
 });
+
 if (allowCustom) allowCustom.addEventListener('change', () => {
   radiusInput.disabled = !allowCustom.checked;
   radiusLabel.textContent = `${getRadiusMiles()} mi`;
@@ -776,10 +791,18 @@ if (allowCustom) allowCustom.addEventListener('change', () => {
 
 
 zoomHubSelect.addEventListener('change', () => {
-  if (!zoomHubSelect.value) return;
-  const coords = JSON.parse(zoomHubSelect.value);
-  fitToHubArea(coords);
+  if (zoomHubSelect.value) {
+    const coords = JSON.parse(zoomHubSelect.value);
+    fitToHubArea(coords);
+  } else {
+    // cleared => reset to national view
+    map.setView([39.5, -98.35], 5);
+  }
+  // important: also re-filter & persist so the list/markers match the hub radius
+  debouncedOnFilterChange();
+  saveState && saveState();
 });
+
 
 
   regionalFilter.addEventListener('change', () => {
@@ -865,26 +888,34 @@ toggleHubsCheckbox.addEventListener('change', debouncedOnFilterChange);
     }
   }
 
-  function filterStores() {
-    const selectedCoverage = Array.from(coverageFilter.selectedOptions).map(o => o.value);
-    const selectedRegional = Array.from(regionalFilter.selectedOptions).map(o => o.value);
-    const selectedArea = Array.from(areaFilter.selectedOptions).map(o => o.value);
-    const selectedTrainerHubs = Array.from(trainerHubFilter.selectedOptions).map(o => o.value);
+function filterStores() {
+  const selectedCoverage = Array.from(coverageFilter.selectedOptions).map(o => o.value);
+  const selectedRegional = Array.from(regionalFilter.selectedOptions).map(o => o.value);
+  const selectedArea     = Array.from(areaFilter.selectedOptions).map(o => o.value);
 
-    filteredStores = allStores.filter(store => {
-      const covMatch = selectedCoverage.includes('All') || selectedCoverage.includes(store.coverageType);
-      const regMatch = selectedRegional.includes('All') || selectedRegional.includes(store.regionalManager);
-      const areaMatch = selectedArea.includes('All') || selectedArea.includes(store.areaManager);
+  // If a Zoom hub is chosen, we filter by that hub’s coords.
+  // Otherwise, if Trainer Hub Filter has selections, use those hubs.
+  const zoomCoords = zoomHubSelect.value ? [JSON.parse(zoomHubSelect.value)] : [];
+  const hubCoordsList = zoomCoords.length
+    ? zoomCoords
+    : Array.from(trainerHubFilter.selectedOptions)
+        .map(o => (trainerHubs.find(h => h.name === o.value) || {}).coords)
+        .filter(Boolean);
 
-      if (selectedTrainerHubs.length === 0) return covMatch && regMatch && areaMatch;
+  filteredStores = allStores.filter(store => {
+    const covMatch  = selectedCoverage.includes('All') || selectedCoverage.includes(store.coverageType);
+    const regMatch  = selectedRegional.includes('All') || selectedRegional.includes(store.regionalManager);
+    const areaMatch = selectedArea.includes('All') || selectedArea.includes(store.areaManager);
 
-      return selectedTrainerHubs.some(hubName => {
-        const hub = trainerHubs.find(h => h.name === hubName);
-        if (!hub) return false;
-        return getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude) <= getRadiusMiles();
-      }) && covMatch && regMatch && areaMatch;
-    });
-  }
+    // Only keep stores within the chosen hub radius (if any hub constraint is active)
+    const hubMatch = !hubCoordsList.length || hubCoordsList.some(([lat,lng]) =>
+      getDistanceMiles(lat, lng, store.latitude, store.longitude) <= getRadiusMiles()
+    );
+
+    return covMatch && regMatch && areaMatch && hubMatch;
+  });
+}
+
 
   function addLazyLoadedMarkers(stores) {
     markers.clearLayers();
