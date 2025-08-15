@@ -182,13 +182,13 @@
     border: 2px solid #fff;
     box-shadow: 0 0 0 1px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.15);
   }
-  .hub-accepted { background: #6a1b9a; }
+  .hub-Staffed { background: #6a1b9a; }
   .hub-open { background: #9e9e9e; }
   .hub-badge { display:inline-block; padding:2px 6px; border-radius:10px; font-size:12px; font-weight:600; color:#fff; }
-  .hub-badge.accepted { background:#6a1b9a; }
+  .hub-badge.Staffed { background:#6a1b9a; }
   .hub-badge.open { background:#9e9e9e; }
   #hubCount { font-weight: 600; font-size: 14px; color: #333; }
-  .hubCount-accepted { color: #6a1b9a; }
+  .hubCount-Staffed { color: #6a1b9a; }
   .hubCount-open { color: #9e9e9e; }
 
   /* Busy mask */
@@ -319,9 +319,9 @@
   </div>
 
   <div id="toggles" class="toggles-row">
-    <label class="toggle-inline" title="Show accepted trainer hubs">
-      <span class="text">Accepted hubs</span>
-      <input type="checkbox" id="toggleHubs" checked role="switch" aria-label="Show accepted hubs" />
+    <label class="toggle-inline" title="Show Staffed trainer hubs">
+      <span class="text">Staffed hubs</span>
+      <input type="checkbox" id="toggleHubs" checked role="switch" aria-label="Show Staffed hubs" />
       <span class="tgl-slider" aria-hidden="true"></span>
     </label>
 
@@ -428,7 +428,7 @@
   <div class="legend-item"><div class="legend-color" style="background:green"></div>Premium Only</div>
   <div class="legend-item"><div class="legend-color" style="background:orange"></div>Acosta Only</div>
   <div class="legend-item"><div class="legend-color" style="background:red"></div>Uncovered</div>
-  <div class="legend-item"><span class="legend-color" style="background:#6a1b9a"></span>Accepted Hub</div>
+  <div class="legend-item"><span class="legend-color" style="background:#6a1b9a"></span>Staffed Hub</div>
   <div class="legend-item"><span class="legend-color" style="background:#9e9e9e"></span>Open Hub</div>
 </div>
 
@@ -480,37 +480,37 @@
     { id: "williamsburg_va", name: "Williamsburg, VA (Open)", coords: [37.31045, -76.7468], status: "open", person: null },
     { id: "wilmington_oh", name: "Wilmington, OH (Open)", coords: [39.44499, -83.8244], status: "open", person: null },
 
-    /* ACCEPTED hubs */
-    { id: "granite_falls_nc_walker", name: "Granite Falls, NC - Lisa Walker", coords: [35.80049406642459, -81.40580339729192], status: "accepted", person: "Lisa Walker" },
-    { id: "clarksville_tn_salvato", name: "Clarksville, TN - Nicholas Salvato", coords: [36.58887925062968, -87.34016705996005], status: "accepted", person: "Nicholas Salvato" },
-    { id: "orange_park_fl_hall", name: "Orange Park, FL - Sabrina Hall", coords: [30.186755922868347, -81.71888670245784], status: "accepted", person: "Sabrina Hall" },
-    { id: "excelsior_springs_mo_estep", name: "Excelsior Springs, MO - Teresa Estep", coords: [39.354429998804825, -94.1669969175497], status: "accepted", person: "Teresa Estep" },
-    { id: "louisville_ky_lilla", name: "Louisville, KY - Heather Lilla", coords: [38.209, -85.5198], status: "accepted", person: "Heather Lilla" },
-    { id: "seguin_tx_winston", name: "Seguin, TX - Christina Winston", coords: [29.56000348742034, -97.96778298897998], status: "accepted", person: "Christina Winston" },
-    { id: "minden_la_slater", name: "Minden, LA - Sami Jo Slater", coords: [32.686373819218176, -93.25250065821655], status: "accepted", person: "Sami Jo Slater" },
-    { id: "kenly_nc_gross", name: "Kenly, NC - Brooke Gross", coords: [35.691639527137895, -78.17947437532841], status: "accepted", person: "Brooke Gross" },
-    { id: "ofallon_mo_mcallister", name: "O'Fallon, MO - Mike McAllister", coords: [38.787159492769945, -90.71070211756692], status: "accepted", person: "Mike McAllister" },
-    { id: "king_george_va_faulk", name: "King George, VA - Amy Faulk", coords: [38.25603416823435, -77.06032785806136], status: "accepted", person: "Amy Faulk" },
-    { id: "sparta_mo_rogers", name: "Sparta, MO - Michelle Rogers", coords: [37.0314699051066, -93.1450542446044], status: "accepted", person: "Michelle Rogers" },
-    { id: "darlington_sc_jones", name: "Darlington, SC - Kristen Jones", coords: [34.305681297736434, -79.85061846002368], status: "accepted", person: "Kristen Jones" },
-    { id: "orangeburg_sc_shepherd", name: "Orangeburg, SC - Kendra Shepherd", coords: [33.47688895186578, -80.85696511771735], status: "accepted", person: "Kendra Shepherd" },
-    { id: "dandridge_tn_matthews", name: "Dandridge, TN - Jennifer Matthews", coords: [35.98401850406635, -83.55508935997715], status: "accepted", person: "Jennifer Matthews" },
-    { id: "navassa_nc_hook", name: "Navassa, NC - Jennifer Hook", coords: [34.25673752598021, -78.02249231584642], status: "accepted", person: "Jennifer Hook" },
-    { id: "ingleside_il_gonzalez", name: "Ingleside, IL – Miguel Gonzalez", coords: [42.3940241, -88.142826], status: "accepted", person: "Miguel Gonzalez" },
-    { id: "cambridge_oh_kerr", name: "Cambridge, OH - Rolland Kerr", coords: [40.017145, -81.604126], status: "accepted", person: "Rolland Kerr" },
-    { id: "acworth_ga_orr", name: "Acworth, GA - John Orr", coords: [34.0626832, -84.6417505], status: "accepted", person: "John Orr" },
-    { id: "norman_ok_ard", name: "Norman, OK - Teryl Ard", coords: [35.2131655, -97.4837249], status: "accepted", person: "Teryl Ard" },
-    { id: "monroeville_pa_weaver", name: "Monroeville, PA - Heather Weaver", coords: [40.4349947, -79.7687263], status: "accepted", person: "Heather Weaver" },
-    { id: "orlando_fl_lawrence", name: "Orlando, FL - Davonte Lawrence", coords: [28.5256823, -81.1815574], status: "accepted", person: "Davonte Lawrence" },
-    { id: "fort_myers_fl_whitfield", name: "Fort Myers, FL - Muriel Curry Whitfield", coords: [26.6279876, -81.8700003], status: "accepted", person: "Muriel Curry Whitfield" },
-    { id: "farmingville_ny_reich", name: "Farmingville, NY - Barbara Reich", coords: [40.8408592, -73.0307648], status: "accepted", person: "Barbara Reich" },
-    { id: "folsom_ca_white", name: "Folsom, CA - Gerard White", coords: [38.6824363, -121.1481451], status: "accepted", person: "Gerard White" },
-    { id: "willimantic_ct_bokoff", name: "Willimantic, CT - Melissa Bokoff", coords: [41.7101216, -72.2129277], status: "accepted", person: "Melissa Bokoff" },
-    { id: "mabelvale_ar_eslick", name: "Mabelvale, AR - Angela Eslick", coords: [34.6217306, -92.4317642], status: "accepted", person: "Angela Eslick" },
-    { id: "rayne_la_thibodeaux", name: "Rayne, LA - Marcie Thibodeaux", coords: [30.220651, -92.295472], status: "accepted", person: "Marcie Thibodeaux" },
-    { id: "belvidere_il_vargas", name: "Belvidere, IL - Justin Vargas Salgado", coords: [42.257867, -88.846723], status: "accepted", person: "Justin Vargas Salgado" },
-    { id: "kimberly_al_savage", name: "Kimberly, AL - Jessica Savage", coords: [33.6997, -86.7712], status: "accepted", person: "Jessica Savage" },
-    { id: "olive_branch_ms_brown", name: "Olive Branch, MS - Annette Brown", coords: [34.92668799775572, -89.89485850418528], status: "accepted", person: "Annette Brown" }
+    /* Staffed hubs */
+    { id: "granite_falls_nc_walker", name: "Granite Falls, NC - Lisa Walker", coords: [35.80049406642459, -81.40580339729192], status: "Staffed", person: "Lisa Walker" },
+    { id: "clarksville_tn_salvato", name: "Clarksville, TN - Nicholas Salvato", coords: [36.58887925062968, -87.34016705996005], status: "Staffed", person: "Nicholas Salvato" },
+    { id: "orange_park_fl_hall", name: "Orange Park, FL - Sabrina Hall", coords: [30.186755922868347, -81.71888670245784], status: "Staffed", person: "Sabrina Hall" },
+    { id: "excelsior_springs_mo_estep", name: "Excelsior Springs, MO - Teresa Estep", coords: [39.354429998804825, -94.1669969175497], status: "Staffed", person: "Teresa Estep" },
+    { id: "louisville_ky_lilla", name: "Louisville, KY - Heather Lilla", coords: [38.209, -85.5198], status: "Staffed", person: "Heather Lilla" },
+    { id: "seguin_tx_winston", name: "Seguin, TX - Christina Winston", coords: [29.56000348742034, -97.96778298897998], status: "Staffed", person: "Christina Winston" },
+    { id: "minden_la_slater", name: "Minden, LA - Sami Jo Slater", coords: [32.686373819218176, -93.25250065821655], status: "Staffed", person: "Sami Jo Slater" },
+    { id: "kenly_nc_gross", name: "Kenly, NC - Brooke Gross", coords: [35.691639527137895, -78.17947437532841], status: "Staffed", person: "Brooke Gross" },
+    { id: "ofallon_mo_mcallister", name: "O'Fallon, MO - Mike McAllister", coords: [38.787159492769945, -90.71070211756692], status: "Staffed", person: "Mike McAllister" },
+    { id: "king_george_va_faulk", name: "King George, VA - Amy Faulk", coords: [38.25603416823435, -77.06032785806136], status: "Staffed", person: "Amy Faulk" },
+    { id: "sparta_mo_rogers", name: "Sparta, MO - Michelle Rogers", coords: [37.0314699051066, -93.1450542446044], status: "Staffed", person: "Michelle Rogers" },
+    { id: "darlington_sc_jones", name: "Darlington, SC - Kristen Jones", coords: [34.305681297736434, -79.85061846002368], status: "Staffed", person: "Kristen Jones" },
+    { id: "orangeburg_sc_shepherd", name: "Orangeburg, SC - Kendra Shepherd", coords: [33.47688895186578, -80.85696511771735], status: "Staffed", person: "Kendra Shepherd" },
+    { id: "dandridge_tn_matthews", name: "Dandridge, TN - Jennifer Matthews", coords: [35.98401850406635, -83.55508935997715], status: "Staffed", person: "Jennifer Matthews" },
+    { id: "navassa_nc_hook", name: "Navassa, NC - Jennifer Hook", coords: [34.25673752598021, -78.02249231584642], status: "Staffed", person: "Jennifer Hook" },
+    { id: "ingleside_il_gonzalez", name: "Ingleside, IL – Miguel Gonzalez", coords: [42.3940241, -88.142826], status: "Staffed", person: "Miguel Gonzalez" },
+    { id: "cambridge_oh_kerr", name: "Cambridge, OH - Rolland Kerr", coords: [40.017145, -81.604126], status: "Staffed", person: "Rolland Kerr" },
+    { id: "acworth_ga_orr", name: "Acworth, GA - John Orr", coords: [34.0626832, -84.6417505], status: "Staffed", person: "John Orr" },
+    { id: "norman_ok_ard", name: "Norman, OK - Teryl Ard", coords: [35.2131655, -97.4837249], status: "Staffed", person: "Teryl Ard" },
+    { id: "monroeville_pa_weaver", name: "Monroeville, PA - Heather Weaver", coords: [40.4349947, -79.7687263], status: "Staffed", person: "Heather Weaver" },
+    { id: "orlando_fl_lawrence", name: "Orlando, FL - Davonte Lawrence", coords: [28.5256823, -81.1815574], status: "Staffed", person: "Davonte Lawrence" },
+    { id: "fort_myers_fl_whitfield", name: "Fort Myers, FL - Muriel Curry Whitfield", coords: [26.6279876, -81.8700003], status: "Staffed", person: "Muriel Curry Whitfield" },
+    { id: "farmingville_ny_reich", name: "Farmingville, NY - Barbara Reich", coords: [40.8408592, -73.0307648], status: "Staffed", person: "Barbara Reich" },
+    { id: "folsom_ca_white", name: "Folsom, CA - Gerard White", coords: [38.6824363, -121.1481451], status: "Staffed", person: "Gerard White" },
+    { id: "willimantic_ct_bokoff", name: "Willimantic, CT - Melissa Bokoff", coords: [41.7101216, -72.2129277], status: "Staffed", person: "Melissa Bokoff" },
+    { id: "mabelvale_ar_eslick", name: "Mabelvale, AR - Angela Eslick", coords: [34.6217306, -92.4317642], status: "Staffed", person: "Angela Eslick" },
+    { id: "rayne_la_thibodeaux", name: "Rayne, LA - Marcie Thibodeaux", coords: [30.220651, -92.295472], status: "Staffed", person: "Marcie Thibodeaux" },
+    { id: "belvidere_il_vargas", name: "Belvidere, IL - Justin Vargas Salgado", coords: [42.257867, -88.846723], status: "Staffed", person: "Justin Vargas Salgado" },
+    { id: "kimberly_al_savage", name: "Kimberly, AL - Jessica Savage", coords: [33.6997, -86.7712], status: "Staffed", person: "Jessica Savage" },
+    { id: "olive_branch_ms_brown", name: "Olive Branch, MS - Annette Brown", coords: [34.92668799775572, -89.89485850418528], status: "Staffed", person: "Annette Brown" }
   ];
   trainerHubs.forEach(h => { h.latRad = h.coords[0]*Math.PI/180; h.lngRad = h.coords[1]*Math.PI/180; });
 
@@ -667,7 +667,7 @@
   map.on('moveend zoomend', updateInViewCount);
 
   function iconForHub(hub) {
-    const cls = hub.status === "accepted" ? "hub-accepted" : "hub-open";
+    const cls = hub.status === "Staffed" ? "hub-Staffed" : "hub-open";
     return L.divIcon({
       className: "",
       html: `<div class="hub-icon ${cls}" title="${hub.name}"></div>`,
@@ -702,7 +702,7 @@
     (allowCustom && allowCustom.checked ? (parseInt(radiusInput.value, 10) || 75) : 75);
 
   function typeAllowed(hub){
-    return (hub.status === 'accepted' && toggleHubsCheckbox.checked) ||
+    return (hub.status === 'Staffed' && toggleHubsCheckbox.checked) ||
            (hub.status === 'open' && showOpenHubsCheckbox.checked);
   }
   function findNearestAllowedHub(store){
@@ -803,7 +803,7 @@
             s => getDistanceMiles(hub.coords[0], hub.coords[1], s.latitude, s.longitude, hub.latRad, hub.lngRad, s.latRad, s.lngRad) <= getRadiusMiles()
           ).length;
 
-      const statusKey = hub.status === "accepted" ? "accepted" : "open";
+      const statusKey = hub.status === "Staffed" ? "Staffed" : "open";
       const badge = `<span class="hub-badge ${statusKey}">${statusKey.toUpperCase()}</span>`;
       const person = hub.person ? ` &nbsp;•&nbsp; <strong>${hub.person}</strong>` : "";
 
@@ -1079,12 +1079,12 @@
       updateTrainerHubFilter();
 
       // 3) choose which hubs to show
-      const includeAccepted = toggleHubsCheckbox.checked;
+      const includeStaffed = toggleHubsCheckbox.checked;
       const includeOpen     = showOpenHubsCheckbox.checked;
 
       const hubsToShow = trainerHubs.filter(hub => {
         const typeOk =
-          (hub.status === 'accepted' && includeAccepted) ||
+          (hub.status === 'Staffed' && includeStaffed) ||
           (hub.status === 'open'     && includeOpen);
         if (!typeOk) return false;
 
@@ -1102,12 +1102,12 @@
       }));
 
       // 4) update hub counter + render hubs
-      const acceptedCount = hubsToShow.filter(h => h.status === 'accepted').length;
+      const StaffedCount = hubsToShow.filter(h => h.status === 'Staffed').length;
       const openCount     = hubsToShow.filter(h => h.status === 'open').length;
       const hubCountEl = document.getElementById('hubCount');
       if (hubCountEl) {
         hubCountEl.innerHTML =
-          `Hubs shown: <span class="hubCount-accepted">${acceptedCount} accepted</span> / ` +
+          `Hubs shown: <span class="hubCount-Staffed">${StaffedCount} Staffed</span> / ` +
           `<span class="hubCount-open">${openCount} open</span>`;
       }
 
@@ -1144,7 +1144,7 @@
     radiusLabel.textContent = '75 mi';
 
     // toggles default
-    toggleHubsCheckbox.checked   = true;  // accepted hubs ON
+    toggleHubsCheckbox.checked   = true;  // Staffed hubs ON
     toggleRadiusCheckbox.checked = true;  // circles ON
     showOpenHubsCheckbox.checked = true;  // open hubs ON
 
