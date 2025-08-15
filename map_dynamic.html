@@ -241,6 +241,18 @@
   #printable, #printable * { visibility: visible !important; }
   #printable { display: block !important; position: absolute; inset: 0; }
 }
+  /* KPI strip & quick actions */
+.kpi-strip{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:10px}
+.kpi-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid #e0e0e0;background:#fff}
+.kpi-dot{width:10px;height:10px;border-radius:50%}
+.kpi-chip .value{font-weight:700}
+.kpi-pct{margin-left:8px;font-size:12px;color:#444}
+.quick-actions{display:flex;gap:10px;align-items:center}
+
+/* “Uncovered only” chip */
+.chip{border:1px solid #ccc;background:#fff;border-radius:999px;padding:5px 10px;font-size:12px;cursor:pointer}
+.chip-active{background:#ffe5e5;border-color:#ff9999}
+
 
 </style>
 </head>
@@ -340,6 +352,14 @@
   <div id="filterCount" style="font-weight:bold; margin-left:15px; min-width:180px;">
     Showing 0 of 0 stores
   </div>
+  <div id="kpiStrip" class="kpi-strip" aria-live="polite"></div>
+
+<div class="quick-actions">
+  <button id="uncoveredChip" class="chip" title="Toggle uncovered-only">Uncovered only</button>
+  <button id="copyLinkBtn" title="Copy a URL with current filters">Copy link</button>
+  <button id="exportHubsCSV" title="Export visible hubs with counts">Export Hubs CSV</button>
+</div>
+
 </div>
 
 <div id="hubCount"></div>
@@ -457,6 +477,100 @@
   let currentOpenPopup = null;
   let hubsMarkers = [];
   let coverageCircles = [];
+
+  // Small utility: debounce heavy UI work
+function debounce(fn, delay=150){
+  let t; 
+  return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), delay); };
+}
+const debouncedOnFilterChange = debounce(onFilterChange, 150);
+
+// Track hubs shown (for export) + remember coverage before "Uncovered only"
+let lastHubsToShow = [];
+let prevCoverageSelection = null;
+
+// KPI strip (live counts + % uncovered)
+function updateKPI() {
+  const counts = { "Premium + Acosta":0, "Premium Only":0, "Acosta Only":0, "Uncovered":0 };
+  filteredStores.forEach(s => { counts[s.coverageType] = (counts[s.coverageType]||0) + 1; });
+  const total = filteredStores.length || 1;
+  const pctUncov = Math.round((counts["Uncovered"]/total)*1000)/10; // 1 decimal
+
+  const chip = (color,label,val)=>`
+    <span class="kpi-chip">
+      <span class="kpi-dot" style="background:${color}"></span>
+      <span class="label">${label}</span>
+      <span class="value">${val}</span>
+    </span>`;
+  const el = document.getElementById('kpiStrip');
+  if (!el) return;
+  el.innerHTML = [
+    chip('blue','Premium + Acosta', counts['Premium + Acosta']||0),
+    chip('green','Premium Only',    counts['Premium Only']||0),
+    chip('orange','Acosta Only',    counts['Acosta Only']||0),
+    chip('red','Uncovered',         counts['Uncovered']||0),
+    `<span class="kpi-pct">Uncovered: <strong>${isFinite(pctUncov)?pctUncov:0}%</strong></span>`
+  ].join('');
+}
+
+// Build the current UI state (used by save/link)
+function getUIState(){
+  return {
+    coverage: Array.from(coverageFilter.selectedOptions).map(o => o.value),
+    regional: Array.from(regionalFilter.selectedOptions).map(o => o.value),
+    area:     Array.from(areaFilter.selectedOptions).map(o => o.value),
+    hubs:     Array.from(trainerHubFilter.selectedOptions).map(o => o.value),
+    zoomHub:  zoomHubSelect.value,
+    toggles: {
+      showHubs: toggleHubsCheckbox.checked,
+      showRadius: toggleRadiusCheckbox.checked,
+      showOpen: showOpenHubsCheckbox.checked
+    },
+    search: document.getElementById('searchBox').value,
+    radius: { allowCustom: allowCustom.checked, value: radiusInput.value }
+  };
+}
+
+// Apply a state object to the UI (used by hash loader)
+function applyStateFromObject(s){
+  function restoreMulti(select, values) {
+    if (!select || !values) return;
+    Array.from(select.options).forEach(o => o.selected = values.includes(o.value));
+  }
+  restoreMulti(coverageFilter, s.coverage);
+  restoreMulti(regionalFilter, s.regional);
+  restoreMulti(areaFilter, s.area);
+  restoreMulti(trainerHubFilter, s.hubs);
+  if (s.zoomHub) zoomHubSelect.value = s.zoomHub;
+
+  if (s.toggles) {
+    if ('showHubs' in s.toggles) toggleHubsCheckbox.checked = s.toggles.showHubs;
+    if ('showRadius' in s.toggles) toggleRadiusCheckbox.checked = s.toggles.showRadius;
+    if ('showOpen' in s.toggles) showOpenHubsCheckbox.checked = s.toggles.showOpen;
+  }
+  if (typeof s.search === 'string') document.getElementById('searchBox').value = s.search;
+
+  if (s.radius) {
+    allowCustom.checked = !!s.radius.allowCustom;
+    radiusInput.disabled = !allowCustom.checked;
+    if (s.radius.value) radiusInput.value = s.radius.value;
+    radiusLabel.textContent = `${allowCustom.checked ? radiusInput.value : 75} mi`;
+  }
+}
+
+// Load state from URL hash (#s=<urlencoded json>) if present
+function loadStateFromHash(){
+  if (!location.hash.startsWith('#s=')) return false;
+  try {
+    const s = JSON.parse(decodeURIComponent(location.hash.slice(3)));
+    applyStateFromObject(s);
+    return true;
+  } catch(err){
+    console.warn('Bad state hash', err);
+    return false;
+  }
+}
+
 
   function getDistanceMiles(lat1, lon1, lat2, lon2) {
     const R = 3958.8;
@@ -699,11 +813,12 @@ zoomHubSelect.addEventListener('change', () => {
     onFilterChange();
   });
 
-  areaFilter.addEventListener('change', onFilterChange);
-  trainerHubFilter.addEventListener('change', onFilterChange);
-  coverageFilter.addEventListener('change', onFilterChange);
-  showOpenHubsCheckbox.addEventListener('change', onFilterChange);
-  toggleHubsCheckbox.addEventListener('change', onFilterChange);
+  areaFilter.addEventListener('change', debouncedOnFilterChange);
+trainerHubFilter.addEventListener('change', debouncedOnFilterChange);
+coverageFilter.addEventListener('change', debouncedOnFilterChange);
+showOpenHubsCheckbox.addEventListener('change', debouncedOnFilterChange);
+toggleHubsCheckbox.addEventListener('change', debouncedOnFilterChange);
+
 
   toggleRadiusCheckbox.addEventListener('change', () => {
     if (toggleRadiusCheckbox.checked) {
@@ -956,11 +1071,62 @@ document.getElementById('printMap').addEventListener('click', () => {
 });
 
   // ---- Search with autosuggest and popup opening ----
-  const searchBox = document.getElementById('searchBox');
-  const searchClearBtn = document.getElementById('searchClearBtn');
-  const suggestionsBox = document.getElementById('searchSuggestions');
+const searchBox = document.getElementById('searchBox');
+const searchClearBtn = document.getElementById('searchClearBtn');
+const suggestionsBox = document.getElementById('searchSuggestions');
 
-// persist on changes (now that searchBox exists)
+// Quick actions
+const uncoveredChip = document.getElementById('uncoveredChip');
+const copyLinkBtn   = document.getElementById('copyLinkBtn');
+const exportHubsBtn = document.getElementById('exportHubsCSV');
+
+// Uncovered-only toggle
+uncoveredChip.addEventListener('click', () => {
+  const active = uncoveredChip.classList.toggle('chip-active');
+  if (active) {
+    // remember current coverage selection
+    prevCoverageSelection = Array.from(coverageFilter.selectedOptions).map(o => o.value);
+    // switch to only Uncovered
+    Array.from(coverageFilter.options).forEach(o => o.selected = (o.value === 'Uncovered'));
+  } else if (prevCoverageSelection && prevCoverageSelection.length){
+    Array.from(coverageFilter.options).forEach(o => o.selected = prevCoverageSelection.includes(o.value));
+  }
+  debouncedOnFilterChange();
+  saveState();
+});
+
+// Copy link to clipboard
+copyLinkBtn.addEventListener('click', async () => {
+  const hash = '#s=' + encodeURIComponent(JSON.stringify(getUIState()));
+  const url = location.origin + location.pathname + hash;
+  try { await navigator.clipboard.writeText(url); alert('Link copied to clipboard.'); }
+  catch { prompt('Copy this link:', url); }
+});
+
+// Export hubs CSV (based on current hubs shown)
+exportHubsBtn.addEventListener('click', () => {
+  if (!lastHubsToShow.length) { alert('No hubs to export.'); return; }
+  const headers = ['Hub Name','Status','Person','Latitude','Longitude','Radius (mi)','Covered Stores (filtered)'];
+  const rows = [headers.join(',')];
+  lastHubsToShow.forEach(h => {
+    const [lat,lng] = h.coords;
+    rows.push([
+      `"${h.name.replace(/"/g,'""')}"`,
+      h.status,
+      `"${(h.person||'').replace(/"/g,'""')}"`,
+      lat, lng,
+      getRadiusMiles(),
+      h.coveredCount
+    ].join(','));
+  });
+  const csv = rows.join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'hubs.csv'; a.click();
+  URL.revokeObjectURL(url);
+});
+
+// Persist-on-change (now that searchBox exists)
 ['coverageFilter','regionalFilter','areaFilter','trainerHubFilter'].forEach(id =>
   document.getElementById(id).addEventListener('change', saveState)
 );
@@ -969,7 +1135,6 @@ showOpenHubsCheckbox.addEventListener('change', saveState);
 toggleHubsCheckbox.addEventListener('change', saveState);
 toggleRadiusCheckbox.addEventListener('change', saveState);
 if (searchBox) searchBox.addEventListener('input', saveState);
-
 
   let selectedSuggestionIndex = -1;
   let suggestionResults = [];
