@@ -633,7 +633,7 @@ populateHubControls();
 
   populateSelect(regionalFilter, regionalSet);
   populateSelect(areaFilter, areaSet);
-loadState();
+
 
   function updateTrainerHubFilter() {
     const hubsWithStores = new Set();
@@ -699,14 +699,7 @@ loadState();
   trainerHubFilter.addEventListener('change', onFilterChange);
   coverageFilter.addEventListener('change', onFilterChange);
   showOpenHubsCheckbox.addEventListener('change', onFilterChange);
-  ['coverageFilter','regionalFilter','areaFilter','trainerHubFilter'].forEach(id =>
-  document.getElementById(id).addEventListener('change', saveState)
-);
-zoomHubSelect.addEventListener('change', saveState);
-showOpenHubsCheckbox.addEventListener('change', saveState);
-toggleHubsCheckbox.addEventListener('change', saveState);
-toggleRadiusCheckbox.addEventListener('change', saveState);
-searchBox.addEventListener('input', saveState);
+  
 
 
 
@@ -1023,6 +1016,14 @@ document.getElementById('fitToResults').addEventListener('click', fitToResults);
   const searchBox = document.getElementById('searchBox');
   const searchClearBtn = document.getElementById('searchClearBtn');
   const suggestionsBox = document.getElementById('searchSuggestions');
+  ['coverageFilter','regionalFilter','areaFilter','trainerHubFilter'].forEach(id =>
+  document.getElementById(id).addEventListener('change', saveState)
+);
+zoomHubSelect.addEventListener('change', saveState);
+showOpenHubsCheckbox.addEventListener('change', saveState);
+toggleHubsCheckbox.addEventListener('change', saveState);
+toggleRadiusCheckbox.addEventListener('change', saveState);
+searchBox.addEventListener('input', saveState);
   let selectedSuggestionIndex = -1;
   let suggestionResults = [];
 
@@ -1164,7 +1165,10 @@ document.getElementById('fitToResults').addEventListener('click', fitToResults);
 
 
   // Initial load
-  onFilterChange();
+  // Restore and initial draw
+loadState();
+onFilterChange();
+
 
 })();
 </script>
