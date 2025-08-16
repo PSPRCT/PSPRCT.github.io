@@ -37,7 +37,7 @@
   .toggle-inline input:checked + .tgl-slider{background:#3399ff}
   .toggle-inline input:checked + .tgl-slider:before{transform:translateX(22px)}
 
-  /* Radius group */
+  /* Radius + min uncovered groups */
   .radius-group{display:inline-flex;align-items:center;gap:10px;padding:6px 10px;border-radius:999px;border:1px solid #e5e7eb;background:#fff}
   .radius-group .radius-title{font-weight:600;color:#333}
   .radius-group input[type="range"]{width:120px}
@@ -150,7 +150,7 @@
     <select id="trainerHubFilter" multiple title="Select trainer hubs"></select>
   </div>
 
-  <div class="toggles-row" id="toggles">
+  <div id="toggles" class="toggles-row">
     <label class="toggle-inline" title="Show staffed trainer hubs">
       <span class="text">Staffed hubs</span>
       <input type="checkbox" id="toggleHubs" checked role="switch" aria-label="Show staffed hubs" />
@@ -180,12 +180,20 @@
       <input type="checkbox" id="showOpenHubs" checked role="switch" aria-label="Show open hubs" />
       <span class="tgl-slider" aria-hidden="true"></span>
     </label>
+
+    <!-- New: min uncovered slider -->
+    <div class="radius-group" id="minUncovGroup">
+      <span class="radius-title">Min Uncovered / hub:</span>
+      <input type="range" id="minUncov" min="0" max="300" step="5" value="0" />
+      <span id="minUncovLabel">0</span>
+    </div>
   </div>
 
   <div class="quick-actions">
     <button id="uncoveredChip" class="chip" title="Toggle uncovered-only">Uncovered only</button>
     <button id="outsideChip" class="chip" title="Only stores outside all visible hubs">Outside all hubs</button>
     <button id="inViewChip" class="chip" title="Only stores currently in map view">In view only</button>
+    <button id="whatIfBtn" class="chip" title="Click map to test a temporary hub">What-if hub</button>
     <button id="copyLinkBtn" title="Copy a URL with current filters">Copy link</button>
     <button id="exportHubsCSV" title="Export visible hubs with counts">Export Hubs CSV</button>
     <button id="exportKpiCsv" title="Export KPI counts and uncovered %">Export KPIs CSV</button>
@@ -273,70 +281,70 @@
 
   /* ---------- Hubs (open + staffed) ---------- */
   const trainerHubs = [
-    /* ---------- OPEN hubs (replace this whole block) ---------- */
-{ id:"belle_vernon_pa",       name:"Belle Vernon, PA (Open)",       coords:[40.12507, -79.86640], status:"open", person:null },
-{ id:"blair_ne",              name:"Blair, NE (Open)",              coords:[41.54610, -96.12020], status:"open", person:null },
-{ id:"casa_grande_az",        name:"Casa Grande, AZ (Open)",        coords:[32.89055, -111.75400], status:"open", person:null },
-{ id:"centennial_co",         name:"Centennial, CO (Open)",         coords:[39.62732, -104.77900], status:"open", person:null },
-{ id:"centerville_ut",        name:"Centerville, UT (Open)",        coords:[40.92955, -111.89000], status:"open", person:null },
-{ id:"colton_ca",             name:"Colton, CA (Open)",             coords:[34.07390, -117.31400], status:"open", person:null },
-{ id:"coral_springs_fl",      name:"Coral Springs, FL (Open)",      coords:[26.28820, -80.25220],  status:"open", person:null },
-{ id:"dallas_tx",             name:"Dallas, TX (Open)",             coords:[32.96356, -96.77060],  status:"open", person:null },
-{ id:"elk_grove_village_il",  name:"Elk Grove Village, IL (Open)",  coords:[42.00865, -87.99740],  status:"open", person:null },
-{ id:"fairlawn_oh",           name:"Fairlawn, OH (Open)",           coords:[41.13315, -81.63520],  status:"open", person:null },
-{ id:"fort_wayne_in",         name:"Fort Wayne, IN (Open)",         coords:[41.06540, -85.15840],  status:"open", person:null },
-{ id:"houston_tx",            name:"Houston, TX (Open)",            coords:[29.85350, -95.50950],  status:"open", person:null },
-{ id:"jefferson_wi",          name:"Jefferson, WI (Open)",          coords:[42.98769, -88.80790],  status:"open", person:null },
-{ id:"kansas_city_mo",        name:"Kansas City, MO (Open)",        coords:[39.04512, -94.44290],  status:"open", person:null },
-{ id:"lakeland_fl",           name:"Lakeland, FL (Open)",           coords:[28.03591, -81.89970],  status:"open", person:null },
-{ id:"lincoln_il",            name:"Lincoln, IL (Open)",            coords:[40.16278, -89.39840],  status:"open", person:null },
-{ id:"mobile_al",             name:"Mobile, AL (Open)",             coords:[30.70114, -88.10320],  status:"open", person:null },
-{ id:"muskogee_ok",           name:"Muskogee, OK (Open)",           coords:[35.70582, -95.50030],  status:"open", person:null },
-{ id:"north_little_rock_ar",  name:"North Little Rock, AR (Open)",  coords:[34.83217, -92.39490],  status:"open", person:null },
-{ id:"newcastle_ok",          name:"Newcastle, OK (Open)",          coords:[35.29360, -97.60650],  status:"open", person:null },
-{ id:"oneonta_al",            name:"Oneonta, AL (Open)",            coords:[33.94815, -86.47280],  status:"open", person:null },
-{ id:"parkesburg_pa",         name:"Parkesburg, PA (Open)",         coords:[39.95872, -75.91940],  status:"open", person:null },
-{ id:"plainfield_in",         name:"Plainfield, IN (Open)",         coords:[39.70421, -86.39940],  status:"open", person:null },
-{ id:"poulsbo_wa",            name:"Poulsbo, WA (Open)",            coords:[47.75105, -122.61400], status:"open", person:null },
-{ id:"prairieville_la",       name:"Prairieville, LA (Open)",       coords:[30.30297, -90.97210],  status:"open", person:null },
-{ id:"roseville_mn",          name:"Roseville, MN (Open)",          coords:[45.00608, -93.15660],  status:"open", person:null },
-{ id:"salem_or",              name:"Salem, OR (Open)",              coords:[44.94290, -123.03500], status:"open", person:null },
-{ id:"secaucus_nj",           name:"Secaucus, NJ (Open)",           coords:[40.78885, -74.05600],  status:"open", person:null },
-{ id:"waterloo_ny",           name:"Waterloo, NY (Open)",           coords:[42.89256, -76.88230],  status:"open", person:null },
-{ id:"white_lake_mi",         name:"White Lake, MI (Open)",         coords:[42.66065, -83.46760],  status:"open", person:null },
-{ id:"williamsburg_va",       name:"Williamsburg, VA (Open)",       coords:[37.31045, -76.74680],  status:"open", person:null },
-{ id:"wilmington_oh",         name:"Wilmington, OH (Open)",         coords:[39.44499, -83.82440],  status:"open", person:null },
+    /* OPEN hubs (all should display as open) */
+    { id:"belle_vernon_pa", name:"Belle Vernon, PA (Open)", coords:[40.12507,-79.8664], status:"open", person:null },
+    { id:"blair_ne", name:"Blair, NE (Open)", coords:[41.5461,-96.1202], status:"open", person:null },
+    { id:"casa_grande_az", name:"Casa Grande, AZ (Open)", coords:[32.89055,-111.754], status:"open", person:null },
+    { id:"centennial_co", name:"Centennial, CO (Open)", coords:[39.62732,-104.779], status:"open", person:null },
+    { id:"centerville_ut", name:"Centerville, UT (Open)", coords:[40.92955,-111.89], status:"open", person:null },
+    { id:"colton_ca", name:"Colton, CA (Open)", coords:[34.0739,-117.314], status:"open", person:null },
+    { id:"coral_springs_fl", name:"Coral Springs, FL (Open)", coords:[26.2882,-80.2522], status:"open", person:null },
+    { id:"dallas_tx_open", name:"Dallas, TX (Open)", coords:[32.96356,-96.7706], status:"open", person:null },
+    { id:"elk_grove_village_il", name:"Elk Grove Village, IL (Open)", coords:[42.00865,-87.9974], status:"open", person:null },
+    { id:"fairlawn_oh", name:"Fairlawn, OH (Open)", coords:[41.13315,-81.6352], status:"open", person:null },
+    { id:"fort_wayne_in", name:"Fort Wayne, IN (Open)", coords:[41.0654,-85.1584], status:"open", person:null },
+    { id:"houston_tx", name:"Houston, TX (Open)", coords:[29.8535,-95.5095], status:"open", person:null },
+    { id:"jefferson_wi", name:"Jefferson, WI (Open)", coords:[42.98769,-88.8079], status:"open", person:null },
+    { id:"kansas_city_mo", name:"Kansas City, MO (Open)", coords:[39.04512,-94.4429], status:"open", person:null },
+    { id:"lakeland_fl", name:"Lakeland, FL (Open)", coords:[28.03591,-81.8997], status:"open", person:null },
+    { id:"lincoln_il", name:"Lincoln, IL (Open)", coords:[40.16278,-89.3984], status:"open", person:null },
+    { id:"mobile_al", name:"Mobile, AL (Open)", coords:[30.70114,-88.1032], status:"open", person:null },
+    { id:"muskogee_ok", name:"Muskogee, OK (Open)", coords:[35.70582,-95.5003], status:"open", person:null },
+    { id:"north_little_rock_ar", name:"North Little Rock, AR (Open)", coords:[34.83217,-92.3949], status:"open", person:null },
+    { id:"newcastle_ok", name:"Newcastle, OK (Open)", coords:[35.2936,-97.6065], status:"open", person:null },
+    { id:"oneonta_al", name:"Oneonta, AL (Open)", coords:[33.94815,-86.4728], status:"open", person:null },
+    { id:"parkesburg_pa", name:"Parkesburg, PA (Open)", coords:[39.95872,-75.9194], status:"open", person:null },
+    { id:"plainfield_in", name:"Plainfield, IN (Open)", coords:[39.70421,-86.3994], status:"open", person:null },
+    { id:"poulsbo_wa", name:"Poulsbo, WA (Open)", coords:[47.75105,-122.614], status:"open", person:null },
+    { id:"prairieville_la", name:"Prairieville, LA (Open)", coords:[30.30297,-90.9721], status:"open", person:null },
+    { id:"roseville_mn", name:"Roseville, MN (Open)", coords:[45.00608,-93.1566], status:"open", person:null },
+    { id:"salem_or", name:"Salem, OR (Open)", coords:[44.9429,-123.035], status:"open", person:null },
+    { id:"secaucus_nj", name:"Secaucus, NJ (Open)", coords:[40.78885,-74.056], status:"open", person:null },
+    { id:"waterloo_ny", name:"Waterloo, NY (Open)", coords:[42.89256,-76.8823], status:"open", person:null },
+    { id:"white_lake_mi", name:"White Lake, MI (Open)", coords:[42.66065,-83.4676], status:"open", person:null },
+    { id:"williamsburg_va", name:"Williamsburg, VA (Open)", coords:[37.31045,-76.7468], status:"open", person:null },
+    { id:"wilmington_oh", name:"Wilmington, OH (Open)", coords:[39.44499,-83.8244], status:"open", person:null },
 
-    /* STAFFED (formerly 'accepted') */
-    { id: "granite_falls_nc_walker", name: "Granite Falls, NC - Lisa Walker", coords: [35.80049406642459, -81.40580339729192], status: "accepted", person: "Lisa Walker" },
-    { id: "clarksville_tn_salvato", name: "Clarksville, TN - Nicholas Salvato", coords: [36.58887925062968, -87.34016705996005], status: "accepted", person: "Nicholas Salvato" },
-    { id: "orange_park_fl_hall", name: "Orange Park, FL - Sabrina Hall", coords: [30.186755922868347, -81.71888670245784], status: "accepted", person: "Sabrina Hall" },
-    { id: "excelsior_springs_mo_estep", name: "Excelsior Springs, MO - Teresa Estep", coords: [39.354429998804825, -94.1669969175497], status: "accepted", person: "Teresa Estep" },
-    { id: "louisville_ky_lilla", name: "Louisville, KY - Heather Lilla", coords: [38.209, -85.5198], status: "accepted", person: "Heather Lilla" },
-    { id: "seguin_tx_winston", name: "Seguin, TX - Christina Winston", coords: [29.56000348742034, -97.96778298897998], status: "accepted", person: "Christina Winston" },
-    { id: "minden_la_slater", name: "Minden, LA - Sami Jo Slater", coords: [32.686373819218176, -93.25250065821655], status: "accepted", person: "Sami Jo Slater" },
-    { id: "kenly_nc_gross", name: "Kenly, NC - Brooke Gross", coords: [35.691639527137895, -78.17947437532841], status: "accepted", person: "Brooke Gross" },
-    { id: "ofallon_mo_mcallister", name: "O'Fallon, MO - Mike McAllister", coords: [38.787159492769945, -90.71070211756692], status: "accepted", person: "Mike McAllister" },
-    { id: "king_george_va_faulk", name: "King George, VA - Amy Faulk", coords: [38.25603416823435, -77.06032785806136], status: "accepted", person: "Amy Faulk" },
-    { id: "sparta_mo_rogers", name: "Sparta, MO - Michelle Rogers", coords: [37.0314699051066, -93.1450542446044], status: "accepted", person: "Michelle Rogers" },
-    { id: "darlington_sc_jones", name: "Darlington, SC - Kristen Jones", coords: [34.305681297736434, -79.85061846002368], status: "accepted", person: "Kristen Jones" },
-    { id: "orangeburg_sc_shepherd", name: "Orangeburg, SC - Kendra Shepherd", coords: [33.47688895186578, -80.85696511771735], status: "accepted", person: "Kendra Shepherd" },
-    { id: "dandridge_tn_matthews", name: "Dandridge, TN - Jennifer Matthews", coords: [35.98401850406635, -83.55508935997715], status: "accepted", person: "Jennifer Matthews" },
-    { id: "navassa_nc_hook", name: "Navassa, NC - Jennifer Hook", coords: [34.25673752598021, -78.02249231584642], status: "accepted", person: "Jennifer Hook" },
-    { id: "ingleside_il_gonzalez", name: "Ingleside, IL – Miguel Gonzalez", coords: [42.3940241, -88.142826], status: "accepted", person: "Miguel Gonzalez" },
-    { id: "cambridge_oh_kerr", name: "Cambridge, OH - Rolland Kerr", coords: [40.017145, -81.604126], status: "accepted", person: "Rolland Kerr" },
-    { id: "acworth_ga_orr", name: "Acworth, GA - John Orr", coords: [34.0626832, -84.6417505], status: "accepted", person: "John Orr" },
-    { id: "norman_ok_ard", name: "Norman, OK - Teryl Ard", coords: [35.2131655, -97.4837249], status: "accepted", person: "Teryl Ard" },
-    { id: "fort_myers_fl_whitfield", name: "Fort Myers, FL - Muriel Curry Whitfield", coords: [26.6279876, -81.8700003], status: "accepted", person: "Muriel Curry Whitfield" },
-    { id: "farmingville_ny_reich", name: "Farmingville, NY - Barbara Reich", coords: [40.8408592, -73.0307648], status: "accepted", person: "Barbara Reich" },
-    { id: "folsom_ca_white", name: "Folsom, CA - Gerard White", coords: [38.6824363, -121.1481451], status: "accepted", person: "Gerard White" },
-    { id: "willimantic_ct_bokoff", name: "Willimantic, CT - Melissa Bokoff", coords: [41.7101216, -72.2129277], status: "accepted", person: "Melissa Bokoff" },
-    { id: "mabelvale_ar_eslick", name: "Mabelvale, AR - Angela Eslick", coords: [34.6217306, -92.4317642], status: "accepted", person: "Angela Eslick" },
-    { id: "rayne_la_thibodeaux", name: "Rayne, LA - Marcie Thibodeaux", coords: [30.220651, -92.295472], status: "accepted", person: "Marcie Thibodeaux" },
-    { id: "belvidere_il_vargas", name: "Belvidere, IL - Justin Vargas Salgado", coords: [42.257867, -88.846723], status: "accepted", person: "Justin Vargas Salgado" },
-    { id: "kimberly_al_savage", name: "Kimberly, AL - Jessica Savage", coords: [33.77344, -86.81388], status: "accepted", person: "Jessica Savage" },
-    { id: "olive_branch_ms_brown", name: "Olive Branch, MS - Annette Brown", coords: [34.92668799775572, -89.89485850418528], status: "accepted", person: "Annette Brown" },
-    { id: "riverview_fl_santos",  name: "Riverview, FL - Richard Santos",  coords: [27.8661, -82.3265],  status: "accepted", person: "Richard Santos" }
+    /* STAFFED positions (formerly "accepted") */
+    { id:"granite_falls_nc_walker", name:"Granite Falls, NC - Lisa Walker", coords:[35.80049406642459,-81.40580339729192], status:"accepted", person:"Lisa Walker" },
+    { id:"clarksville_tn_salvato", name:"Clarksville, TN - Nicholas Salvato", coords:[36.58887925062968,-87.34016705996005], status:"accepted", person:"Nicholas Salvato" },
+    { id:"orange_park_fl_hall", name:"Orange Park, FL - Sabrina Hall", coords:[30.186755922868347,-81.71888670245784], status:"accepted", person:"Sabrina Hall" },
+    { id:"excelsior_springs_mo_estep", name:"Excelsior Springs, MO - Teresa Estep", coords:[39.354429998804825,-94.1669969175497], status:"accepted", person:"Teresa Estep" },
+    { id:"louisville_ky_lilla", name:"Louisville, KY - Heather Lilla", coords:[38.209,-85.5198], status:"accepted", person:"Heather Lilla" },
+    { id:"seguin_tx_winston", name:"Seguin, TX - Christina Winston", coords:[29.56000348742034,-97.96778298897998], status:"accepted", person:"Christina Winston" },
+    { id:"minden_la_slater", name:"Minden, LA - Sami Jo Slater", coords:[32.686373819218176,-93.25250065821655], status:"accepted", person:"Sami Jo Slater" },
+    { id:"kenly_nc_gross", name:"Kenly, NC - Brooke Gross", coords:[35.691639527137895,-78.17947437532841], status:"accepted", person:"Brooke Gross" },
+    { id:"ofallon_mo_mcallister", name:"O'Fallon, MO - Mike McAllister", coords:[38.787159492769945,-90.71070211756692], status:"accepted", person:"Mike McAllister" },
+    { id:"king_george_va_faulk", name:"King George, VA - Amy Faulk", coords:[38.25603416823435,-77.06032785806136], status:"accepted", person:"Amy Faulk" },
+    { id:"sparta_mo_rogers", name:"Sparta, MO - Michelle Rogers", coords:[37.0314699051066,-93.1450542446044], status:"accepted", person:"Michelle Rogers" },
+    { id:"darlington_sc_jones", name:"Darlington, SC - Kristen Jones", coords:[34.305681297736434,-79.85061846002368], status:"accepted", person:"Kristen Jones" },
+    { id:"orangeburg_sc_shepherd", name:"Orangeburg, SC - Kendra Shepherd", coords:[33.47688895186578,-80.85696511771735], status:"accepted", person:"Kendra Shepherd" },
+    { id:"dandridge_tn_matthews", name:"Dandridge, TN - Jennifer Matthews", coords:[35.98401850406635,-83.55508935997715], status:"accepted", person:"Jennifer Matthews" },
+    { id:"navassa_nc_hook", name:"Navassa, NC - Jennifer Hook", coords:[34.25673752598021,-78.02249231584642], status:"accepted", person:"Jennifer Hook" },
+    { id:"ingleside_il_gonzalez", name:"Ingleside, IL – Miguel Gonzalez", coords:[42.3940241,-88.142826], status:"accepted", person:"Miguel Gonzalez" },
+    { id:"cambridge_oh_kerr", name:"Cambridge, OH - Rolland Kerr", coords:[40.017145,-81.604126], status:"accepted", person:"Rolland Kerr" },
+    { id:"acworth_ga_orr", name:"Acworth, GA - John Orr", coords:[34.0626832,-84.6417505], status:"accepted", person:"John Orr" },
+    { id:"norman_ok_ard", name:"Norman, OK - Teryl Ard", coords:[35.2131655,-97.4837249], status:"accepted", person:"Teryl Ard" },
+    { id:"fort_myers_fl_whitfield", name:"Fort Myers, FL - Muriel Curry Whitfield", coords:[26.6279876,-81.8700003], status:"accepted", person:"Muriel Curry Whitfield" },
+    { id:"farmingville_ny_reich", name:"Farmingville, NY - Barbara Reich", coords:[40.8408592,-73.0307648], status:"accepted", person:"Barbara Reich" },
+    { id:"folsom_ca_white", name:"Folsom, CA - Gerard White", coords:[38.6824363,-121.1481451], status:"accepted", person:"Gerard White" },
+    { id:"willimantic_ct_bokoff", name:"Willimantic, CT - Melissa Bokoff", coords:[41.7101216,-72.2129277], status:"accepted", person:"Melissa Bokoff" },
+    { id:"mabelvale_ar_eslick", name:"Mabelvale, AR - Angela Eslick", coords:[34.6217306,-92.4317642], status:"accepted", person:"Angela Eslick" },
+    { id:"rayne_la_thibodeaux", name:"Rayne, LA - Marcie Thibodeaux", coords:[30.220651,-92.295472], status:"accepted", person:"Marcie Thibodeaux" },
+    { id:"belvidere_il_vargas", name:"Belvidere, IL - Justin Vargas Salgado", coords:[42.257867,-88.846723], status:"accepted", person:"Justin Vargas Salgado" },
+    { id:"kimberly_al_savage", name:"Kimberly, AL - Jessica Savage", coords:[33.77344,-86.81388], status:"accepted", person:"Jessica Savage" },
+    { id:"olive_branch_ms_brown", name:"Olive Branch, MS - Annette Brown", coords:[34.92668799775572,-89.89485850418528], status:"accepted", person:"Annette Brown" },
+    { id:"riverview_fl_santos", name:"Riverview, FL - Richard Santos", coords:[27.8661,-82.3265], status:"accepted", person:"Richard Santos" }
   ];
   trainerHubs.forEach(h => { h.latRad = h.coords[0]*Math.PI/180; h.lngRad = h.coords[1]*Math.PI/180; });
 
@@ -353,6 +361,11 @@
   let inViewOnly = false;
   let kpiSnapshot = { counts:{}, total:0, pctUncov:0 };
 
+  // What-if hub state
+  let whatIfOn = false;
+  let tempHubCircle = null;
+  let tempHubMarker = null;
+
   /* ---------- Utils ---------- */
   function debounce(fn, delay=150){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),delay); }; }
   const debouncedOnFilterChange = debounce(onFilterChange,150);
@@ -365,13 +378,13 @@
     const φ2 = lat2Rad ?? toRad(lat2), λ2 = lon2Rad ?? toRad(lon2);
     const dφ = φ2-φ1, dλ = λ2-λ1;
     const a = Math.sin(dφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
-    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+    return R*(2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
   }
 
   /* ---------- Data ---------- */
   try{
-    const resp = await fetch('store_data.json', { cache: 'no-store' });
-    if(!resp.ok) throw new Error(`Failed to load store_data.json (HTTP ${resp.status})`);
+    const resp = await fetch('store_data.json');
+    if(!resp.ok) throw new Error('Failed to load store_data.json');
     const raw = await resp.json();
     allStores = raw.map(s => ({
       ...s,
@@ -383,10 +396,7 @@
       latRad: (s.latitude??0)*Math.PI/180,
       lngRad: (s.longitude??0)*Math.PI/180,
     }));
-  }catch(err){
-    alert(err.message + "\n\nTip: if you're opening this file from disk, run a local web server so fetch() can load the JSON.");
-    return;
-  }
+  }catch(err){ alert(err.message); return; }
 
   /* ---------- Map ---------- */
   const map = L.map('map').setView([39.5,-98.35],5);
@@ -409,13 +419,16 @@
   const areaFilter = document.getElementById('areaFilter');
   const trainerHubFilter = document.getElementById('trainerHubFilter');
 
-  const toggleHubsCheckbox = document.getElementById('toggleHubs');
-  const showOpenHubsCheckbox = document.getElementById('showOpenHubs');
+  const toggleHubsCheckbox = document.getElementById('toggleHubs');     // Staffed hubs
+  const showOpenHubsCheckbox = document.getElementById('showOpenHubs'); // Open hubs
   const toggleRadiusCheckbox = document.getElementById('toggleRadius');
 
   const radiusInput = document.getElementById('radiusMiles');
   const radiusLabel = document.getElementById('radiusLabel');
   const allowCustom = document.getElementById('allowCustomRadius');
+
+  const minUncovInput = document.getElementById('minUncov');
+  const minUncovLabel = document.getElementById('minUncovLabel');
 
   const searchBox = document.getElementById('searchBox');
   const searchClearBtn = document.getElementById('searchClearBtn');
@@ -425,6 +438,7 @@
   const outsideChip   = document.getElementById('outsideChip');
   const inViewChip    = document.getElementById('inViewChip');
 
+  const whatIfBtn     = document.getElementById('whatIfBtn');
   const copyLinkBtn   = document.getElementById('copyLinkBtn');
   const exportHubsBtn = document.getElementById('exportHubsCSV');
 
@@ -441,25 +455,32 @@
   populateSelect(regionalFilter, regionalSet);
   populateSelect(areaFilter, areaSet);
 
-  (function populateHubControls(){
+  // Hubs (list all; we will disable ones with no stores in range)
+  function populateHubControls(){
     trainerHubs.forEach(hub => {
       const opt = document.createElement('option');
       opt.value = hub.name; opt.textContent = hub.name; trainerHubFilter.appendChild(opt);
     });
-  })();
+  }
+  populateHubControls();
 
-  /* ---------- Radius behavior ---------- */
-  allowCustom.checked = false;
-  radiusInput.disabled = true; radiusInput.value = 75; radiusLabel.textContent = '75 mi';
-  const getRadiusMiles = () => (allowCustom.checked ? (parseInt(radiusInput.value,10)||75) : 75);
+  /* ---------- Radius & min uncovered ---------- */
+  if (allowCustom) allowCustom.checked = false;
+  if (radiusInput){ radiusInput.disabled = true; radiusInput.value = 75; }
+  if (radiusLabel) radiusLabel.textContent = '75 mi';
+  const getRadiusMiles = () => (allowCustom && allowCustom.checked ? (parseInt(radiusInput.value,10)||75) : 75);
 
-  radiusInput.addEventListener('input', () => {
+  if (radiusInput) radiusInput.addEventListener('input', () => {
     radiusLabel.textContent = `${getRadiusMiles()} mi`;
     debouncedOnFilterChange(); saveState();
   });
-  allowCustom.addEventListener('change', () => {
+  if (allowCustom) allowCustom.addEventListener('change', () => {
     radiusInput.disabled = !allowCustom.checked;
     radiusLabel.textContent = `${getRadiusMiles()} mi`;
+    debouncedOnFilterChange(); saveState();
+  });
+  minUncovInput.addEventListener('input', () => {
+    minUncovLabel.textContent = minUncovInput.value;
     debouncedOnFilterChange(); saveState();
   });
 
@@ -483,7 +504,8 @@
     const selectedRegional = Array.from(regionalFilter.selectedOptions).map(o=>o.value);
     const selectedArea     = Array.from(areaFilter.selectedOptions).map(o=>o.value);
 
-    const hubCoordsList =
+    // Use trainerHubFilter selections as a hub-radius constraint (if selected)
+    const chosenHubCoords =
       Array.from(trainerHubFilter.selectedOptions)
         .map(o => (trainerHubs.find(h => h.name === o.value) || {}).coords)
         .filter(Boolean);
@@ -498,7 +520,7 @@
       if (inViewOnly && !bounds.contains([store.latitude, store.longitude])) return false;
 
       const r = getRadiusMiles();
-      const hubConstraintOK = !hubCoordsList.length || hubCoordsList.some(([lat,lng]) =>
+      const hubConstraintOK = !chosenHubCoords.length || chosenHubCoords.some(([lat,lng]) =>
         getDistanceMiles(lat,lng,store.latitude,store.longitude,undefined,undefined,store.latRad,store.lngRad) <= r
       );
 
@@ -518,40 +540,33 @@
   /* ---------- Map rendering ---------- */
   function addLazyLoadedMarkers(stores){
     markers.clearLayers(); storeMarkersMap.clear();
-
-    // When showing a single store (search selection), always add it & skip the extended-bounds filter.
-    const forceAll = stores.length === 1;
-
     const bounds = map.getBounds();
-    const bufferLat = 50/69; // ~50 miles padding
+    const bufferLat = 50/69;
     const extended = L.latLngBounds(
       [bounds.getSouth()-bufferLat, bounds.getWest()-bufferLat],
       [bounds.getNorth()+bufferLat, bounds.getEast()+bufferLat]
     );
 
-    stores
-      .filter(s => forceAll || extended.contains([s.latitude,s.longitude]))
-      .forEach(store => {
-        const nearest = findNearestAllowedHub(store);
+    stores.filter(s => extended.contains([s.latitude,s.longitude])).forEach(store => {
+      const nearest = findNearestAllowedHub(store);
+      const marker = L.circleMarker([store.latitude,store.longitude],{
+        radius:6, color:coverageColors[store.coverageType]||'gray',
+        fillColor:coverageColors[store.coverageType]||'gray', fillOpacity:.85, weight:1
+      }).bindPopup(`
+        <strong>Store #${escapeHtml(store.storeNumber)}</strong><br>
+        ${escapeHtml(store.storeName)}<br>
+        ${escapeHtml(store.address)}<br>
+        ${escapeHtml(store.cityDisplay)}, ${escapeHtml(store.state)}<br>
+        Coverage: <b>${escapeHtml(store.coverageType)}</b><br>
+        Trainer City: ${escapeHtml(store.trainerCity)}<br>
+        Area: ${escapeHtml(store.areaManager)}<br>
+        Regional: ${escapeHtml(store.regionalManager)}<br>
+        ${nearest.hub ? `Nearest hub: ${escapeHtml(nearest.hub.name)} (${nearest.miles.toFixed(1)} mi)` : 'No visible hub nearby'}
+      `);
 
-        const marker = L.circleMarker([store.latitude,store.longitude],{
-          radius:6, color:coverageColors[store.coverageType]||'gray',
-          fillColor:coverageColors[store.coverageType]||'gray', fillOpacity:.85, weight:1
-        }).bindPopup(`
-          <strong>Store #${escapeHtml(store.storeNumber)}</strong><br>
-          ${escapeHtml(store.storeName)}<br>
-          ${escapeHtml(store.address)}<br>
-          ${escapeHtml(store.cityDisplay)}, ${escapeHtml(store.state)}<br>
-          Coverage: <b>${escapeHtml(store.coverageType)}</b><br>
-          Trainer City: ${escapeHtml(store.trainerCity)}<br>
-          Area: ${escapeHtml(store.areaManager)}<br>
-          Regional: ${escapeHtml(store.regionalManager)}<br>
-          ${nearest.hub ? `Nearest hub: ${escapeHtml(nearest.hub.name)} (${nearest.miles.toFixed(1)} mi)` : 'No visible hub nearby'}
-        `);
-
-        markers.addLayer(marker);
-        storeMarkersMap.set(store.storeNumber.replace(/^0+/, ''), marker);
-      });
+      markers.addLayer(marker);
+      storeMarkersMap.set(store.storeNumber.replace(/^0+/, ''), marker);
+    });
   }
 
   function updateKPI(){
@@ -563,7 +578,8 @@
     const chip = (color,label,val)=>`
       <span class="kpi-chip"><span class="kpi-dot" style="background:${color}"></span>
       <span class="label">${label}</span><span class="value">${val}</span></span>`;
-    document.getElementById('kpiStrip').innerHTML = [
+    const el = document.getElementById('kpiStrip');
+    el.innerHTML = [
       chip('blue','Premium + Acosta', c['Premium + Acosta']||0),
       chip('green','Premium Only', c['Premium Only']||0),
       chip('orange','Acosta Only', c['Acosta Only']||0),
@@ -575,7 +591,15 @@
 
   function getStoresCoveredByHub(hub){
     const r = getRadiusMiles();
-    return filteredStores.filter(s => getDistanceMiles(hub.coords[0],hub.coords[1],s.latitude,s.longitude,hub.latRad,hub.lngRad,s.latRad,s.lngRad) <= r);
+    return filteredStores.filter(s =>
+      getDistanceMiles(hub.coords[0],hub.coords[1],s.latitude,s.longitude,hub.latRad,hub.lngRad,s.latRad,s.lngRad) <= r
+    );
+  }
+  function getStoresCoveredByPoint(lat, lng){
+    const r = getRadiusMiles();
+    return filteredStores.filter(s =>
+      getDistanceMiles(lat,lng,s.latitude,s.longitude,undefined,undefined,s.latRad,s.lngRad) <= r
+    );
   }
 
   function openHubPanel(hub){
@@ -616,6 +640,17 @@
   document.getElementById('hubOverlay').addEventListener('click', closeHubPanel);
   document.addEventListener('keydown', e => { if (e.key==='Escape'){ const p=document.getElementById('hubPanel'); if (p&&p.style.display==='block') closeHubPanel(); }});
 
+  function fitToHubArea(hubCoords){
+    const r = getRadiusMiles();
+    const inRadius = filteredStores.filter(s => getDistanceMiles(hubCoords[0],hubCoords[1],s.latitude,s.longitude) <= r);
+    if (inRadius.length){
+      const latLngs = inRadius.map(s => [s.latitude,s.longitude]); latLngs.push(hubCoords);
+      map.fitBounds(L.latLngBounds(latLngs),{padding:[30,30]});
+    } else {
+      map.setView(hubCoords, 11);
+    }
+  }
+
   function addTrainerHubsAndCircles(hubsToShow){
     hubsMarkers.forEach(m => map.removeLayer(m));
     coverageCircles.forEach(c => map.removeLayer(c));
@@ -625,8 +660,17 @@
     hubsToShow.forEach(hub => {
       const within = getStoresCoveredByHub(hub);
       const uncovered = within.filter(s=>s.coverageType==='Uncovered').length;
+
+      // coverage breakdown
       const byCov = { "Premium + Acosta":0,"Premium Only":0,"Acosta Only":0,"Uncovered":0 };
       within.forEach(s => byCov[s.coverageType]=(byCov[s.coverageType]||0)+1);
+
+      // top cities (up to 5)
+      const cityCounts = {};
+      within.forEach(s => { const key = `${s.cityDisplay}, ${s.state}`; cityCounts[key] = (cityCounts[key]||0)+1; });
+      const topCities = Object.entries(cityCounts)
+        .sort((a,b)=>b[1]-a[1]).slice(0,5)
+        .map(([k,v]) => `${k.split(',')[0]} (${v})`).join(' · ');
 
       const statusKey = hub.status === 'accepted' ? 'staffed' : 'open';
       const nextWin = (hub.status==='open' && uncovered >= NEXT_WIN_UNCOV_THRESHOLD);
@@ -640,6 +684,7 @@
           <b>${within.length}</b> in ${rMiles} mi &nbsp;|&nbsp;
           P+A: ${byCov["Premium + Acosta"]||0} · P: ${byCov["Premium Only"]||0} · A: ${byCov["Acosta Only"]||0} · U: ${byCov["Uncovered"]||0}
         </div>
+        ${topCities ? `<div style="margin-top:6px;color:#555">Top cities: ${escapeHtml(topCities)}</div>` : ''}
         <div style="margin-top:6px">
           <a href="#" data-hub="${hub.id}" class="open-panel">Open list</a>
         </div>
@@ -647,6 +692,9 @@
 
       const hubMarker = L.marker(hub.coords,{icon:iconForHub(hub)}).bindPopup(popupHtml).addTo(map);
       hubsMarkers.push(hubMarker);
+
+      // Double-click to zoom to radius
+      hubMarker.on('dblclick', () => fitToHubArea(hub.coords));
 
       const circle = L.circle(hub.coords,{
         radius:rMiles*1609.34, color:'purple', weight:1, fillOpacity:.1, dashArray:'5,10'
@@ -662,6 +710,7 @@
       circle.on('click', () => openHubPanel(hub));
     });
 
+    // Delegate: "Open list" link inside popup
     map.on('popupopen', (e) => {
       const link = e.popup._contentNode.querySelector('a.open-panel');
       if (link){
@@ -676,6 +725,7 @@
   }
 
   function updateTrainerHubFilter(){
+    // Enable only hubs that actually cover any filtered stores (contextual UX)
     const hubsWithStores = new Set();
     trainerHubs.forEach(hub => {
       const coversAny = filteredStores.some(store =>
@@ -692,6 +742,7 @@
     });
   }
 
+  /* ---------- Counts/UI ---------- */
   function updateFilterCount(){
     document.getElementById('filterCount').textContent = `Showing ${filteredStores.length} of ${allStores.length} stores`;
   }
@@ -702,29 +753,47 @@
     el.textContent = ` | In view: ${n}`;
   }
 
+  /* ---------- Main refresh ---------- */
   async function onFilterChange(){
     const mask = document.getElementById('busyMask'); mask.hidden = false;
     try{
+      // 1) filter + markers
       filterStores();
       addLazyLoadedMarkers(filteredStores);
       updateInViewCount(); updateFilterCount(); updateKPI();
 
+      // 2) contextual trainer hub filter
       updateTrainerHubFilter();
 
+      // 3) choose hubs to show (respect Staffed/Open toggles) + min uncovered
       const includeStaffed = toggleHubsCheckbox.checked;
       const includeOpen    = showOpenHubsCheckbox.checked;
-      const hubsToShow = trainerHubs.filter(h => (h.status==='accepted' && includeStaffed) || (h.status==='open' && includeOpen));
+      const hubsToShowBase = trainerHubs.filter(h =>
+        (h.status==='accepted' && includeStaffed) ||
+        (h.status==='open'     && includeOpen)
+      );
 
-      lastHubsToShow = hubsToShow.map(h => ({ ...h, coveredCount: getStoresCoveredByHub(h).length }));
+      const minUncov = +minUncovInput.value || 0;
+      lastHubsToShow = hubsToShowBase.map(h => {
+        const list = getStoresCoveredByHub(h);
+        const uncoveredCount = list.filter(s => s.coverageType==='Uncovered').length;
+        return { ...h, coveredCount: list.length, uncoveredCount };
+      }).filter(h => h.uncoveredCount >= minUncov);
 
-      const staffedCount = hubsToShow.filter(h => h.status==='accepted').length;
-      const openCount    = hubsToShow.filter(h => h.status==='open').length;
-      document.getElementById('hubCount').innerHTML =
-        `Hubs shown: <span style="color:#6a1b9a;font-weight:700">${staffedCount} staffed</span> / <span style="color:#9e9e9e;font-weight:700">${openCount} open</span>`;
+      // 4) hub counter + render
+      const staffedCount = lastHubsToShow.filter(h => h.status==='accepted').length;
+      const openCount    = lastHubsToShow.filter(h => h.status==='open').length;
+      const hubCountEl = document.getElementById('hubCount');
+      hubCountEl.innerHTML = `Hubs shown: <span style="color:#6a1b9a;font-weight:700">${staffedCount} staffed</span> / <span style="color:#9e9e9e;font-weight:700">${openCount} open</span>`;
 
-      addTrainerHubsAndCircles(hubsToShow);
+      addTrainerHubsAndCircles(lastHubsToShow);
 
+      // 5) respect radius toggle
       if (!toggleRadiusCheckbox.checked) coverageCircles.forEach(c => map.removeLayer(c));
+
+      // 6) clear what-if artifacts when filters change (avoid stale counts)
+      if (tempHubCircle) { map.removeLayer(tempHubCircle); tempHubCircle = null; }
+      if (tempHubMarker) { map.removeLayer(tempHubMarker); tempHubMarker = null; }
     } finally {
       requestAnimationFrame(()=>{ mask.hidden = true; });
     }
@@ -753,17 +822,27 @@
   });
 
   document.getElementById('resetFilters').addEventListener('click', () => {
+    // coverage -> All
     for (const o of coverageFilter.options) o.selected = (o.value==="All");
+    // managers -> All
     ['regionalFilter','areaFilter'].forEach(id => {
       const sel=document.getElementById(id); Array.from(sel.options).forEach(o => o.selected=(o.value==="All"));
     });
+    // hub filters cleared
     trainerHubFilter.selectedIndex = -1;
-
+    // radius back to locked 75
     allowCustom.checked = false; radiusInput.disabled = true; radiusInput.value = 75; radiusLabel.textContent = '75 mi';
+    // toggles
     toggleHubsCheckbox.checked = true; toggleRadiusCheckbox.checked = true; showOpenHubsCheckbox.checked = true;
-
+    // chips
     uncoveredChip.classList.remove('chip-active'); outsideChip.classList.remove('chip-active'); inViewChip.classList.remove('chip-active');
     outsideOnly = false; inViewOnly = false; prevCoverageSelection = null;
+    // min uncovered
+    minUncovInput.value = 0; minUncovLabel.textContent = '0';
+    // clear what-if
+    whatIfOn = false; whatIfBtn.classList.remove('chip-active');
+    if (tempHubCircle) { map.removeLayer(tempHubCircle); tempHubCircle = null; }
+    if (tempHubMarker) { map.removeLayer(tempHubMarker); tempHubMarker = null; }
 
     map.setView([39.5,-98.35],5);
     onFilterChange(); saveState();
@@ -797,6 +876,50 @@
     debouncedOnFilterChange(); saveState();
   });
 
+  // What-if hub
+  whatIfBtn.addEventListener('click', () => {
+    whatIfOn = !whatIfOn;
+    whatIfBtn.classList.toggle('chip-active', whatIfOn);
+    if (!whatIfOn) {
+      if (tempHubCircle) { map.removeLayer(tempHubCircle); tempHubCircle = null; }
+      if (tempHubMarker) { map.removeLayer(tempHubMarker); tempHubMarker = null; }
+    }
+  });
+  map.on('click', (e) => {
+    if (!whatIfOn) return;
+    const { lat, lng } = e.latlng;
+    const list = getStoresCoveredByPoint(lat, lng);
+
+    if (tempHubCircle) map.removeLayer(tempHubCircle);
+    if (tempHubMarker) map.removeLayer(tempHubMarker);
+
+    tempHubCircle = L.circle([lat,lng], {
+      radius: getRadiusMiles()*1609.34, color: 'purple', weight: 2, fillOpacity: .12, dashArray: '3,8'
+    }).addTo(map);
+
+    const byCov = { "Premium + Acosta":0, "Premium Only":0, "Acosta Only":0, "Uncovered":0 };
+    list.forEach(s => byCov[s.coverageType] = (byCov[s.coverageType]||0)+1);
+
+    const html = `
+      <b>What-if hub</b><br>
+      <div style="margin-top:6px">
+        <b>${list.length}</b> in ${getRadiusMiles()} mi — P+A ${byCov["Premium + Acosta"]||0},
+        P ${byCov["Premium Only"]||0}, A ${byCov["Acosta Only"]||0}, U ${byCov["Uncovered"]||0}
+      </div>
+      <div style="margin-top:6px">
+        <button id="whatIfExport" style="background:#3399ff;color:#fff;border:0;padding:4px 8px;border-radius:6px;cursor:pointer">
+          Export CSV
+        </button>
+      </div>
+    `;
+    tempHubMarker = L.marker([lat,lng]).addTo(map).bindPopup(html).openPopup();
+
+    setTimeout(() => {
+      const btn = document.getElementById('whatIfExport');
+      if (btn) btn.onclick = () => exportStoresCsv(list, `what_if_${lat.toFixed(3)}_${lng.toFixed(3)}`);
+    }, 0);
+  });
+
   // Copy link
   function getUIState(){
     return {
@@ -808,7 +931,8 @@
       toggles:{ showHubs:toggleHubsCheckbox.checked, showRadius:toggleRadiusCheckbox.checked, showOpen:showOpenHubsCheckbox.checked },
       search:searchBox.value,
       radius:{ allowCustom:allowCustom.checked, value:radiusInput.value },
-      chips:{ outsideOnly, inViewOnly, uncovered:uncoveredChip.classList.contains('chip-active') }
+      chips:{ outsideOnly, inViewOnly, uncovered:uncoveredChip.classList.contains('chip-active') },
+      minUncov: +minUncovInput.value || 0
     };
   }
   function applyStateFromObject(s){
@@ -826,10 +950,11 @@
     if (s.radius){ allowCustom.checked = !!s.radius.allowCustom; radiusInput.disabled = !allowCustom.checked; if (s.radius.value) radiusInput.value = s.radius.value; radiusLabel.textContent = `${getRadiusMiles()} mi`; }
     if (s.chips){
       outsideOnly = !!s.chips.outsideOnly; inViewOnly = !!s.chips.inViewOnly;
-      if (s.chips.uncovered) uncoveredChip.classList.add('chip-active');
-      if (outsideOnly) outsideChip.classList.add('chip-active');
-      if (inViewOnly) inViewChip.classList.add('chip-active');
+      if (s.chips.uncovered) uncoveredChip.classList.add('chip-active'); else uncoveredChip.classList.remove('chip-active');
+      if (outsideOnly) outsideChip.classList.add('chip-active'); else outsideChip.classList.remove('chip-active');
+      if (inViewOnly) inViewChip.classList.add('chip-active'); else inViewChip.classList.remove('chip-active');
     }
+    if (typeof s.minUncov === 'number'){ minUncovInput.value = s.minUncov; minUncovLabel.textContent = String(s.minUncov); }
   }
   function loadStateFromHash(){
     if (!location.hash.startsWith('#s=')) return false;
@@ -852,11 +977,11 @@
   // Export hubs CSV
   exportHubsBtn.addEventListener('click', () => {
     if (!lastHubsToShow.length){ alert('No hubs to export.'); return; }
-    const headers = ['Hub Name','Status','Person','Latitude','Longitude','Radius (mi)','Covered Stores (filtered)'];
+    const headers = ['Hub Name','Status','Person','Latitude','Longitude','Radius (mi)','Covered Stores (filtered)','Uncovered (filtered)'];
     const rows = [headers.join(',')];
     lastHubsToShow.forEach(h => {
       const [lat,lng] = h.coords;
-      rows.push([`"${h.name.replace(/"/g,'""')}"`, (h.status==='accepted'?'staffed':'open'), `"${(h.person||'').replace(/"/g,'""')}"`, lat, lng, getRadiusMiles(), h.coveredCount].join(','));
+      rows.push([`"${h.name.replace(/"/g,'""')}"`, (h.status==='accepted'?'staffed':'open'), `"${(h.person||'').replace(/"/g,'""')}"`, lat, lng, getRadiusMiles(), h.coveredCount, h.uncoveredCount].join(','));
     });
     const csv = rows.join('\n'); const blob = new Blob(["\uFEFF"+csv],{type:'text/csv;charset=utf-8;'});
     const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='hubs.csv'; a.click(); URL.revokeObjectURL(url);
@@ -904,7 +1029,7 @@
     setTimeout(()=>{ window.print(); panel.style.display='none'; }, 50);
   });
 
-  // ---- Search with autosuggest (auto-clear + auto-zoom) ----
+  // Search autosuggest — clear after each selection and zoom to the picked store
   let selectedSuggestionIndex = -1, suggestionResults = [];
   function closeSuggestions(){ suggestionsBox.style.display='none'; selectedSuggestionIndex=-1; suggestionResults=[]; }
   function populateSuggestions(term){
@@ -928,28 +1053,16 @@
     const store = suggestionResults[index];
     closeSuggestions();
 
-    // 1) Filter to just this store & always add marker
-    filteredStores = [store];
-    addLazyLoadedMarkers(filteredStores);
+    // Show only that store, then zoom/open
+    filteredStores = [store]; addLazyLoadedMarkers(filteredStores); updateInViewCount(); updateFilterCount();
 
-    // 2) Zoom directly to store
-    map.setView([store.latitude, store.longitude], 14);
+    const key = store.storeNumber.replace(/^0+/, ''); const marker = storeMarkersMap.get(key);
+    if (marker){ map.setView(marker.getLatLng(), 14); if (currentOpenPopup) currentOpenPopup.closePopup(); marker.openPopup(); currentOpenPopup = marker; }
 
-    // 3) Open popup if exists
-    const key = store.storeNumber.replace(/^0+/, '');
-    const marker = storeMarkersMap.get(key);
-    if (marker){
-      if (currentOpenPopup) currentOpenPopup.closePopup();
-      marker.openPopup(); currentOpenPopup = marker;
-    }
-
-    // 4) Update UI + auto-clear
-    updateInViewCount();
-    updateFilterCount();
-    searchBox.value = '';
-    searchBox.focus();
-    saveState();
+    // Clear the box and keep focus for fast back-to-back searches
+    searchBox.value = ''; searchBox.focus();
   }
+  function highlightSuggestion(i){ [...suggestionsBox.children].forEach(c => c.classList.remove('highlighted')); if (i>=0 && i<suggestionsBox.children.length) suggestionsBox.children[i].classList.add('highlighted'); }
   searchBox.addEventListener('input', () => populateSuggestions(searchBox.value));
   searchBox.addEventListener('keydown', e => {
     if (suggestionsBox.style.display==='none') return;
@@ -958,20 +1071,9 @@
     else if (e.key==='Enter'){ e.preventDefault(); if (selectedSuggestionIndex>=0) selectSuggestion(selectedSuggestionIndex); else if (suggestionResults.length) selectSuggestion(0); }
     else if (e.key==='Escape'){ closeSuggestions(); }
   });
-  function highlightSuggestion(i){ [...suggestionsBox.children].forEach(c => c.classList.remove('highlighted')); if (i>=0 && i<suggestionsBox.children.length) suggestionsBox.children[i].classList.add('highlighted'); }
+  searchClearBtn.addEventListener('click', () => { searchBox.value=''; closeSuggestions(); map.setView([39.5,-98.35],5); onFilterChange(); searchBox.focus(); });
 
-  // Clear button: clears box, resets view and data
-  searchClearBtn.addEventListener('click', () => {
-    searchBox.value='';
-    closeSuggestions();
-    map.setView([39.5,-98.35],5);
-    onFilterChange();
-    searchBox.focus();
-  });
-
-  document.addEventListener('click', e => {
-    if (!searchBox.contains(e.target) && !suggestionsBox.contains(e.target)) closeSuggestions();
-  });
+  document.addEventListener('click', e => { if (!searchBox.contains(e.target) && !suggestionsBox.contains(e.target)) closeSuggestions(); });
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
@@ -991,25 +1093,14 @@
   toggleHubsCheckbox.addEventListener('change', saveState);
   toggleRadiusCheckbox.addEventListener('change', saveState);
   if (searchBox) searchBox.addEventListener('input', saveState);
+  minUncovInput.addEventListener('input', saveState);
 
+  // Load state (hash > localStorage)
   const usedHash = loadStateFromHash(); if (!usedHash) loadState();
   if (![...coverageFilter.options].some(o=>o.selected)){ const allOpt = coverageFilter.querySelector('option[value="All"]'); if (allOpt) allOpt.selected = true; }
 
   // Initial render
   onFilterChange();
-
-  /* ---------- CSV helper ---------- */
-  function exportStoresCsv(list, filename){
-    const headers = ['Store Number','Store Name','Address','City','State','Coverage Type','Trainer City','Area Manager','Regional Manager'];
-    const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
-    const rows = [headers.join(',')].concat(list.map(s => [
-      q(s.storeNumber), q(s.storeName), q(s.address), q(s.cityDisplay), q(s.state),
-      q(s.coverageType), q(s.trainerCity), q(s.areaManager), q(s.regionalManager)
-    ].join(',')));
-    const blob = new Blob(["\uFEFF"+rows.join('\n')], {type:'text/csv;charset=utf-8;'});
-    const url = URL.createObjectURL(blob); const a=document.createElement('a');
-    a.href=url; a.download = `${filename}.csv`; a.click(); URL.revokeObjectURL(url);
-  }
 })();
 </script>
 </body>
