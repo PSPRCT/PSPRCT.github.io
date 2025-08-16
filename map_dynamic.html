@@ -150,7 +150,7 @@
     <select id="trainerHubFilter" multiple title="Select trainer hubs"></select>
   </div>
 
-  <div id="toggles" class="toggles-row">
+  <div class="toggles-row" id="toggles">
     <label class="toggle-inline" title="Show staffed trainer hubs">
       <span class="text">Staffed hubs</span>
       <input type="checkbox" id="toggleHubs" checked role="switch" aria-label="Show staffed hubs" />
@@ -336,9 +336,652 @@
     const φ2 = lat2Rad ?? toRad(lat2), λ2 = lon2Rad ?? toRad(lon2);
     const dφ = φ2-φ1, dλ = λ2-λ1;
     const a = Math.sin(dφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
-    return R*(2*Math.atan2(Math.sqrt(Math.sqrt(a)),Math.sqrt(1-a))); // oops? Wait: that's wrong.
-
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
   }
+
+  /* ---------- Data ---------- */
+  try{
+    const resp = await fetch('store_data.json', { cache: 'no-store' });
+    if(!resp.ok) throw new Error(`Failed to load store_data.json (HTTP ${resp.status})`);
+    const raw = await resp.json();
+    allStores = raw.map(s => ({
+      ...s,
+      city: (s.city||"").trim().toLowerCase(),
+      cityDisplay: (s.city||"").trim(),
+      state: (s.state||"").trim(),
+      trainerCity: (s.trainerCity||"").trim(),
+      storeNumber: String(s.storeNumber),
+      latRad: (s.latitude??0)*Math.PI/180,
+      lngRad: (s.longitude??0)*Math.PI/180,
+    }));
+  }catch(err){
+    alert(err.message + "\n\nTip: if you're opening this file from disk, run a local web server so fetch() can load the JSON.");
+    return;
+  }
+
+  /* ---------- Map ---------- */
+  const map = L.map('map').setView([39.5,-98.35],5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap contributors'}).addTo(map);
+  const markers = L.markerClusterGroup(); map.addLayer(markers);
+  map.on('moveend zoomend', updateInViewCount);
+
+  function iconForHub(hub){
+    const cls = hub.status === "accepted" ? "hub-staffed" : "hub-open";
+    return L.divIcon({
+      className:"",
+      html:`<div class="hub-icon ${cls}" title="${escapeHtml(hub.name)}"></div>`,
+      iconSize:[22,22], iconAnchor:[11,11], popupAnchor:[0,-10]
+    });
+  }
+
+  /* ---------- DOM ---------- */
+  const coverageFilter = document.getElementById('coverageFilter');
+  const regionalFilter = document.getElementById('regionalFilter');
+  const areaFilter = document.getElementById('areaFilter');
+  const trainerHubFilter = document.getElementById('trainerHubFilter');
+
+  const toggleHubsCheckbox = document.getElementById('toggleHubs');
+  const showOpenHubsCheckbox = document.getElementById('showOpenHubs');
+  const toggleRadiusCheckbox = document.getElementById('toggleRadius');
+
+  const radiusInput = document.getElementById('radiusMiles');
+  const radiusLabel = document.getElementById('radiusLabel');
+  const allowCustom = document.getElementById('allowCustomRadius');
+
+  const searchBox = document.getElementById('searchBox');
+  const searchClearBtn = document.getElementById('searchClearBtn');
+  const suggestionsBox = document.getElementById('searchSuggestions');
+
+  const uncoveredChip = document.getElementById('uncoveredChip');
+  const outsideChip   = document.getElementById('outsideChip');
+  const inViewChip    = document.getElementById('inViewChip');
+
+  const copyLinkBtn   = document.getElementById('copyLinkBtn');
+  const exportHubsBtn = document.getElementById('exportHubsCSV');
+
+  /* ---------- Build filters ---------- */
+  function populateSelect(selectElem, optionsSet){
+    [...selectElem.options].forEach(o => { if (o.value!=="All") selectElem.removeChild(o); });
+    optionsSet.forEach(opt => {
+      const option = document.createElement('option'); option.value = opt; option.textContent = opt;
+      selectElem.appendChild(option);
+    });
+  }
+  const regionalSet = new Set(allStores.map(s=>s.regionalManager));
+  const areaSet     = new Set(allStores.map(s=>s.areaManager));
+  populateSelect(regionalFilter, regionalSet);
+  populateSelect(areaFilter, areaSet);
+
+  (function populateHubControls(){
+    trainerHubs.forEach(hub => {
+      const opt = document.createElement('option');
+      opt.value = hub.name; opt.textContent = hub.name; trainerHubFilter.appendChild(opt);
+    });
+  })();
+
+  /* ---------- Radius behavior ---------- */
+  allowCustom.checked = false;
+  radiusInput.disabled = true; radiusInput.value = 75; radiusLabel.textContent = '75 mi';
+  const getRadiusMiles = () => (allowCustom.checked ? (parseInt(radiusInput.value,10)||75) : 75);
+
+  radiusInput.addEventListener('input', () => {
+    radiusLabel.textContent = `${getRadiusMiles()} mi`;
+    debouncedOnFilterChange(); saveState();
+  });
+  allowCustom.addEventListener('change', () => {
+    radiusInput.disabled = !allowCustom.checked;
+    radiusLabel.textContent = `${getRadiusMiles()} mi`;
+    debouncedOnFilterChange(); saveState();
+  });
+
+  /* ---------- Filter logic ---------- */
+  function typeAllowed(hub){
+    return (hub.status==='accepted' && toggleHubsCheckbox.checked) ||
+           (hub.status==='open'     && showOpenHubsCheckbox.checked);
+  }
+  function findNearestAllowedHub(store){
+    let best=null, bestD=Infinity;
+    for (const h of trainerHubs){
+      if (!typeAllowed(h)) continue;
+      const d = getDistanceMiles(h.coords[0],h.coords[1],store.latitude,store.longitude,h.latRad,h.lngRad,store.latRad,store.lngRad);
+      if (d<bestD){bestD=d;best=h;}
+    }
+    return { hub:best, miles:bestD };
+  }
+
+  function filterStores(){
+    const selectedCoverage = Array.from(coverageFilter.selectedOptions).map(o=>o.value);
+    const selectedRegional = Array.from(regionalFilter.selectedOptions).map(o=>o.value);
+    const selectedArea     = Array.from(areaFilter.selectedOptions).map(o=>o.value);
+
+    const hubCoordsList =
+      Array.from(trainerHubFilter.selectedOptions)
+        .map(o => (trainerHubs.find(h => h.name === o.value) || {}).coords)
+        .filter(Boolean);
+
+    const bounds = map.getBounds();
+
+    filteredStores = allStores.filter(store => {
+      const covMatch  = selectedCoverage.includes('All') || selectedCoverage.includes(store.coverageType);
+      const regMatch  = selectedRegional.includes('All') || selectedRegional.includes(store.regionalManager);
+      const areaMatch = selectedArea.includes('All') || selectedArea.includes(store.areaManager);
+
+      if (inViewOnly && !bounds.contains([store.latitude, store.longitude])) return false;
+
+      const r = getRadiusMiles();
+      const hubConstraintOK = !hubCoordsList.length || hubCoordsList.some(([lat,lng]) =>
+        getDistanceMiles(lat,lng,store.latitude,store.longitude,undefined,undefined,store.latRad,store.lngRad) <= r
+      );
+
+      let outsideOK = true;
+      if (outsideOnly){
+        for (const h of trainerHubs){
+          if (!typeAllowed(h)) continue;
+          const d = getDistanceMiles(h.coords[0],h.coords[1],store.latitude,store.longitude,h.latRad,h.lngRad,store.latRad,store.lngRad);
+          if (d <= r){ outsideOK = false; break; }
+        }
+      }
+
+      return covMatch && regMatch && areaMatch && hubConstraintOK && outsideOK;
+    });
+  }
+
+  /* ---------- Map rendering ---------- */
+  function addLazyLoadedMarkers(stores){
+    markers.clearLayers(); storeMarkersMap.clear();
+
+    // When showing a single store (search selection), always add it & skip the extended-bounds filter.
+    const forceAll = stores.length === 1;
+
+    const bounds = map.getBounds();
+    const bufferLat = 50/69; // ~50 miles padding
+    const extended = L.latLngBounds(
+      [bounds.getSouth()-bufferLat, bounds.getWest()-bufferLat],
+      [bounds.getNorth()+bufferLat, bounds.getEast()+bufferLat]
+    );
+
+    stores
+      .filter(s => forceAll || extended.contains([s.latitude,s.longitude]))
+      .forEach(store => {
+        const nearest = findNearestAllowedHub(store);
+
+        const marker = L.circleMarker([store.latitude,store.longitude],{
+          radius:6, color:coverageColors[store.coverageType]||'gray',
+          fillColor:coverageColors[store.coverageType]||'gray', fillOpacity:.85, weight:1
+        }).bindPopup(`
+          <strong>Store #${escapeHtml(store.storeNumber)}</strong><br>
+          ${escapeHtml(store.storeName)}<br>
+          ${escapeHtml(store.address)}<br>
+          ${escapeHtml(store.cityDisplay)}, ${escapeHtml(store.state)}<br>
+          Coverage: <b>${escapeHtml(store.coverageType)}</b><br>
+          Trainer City: ${escapeHtml(store.trainerCity)}<br>
+          Area: ${escapeHtml(store.areaManager)}<br>
+          Regional: ${escapeHtml(store.regionalManager)}<br>
+          ${nearest.hub ? `Nearest hub: ${escapeHtml(nearest.hub.name)} (${nearest.miles.toFixed(1)} mi)` : 'No visible hub nearby'}
+        `);
+
+        markers.addLayer(marker);
+        storeMarkersMap.set(store.storeNumber.replace(/^0+/, ''), marker);
+      });
+  }
+
+  function updateKPI(){
+    const c = { "Premium + Acosta":0,"Premium Only":0,"Acosta Only":0,"Uncovered":0 };
+    filteredStores.forEach(s => { c[s.coverageType] = (c[s.coverageType]||0)+1; });
+    const total = filteredStores.length || 1;
+    const pctUn = Math.round((c["Uncovered"]/total)*1000)/10;
+
+    const chip = (color,label,val)=>`
+      <span class="kpi-chip"><span class="kpi-dot" style="background:${color}"></span>
+      <span class="label">${label}</span><span class="value">${val}</span></span>`;
+    document.getElementById('kpiStrip').innerHTML = [
+      chip('blue','Premium + Acosta', c['Premium + Acosta']||0),
+      chip('green','Premium Only', c['Premium Only']||0),
+      chip('orange','Acosta Only', c['Acosta Only']||0),
+      chip('red','Uncovered', c['Uncovered']||0),
+      `<span class="kpi-pct">Uncovered: <strong>${isFinite(pctUn)?pctUn:0}%</strong></span>`
+    ].join('');
+    kpiSnapshot = { counts:c, total:filteredStores.length, pctUncov:pctUn };
+  }
+
+  function getStoresCoveredByHub(hub){
+    const r = getRadiusMiles();
+    return filteredStores.filter(s => getDistanceMiles(hub.coords[0],hub.coords[1],s.latitude,s.longitude,hub.latRad,hub.lngRad,s.latRad,s.lngRad) <= r);
+  }
+
+  function openHubPanel(hub){
+    const panel = document.getElementById('hubPanel');
+    const overlay = document.getElementById('hubOverlay');
+    const list = getStoresCoveredByHub(hub);
+
+    const byCov = { "Premium + Acosta":0, "Premium Only":0, "Acosta Only":0, "Uncovered":0 };
+    list.forEach(s => byCov[s.coverageType] = (byCov[s.coverageType]||0)+1);
+
+    panel.querySelector('.title').textContent = hub.name;
+    panel.querySelector('.summary').innerHTML =
+      `${list.length} stores within ${getRadiusMiles()} mi` +
+      `<div style="margin-top:6px;font-size:12px;color:#444">
+        <b>Breakdown</b> — P+A: ${byCov["Premium + Acosta"]||0}, P-only: ${byCov["Premium Only"]||0},
+        A-only: ${byCov["Acosta Only"]||0}, Uncov: ${byCov["Uncovered"]||0}
+      </div>`;
+
+    panel.querySelector('.list').innerHTML = list.slice(0,800).map(s =>
+      `<div class="row">#${escapeHtml(s.storeNumber)} — ${escapeHtml(s.cityDisplay)}, ${escapeHtml(s.state)} — ${escapeHtml(s.coverageType)}</div>`
+    ).join('');
+
+    panel.style.display = 'block';
+    overlay.hidden = false; overlay.setAttribute('aria-hidden','false');
+
+    const btn = document.getElementById('exportHubPanelCsv');
+    btn.onclick = () => exportStoresCsv(list, `stores_for_${hub.id}`);
+  }
+
+  function closeHubPanel(){
+    const panel = document.getElementById('hubPanel');
+    const overlay = document.getElementById('hubOverlay');
+    if (panel) panel.style.display = 'none';
+    if (overlay){ overlay.hidden = true; overlay.setAttribute('aria-hidden','true'); }
+  }
+  document.getElementById('hubPanelClose').addEventListener('click', closeHubPanel);
+  document.getElementById('hubPanelCloseFooter').addEventListener('click', closeHubPanel);
+  document.getElementById('hubOverlay').addEventListener('click', closeHubPanel);
+  document.addEventListener('keydown', e => { if (e.key==='Escape'){ const p=document.getElementById('hubPanel'); if (p&&p.style.display==='block') closeHubPanel(); }});
+
+  function addTrainerHubsAndCircles(hubsToShow){
+    hubsMarkers.forEach(m => map.removeLayer(m));
+    coverageCircles.forEach(c => map.removeLayer(c));
+    hubsMarkers = []; coverageCircles = [];
+
+    const rMiles = getRadiusMiles();
+    hubsToShow.forEach(hub => {
+      const within = getStoresCoveredByHub(hub);
+      const uncovered = within.filter(s=>s.coverageType==='Uncovered').length;
+      const byCov = { "Premium + Acosta":0,"Premium Only":0,"Acosta Only":0,"Uncovered":0 };
+      within.forEach(s => byCov[s.coverageType]=(byCov[s.coverageType]||0)+1);
+
+      const statusKey = hub.status === 'accepted' ? 'staffed' : 'open';
+      const nextWin = (hub.status==='open' && uncovered >= NEXT_WIN_UNCOV_THRESHOLD);
+      const badge = `<span class="hub-badge ${statusKey}">${statusKey.toUpperCase()}</span>${nextWin ? ' <span class="hub-badge next">NEXT WIN</span>' : ''}`;
+      const person = hub.person ? ` &nbsp;•&nbsp; <strong>${escapeHtml(hub.person)}</strong>` : "";
+
+      const popupHtml = `
+        <b>${escapeHtml(hub.name)}</b>${person}<br>
+        ${badge}<br>
+        <div style="margin-top:6px">
+          <b>${within.length}</b> in ${rMiles} mi &nbsp;|&nbsp;
+          P+A: ${byCov["Premium + Acosta"]||0} · P: ${byCov["Premium Only"]||0} · A: ${byCov["Acosta Only"]||0} · U: ${byCov["Uncovered"]||0}
+        </div>
+        <div style="margin-top:6px">
+          <a href="#" data-hub="${hub.id}" class="open-panel">Open list</a>
+        </div>
+      `;
+
+      const hubMarker = L.marker(hub.coords,{icon:iconForHub(hub)}).bindPopup(popupHtml).addTo(map);
+      hubsMarkers.push(hubMarker);
+
+      const circle = L.circle(hub.coords,{
+        radius:rMiles*1609.34, color:'purple', weight:1, fillOpacity:.1, dashArray:'5,10'
+      }).addTo(map);
+      coverageCircles.push(circle);
+
+      function highlight(on){ circle.setStyle({weight:on?3:1, fillOpacity:on?.18:.1}); if(on && circle.bringToFront) circle.bringToFront(); }
+      hubMarker.on('mouseover', () => highlight(true));
+      hubMarker.on('mouseout',  () => highlight(false));
+      circle.on('mouseover', () => highlight(true));
+      circle.on('mouseout',  () => highlight(false));
+      hubMarker.on('click', () => openHubPanel(hub));
+      circle.on('click', () => openHubPanel(hub));
+    });
+
+    map.on('popupopen', (e) => {
+      const link = e.popup._contentNode.querySelector('a.open-panel');
+      if (link){
+        link.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          const id = link.getAttribute('data-hub');
+          const hub = trainerHubs.find(h => h.id === id);
+          if (hub) openHubPanel(hub);
+        }, { once:true });
+      }
+    });
+  }
+
+  function updateTrainerHubFilter(){
+    const hubsWithStores = new Set();
+    trainerHubs.forEach(hub => {
+      const coversAny = filteredStores.some(store =>
+        getDistanceMiles(hub.coords[0], hub.coords[1], store.latitude, store.longitude, hub.latRad, hub.lngRad, store.latRad, store.lngRad) <= getRadiusMiles()
+      );
+      if (coversAny) hubsWithStores.add(hub.name);
+    });
+    [...trainerHubFilter.options].forEach(option => {
+      if (!option.value) return;
+      const show = hubsWithStores.has(option.value);
+      option.disabled = !show;
+      option.style.display = show ? '' : 'none';
+      if (!show) option.selected = false;
+    });
+  }
+
+  function updateFilterCount(){
+    document.getElementById('filterCount').textContent = `Showing ${filteredStores.length} of ${allStores.length} stores`;
+  }
+  function updateInViewCount(){
+    const el = document.getElementById('inViewCount'); if (!el) return;
+    if (!filteredStores.length){ el.textContent=''; return; }
+    const b = map.getBounds(); let n=0; for (const s of filteredStores) if (b.contains([s.latitude,s.longitude])) n++;
+    el.textContent = ` | In view: ${n}`;
+  }
+
+  async function onFilterChange(){
+    const mask = document.getElementById('busyMask'); mask.hidden = false;
+    try{
+      filterStores();
+      addLazyLoadedMarkers(filteredStores);
+      updateInViewCount(); updateFilterCount(); updateKPI();
+
+      updateTrainerHubFilter();
+
+      const includeStaffed = toggleHubsCheckbox.checked;
+      const includeOpen    = showOpenHubsCheckbox.checked;
+      const hubsToShow = trainerHubs.filter(h => (h.status==='accepted' && includeStaffed) || (h.status==='open' && includeOpen));
+
+      lastHubsToShow = hubsToShow.map(h => ({ ...h, coveredCount: getStoresCoveredByHub(h).length }));
+
+      const staffedCount = hubsToShow.filter(h => h.status==='accepted').length;
+      const openCount    = hubsToShow.filter(h => h.status==='open').length;
+      document.getElementById('hubCount').innerHTML =
+        `Hubs shown: <span style="color:#6a1b9a;font-weight:700">${staffedCount} staffed</span> / <span style="color:#9e9e9e;font-weight:700">${openCount} open</span>`;
+
+      addTrainerHubsAndCircles(hubsToShow);
+
+      if (!toggleRadiusCheckbox.checked) coverageCircles.forEach(c => map.removeLayer(c));
+    } finally {
+      requestAnimationFrame(()=>{ mask.hidden = true; });
+    }
+  }
+
+  /* ---------- Events ---------- */
+  regionalFilter.addEventListener('change', () => {
+    const selectedRegionals = Array.from(regionalFilter.selectedOptions).map(o=>o.value);
+    if (selectedRegionals.includes('All')) {
+      populateSelect(areaFilter, areaSet);
+    } else {
+      const filteredAreas = new Set(allStores.filter(s => selectedRegionals.includes(s.regionalManager)).map(s=>s.areaManager));
+      populateSelect(areaFilter, filteredAreas);
+    }
+    areaFilter.querySelector('option[value="All"]').selected = true;
+    onFilterChange();
+  });
+  areaFilter.addEventListener('change', debouncedOnFilterChange);
+  trainerHubFilter.addEventListener('change', debouncedOnFilterChange);
+  coverageFilter.addEventListener('change', debouncedOnFilterChange);
+  showOpenHubsCheckbox.addEventListener('change', debouncedOnFilterChange);
+  toggleHubsCheckbox.addEventListener('change', debouncedOnFilterChange);
+  toggleRadiusCheckbox.addEventListener('change', () => {
+    if (toggleRadiusCheckbox.checked) coverageCircles.forEach(c => c.addTo(map));
+    else coverageCircles.forEach(c => map.removeLayer(c));
+  });
+
+  document.getElementById('resetFilters').addEventListener('click', () => {
+    for (const o of coverageFilter.options) o.selected = (o.value==="All");
+    ['regionalFilter','areaFilter'].forEach(id => {
+      const sel=document.getElementById(id); Array.from(sel.options).forEach(o => o.selected=(o.value==="All"));
+    });
+    trainerHubFilter.selectedIndex = -1;
+
+    allowCustom.checked = false; radiusInput.disabled = true; radiusInput.value = 75; radiusLabel.textContent = '75 mi';
+    toggleHubsCheckbox.checked = true; toggleRadiusCheckbox.checked = true; showOpenHubsCheckbox.checked = true;
+
+    uncoveredChip.classList.remove('chip-active'); outsideChip.classList.remove('chip-active'); inViewChip.classList.remove('chip-active');
+    outsideOnly = false; inViewOnly = false; prevCoverageSelection = null;
+
+    map.setView([39.5,-98.35],5);
+    onFilterChange(); saveState();
+  });
+
+  function fitToResults(){
+    if (!filteredStores.length) return;
+    const latLngs = filteredStores.map(s => [s.latitude,s.longitude]);
+    map.fitBounds(L.latLngBounds(latLngs),{padding:[20,20]});
+  }
+  document.getElementById('fitToResults').addEventListener('click', fitToResults);
+
+  // Chips
+  uncoveredChip.addEventListener('click', () => {
+    const active = uncoveredChip.classList.toggle('chip-active');
+    if (active){
+      prevCoverageSelection = Array.from(coverageFilter.selectedOptions).map(o=>o.value);
+      Array.from(coverageFilter.options).forEach(o => o.selected = (o.value==='Uncovered'));
+    } else if (prevCoverageSelection && prevCoverageSelection.length){
+      Array.from(coverageFilter.options).forEach(o => o.selected = prevCoverageSelection.includes(o.value));
+      prevCoverageSelection = null;
+    }
+    debouncedOnFilterChange(); saveState();
+  });
+  outsideChip.addEventListener('click', () => {
+    outsideOnly = outsideChip.classList.toggle('chip-active');
+    debouncedOnFilterChange(); saveState();
+  });
+  inViewChip.addEventListener('click', () => {
+    inViewOnly = inViewChip.classList.toggle('chip-active');
+    debouncedOnFilterChange(); saveState();
+  });
+
+  // Copy link
+  function getUIState(){
+    return {
+      v:1,
+      coverage:Array.from(coverageFilter.selectedOptions).map(o=>o.value),
+      regional:Array.from(regionalFilter.selectedOptions).map(o=>o.value),
+      area:Array.from(areaFilter.selectedOptions).map(o=>o.value),
+      hubs:Array.from(trainerHubFilter.selectedOptions).map(o=>o.value),
+      toggles:{ showHubs:toggleHubsCheckbox.checked, showRadius:toggleRadiusCheckbox.checked, showOpen:showOpenHubsCheckbox.checked },
+      search:searchBox.value,
+      radius:{ allowCustom:allowCustom.checked, value:radiusInput.value },
+      chips:{ outsideOnly, inViewOnly, uncovered:uncoveredChip.classList.contains('chip-active') }
+    };
+  }
+  function applyStateFromObject(s){
+    function restoreMulti(select, values){ if(!select||!values) return; Array.from(select.options).forEach(o => o.selected = values.includes(o.value)); }
+    restoreMulti(coverageFilter, s.coverage);
+    restoreMulti(regionalFilter, s.regional);
+    restoreMulti(areaFilter, s.area);
+    restoreMulti(trainerHubFilter, s.hubs);
+    if (s.toggles){
+      if ('showHubs' in s.toggles) toggleHubsCheckbox.checked = s.toggles.showHubs;
+      if ('showRadius' in s.toggles) toggleRadiusCheckbox.checked = s.toggles.showRadius;
+      if ('showOpen' in s.toggles) showOpenHubsCheckbox.checked = s.toggles.showOpen;
+    }
+    if (typeof s.search === 'string') searchBox.value = s.search;
+    if (s.radius){ allowCustom.checked = !!s.radius.allowCustom; radiusInput.disabled = !allowCustom.checked; if (s.radius.value) radiusInput.value = s.radius.value; radiusLabel.textContent = `${getRadiusMiles()} mi`; }
+    if (s.chips){
+      outsideOnly = !!s.chips.outsideOnly; inViewOnly = !!s.chips.inViewOnly;
+      if (s.chips.uncovered) uncoveredChip.classList.add('chip-active');
+      if (outsideOnly) outsideChip.classList.add('chip-active');
+      if (inViewOnly) inViewChip.classList.add('chip-active');
+    }
+  }
+  function loadStateFromHash(){
+    if (!location.hash.startsWith('#s=')) return false;
+    try{ const s = JSON.parse(decodeURIComponent(location.hash.slice(3))); applyStateFromObject(s); return true; }
+    catch{ return false; }
+  }
+  function saveState(){ localStorage.setItem('trainerMapState', JSON.stringify(getUIState())); }
+  function loadState(){
+    const raw = localStorage.getItem('trainerMapState'); if (!raw) return;
+    try{ const s = JSON.parse(raw); applyStateFromObject(s); }catch{}
+  }
+
+  copyLinkBtn.addEventListener('click', async () => {
+    const hash = '#s=' + encodeURIComponent(JSON.stringify(getUIState()));
+    const url = location.origin + location.pathname + hash;
+    try{ await navigator.clipboard.writeText(url); alert('Link copied to clipboard.'); }
+    catch{ prompt('Copy this link:', url); }
+  });
+
+  // Export hubs CSV
+  exportHubsBtn.addEventListener('click', () => {
+    if (!lastHubsToShow.length){ alert('No hubs to export.'); return; }
+    const headers = ['Hub Name','Status','Person','Latitude','Longitude','Radius (mi)','Covered Stores (filtered)'];
+    const rows = [headers.join(',')];
+    lastHubsToShow.forEach(h => {
+      const [lat,lng] = h.coords;
+      rows.push([`"${h.name.replace(/"/g,'""')}"`, (h.status==='accepted'?'staffed':'open'), `"${(h.person||'').replace(/"/g,'""')}"`, lat, lng, getRadiusMiles(), h.coveredCount].join(','));
+    });
+    const csv = rows.join('\n'); const blob = new Blob(["\uFEFF"+csv],{type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='hubs.csv'; a.click(); URL.revokeObjectURL(url);
+  });
+
+  // Export KPIs
+  document.getElementById('exportKpiCsv').addEventListener('click', () => {
+    const c = kpiSnapshot.counts || {};
+    const headers = ['Premium + Acosta','Premium Only','Acosta Only','Uncovered','Total','Uncovered %'];
+    const row = [ c['Premium + Acosta']||0, c['Premium Only']||0, c['Acosta Only']||0, c['Uncovered']||0, kpiSnapshot.total||0, kpiSnapshot.pctUncov||0 ];
+    const csv = headers.join(',') + '\n' + row.join(',');
+    const blob = new Blob(["\uFEFF"+csv],{type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='kpis.csv'; a.click(); URL.revokeObjectURL(url);
+  });
+
+  // Export filtered stores
+  document.getElementById('exportFilteredCSV').addEventListener('click', () => {
+    if (!filteredStores.length){ alert('No filtered stores to export.'); return; }
+    const headers = ['Store Number','Store Name','Address','City','State','Coverage Type','Trainer City','Area Manager','Regional Manager'];
+    const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+    const rows = [headers.join(',')].concat(filteredStores.map(s => [q(s.storeNumber),q(s.storeName),q(s.address),q(s.cityDisplay),q(s.state),q(s.coverageType),q(s.trainerCity),q(s.areaManager),q(s.regionalManager)].join(',')));
+    const blob = new Blob(["\uFEFF"+rows.join('\n')],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=`filtered_stores_${filteredStores.length}.csv`; a.click(); URL.revokeObjectURL(url);
+  });
+
+  // Print list
+  document.getElementById('printMap').addEventListener('click', () => {
+    if (!filteredStores.length){ alert('No stores to print.'); return; }
+    const tbody = document.getElementById('printableBody');
+    const title = document.getElementById('printTitle');
+    tbody.innerHTML = filteredStores.map(s => `
+      <tr>
+        <td>${escapeHtml(s.storeNumber)}</td>
+        <td>${escapeHtml(s.storeName)}</td>
+        <td>${escapeHtml(s.address)}</td>
+        <td>${escapeHtml(s.cityDisplay)}</td>
+        <td>${escapeHtml(s.state)}</td>
+        <td>${escapeHtml(s.coverageType)}</td>
+        <td>${escapeHtml(s.trainerCity)}</td>
+        <td>${escapeHtml(s.areaManager)}</td>
+        <td>${escapeHtml(s.regionalManager)}</td>
+      </tr>`).join('');
+    title.textContent = `Store List — ${filteredStores.length} of ${allStores.length}`;
+    const panel = document.getElementById('printable'); panel.style.display='block';
+    setTimeout(()=>{ window.print(); panel.style.display='none'; }, 50);
+  });
+
+  // ---- Search with autosuggest (auto-clear + auto-zoom) ----
+  let selectedSuggestionIndex = -1, suggestionResults = [];
+  function closeSuggestions(){ suggestionsBox.style.display='none'; selectedSuggestionIndex=-1; suggestionResults=[]; }
+  function populateSuggestions(term){
+    const t = term.toLowerCase().trim();
+    if (!t){ closeSuggestions(); onFilterChange(); return; }
+    suggestionResults = allStores.filter(store => {
+      const noLead = store.storeNumber.replace(/^0+/,'');
+      return noLead === t || store.storeNumber.toLowerCase().includes(t) || store.city.toLowerCase().includes(t) || store.cityDisplay.toLowerCase().includes(t);
+    }).slice(0,20);
+    if (!suggestionResults.length){ closeSuggestions(); return; }
+    suggestionsBox.innerHTML = '';
+    suggestionResults.forEach((store, idx) => {
+      const div = document.createElement('div');
+      div.textContent = `#${store.storeNumber} - ${store.storeName} (${store.cityDisplay}, ${store.state})`;
+      div.dataset.index = idx; div.addEventListener('click', () => selectSuggestion(idx)); suggestionsBox.appendChild(div);
+    });
+    suggestionsBox.style.display='block'; selectedSuggestionIndex=-1;
+  }
+  function selectSuggestion(index){
+    if (index<0 || index>=suggestionResults.length) return;
+    const store = suggestionResults[index];
+    closeSuggestions();
+
+    // 1) Filter to just this store & always add marker
+    filteredStores = [store];
+    addLazyLoadedMarkers(filteredStores);
+
+    // 2) Zoom directly to store
+    map.setView([store.latitude, store.longitude], 14);
+
+    // 3) Open popup if exists
+    const key = store.storeNumber.replace(/^0+/, '');
+    const marker = storeMarkersMap.get(key);
+    if (marker){
+      if (currentOpenPopup) currentOpenPopup.closePopup();
+      marker.openPopup(); currentOpenPopup = marker;
+    }
+
+    // 4) Update UI + auto-clear
+    updateInViewCount();
+    updateFilterCount();
+    searchBox.value = '';
+    searchBox.focus();
+    saveState();
+  }
+  searchBox.addEventListener('input', () => populateSuggestions(searchBox.value));
+  searchBox.addEventListener('keydown', e => {
+    if (suggestionsBox.style.display==='none') return;
+    if (e.key==='ArrowDown'){ e.preventDefault(); if (selectedSuggestionIndex < suggestionResults.length-1){ selectedSuggestionIndex++; highlightSuggestion(selectedSuggestionIndex); } }
+    else if (e.key==='ArrowUp'){ e.preventDefault(); if (selectedSuggestionIndex>0){ selectedSuggestionIndex--; highlightSuggestion(selectedSuggestionIndex); } }
+    else if (e.key==='Enter'){ e.preventDefault(); if (selectedSuggestionIndex>=0) selectSuggestion(selectedSuggestionIndex); else if (suggestionResults.length) selectSuggestion(0); }
+    else if (e.key==='Escape'){ closeSuggestions(); }
+  });
+  function highlightSuggestion(i){ [...suggestionsBox.children].forEach(c => c.classList.remove('highlighted')); if (i>=0 && i<suggestionsBox.children.length) suggestionsBox.children[i].classList.add('highlighted'); }
+
+  // Clear button: clears box, resets view and data
+  searchClearBtn.addEventListener('click', () => {
+    searchBox.value='';
+    closeSuggestions();
+    map.setView([39.5,-98.35],5);
+    onFilterChange();
+    searchBox.focus();
+  });
+
+  document.addEventListener('click', e => {
+    if (!searchBox.contains(e.target) && !suggestionsBox.contains(e.target)) closeSuggestions();
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    const tag = document.activeElement?.tagName;
+    if (tag==='INPUT' || tag==='SELECT' || tag==='TEXTAREA') return;
+    if (e.key==='r') document.getElementById('resetFilters').click();
+    if (e.key==='f') fitToResults();
+    if (e.key==='h'){ toggleHubsCheckbox.checked=!toggleHubsCheckbox.checked; debouncedOnFilterChange(); saveState(); }
+    if (e.key==='o'){ showOpenHubsCheckbox.checked=!showOpenHubsCheckbox.checked; debouncedOnFilterChange(); saveState(); }
+    if (e.key==='c'){ toggleRadiusCheckbox.checked=!toggleRadiusCheckbox.checked; debouncedOnFilterChange(); saveState(); }
+    if (e.key==='/'){ e.preventDefault(); searchBox.focus(); }
+  });
+
+  // Persist state on change
+  ;['coverageFilter','regionalFilter','areaFilter','trainerHubFilter'].forEach(id => document.getElementById(id).addEventListener('change', saveState));
+  showOpenHubsCheckbox.addEventListener('change', saveState);
+  toggleHubsCheckbox.addEventListener('change', saveState);
+  toggleRadiusCheckbox.addEventListener('change', saveState);
+  if (searchBox) searchBox.addEventListener('input', saveState);
+
+  const usedHash = loadStateFromHash(); if (!usedHash) loadState();
+  if (![...coverageFilter.options].some(o=>o.selected)){ const allOpt = coverageFilter.querySelector('option[value="All"]'); if (allOpt) allOpt.selected = true; }
+
+  // Initial render
+  onFilterChange();
+
+  /* ---------- CSV helper ---------- */
+  function exportStoresCsv(list, filename){
+    const headers = ['Store Number','Store Name','Address','City','State','Coverage Type','Trainer City','Area Manager','Regional Manager'];
+    const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+    const rows = [headers.join(',')].concat(list.map(s => [
+      q(s.storeNumber), q(s.storeName), q(s.address), q(s.cityDisplay), q(s.state),
+      q(s.coverageType), q(s.trainerCity), q(s.areaManager), q(s.regionalManager)
+    ].join(',')));
+    const blob = new Blob(["\uFEFF"+rows.join('\n')], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob); const a=document.createElement('a');
+    a.href=url; a.download = `${filename}.csv`; a.click(); URL.revokeObjectURL(url);
+  }
+})();
 </script>
 </body>
 </html>
