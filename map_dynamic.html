@@ -278,22 +278,24 @@ try {
   if (!Array.isArray(raw)) throw new Error('Expected an array of stores');
 
   // Normalize & trim so filters/search are stable regardless of whitespace/case
-  allStores = raw
-    .map(s => ({
-      ...s,
-      city: (s.city ?? '').trim(),
-      state: (s.state ?? '').trim(),
-      storeName: (s.storeName ?? '').trim(),
-      address: (s.address ?? '').trim(),
-      coverageType: (s.coverageType ?? '').trim(),
-      areaManager: (s.areaManager ?? '').trim(),
-      regionalManager: (s.regionalManager ?? '').trim(),
-      trainerCity: (s.trainerCity ?? '').trim(),
-      storeNumberStr: String(s.storeNumber ?? ''),
-      lat: Number(s.latitude),
-      lng: Number(s.longitude),
-    }))
-    .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+allStores = raw
+  .map(s => ({
+    ...s,
+    city: (s.city ?? '').trim(),
+    city_lc: (s.city ?? '').trim().toLowerCase(),   // <— add this
+    state: (s.state ?? '').trim(),
+    storeName: (s.storeName ?? '').trim(),
+    address: (s.address ?? '').trim(),
+    coverageType: (s.coverageType ?? '').trim(),
+    areaManager: (s.areaManager ?? '').trim(),
+    regionalManager: (s.regionalManager ?? '').trim(),
+    trainerCity: (s.trainerCity ?? '').trim(),
+    storeNumberStr: String(s.storeNumber ?? ''),
+    lat: Number(s.latitude),
+    lng: Number(s.longitude),
+  }))
+  .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+
 
   // Minimal schema sanity check (helps catch a misnamed key fast)
   const reqKeys = ['latitude','longitude','storeNumber','city','state','coverageType'];
@@ -302,15 +304,23 @@ try {
     throw new Error('One or more expected keys are missing/renamed in JSON');
   }
 
-  populateRegionals(allStores);
-  populateAreas(allStores);
-  populateHubPicker(trainerHubs);
+ populateRM(allStores);
+populateAM(allStores);
 
-  runFilter();
+// fill hub picker with all hubs initially
+hubFilter.innerHTML = hubs.map(h => `<option>${escape(h.name)}</option>`).join('');
+
+// build autosuggest list for the search box
+buildSearchDatalist(allStores, hubs);
+
+runFilter();
+
 } catch (err) {
   console.error(err);
   const msg = (err && err.message) ? err.message : String(err);
-  document.getElementById('filterCount').textContent = `Data load error: ${msg}`;
+console.error('Data load error:', msg);
+alert('Data load error: ' + msg);
+
 } finally {
   clearTimeout(spinnerFailSafe);
   showBusy(false);
