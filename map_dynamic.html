@@ -10,24 +10,45 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
 <style>
-  :root{ --blue:#2f71ff; --violet:#6a1b9a; --gray:#9ea3a8;
-         --pa:#6c5ce7; --p:#2ecc71; --a:#f39c12; --u:#e74c3c; }
+  :root{
+    --blue:#2f71ff; --violet:#6a1b9a; --gray:#9ea3a8;
+    --pa:#6c5ce7; --p:#2ecc71; --a:#f39c12; --u:#e74c3c;
+  }
   html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#fff}
   body{display:flex;flex-direction:column}
-
   /* Top controls row */
-  .topbar{display:grid;grid-template-columns:460px 1fr auto auto auto auto;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid #eef0f3}
+  .topbar{display:grid;grid-template-columns:520px 1fr auto auto auto auto;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid #eef0f3}
   .search-wrap{display:flex;gap:8px;align-items:center}
-  .search{flex:1;display:flex;gap:8px}
-  input[type="text"],select{border:1px solid #d0d7de;border-radius:8px;padding:8px 10px;font-size:14px}
+  /* Search box with badge + live results */
+  .searchbox{position:relative; flex:1; display:flex; align-items:center}
+  .searchbox input{
+    width:100%; border:1px solid #d0d7de; border-radius:10px; padding:10px 12px 10px 64px; font-size:14px;
+  }
+  .badge-left{
+    position:absolute; left:8px; top:50%; transform:translateY(-50%);
+    font-size:12px; font-weight:800; letter-spacing:.3px;
+    background:#eef6ff; color:#0b5bd3; border:1px solid #cfe6ff; border-radius:999px; padding:3px 8px; display:none;
+  }
+  .badge-left.show{display:inline-block}
+  .results{
+    position:absolute; left:0; right:0; top:calc(100% + 6px);
+    background:#fff; border:1px solid #e5e7eb; border-radius:10px; box-shadow:0 10px 24px rgba(0,0,0,.12);
+    display:none; z-index:20; max-height:360px; overflow:auto;
+  }
+  .results.show{display:block}
+  .res{display:flex; gap:10px; padding:10px 10px; cursor:pointer; align-items:flex-start}
+  .res:hover{background:#f6f8fa}
+  .res .kind{
+    flex:0 0 auto; font-size:11px; font-weight:800; padding:4px 8px; border-radius:999px; border:1px solid #e5e7eb;
+    color:#374151; background:#fff;
+  }
+  .res .text{min-width:0}
+  .res .text .sub{color:#6b7280; font-size:12px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .btn{border:1px solid #d0d7de;background:#fff;border-radius:8px;padding:8px 10px;font-weight:600;cursor:pointer}
   .toggle{display:inline-flex;align-items:center;gap:8px;border:1px solid #e5e7eb;border-radius:999px;padding:6px 10px;background:#fff;white-space:nowrap}
-  .pillbar{display:flex;gap:6px;flex-wrap:wrap}
-  .pill{display:inline-flex;align-items:center;gap:6px;background:#eef6ff;border:1px solid #cfe6ff;color:#0b5bd3;padding:4px 8px;border-radius:999px;font-weight:600}
-  .pill button{border:none;background:transparent;font-weight:700;cursor:pointer;color:#0b5bd3}
+  .toggle input{width:16px;height:16px}
   .range{display:flex;align-items:center;gap:8px}
   .range small{color:#6b7280}
-  .btn{border:1px solid #d0d7de;background:#fff;border-radius:8px;padding:8px 10px;font-weight:600;cursor:pointer}
-  .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
   .dropdown{position:relative}
   .dropdown-menu{position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.12);padding:6px;display:none;z-index:5}
   .dropdown.open .dropdown-menu{display:block}
@@ -35,6 +56,9 @@
   .dropdown-menu button:hover{background:#f6f8fa}
 
   /* Filters row */
+  .pillbar{display:flex;gap:6px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:#eef6ff;border:1px solid #cfe6ff;color:#0b5bd3;padding:4px 8px;border-radius:999px;font-weight:600}
+  .pill button{border:none;background:transparent;font-weight:700;cursor:pointer;color:#0b5bd3}
   .filters{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;padding:8px 10px}
   .picker{display:flex;flex-direction:column;gap:6px}
   .picker input{padding:6px 8px;font-size:13px}
@@ -57,9 +81,9 @@
 
   /* Cluster color override by dominant coverage type */
   .marker-cluster.marker-pa div{background:var(--pa);border:2px solid #fff}
-  .marker-cluster.marker-p  div{background:var(--p);border:2px solid #fff}
-  .marker-cluster.marker-a  div{background:var(--a);border:2px solid #fff}
-  .marker-cluster.marker-u  div{background:var(--u);border:2px solid #fff}
+  .marker-cluster.marker-p  div{background:var(--p); border:2px solid #fff}
+  .marker-cluster.marker-a  div{background:var(--a); border:2px solid #fff}
+  .marker-cluster.marker-u  div{background:var(--u); border:2px solid #fff}
 
   /* Hub icons */
   .hub{width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
@@ -72,12 +96,13 @@
 <!-- Top row -->
 <div class="topbar">
   <div class="search-wrap">
-    <div class="search">
-      <input id="searchBox" list="searchList" type="text" placeholder="e.g., 2163 or Phoenix" aria-label="Search store number or city" />
-      <datalist id="searchList"></datalist>
-      <button id="searchGo" class="btn primary">Go</button>
-      <button id="searchClear" class="btn">Clear</button>
+    <!-- LIVE SEARCH (no Enter/Go needed) -->
+    <div class="searchbox">
+      <span id="searchBadge" class="badge-left">STORE</span>
+      <input id="searchBox" type="text" placeholder="Type a store #, city/state, hub name…" autocomplete="off" aria-label="Search store or city" />
+      <div id="searchResults" class="results" role="listbox" aria-label="Search results"></div>
     </div>
+    <button id="searchClear" class="btn">Clear</button>
   </div>
 
   <label class="toggle"><input id="showStaffed" type="checkbox" checked />Staffed hubs</label>
@@ -138,7 +163,7 @@
   </div>
 </div>
 
-<!-- Visible status line for data loading/errors -->
+<!-- Status line (so issues are obvious) -->
 <div id="dataStatus" style="padding:6px 10px;color:#444;font-size:12px"></div>
 
 <!-- Summary strip -->
@@ -189,52 +214,35 @@
   let allStores = [];
   let filteredStores = [];
   let lastHubsShown = [];
-  let searchTargets = []; // keep chips if you like (not required for live search)
+  let searchTargets = []; // chips (optional)
+  const targetLayer = L.layerGroup(); // for blue target pin
+  let targetPin = null;
 
-  // Map
+  // ---------- Map ----------
   const map = L.map('map').setView([39.5,-98.35],5);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
-  const markers = L.markerClusterGroup({ disableClusteringAtZoom: 12, iconCreateFunction: clusterIconByDominantCoverage });
-  map.addLayer(markers);
-  map.on('moveend zoomend', updateInViewCount);
-
-  // --- Debounce BEFORE any handlers use it (prevents "before initialization" error)
-  function debounce(fn, d){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); }; }
-  const debouncedRun = debounce(runFilter, 120);
-
-  // --- Search target pin (live as you type)
-  const targetLayer = L.layerGroup().addTo(map);
-  let targetPin = null;
-  const targetIcon = L.divIcon({
-    className: '',
-    html: '<div style="background:#2f71ff;border:2px solid #fff;border-radius:50%;width:18px;height:18px;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>',
-    iconSize: [18, 18], iconAnchor: [9, 9]
+  const markers = L.markerClusterGroup({
+    disableClusteringAtZoom: 12,
+    iconCreateFunction: clusterIconByDominantCoverage
   });
-  function dropTarget(lat, lng, label){
-    if (targetPin) targetLayer.removeLayer(targetPin);
-    targetPin = L.marker([lat, lng], { icon: targetIcon })
-      .addTo(targetLayer)
-      .bindPopup(escape(label));
-    targetPin.openPopup();
-  }
-  function clearTarget(){ if (targetPin){ targetLayer.removeLayer(targetPin); targetPin = null; } }
+  map.addLayer(markers);
+  targetLayer.addTo(map);
+  map.on('moveend zoomend', updateInViewCount);
 
   // ---------- DOM ----------
   const STATUS = document.getElementById('dataStatus');
   const busy = id('busy');
+
+  // Search elements
   const searchBox = id('searchBox');
-  const searchList = id('searchList');
+  const searchBadge = id('searchBadge');
+  const searchResults = id('searchResults');
   const searchPills = id('searchPills');
+  on('click', id('searchClear'), () => {
+    searchBox.value=''; searchBadge.classList.remove('show'); hideResults(); clearTarget(); renderPills(); runFilter();
+  });
 
-  // Live search (no need to press Enter/Go)
-  on('input',  searchBox, handleLiveSearch);
-  on('change', searchBox, handleLiveSearch); // fires when choosing a datalist option
-  on('keydown', searchBox, (e)=>{ if(e.key==='Escape'){ searchBox.value=''; clearTarget(); } });
-
-  // Buttons (still available)
-  on('click', id('searchGo'), handleLiveSearch);
-  on('click', id('searchClear'), () => { searchBox.value=''; clearTarget(); searchTargets = []; renderPills(); runFilter(); });
-
+  // Toggles / sliders
   const showStaffed = id('showStaffed');
   const showOpen    = id('showOpen');
   const radius      = id('radius');    const radiusLbl   = id('radiusLbl');
@@ -274,7 +282,7 @@
   // KPI labels
   const k = { pa:id('k_pa'), p:id('k_p'), a:id('k_a'), u:id('k_u'), total:id('k_total'), staffed:id('k_staffed'), open:id('k_open'), inView:id('inView') };
 
-  // -------- Load data (GitHub Pages friendly + visible errors) --------
+  // ---------- Load data (cache-busting + visible errors) ----------
   showBusy(true);
   let spinnerFailSafe = setTimeout(() => showBusy(false), 8000);
 
@@ -314,44 +322,133 @@
 
     allStores = normalizeStores(raw);
     STATUS.textContent = `Loaded ${allStores.length.toLocaleString()} stores from store_data.json`;
+    console.log('Loaded stores:', allStores.length);
 
     populateRM(allStores);
     populateAM(allStores);
     cascadeAM();
     cascadeHubs();
     hubFilter.innerHTML = hubs.map(h => `<option>${escape(h.name)}</option>`).join('');
-    buildSearchDatalist(allStores, hubs);
+    buildSearchDatalist(allStores, hubs); // (used for chips; search uses live list below)
 
     runFilter();
   } catch (err){
     STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Data load error:</span> ${err?.message || err}`;
     console.error(err);
-    // Inline sample so UI still demonstrates itself
+    // tiny inline sample so UI still proves itself
     allStores = normalizeStores([
       { latitude:41.29136, longitude:-73.1129, storeNumber:2163, storeName:'Walmart', address:'465 BRIDGEPORT AVENUE', city:'SHELTON', state:'CT', coverageType:'Premium Only', trainerCity:'Secaucus', areaManager:'Gibbes, Malin', regionalManager:'Anders, Roy' }
     ]);
     populateRM(allStores); populateAM(allStores); cascadeAM(); cascadeHubs();
     hubFilter.innerHTML = hubs.map(h => `<option>${escape(h.name)}</option>`).join('');
-    buildSearchDatalist(allStores, hubs);
     runFilter();
   } finally {
     clearTimeout(spinnerFailSafe);
     showBusy(false);
   }
 
-  // -------- Live search handler (instant pan + pin) --------
-  function handleLiveSearch(){
-    const q = (searchBox.value||'').trim();
-    if (!q){ clearTarget(); return; }
-    const found = guessTargetFor(q);
-    if (found){
-      map.setView([found.lat, found.lng], 11);
-      dropTarget(found.lat, found.lng, found.label);
-      // Optional: maintain chips if you want a history
-      // searchTargets = [found]; renderPills();
+  // ---------- SEARCH (live results + STORE badge + blue pin) ----------
+  const targetIcon = L.divIcon({
+    className:'',
+    html:'<div style="background:#2f71ff;border:2px solid #fff;border-radius:50%;width:18px;height:18px;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>',
+    iconSize:[18,18], iconAnchor:[9,9]
+  });
+  function clearTarget(){ if (targetPin){ targetLayer.removeLayer(targetPin); targetPin=null; } }
+  function dropTarget(lat,lng,label,html){
+    clearTarget();
+    targetPin = L.marker([lat,lng],{icon:targetIcon}).addTo(targetLayer);
+    targetPin.bindPopup(html || escape(label));
+    targetPin.openPopup();
+  }
+  function storePopupHTML(s){
+    return `
+      <div style="font-size:13px;line-height:1.35">
+        <div style="font-weight:800;margin-bottom:4px">Store ${escape(s.storeNumberStr)} — ${escape(s.storeName||'')}</div>
+        <div>${escape(s.address||'')}</div>
+        <div>${escape(s.city||'')}, ${escape(s.state||'')}</div>
+        <div style="margin-top:6px"><b>Coverage:</b> ${escape(s.coverageType||'')}</div>
+        <div><b>Trainer City:</b> ${escape(s.trainerCity||'')}</div>
+        <div><b>Area Manager:</b> ${escape(s.areaManager||'')}</div>
+        <div><b>Regional Manager:</b> ${escape(s.regionalManager||'')}</div>
+        <div style="color:#6b7280;margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
+      </div>`;
+  }
+  function hideResults(){ searchResults.classList.remove('show'); searchResults.innerHTML=''; searchResults._data=[]; }
+  function showResults(list){
+    if (!list.length){ hideResults(); return; }
+    searchResults.innerHTML = list.map((r,i)=>`
+      <div class="res" data-i="${i}" role="option">
+        <div class="kind">${r.kind}</div>
+        <div class="text">
+          <div>${escape(r.label)}</div>
+          ${r.kind==='STORE'
+            ? `<div class="sub">${escape(r.store.address||'')} · ${escape(r.store.city||'')}, ${escape(r.store.state||'')} · ${escape(r.store.coverageType||'')}</div>`
+            : ''}
+        </div>
+      </div>`).join('');
+    searchResults.classList.add('show');
+    Array.from(searchResults.querySelectorAll('.res')).forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const i = Number(el.getAttribute('data-i'));
+        selectResult(searchResults._data[i]);
+      });
+    });
+    searchResults._data = list;
+  }
+  function toStoreRes(s,score){
+    return { kind:'STORE',
+      label:`Store ${s.storeNumberStr} — ${s.storeName||''}, ${s.city}, ${s.state}`,
+      lat:s.lat, lng:s.lng, score, store:s };
+  }
+  function toCityRes(city,state,lat,lng,score){
+    return { kind:'CITY', label:`${city}, ${state}`, lat, lng, score };
+  }
+  function handleSearchInput(){
+    const q = (searchBox.value||'').trim().toLowerCase();
+    if (!q){ hideResults(); searchBadge.classList.remove('show'); return; }
+
+    const items = [];
+    // store number fast path
+    const m = q.match(/\b(\d{3,6})\b/);
+    if (m){
+      const s = allStores.find(x => x.storeNumberStr === m[1]);
+      if (s) items.push(toStoreRes(s, 100));
+    }
+    // city/state or store name contains
+    allStores.forEach(s=>{
+      const t1 = `${s.city}, ${s.state}`.toLowerCase();
+      const t2 = `${s.storeName||''}`.toLowerCase();
+      if (t1.includes(q) || t2.includes(q)) items.push(toStoreRes(s, 60));
+    });
+    // exact City, ST
+    const sExact = allStores.find(x => `${x.city}, ${x.state}`.toLowerCase() === q);
+    if (sExact) items.unshift(toCityRes(sExact.city, sExact.state, sExact.lat, sExact.lng, 80));
+    // hubs
+    hubs.forEach(h=>{ if (h.name.toLowerCase().includes(q)) items.push({ kind:'HUB', label:h.name, lat:h.coords[0], lng:h.coords[1], score:50 }); });
+
+    // unique + sort by score
+    const seen=new Set(), out=[];
+    items.sort((a,b)=>b.score-a.score).forEach(it=>{
+      const k=it.kind+'|'+it.label+'|'+it.lat+'|'+it.lng;
+      if(!seen.has(k)){ seen.add(k); out.push(it); }
+    });
+    showResults(out.slice(0,50));
+  }
+  function selectResult(r){
+    hideResults();
+    searchBadge.textContent = r.kind;
+    searchBadge.classList.add('show');
+    searchBox.value = r.label;
+    map.setView([r.lat,r.lng], r.kind==='HUB' ? 9 : 11);
+    if (r.kind==='STORE' && r.store){
+      dropTarget(r.store.lat, r.store.lng, r.label, storePopupHTML(r.store));
+    } else {
+      dropTarget(r.lat, r.lng, r.label);
     }
   }
+  searchBox.addEventListener('input', handleSearchInput);
 
+  // Optional chips (from searches you “commit” manually)
   function renderPills(){
     searchPills.innerHTML = searchTargets.map((t,i)=>
       `<span class="pill">${escape(t.label)} <button aria-label="Remove" data-i="${i}">✕</button></span>`
@@ -366,42 +463,7 @@
     });
   }
 
-  function buildSearchDatalist(stores, hubs){
-    const seen = new Set(); const opts = [];
-    stores.slice(0,10000).forEach(s=>{
-      const a = `Store ${s.storeNumberStr} — ${s.city}, ${s.state}`;
-      if (!seen.has(a)){ seen.add(a); opts.push(a); }
-      const b = `${s.city}, ${s.state}`;
-      if (!seen.has(b)){ seen.add(b); opts.push(b); }
-    });
-    hubs.forEach(h=>{ if (!seen.has(h.name)){ seen.add(h.name); opts.push(h.name); } });
-    searchList.innerHTML = opts.slice(0,5000).map(v=>`<option value="${escape(v)}"></option>`).join('');
-  }
-
-  function guessTargetFor(q){
-    const qs = q.trim().toLowerCase();
-    const m = q.match(/\b(\d{3,6})\b/);
-    if (m){
-      const s = allStores.find(x => x.storeNumberStr === m[1]);
-      if (s) return { label:`Store ${s.storeNumberStr} — ${s.city}, ${s.state}`, lat:s.lat, lng:s.lng };
-    }
-    if (qs.startsWith('store ')){
-      const mm = qs.match(/^store\s+(\d{3,6})\b/);
-      if (mm){
-        const s = allStores.find(x => x.storeNumberStr === mm[1]);
-        if (s) return { label:`Store ${s.storeNumberStr} — ${s.city}, ${s.state}`, lat:s.lat, lng:s.lng };
-      }
-    }
-    let s = allStores.find(x => `${x.city}, ${x.state}`.toLowerCase() === qs);
-    if (s) return { label:`${s.city}, ${s.state}`, lat:s.lat, lng:s.lng };
-    const h = hubs.find(h=>h.name.toLowerCase()===qs);
-    if (h) return { label:h.name, lat:h.coords[0], lng:h.coords[1] };
-    s = allStores.find(x => x.city_lc.includes(qs) || qs.includes(x.city_lc));
-    if (s) return { label:`${s.city}, ${s.state}`, lat:s.lat, lng:s.lng };
-    return null;
-  }
-
-  // -------- Filters/render --------
+  // ---------- Filters + cascade ----------
   function populateRM(source){
     setOptionsWithCounts(rmFilter, new Set(source.map(s=>s.regionalManager).filter(Boolean)), countBy(source,'regionalManager'));
   }
@@ -421,11 +483,12 @@
     hubFilter.innerHTML = allowed.map(h => `<option>${escape(h.name)}</option>`).join('');
   }
 
+  // ---------- Core filtering/render ----------
   function runFilter(){
     const selCov = selected(covFilter);
     const selRM  = selected(rmFilter);
     const selAM  = selected(amFilter);
-    const selHubNames = selected(hubFilter, true);
+    const selHubNames = selected(hubFilter, true); // empty => no hub constraint
 
     filteredStores = allStores.filter(s=>{
       if (!(selCov.includes('All') || selCov.includes(s.coverageType))) return false;
@@ -458,15 +521,7 @@
     list.forEach(s=>{
       const color = COLORS[s.coverageType] || '#888';
       const m = L.circleMarker([s.lat,s.lng],{radius:6,color,fillColor:color,fillOpacity:.9,weight:1});
-      m.bindPopup(`
-        <b>#${escape(s.storeNumberStr)}</b><br/>
-        ${escape(s.storeName||'')}<br/>
-        ${escape(s.address||'')}<br/>
-        ${escape(s.city||'')}, ${escape(s.state||'')}<br/>
-        Coverage: <b>${escape(s.coverageType||'')}</b><br/>
-        Area: ${escape(s.areaManager||'')}<br/>
-        Regional: ${escape(s.regionalManager||'')}
-      `);
+      m.bindPopup(storePopupHTML(s));
       m.coverageType = s.coverageType;
       markers.addLayer(m);
     });
@@ -535,7 +590,7 @@
     cascadeAM(); cascadeHubs();
     hubFilter.innerHTML = hubs.map(h=>`<option>${escape(h.name)}</option>`).join('');
     searchTargets = []; renderPills();
-    buildSearchDatalist(allStores, hubs);
+    searchBox.value=''; searchBadge.classList.remove('show'); hideResults(); clearTarget();
     map.setView([39.5,-98.35],5);
   }
 
@@ -611,6 +666,8 @@
     order.forEach(([k,short])=>{ if ((counts[k]||0) > max){ max = counts[k]||0; dom = short; }});
     return new L.DivIcon({ html:'<div><span>'+children.length+'</span></div>', className:'marker-cluster marker-'+dom, iconSize:new L.Point(40,40) });
   }
+  const debouncedRun = debounce(runFilter, 120);
+  function debounce(fn, d){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); }; }
 })();
 </script>
 </body>
