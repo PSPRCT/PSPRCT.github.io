@@ -252,6 +252,14 @@
   const rmFilter  = id('rmFilter');  const rmSearch  = id('rmSearch');
   const amFilter  = id('amFilter');  const amSearch  = id('amSearch');
   const hubFilter = id('hubFilter'); const hubSearch = id('hubSearch');
+// Safe early debouncer that doesn't depend on anything
+const debouncedRun = (() => {
+  let t;
+  return () => {
+    clearTimeout(t);
+    t = setTimeout(runFilter, 120);
+  };
+})();
 
   on('input', radius,   () => { radiusLbl.textContent = radius.value; debouncedRun(); });
   on('input', minPerHub,() => { minPerHubLbl.textContent = minPerHub.value; debouncedRun(); });
