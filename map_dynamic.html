@@ -255,30 +255,67 @@
   };
 
   // ---------- Load data ----------
-  showBusy(true);
-  try{
-    const resp = await fetch('store_data.json', { cache: 'no-cache' });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const raw = await resp.json();
-    allStores = raw.map(s => ({
-      ...s,
-      city: (s.city||'').trim(),
-      city_lc: (s.city||'').trim().toLowerCase(),
-      state: (s.state||'').trim(),
-      storeNumberStr: String(s.storeNumber ?? ''),
-      lat: Number(s.latitude), lng: Number(s.longitude)
-    })).filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+  // ===== Data load (robust) =====
+const DATA_URL = new URL('store_data.json', location.href).toString();
 
-    populateRM(allStores);
-    populateAM(allStores);
-    cascadeHubs();
-    buildSearchDatalist(allStores, hubs);
-    runFilter();
-  }catch(err){
-    alert('Could not load store_data.json. Serve over HTTP.\n\n'+err.message);
-  }finally{
-    showBusy(false);
+showBusy(true);
+let spinnerFailSafe = setTimeout(() => showBusy(false), 8000);
+
+try {
+  const resp = await fetch(DATA_URL, { cache: 'no-cache' });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching ${DATA_URL}`);
+
+  // Some servers deliver JSON with the wrong MIME or stray BOM; parse defensively
+  const rawText = await resp.text();
+  let raw;
+  try {
+    raw = JSON.parse(rawText.replace(/^\uFEFF/, ''));
+  } catch (e) {
+    console.error('JSON parse failed. First 200 chars:', rawText.slice(0, 200));
+    throw new Error('Invalid JSON format in store_data.json');
   }
+
+  if (!Array.isArray(raw)) throw new Error('Expected an array of stores');
+
+  // Normalize & trim so filters/search are stable regardless of whitespace/case
+  allStores = raw
+    .map(s => ({
+      ...s,
+      city: (s.city ?? '').trim(),
+      state: (s.state ?? '').trim(),
+      storeName: (s.storeName ?? '').trim(),
+      address: (s.address ?? '').trim(),
+      coverageType: (s.coverageType ?? '').trim(),
+      areaManager: (s.areaManager ?? '').trim(),
+      regionalManager: (s.regionalManager ?? '').trim(),
+      trainerCity: (s.trainerCity ?? '').trim(),
+      storeNumberStr: String(s.storeNumber ?? ''),
+      lat: Number(s.latitude),
+      lng: Number(s.longitude),
+    }))
+    .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+
+  // Minimal schema sanity check (helps catch a misnamed key fast)
+  const reqKeys = ['latitude','longitude','storeNumber','city','state','coverageType'];
+  if (allStores.length && !reqKeys.every(k => k in raw[0])) {
+    console.warn('First record keys:', Object.keys(raw[0]));
+    throw new Error('One or more expected keys are missing/renamed in JSON');
+  }
+
+  populateRegionals(allStores);
+  populateAreas(allStores);
+  populateHubPicker(trainerHubs);
+
+  runFilter();
+} catch (err) {
+  console.error(err);
+  const msg = (err && err.message) ? err.message : String(err);
+  document.getElementById('filterCount').textContent = `Data load error: ${msg}`;
+} finally {
+  clearTimeout(spinnerFailSafe);
+  showBusy(false);
+}
+
 
   // ---------- Search (chips + autosuggest + pan/zoom) ----------
   async function handleSearchCommit(){
