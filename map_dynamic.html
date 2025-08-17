@@ -5,725 +5,598 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Premium Retail Trainer Map</title>
 
-<!-- Leaflet + MarkerCluster -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
 <style>
   :root{
-    --blue:#1677ff; --violet:#6a1b9a; --gray:#9e9e9e; --ring:#d0d7de;
-    --filters-h: 210px;
+    --blue:#2f71ff; --violet:#6a1b9a; --gray:#9ea3a8; --ring:#d0d7de;
+    --pa: #6c5ce7;  /* Premium + Acosta (purple) */
+    --p:  #2ecc71;  /* Premium only (green)   */
+    --a:  #f39c12;  /* Acosta only (orange)   */
+    --u:  #e74c3c;  /* Uncovered (red)        */
   }
-  *{box-sizing:border-box}
-  html, body{height:100%;margin:0;font-family:Inter,system-ui,Arial,sans-serif;color:#111}
-  body{display:flex;flex-direction:column;overflow:hidden;background:#fff}
+  html,body{height:100%;margin:0;font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;background:#fff}
+  body{display:flex;flex-direction:column}
+  /* Top controls row */
+  .topbar{display:grid;grid-template-columns:460px 1fr auto auto auto auto;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid #eef0f3}
+  .search-wrap{display:flex;gap:8px;align-items:center}
+  .search{flex:1;display:flex;gap:8px}
+  input[type="text"], select{border:1px solid #d0d7de;border-radius:8px;padding:8px 10px;font-size:14px}
+  .toggle{display:inline-flex;align-items:center;gap:8px;border:1px solid #e5e7eb;border-radius:999px;padding:6px 10px;background:#fff;white-space:nowrap}
+  .toggle input{width:16px;height:16px}
+  .pillbar{display:flex;gap:6px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:#eef6ff;border:1px solid #cfe6ff;color:#0b5bd3;padding:4px 8px;border-radius:999px;font-weight:600}
+  .pill button{border:none;background:transparent;font-weight:700;cursor:pointer;color:#0b5bd3}
+  .range{display:flex;align-items:center;gap:8px}
+  .range small{color:#6b7280}
+  .btn{border:1px solid #d0d7de;background:#fff;border-radius:8px;padding:8px 10px;font-weight:600;cursor:pointer}
+  .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+  .dropdown{position:relative}
+  .dropdown-menu{position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.12);padding:6px;display:none;z-index:5}
+  .dropdown.open .dropdown-menu{display:block}
+  .dropdown-menu button{display:block;width:100%;text-align:left;border:none;background:#fff;padding:8px 10px;border-radius:8px;cursor:pointer}
+  .dropdown-menu button:hover{background:#f6f8fa}
 
-  /* ===== Toolbar ===== */
-  #toolbar{
-    position:sticky;top:0;z-index:1000;background:#fff;border-bottom:1px solid #eef1f4;
-  }
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 12px}
-  .row.compact{padding:6px 12px}
-  .grow{flex:1 1 240px}
-  .w-180{flex:0 0 180px}
-  .w-220{flex:0 0 220px}
-  .w-260{flex:0 0 260px}
-  .right{margin-left:auto}
-  label{display:block;font-weight:600;margin:0 0 6px 2px;font-size:13px}
-
-  input[type="text"], select, button{
-    font-size:14px;border:1px solid #d1d9e0;border-radius:8px;padding:7px 9px;background:#fff
-  }
-  select[multiple]{height:108px}
+  /* Filters row */
+  .filters{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;padding:8px 10px}
   .picker{display:flex;flex-direction:column;gap:6px}
-  .picker input[type="text"]{border-radius:8px}
+  .picker input{padding:6px 8px;font-size:13px}
+  select[multiple]{height:110px}
 
-  .toggle{display:inline-flex;align-items:center;gap:8px;padding:5px 9px;border:1px solid #e1e6eb;border-radius:999px;background:#fff}
-  .toggle input{appearance:none;width:38px;height:22px;background:#c8ced6;border-radius:22px;position:relative;outline:0;cursor:pointer;vertical-align:middle}
-  .toggle input:before{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.2s}
-  .toggle input:checked{background:var(--blue)}
-  .toggle input:checked:before{transform:translateX(16px)}
+  /* Summary strip */
+  .summary{display:flex;gap:10px;align-items:center;padding:6px 10px;border-top:1px solid #eef0f3;border-bottom:1px solid #eef0f3}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:999px;background:#fff}
+  .dot{width:10px;height:10px;border-radius:50%}
+  .muted{color:#6b7280;margin-left:auto}
 
-  .range{display:inline-flex;align-items:center;gap:8px;padding:5px 9px;border:1px solid #e1e6eb;border-radius:999px;background:#fff}
-  .range input{width:140px}
-
-  .btn{background:var(--blue);color:#fff;border:none;padding:7px 12px;border-radius:8px;font-weight:600;cursor:pointer}
-  .btn.secondary{background:#fff;color:#111;border:1px solid #cfd6dc}
-  .btn:disabled{opacity:.6;cursor:not-allowed}
-
-  .split{height:1px;background:#eef1f4;margin:0}
-
-  /* Export dropdown */
-  .menu-wrap{position:relative;display:inline-block}
-  .menu{position:absolute;top:110%;right:0;min-width:220px;background:#fff;border:1px solid #e3e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:6px;display:none;z-index:1500}
-  .menu a{display:block;padding:8px 10px;border-radius:8px;text-decoration:none;color:#111;font-size:14px}
-  .menu a:hover{background:#f4f7fa}
-  .menu-wrap.open .menu{display:block}
-
-  /* Counts / legend strip */
-  #stats{padding:6px 12px;color:#344054;font-size:14px}
-  #legend{position:absolute;bottom:12px;right:12px;background:#fff;border-radius:10px;border:1px solid #e3e7eb;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:8px 10px;font-size:13px}
-  #legend div{display:flex;align-items:center;gap:8px;margin:4px 0}
-  .dot{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
-
-  /* Map takes the rest of the viewport */
-  #map{height:calc(100vh - var(--filters-h));border-radius:12px;margin:10px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+  /* Map */
+  #map{flex:1}
 
   /* Busy */
-  #busy{position:fixed;inset:0;background:rgba(255,255,255,.55);display:none;align-items:center;justify-content:center;z-index:2000}
-  #busy.show{display:flex}
-  .spinner{width:42px;height:42px;border-radius:50%;border:4px solid rgba(0,0,0,.15);border-top-color:var(--blue);animation:spin .8s linear infinite}
+  .busy{position:fixed;inset:0;background:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;z-index:9999}
+  .busy[hidden]{display:none}
+  .spin{width:36px;height:36px;border-radius:50%;border:4px solid rgba(0,0,0,.15);border-top-color:var(--blue);animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
 
-  /* Hub icons */
-  .hub{width:22px;height:22px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25),0 2px 6px rgba(0,0,0,.15)}
-  .hub.staffed{background:#6a1b9a}
-  .hub.open{background:#9e9e9e}
+  /* Cluster color override by dominant coverage type */
+  .marker-cluster.marker-pa div{background:var(--pa);border:2px solid #fff}
+  .marker-cluster.marker-p  div{background:var(--p); border:2px solid #fff}
+  .marker-cluster.marker-a  div{background:var(--a); border:2px solid #fff}
+  .marker-cluster.marker-u  div{background:var(--u); border:2px solid #fff}
 
-  /* ===== Autocomplete ===== */
-  .ac-wrap{position:relative}
-  .ac-list{
-    position:absolute;left:0;right:0;top:100%;margin-top:6px;background:#fff;border:1px solid #e3e7eb;border-radius:10px;
-    box-shadow:0 10px 24px rgba(0,0,0,.12);z-index:1800;max-height:280px;overflow:auto;display:none;
-  }
-  .ac-item{padding:8px 10px;display:flex;gap:8px;align-items:center;cursor:pointer}
-  .ac-item .tag{font-size:11px;padding:2px 6px;border-radius:999px;background:#eef4ff;color:#0843a0;border:1px solid #cfe1ff}
-  .ac-item .sub{color:#667085;font-size:12px;margin-left:auto}
-  .ac-item.active, .ac-item:hover{background:#f5f8fb}
-  .ac-empty{padding:10px;color:#667085}
-  .hide{display:none}
+  /* Hub icons */
+  .hub{width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+  .hub.staffed{background:var(--violet)}
+  .hub.open{background:#9ea3a8}
 </style>
 </head>
 <body>
 
-<!-- ===== Toolbar ===== -->
-<div id="toolbar" aria-label="Filters & tools">
-  <!-- Row 1: search + toggles + radius -->
-  <div class="row">
-    <div class="grow">
-      <label for="q">Search store # / city</label>
-      <div class="ac-wrap">
-        <div style="display:flex;gap:8px">
-          <input id="q" type="text" placeholder="e.g. 1234 or Phoenix" class="grow" autocomplete="off">
-          <button id="clearQ" class="btn secondary">Clear</button>
-        </div>
-        <div id="acList" class="ac-list" role="listbox" aria-label="Suggestions"></div>
-      </div>
+<!-- Top row -->
+<div class="topbar">
+  <div class="search-wrap">
+    <div class="search">
+      <input id="searchBox" list="searchList" type="text" placeholder="e.g., 1234 or Phoenix" aria-label="Search store number or city" />
+      <datalist id="searchList"></datalist>
+      <button id="searchGo" class="btn primary">Go</button>
+      <button id="searchClear" class="btn">Clear</button>
     </div>
+  </div>
 
-    <label class="toggle w-180"><span>Staffed hubs</span><input id="showStaffed" type="checkbox" checked></label>
-    <label class="toggle w-180"><span>Open hubs</span><input id="showOpen" type="checkbox" checked></label>
+  <label class="toggle"><input id="showStaffed" type="checkbox" checked />Staffed hubs</label>
+  <label class="toggle"><input id="showOpen" type="checkbox" checked />Open hubs</label>
 
-    <div class="range w-260">
-      <span>Radius</span>
-      <input id="radius" type="range" min="25" max="150" step="5" value="75">
-      <span id="radiusLbl">75 mi</span>
-    </div>
+  <div class="range">
+    <span>Radius</span>
+    <input id="radius" type="range" min="25" max="150" step="5" value="75" />
+    <b id="radiusLbl">75</b><small>mi</small>
+  </div>
 
-    <div class="range w-220">
-      <span>Min stores / hub</span>
-      <input id="minStores" type="range" min="0" max="150" step="5" value="0">
-      <span id="minStoresLbl">0</span>
-    </div>
+  <div class="range">
+    <span>Min stores / hub</span>
+    <input id="minPerHub" type="range" min="0" max="150" step="5" value="0" />
+    <b id="minPerHubLbl">0</b>
+  </div>
 
-    <button id="fitBtn" class="btn secondary right">Fit to Results</button>
-    <button id="resetBtn" class="btn secondary">Reset</button>
-
-    <!-- Export Dropdown -->
-    <div class="menu-wrap">
-      <button id="exportBtn" class="btn">Export Data ▾</button>
-      <div class="menu" role="menu" aria-label="Export options">
-        <a href="#" data-export="stores">Export filtered stores (CSV)</a>
-        <a href="#" data-export="hubs">Export hubs (CSV)</a>
-        <a href="#" data-export="kpis">Export KPIs (CSV)</a>
+  <div style="display:flex; gap:8px">
+    <button id="fitBtn" class="btn">Fit to Results</button>
+    <button id="resetBtn" class="btn">Reset</button>
+    <div class="dropdown" id="exportDrop">
+      <button class="btn">Export Data ▾</button>
+      <div class="dropdown-menu">
+        <button id="exportStores">Export filtered stores (CSV)</button>
+        <button id="exportHubs">Export visible hubs (CSV)</button>
+        <button id="exportKpis">Export KPIs summary (CSV)</button>
       </div>
     </div>
   </div>
+</div>
 
-  <div class="split"></div>
+<!-- Search chips -->
+<div class="pillbar" id="searchPills" style="padding:6px 10px"></div>
 
-  <!-- Row 2: pickers (with search boxes ABOVE the selects) -->
-  <div class="row compact">
-    <div class="picker w-220">
-      <label>Coverage Type</label>
-      <input id="covSearch" type="text" placeholder="Search coverage…">
-      <select id="covSel" multiple>
-        <option value="All" selected>All</option>
-        <option>Premium + Acosta</option>
-        <option>Premium Only</option>
-        <option>Acosta Only</option>
-        <option>Uncovered</option>
-      </select>
-    </div>
-
-    <div class="picker w-260">
-      <label>Regional Manager</label>
-      <input id="rmSearch" type="text" placeholder="Filter names…">
-      <select id="rmSel" multiple><option value="All" selected>All</option></select>
-    </div>
-
-    <div class="picker w-260">
-      <label>Area Manager</label>
-      <input id="amSearch" type="text" placeholder="Filter names…">
-      <select id="amSel" multiple><option value="All" selected>All</option></select>
-    </div>
-
-    <div class="picker w-260">
-      <label>Trainer Hub</label>
-      <input id="hubSearch" type="text" placeholder="Filter hubs…">
-      <select id="hubSel" multiple></select>
-    </div>
+<!-- Filters row -->
+<div class="filters">
+  <div class="picker">
+    <input id="covSearch" type="text" placeholder="Search coverage…" />
+    <select id="covFilter" multiple>
+      <option value="All" selected>All</option>
+      <option>Premium + Acosta</option>
+      <option>Premium Only</option>
+      <option>Acosta Only</option>
+      <option>Uncovered</option>
+    </select>
   </div>
-
-  <div id="stats" class="row compact" style="padding-top:0">
-    <div id="count">Showing 0 of 0 stores</div>
-    <div id="inView" style="margin-left:10px"></div>
-    <div id="hubCount" class="right"></div>
+  <div class="picker">
+    <input id="rmSearch" type="text" placeholder="Filter regional managers…" />
+    <select id="rmFilter" multiple><option value="All" selected>All</option></select>
   </div>
+  <div class="picker">
+    <input id="amSearch" type="text" placeholder="Filter area managers…" />
+    <select id="amFilter" multiple><option value="All" selected>All</option></select>
+  </div>
+  <div class="picker">
+    <input id="hubSearch" type="text" placeholder="Filter hubs…" />
+    <select id="hubFilter" multiple></select>
+  </div>
+</div>
+
+<!-- Summary strip -->
+<div class="summary" id="summary">
+  <span class="chip"><span class="dot" style="background:var(--pa)"></span>P+A: <b id="k_pa">0</b></span>
+  <span class="chip"><span class="dot" style="background:var(--p)"></span>Premium: <b id="k_p">0</b></span>
+  <span class="chip"><span class="dot" style="background:var(--a)"></span>Acosta: <b id="k_a">0</b></span>
+  <span class="chip"><span class="dot" style="background:var(--u)"></span>Uncov: <b id="k_u">0</b></span>
+  <span class="chip">Total: <b id="k_total">0</b></span>
+  <span class="chip">Hubs — <b id="k_staffed">0</b> staffed / <b id="k_open">0</b> open</span>
+  <span class="muted" id="inView">In view: 0</span>
 </div>
 
 <!-- Map -->
-<div id="map" role="region" aria-label="Coverage map"></div>
+<div id="map" role="region" aria-label="Coverage Map"></div>
 
-<!-- Legend -->
-<div id="legend" aria-hidden="true">
-  <div><span class="dot" style="background:blue"></span> Premium + Acosta</div>
-  <div><span class="dot" style="background:green"></span> Premium Only</div>
-  <div><span class="dot" style="background:orange"></span> Acosta Only</div>
-  <div><span class="dot" style="background:red"></span> Uncovered</div>
-  <div><span class="dot" style="background:#6a1b9a"></span> Staffed Hub</div>
-  <div><span class="dot" style="background:#9e9e9e"></span> Open Hub</div>
-</div>
-
-<!-- Busy -->
-<div id="busy"><div class="spinner"></div></div>
+<!-- Busy mask -->
+<div id="busy" class="busy" hidden><div class="spin"></div></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
-(function(){
-  /* ===== Config / data endpoints ===== */
-  const DATA_URL = 'store_data.json';          // <-- change if needed
-  const DEFAULT_RADIUS = 75;                   // miles
-  const COLORS = { "Premium + Acosta":"blue", "Premium Only":"green", "Acosta Only":"orange", "Uncovered":"red" };
+(async function(){
+  // ---------- Config ----------
+  const COLORS = {
+    "Premium + Acosta": getCSS('--pa'),
+    "Premium Only":     getCSS('--p'),
+    "Acosta Only":      getCSS('--a'),
+    "Uncovered":        getCSS('--u')
+  };
+  const DEFAULT_RADIUS = 75;
 
-  /* Example hubs; extend/replace with your full list */
+  // Hubs (keep IDs stable)
   const hubs = [
-    { id:"belle_vernon_pa", name:"Belle Vernon, PA (Open)", coords:[40.12507,-79.8664], status:"open",     owner:null },
-    { id:"centennial_co",   name:"Centennial, CO (Open)",   coords:[39.62732,-104.779], status:"open",     owner:null },
-    { id:"houston_tx",      name:"Houston, TX (Open)",      coords:[29.8535,-95.5095],  status:"open",     owner:null },
-    { id:"kansas_city_mo",  name:"Kansas City, MO (Open)",  coords:[39.04512,-94.4429], status:"open",     owner:null },
-    { id:"wilmington_oh",   name:"Wilmington, OH (Open)",   coords:[39.44499,-83.8244], status:"open",     owner:null },
-    { id:"granite_nc",      name:"Granite Falls, NC - Lisa Walker",   coords:[35.800494,-81.405803], status:"accepted", owner:"Lisa Walker" },
-    { id:"clarksville_tn",  name:"Clarksville, TN - Nicholas Salvato",coords:[36.588879,-87.340167], status:"accepted", owner:"Nicholas Salvato" },
-    { id:"orange_park_fl",  name:"Orange Park, FL - Sabrina Hall",    coords:[30.186756,-81.718887], status:"accepted", owner:"Sabrina Hall" },
-    { id:"olive_branch_ms", name:"Olive Branch, MS - Annette Brown",  coords:[34.926688,-89.894859], status:"accepted", owner:"Annette Brown" },
-    { id:"riverview_fl",    name:"Riverview, FL - Richard Santos",    coords:[27.8661,-82.3265],     status:"accepted", owner:"Richard Santos" }
+    { id:"belle_vernon_pa", name:"Belle Vernon, PA (Open)", coords:[40.12507,-79.8664], status:"open",     person:null },
+    { id:"centennial_co",   name:"Centennial, CO (Open)",   coords:[39.62732,-104.779], status:"open",     person:null },
+    { id:"houston_tx",      name:"Houston, TX (Open)",      coords:[29.8535,-95.5095],  status:"open",     person:null },
+    { id:"kansas_city_mo",  name:"Kansas City, MO (Open)",  coords:[39.04512,-94.4429], status:"open",     person:null },
+    { id:"wilmington_oh",   name:"Wilmington, OH (Open)",   coords:[39.44499,-83.8244], status:"open",     person:null },
+    { id:"granite_falls_nc_walker", name:"Granite Falls, NC — Lisa Walker", coords:[35.800494,-81.405803], status:"accepted", person:"Lisa Walker" },
+    { id:"clarksville_tn_salvato",  name:"Clarksville, TN — Nicholas Salvato", coords:[36.588879,-87.340167], status:"accepted", person:"Nicholas Salvato" },
+    { id:"orange_park_fl_hall",     name:"Orange Park, FL — Sabrina Hall", coords:[30.186756,-81.718887], status:"accepted", person:"Sabrina Hall" },
+    { id:"olive_branch_ms_brown",   name:"Olive Branch, MS — Annette Brown", coords:[34.926688,-89.894859], status:"accepted", person:"Annette Brown" },
+    { id:"riverview_fl_santos",     name:"Riverview, FL — Richard Santos", coords:[27.8661,-82.3265], status:"accepted", person:"Richard Santos" }
   ];
 
-  /* ===== DOM ===== */
-  const qEl = id => document.getElementById(id);
-  const qInput     = qEl('q'), clearQ = qEl('clearQ'), acList = qEl('acList');
-  const showStaffed= qEl('showStaffed'), showOpen = qEl('showOpen');
-  const radius     = qEl('radius'), radiusLbl = qEl('radiusLbl');
-  const minStores  = qEl('minStores'), minStoresLbl = qEl('minStoresLbl');
-  const fitBtn     = qEl('fitBtn'), resetBtn = qEl('resetBtn');
-  const covSel     = qEl('covSel'), covSearch = qEl('covSearch');
-  const rmSel      = qEl('rmSel'),  rmSearch  = qEl('rmSearch');
-  const amSel      = qEl('amSel'),  amSearch  = qEl('amSearch');
-  const hubSel     = qEl('hubSel'), hubSearch = qEl('hubSearch');
-  const countEl    = qEl('count'),  inViewEl  = qEl('inView'), hubCountEl = qEl('hubCount');
-  const busy       = qEl('busy');
-
-  // export menu
-  const exportWrap = document.querySelector('.menu-wrap');
-  qEl('exportBtn').addEventListener('click', () => exportWrap.classList.toggle('open'));
-  document.addEventListener('click', (e)=>{ if(!exportWrap.contains(e.target)) exportWrap.classList.remove('open'); });
-  exportWrap.querySelectorAll('.menu [data-export]').forEach(a => {
-    a.addEventListener('click', (e)=>{ e.preventDefault(); exportWrap.classList.remove('open'); doExport(a.dataset.export); });
-  });
-
-  /* ===== Map ===== */
-  const map = L.map('map').setView([39.5, -98.35], 5);
+  // ---------- State ----------
+  let allStores = [];
+  let filteredStores = [];
+  let lastHubsShown = [];
+  let searchTargets = []; // [{label, lat, lng}]
+  const map = L.map('map').setView([39.5,-98.35],5);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
-  const cluster = L.markerClusterGroup({ disableClusteringAtZoom: 12 });
-  map.addLayer(cluster);
-  map.on('moveend zoomend', updateInView);
-
-  // keep map height correct under sticky toolbar
-  const toolbar = qEl('toolbar');
-  const ro = new ResizeObserver(()=>{
-    const h = Math.ceil(toolbar.getBoundingClientRect().height);
-    document.documentElement.style.setProperty('--filters-h', h + 'px');
-    setTimeout(()=>map.invalidateSize(), 0);
+  const markers = L.markerClusterGroup({
+    disableClusteringAtZoom: 12,
+    iconCreateFunction: clusterIconByDominantCoverage
   });
-  ro.observe(toolbar);
+  map.addLayer(markers);
+  map.on('moveend zoomend', updateInViewCount);
 
-  /* ===== State ===== */
-  let all = [];           // all stores
-  let filtered = [];      // filtered stores
-  let hubMarkers = [], hubCircles = [], lastShownHubs = [];
-  let storeMarkers = new Map(); // storeNumberStr -> Leaflet marker (only for filtered set)
-  let firstFit = false;
+  // ---------- DOM ----------
+  const busy = id('busy');
+  const searchBox = id('searchBox');
+  const searchList = id('searchList');
+  const searchPills = id('searchPills');
+  on('click', id('searchGo'), handleSearchCommit);
+  on('click', id('searchClear'), () => { searchTargets = []; renderPills(); runFilter(); });
 
-  // indices for autosuggest
-  const byStore = new Map();              // storeNumberStr -> store object
-  const byCityKey = new Map();            // "city|state" -> array of stores
+  const showStaffed = id('showStaffed');
+  const showOpen    = id('showOpen');
+  const radius      = id('radius');    const radiusLbl   = id('radiusLbl');
+  const minPerHub   = id('minPerHub'); const minPerHubLbl= id('minPerHubLbl');
 
-  /* ===== Utils ===== */
-  const toRad = a => a*Math.PI/180;
-  const miles = (a,b,c,d) => {
-    const R=3958.8, φ1=toRad(a), λ1=toRad(b), φ2=toRad(c), λ2=toRad(d);
-    const dφ=φ2-φ1, dλ=λ2-λ1;
-    const x=Math.sin(dφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
-    return R*(2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)));
+  const covFilter = id('covFilter'); const covSearch = id('covSearch');
+  const rmFilter  = id('rmFilter');  const rmSearch  = id('rmSearch');
+  const amFilter  = id('amFilter');  const amSearch  = id('amSearch');
+  const hubFilter = id('hubFilter'); const hubSearch = id('hubSearch');
+
+  on('input', radius,   () => { radiusLbl.textContent = radius.value; debouncedRun(); });
+  on('input', minPerHub,() => { minPerHubLbl.textContent = minPerHub.value; debouncedRun(); });
+  on('change', showStaffed, debouncedRun);
+  on('change', showOpen,    debouncedRun);
+
+  on('input', covSearch, () => filterSelect(covFilter, covSearch.value));
+  on('input', rmSearch,  () => filterSelect(rmFilter,  rmSearch.value));
+  on('input', amSearch,  () => filterSelect(amFilter,  amSearch.value));
+  on('input', hubSearch, () => filterSelect(hubFilter, hubSearch.value));
+
+  on('change', covFilter, debouncedRun);
+  on('change', rmFilter,  () => { cascadeAM(); debouncedRun(); });
+  on('change', amFilter,  () => { cascadeHubs(); debouncedRun(); });
+  on('change', hubFilter, debouncedRun);
+
+  on('click', id('fitBtn'), fitToResults);
+  on('click', id('resetBtn'), () => { resetAll(); runFilter(); });
+
+  // Export dropdown
+  const exportDrop = id('exportDrop');
+  on('click', exportDrop.querySelector('button'), () => exportDrop.classList.toggle('open'));
+  on('click', document.body, (e) => {
+    if (!exportDrop.contains(e.target)) exportDrop.classList.remove('open');
+  }, true);
+  on('click', id('exportStores'), exportStoresCsv);
+  on('click', id('exportHubs'),   exportHubsCsv);
+  on('click', id('exportKpis'),   exportKpisCsv);
+
+  // KPI labels
+  const k = {
+    pa: id('k_pa'), p: id('k_p'), a: id('k_a'), u: id('k_u'),
+    total: id('k_total'), staffed: id('k_staffed'), open: id('k_open'),
+    inView: id('inView')
   };
-  const m2 = mi => mi*1609.34;
-  const esc = s => String(s??'').replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]));
-  const qcsv = v => `"${String(v??'').replace(/"/g,'""')}"`;
-  const getRadiusMiles = () => parseInt(radius.value,10)||DEFAULT_RADIUS;
 
-  function showBusy(yes){ busy.classList.toggle('show', !!yes); }
+  // ---------- Load data ----------
+  showBusy(true);
+  try{
+    const resp = await fetch('store_data.json', { cache: 'no-cache' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const raw = await resp.json();
+    allStores = raw.map(s => ({
+      ...s,
+      city: (s.city||'').trim(),
+      city_lc: (s.city||'').trim().toLowerCase(),
+      state: (s.state||'').trim(),
+      storeNumberStr: String(s.storeNumber ?? ''),
+      lat: Number(s.latitude), lng: Number(s.longitude)
+    })).filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
 
-  function setOptions(select, values, withCountsMap){
-    const keepAll = [...select.options].some(o=>o.value==='All');
-    select.innerHTML = keepAll ? '<option value="All" selected>All</option>' : '';
-    [...values].sort((a,b)=>String(a).localeCompare(String(b))).forEach(v=>{
-      const c = withCountsMap ? (withCountsMap.get(v)||0) : null;
-      const opt = document.createElement('option');
-      opt.value = v; opt.textContent = c ? `${v} (${c})` : v;
-      select.appendChild(opt);
+    populateRM(allStores);
+    populateAM(allStores);
+    cascadeHubs();
+    buildSearchDatalist(allStores, hubs);
+    runFilter();
+  }catch(err){
+    alert('Could not load store_data.json. Serve over HTTP.\n\n'+err.message);
+  }finally{
+    showBusy(false);
+  }
+
+  // ---------- Search (chips + autosuggest + pan/zoom) ----------
+  async function handleSearchCommit(){
+    const q = (searchBox.value||'').trim();
+    if (!q) return;
+    const found = guessTargetFor(q);
+    if (found){
+      searchTargets.push(found);
+      renderPills();
+      // Pan to the *latest* target
+      map.setView([found.lat, found.lng], 11);
+      searchBox.value='';
+      runFilter(); // restrict to target area only if desired (we’ll keep stores global; search is just navigation)
+    }else{
+      // If not found, leave the text (user can adjust)
+    }
+  }
+
+  function renderPills(){
+    searchPills.innerHTML = searchTargets.map((t,i)=>
+      `<span class="pill">${escape(t.label)} <button aria-label="Remove" data-i="${i}">✕</button></span>`
+    ).join('');
+    Array.from(searchPills.querySelectorAll('button')).forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const i = Number(btn.getAttribute('data-i'));
+        searchTargets.splice(i,1);
+        renderPills();
+        runFilter();
+      });
     });
   }
-  function selected(select){
-    const vals = Array.from(select.selectedOptions).map(o=>o.value);
-    return (!vals.length || vals.includes('All')) ? ['All'] : vals;
+
+  function buildSearchDatalist(stores, hubs){
+    // a light list: store numbers + city,state + hubs
+    const seen = new Set();
+    const opts = [];
+    stores.slice(0,10000).forEach(s=>{
+      const a = `Store ${s.storeNumberStr} — ${s.city}, ${s.state}`;
+      if (!seen.has(a)){ seen.add(a); opts.push(a); }
+      const b = `${s.city}, ${s.state}`;
+      if (!seen.has(b)){ seen.add(b); opts.push(b); }
+    });
+    hubs.forEach(h=>{
+      if (!seen.has(h.name)){ seen.add(h.name); opts.push(h.name); }
+    });
+    searchList.innerHTML = opts.slice(0,5000).map(v=>`<option value="${escape(v)}"></option>`).join('');
   }
-  function filterList(select, q){
-    q = (q||'').toLowerCase();
-    for(const opt of select.options){
-      const label = opt.textContent.toLowerCase();
-      opt.style.display = label.includes(q) ? '' : 'none';
-    }
+
+  function guessTargetFor(q){
+    const qs = q.toLowerCase();
+    // 1) store #
+    let s = allStores.find(x => x.storeNumberStr === q);
+    if (s) return { label:`Store ${s.storeNumberStr} — ${s.city}, ${s.state}`, lat:s.lat, lng:s.lng };
+
+    // 2) city, state
+    s = allStores.find(x => `${x.city}, ${x.state}`.toLowerCase() === qs);
+    if (s) return { label:`${s.city}, ${s.state}`, lat:s.lat, lng:s.lng };
+
+    // 3) hub name
+    const h = hubs.find(h=>h.name.toLowerCase()===qs);
+    if (h) return { label:h.name, lat:h.coords[0], lng:h.coords[1] };
+
+    // 4) partial city: choose centroid-ish (first match)
+    s = allStores.find(x => x.city_lc.includes(qs));
+    if (s) return { label:`${s.city}, ${s.state}`, lat:s.lat, lng:s.lng };
+
+    return null;
   }
-  function counts(items, key){
-    const m = new Map();
-    items.forEach(s => m.set(s[key]||'(blank)', (m.get(s[key]||'(blank)')||0)+1));
-    return m;
+
+  // ---------- Filters + cascade ----------
+  function populateRM(source){
+    setOptionsWithCounts(rmFilter, new Set(source.map(s=>s.regionalManager).filter(Boolean)), countBy(source,'regionalManager'));
   }
-
-  /* ===== Data Load ===== */
-  (async function init(){
-    try{
-      showBusy(true);
-      const r = await fetch(DATA_URL, { cache:'no-cache' });
-      if(!r.ok) throw new Error('Failed to load store_data.json');
-      const raw = await r.json();
-      all = raw.map(s => ({
-        ...s,
-        city: (s.city||'').trim(),
-        city_lc: (s.city||'').trim().toLowerCase(),
-        state: (s.state||'').trim(),
-        storeNumberStr: String(s.storeNumber ?? ''),
-        lat: Number(s.latitude), lng: Number(s.longitude)
-      })).filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
-
-      // indices for autosuggest
-      all.forEach(s=>{
-        byStore.set(s.storeNumberStr, s);
-        const key = `${s.city.trim().toLowerCase()}|${s.state}`;
-        if(!byCityKey.has(key)) byCityKey.set(key, []);
-        byCityKey.get(key).push(s);
-      });
-
-      // populate pickers
-      setOptions(rmSel, new Set(all.map(s=>s.regionalManager).filter(Boolean)), counts(all,'regionalManager'));
-      setOptions(amSel, new Set(all.map(s=>s.areaManager).filter(Boolean)), counts(all,'areaManager'));
-      setOptions(hubSel, hubs.map(h=>h.name));
-
-      runFilter();
-    }catch(e){
-      console.error(e);
-      countEl.textContent = 'Error loading data. Check store_data.json path.';
-    }finally{
-      showBusy(false);
-    }
-  })();
-
-  /* ===== Filtering / rendering ===== */
-  function runFilter(){
-    const cov = selected(covSel);
-    const rms = selected(rmSel);
-    const ams = selected(amSel);
-    const hubChoices = Array.from(hubSel.selectedOptions).map(o=>o.value);
-    const sterm = (qInput.value||'').trim().toLowerCase();
-
-    // cascade: AM options come from stores under selected RM(s)
-    const forAM = all.filter(s => rms.includes('All') || rms.includes(s.regionalManager));
-    const prevAM = new Set(ams);
-    setOptions(amSel, new Set(forAM.map(s=>s.areaManager).filter(Boolean)), counts(forAM,'areaManager'));
-    // keep previous AM selections if still valid
-    let kept = false;
-    Array.from(amSel.options).forEach(o => { if(prevAM.has(o.value)){ o.selected=true; kept=true; } });
-    if(!kept && amSel.querySelector('option[value="All"]')) amSel.querySelector('option[value="All"]').selected = true;
-
-    filtered = all.filter(s=>{
-      if(!(cov.includes('All') || cov.includes(s.coverageType))) return false;
-      if(!(rms.includes('All') || rms.includes(s.regionalManager))) return false;
-      if(!(ams.includes('All') || ams.includes(s.areaManager))) return false;
-
-      if(sterm){
-        const n = s.storeNumberStr.toLowerCase();
-        if(!n.includes(sterm) && !s.city_lc.includes(sterm)) return false;
+  function populateAM(source){
+    setOptionsWithCounts(amFilter, new Set(source.map(s=>s.areaManager).filter(Boolean)), countBy(source,'areaManager'));
+  }
+  function cascadeAM(){
+    const selRM = selected(rmFilter);
+    const subset = allStores.filter(s => selRM.includes('All') || selRM.includes(s.regionalManager));
+    populateAM(subset);
+  }
+  function cascadeHubs(){
+    const selAM = selected(amFilter);
+    // If AM selected, only include hubs whose 'person' is in selected AMs (for staffed),
+    // open hubs remain visible unless you prefer to hide them as well:
+    const allowed = hubs.filter(h => {
+      if (h.status === 'accepted') {
+        return selAM.includes('All') || (h.person && selAM.includes(h.person));
       }
+      // Keep open hubs regardless of AM selection; change if you want stricter behavior:
+      return true;
+    });
+    hubFilter.innerHTML = allowed
+      .map(h => `<option>${escape(h.name)}</option>`)
+      .join('');
+  }
 
-      // if hub filter is chosen, keep stores inside selected hubs (respecting staffed/open toggles)
-      if(hubChoices.length){
-        let inAny = false;
-        for(const h of hubs){
-          const visibleHub = (h.status==='accepted' && showStaffed.checked) || (h.status==='open' && showOpen.checked);
-          if(!visibleHub) continue;
-          if(!hubChoices.includes(h.name)) continue;
-          if(miles(h.coords[0],h.coords[1], s.lat, s.lng) <= getRadiusMiles()){ inAny = true; break; }
+  // ---------- Core filtering/render ----------
+  function runFilter(){
+    const selCov = selected(covFilter);
+    const selRM  = selected(rmFilter);
+    const selAM  = selected(amFilter);
+    const selHubNames = selected(hubFilter, true); // empty => no hub constraint
+
+    // main store filter
+    filteredStores = allStores.filter(s=>{
+      if (!(selCov.includes('All') || selCov.includes(s.coverageType))) return false;
+      if (!(selRM.includes('All') || selRM.includes(s.regionalManager))) return false;
+      if (!(selAM.includes('All') || selAM.includes(s.areaManager))) return false;
+
+      if (selHubNames.length){
+        // keep stores within radius of at least one selected & visible hub
+        const includeStaffed = showStaffed.checked;
+        const includeOpen    = showOpen.checked;
+        const r = Number(radius.value)||DEFAULT_RADIUS;
+        let near = false;
+        for (const h of hubs){
+          const visible = (h.status==='accepted' ? includeStaffed : includeOpen);
+          if (!visible) continue;
+          if (!selHubNames.includes(h.name)) continue;
+          if (distMiles(s.lat,s.lng,h.coords[0],h.coords[1]) <= r){ near=true; break; }
         }
-        if(!inAny) return false;
+        if (!near) return false;
       }
       return true;
     });
 
-    renderStores();
+    renderStores(filteredStores);
     refreshHubs();
-
-    // counts
-    countEl.textContent = `Showing ${filtered.length} of ${all.length} stores`;
-    if(!firstFit && filtered.length){ firstFit=true; fitToResults(); }
+    updateKpis();
   }
 
-  function renderStores(){
-    cluster.clearLayers();
-    storeMarkers.clear();
-    filtered.forEach(s=>{
-      const color = COLORS[s.coverageType] || 'gray';
-      const m = L.circleMarker([s.lat, s.lng], { radius:6, color, fillColor:color, fillOpacity:.9, weight:1 });
-      m.bindPopup(
-        `<b>#${esc(s.storeNumberStr)}</b> — ${esc(s.storeName||'')}<br>`+
-        `${esc(s.address||'')}<br>${esc(s.city||'')}, ${esc(s.state||'')}<br>`+
-        `Coverage: <b>${esc(s.coverageType||'')}</b><br>`+
-        `Area: ${esc(s.areaManager||'')}<br>Regional: ${esc(s.regionalManager||'')}`
-      );
-      cluster.addLayer(m);
-      storeMarkers.set(s.storeNumberStr, m);
+  function renderStores(list){
+    markers.clearLayers();
+    list.forEach(s=>{
+      const color = COLORS[s.coverageType] || '#888';
+      const m = L.circleMarker([s.lat,s.lng],{radius:6,color,fillColor:color,fillOpacity:.9,weight:1});
+      m.bindPopup(`
+        <b>#${escape(s.storeNumberStr)}</b><br/>
+        ${escape(s.storeName||'')}<br/>
+        ${escape(s.address||'')}<br/>
+        ${escape(s.city||'')}, ${escape(s.state||'')}<br/>
+        Coverage: <b>${escape(s.coverageType||'')}</b><br/>
+        Area: ${escape(s.areaManager||'')}<br/>
+        Regional: ${escape(s.regionalManager||'')}
+      `);
+      // tag marker with coverage for cluster coloring
+      m.coverageType = s.coverageType;
+      markers.addLayer(m);
     });
-    updateInView();
+    updateInViewCount();
   }
 
   function refreshHubs(){
-    const r = getRadiusMiles();
-    let list = hubs.filter(h => (h.status==='accepted' && showStaffed.checked) || (h.status==='open' && showOpen.checked))
-      .map(h=>{
-        const covered = filtered.filter(s => miles(h.coords[0],h.coords[1],s.lat,s.lng) <= r);
-        return { ...h, covered, count: covered.length, radius: r };
-      }).filter(h => h.count > 0);
+    // compute coverage for each hub (within radius) then apply min count
+    const includeStaffed = showStaffed.checked;
+    const includeOpen    = showOpen.checked;
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const minN = Number(minPerHub.value)||0;
 
-    // If a RM/AM filter is on, “only their hubs”
-    const rms = selected(rmSel), ams = selected(amSel);
-    if(!(rms.includes('All') && ams.includes('All'))){
-      const managerStores = filtered;
-      list = list.filter(h => h.covered.some(s => managerStores.includes(s)));
-    }
+    lastHubsShown.forEach(o => map.removeLayer(o.marker));
+    lastHubsShown = [];
 
-    // min stores
-    list = list.filter(h => h.count >= (parseInt(minStores.value,10)||0));
+    hubs.forEach(h=>{
+      const vis = (h.status==='accepted' ? includeStaffed : includeOpen);
+      if (!vis) return;
+      const covered = filteredStores.filter(s => distMiles(s.lat,s.lng,h.coords[0],h.coords[1]) <= r);
+      if (covered.length < minN) return;
 
-    // update hub picker to only visible hubs
-    const prev = new Set(Array.from(hubSel.selectedOptions).map(o=>o.value));
-    setOptions(hubSel, list.map(h=>h.name));
-    Array.from(hubSel.options).forEach(o=>{ if(prev.has(o.value)) o.selected = true; });
-
-    // draw
-    hubMarkers.forEach(m=>map.removeLayer(m)); hubMarkers=[];
-    hubCircles.forEach(c=>map.removeLayer(c)); hubCircles=[];
-    list.forEach(h=>{
-      const icon = L.divIcon({ className:'', html:`<div class="hub ${h.status==='accepted'?'staffed':'open'}" title="${esc(h.name)}"></div>`, iconSize:[22,22], iconAnchor:[11,11] });
-      const mk = L.marker(h.coords, { icon }).addTo(map).bindPopup(
-        `<b>${esc(h.name)}</b><br>`+
-        `<span style="display:inline-block;margin:4px 0;padding:2px 6px;border-radius:10px;color:#fff;background:${h.status==='accepted'?'#6a1b9a':'#9e9e9e'}">${h.status==='accepted'?'STAFFED':'OPEN'}</span><br>`+
-        `<b>${h.count}</b> stores in ${h.radius} mi`
-      );
-      const circle = L.circle(h.coords, { radius:m2(h.radius), color:'#6a1b9a', weight:1, fillOpacity:.08, dashArray:'5,8' }).addTo(map);
-      mk.on('mouseover', ()=>circle.setStyle({weight:3, fillOpacity:.14}));
-      mk.on('mouseout',  ()=>circle.setStyle({weight:1, fillOpacity:.08}));
-      circle.on('mouseover', ()=>circle.setStyle({weight:3, fillOpacity:.14}));
-      circle.on('mouseout',  ()=>circle.setStyle({weight:1, fillOpacity:.08}));
-
-      hubMarkers.push(mk); hubCircles.push(circle);
+      const marker = L.marker(h.coords,{icon:hubIcon(h)}).addTo(map);
+      marker.bindPopup(`
+        <b>${escape(h.name)}</b><br/>
+        ${h.status==='accepted' ? '<span style="color:'+getCSS('--violet')+';font-weight:700">STAFFED</span>' :
+                                   '<span style="color:'+getCSS('--gray')+';font-weight:700">OPEN</span>'}
+        <div style="margin-top:6px">${covered.length} stores in ${r} mi</div>
+      `);
+      lastHubsShown.push({ ...h, marker, coveredCount: covered.length });
     });
-
-    const staffed = list.filter(h=>h.status==='accepted').length;
-    const open = list.filter(h=>h.status==='open').length;
-    hubCountEl.innerHTML = `Hubs shown: <b style="color:#6a1b9a">${staffed} staffed</b> / <b style="color:#9e9e9e">${open} open</b>`;
-    lastShownHubs = list;
   }
 
-  function updateInView(){
-    if(!filtered.length){ inViewEl.textContent=''; return; }
-    const b = map.getBounds(); let n=0; filtered.forEach(s=>{ if(b.contains([s.lat,s.lng])) n++; });
-    inViewEl.textContent = ` | In view: ${n}`;
+  // ---------- KPIs & helpers ----------
+  function updateKpis(){
+    const counts = { "Premium + Acosta":0,"Premium Only":0,"Acosta Only":0,"Uncovered":0 };
+    filteredStores.forEach(s => counts[s.coverageType] = (counts[s.coverageType]||0)+1);
+    k.pa.textContent = counts["Premium + Acosta"]||0;
+    k.p.textContent  = counts["Premium Only"]||0;
+    k.a.textContent  = counts["Acosta Only"]||0;
+    k.u.textContent  = counts["Uncovered"]||0;
+    k.total.textContent = filteredStores.length;
+
+    const staffed = lastHubsShown.filter(h => h.status==='accepted').length;
+    const open    = lastHubsShown.filter(h => h.status==='open').length;
+    k.staffed.textContent = staffed; k.open.textContent = open;
+    updateInViewCount();
+  }
+
+  function updateInViewCount(){
+    const b = map.getBounds();
+    let n = 0; filteredStores.forEach(s => { if (b.contains([s.lat,s.lng])) n++; });
+    k.inView.textContent = `In view: ${n}`;
   }
 
   function fitToResults(){
-    if(!filtered.length) return;
-    const ll = filtered.map(s=>[s.lat,s.lng]);
-    map.fitBounds(L.latLngBounds(ll), { padding:[20,20] });
+    if (!filteredStores.length) return;
+    const bounds = L.latLngBounds(filteredStores.map(s => [s.lat,s.lng]));
+    map.fitBounds(bounds.pad(0.1));
   }
 
   function resetAll(){
-    qInput.value = '';
-    hideAC();
-    radius.value = DEFAULT_RADIUS; radiusLbl.textContent = `${DEFAULT_RADIUS} mi`;
-    minStores.value = 0; minStoresLbl.textContent = '0';
+    // Toggles
     showStaffed.checked = true; showOpen.checked = true;
-
-    // reset pickers
-    Array.from(covSel.options).forEach(o=>o.selected = (o.value==='All'));
-    setOptions(rmSel, new Set(all.map(s=>s.regionalManager).filter(Boolean)), counts(all,'regionalManager'));
-    setOptions(amSel, new Set(all.map(s=>s.areaManager).filter(Boolean)), counts(all,'areaManager'));
-    setOptions(hubSel, hubs.map(h=>h.name));
-    rmSearch.value = amSearch.value = covSearch.value = hubSearch.value = '';
-
-    map.setView([39.5, -98.35], 5);
-    runFilter();
+    radius.value = DEFAULT_RADIUS; radiusLbl.textContent = DEFAULT_RADIUS;
+    minPerHub.value = 0; minPerHubLbl.textContent = '0';
+    // Filters
+    setAll(covFilter); setAll(rmFilter); setAll(amFilter);
+    hubFilter.innerHTML = hubs.map(h=>`<option>${escape(h.name)}</option>`).join('');
+    // Search
+    searchTargets = []; renderPills();
+    map.setView([39.5,-98.35],5);
   }
 
-  /* ===== Autocomplete (store # + city) ===== */
-  let acIdx = -1; // active suggestion index
-
-  function buildSuggestions(q){
-    const suggestions = [];
-    if(!q) return suggestions;
-    const isNum = /^\d+$/.test(q);
-
-    // 1) exact store number first
-    if(isNum && byStore.has(q)){
-      const s = byStore.get(q);
-      suggestions.push({ type:'store', key:s.storeNumberStr, label:`#${s.storeNumberStr} — ${s.city}, ${s.state}`, sub:s.storeName||'', lat:s.lat, lng:s.lng, store:s });
-    }
-
-    // 2) store numbers starting with q
-    if(isNum){
-      const nn = q.length;
-      for(const [num, s] of byStore){
-        if(num.startsWith(q) && num !== q){
-          suggestions.push({ type:'store', key:s.storeNumberStr, label:`#${s.storeNumberStr} — ${s.city}, ${s.state}`, sub:s.storeName||'', lat:s.lat, lng:s.lng, store:s });
-        }
-        if(suggestions.length >= 10) break;
-      }
-    }
-
-    // 3) city matches (prefix first, then substring)
-    const lower = q.toLowerCase();
-    const cityCandidates = [];
-    for(const [key, arr] of byCityKey){
-      const [city, state] = key.split('|');
-      if(city.startsWith(lower) || city.includes(lower)){
-        cityCandidates.push({ city, state, stores: arr });
-      }
-    }
-    cityCandidates
-      .sort((a,b)=> a.city.localeCompare(b.city))
-      .slice(0, 10 - suggestions.length)
-      .forEach(c => {
-        suggestions.push({
-          type:'city',
-          key:`${c.city}|${c.state}`,
-          label: `${titleCase(c.city)}, ${c.state}`,
-          sub: `${c.stores.length} stores`,
-          bounds: L.latLngBounds(c.stores.map(s=>[s.lat,s.lng])),
-          stores: c.stores
-        });
-      });
-
-    return suggestions.slice(0, 10);
+  // ---------- Exports ----------
+  function exportStoresCsv(){
+    if (!filteredStores.length){ alert('No filtered stores.'); return; }
+    const headers = ['Store Number','Store Name','Address','City','State','Coverage Type','Trainer City','Area Manager','Regional Manager','Lat','Lng'];
+    const lines = [headers.join(',')];
+    filteredStores.forEach(s=>{
+      lines.push(csv([s.storeNumberStr, s.storeName, s.address, s.city, s.state, s.coverageType, s.trainerCity, s.areaManager, s.regionalManager, s.lat, s.lng]));
+    });
+    download('filtered_stores.csv', "\uFEFF"+lines.join('\n'));
+  }
+  function exportHubsCsv(){
+    if (!lastHubsShown.length){ alert('No visible hubs.'); return; }
+    const headers = ['Hub','Status','Covered Stores'];
+    const lines = [headers.join(',')];
+    lastHubsShown.forEach(h=> lines.push(csv([h.name, h.status, h.coveredCount])));
+    download('visible_hubs.csv', "\uFEFF"+lines.join('\n'));
+  }
+  function exportKpisCsv(){
+    const headers = ['Premium + Acosta','Premium Only','Acosta Only','Uncovered','Total','Staffed hubs','Open hubs'];
+    const staffed = lastHubsShown.filter(h=>h.status==='accepted').length;
+    const open    = lastHubsShown.filter(h=>h.status==='open').length;
+    const line = [
+      id('k_pa').textContent, id('k_p').textContent, id('k_a').textContent, id('k_u').textContent,
+      id('k_total').textContent, staffed, open
+    ];
+    download('kpis.csv', "\uFEFF"+headers.join(',')+'\n'+line.join(','));
   }
 
-  function titleCase(s){ return s.replace(/\b\w/g, m=>m.toUpperCase()); }
-
-  function renderAC(items){
-    acIdx = -1;
-    if(!items.length){ acList.innerHTML = '<div class="ac-empty">No matches</div>'; acList.style.display='block'; return; }
-    acList.innerHTML = items.map((it,i)=>`
-      <div class="ac-item" role="option" data-i="${i}">
-        <span class="tag">${it.type==='store'?'Store':'City'}</span>
-        <span>${esc(it.label)}</span>
-        <span class="sub">${esc(it.sub||'')}</span>
-      </div>
-    `).join('');
-    acList.style.display='block';
-    Array.from(acList.querySelectorAll('.ac-item')).forEach(el=>{
-      el.addEventListener('mouseenter',()=>setActive(+el.dataset.i));
-      el.addEventListener('click',()=>chooseAC(+el.dataset.i));
+  // ---------- Utilities ----------
+  function getCSS(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function id(x){ return document.getElementById(x); }
+  function on(ev, el, fn, capture){ el.addEventListener(ev, fn, capture||false); }
+  function showBusy(v){ busy.hidden = !v; }
+  function escape(s){ return String(s??'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m])); }
+  function csv(arr){ return arr.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','); }
+  function countBy(arr,key){ const m=new Map(); arr.forEach(x=>m.set(x[key]||'(blank)',(m.get(x[key]||'(blank)')||0)+1)); return m; }
+  function setOptionsWithCounts(select, vals, counts){
+    const keepAll = Array.from(select.options).some(o=>o.value==='All');
+    select.innerHTML = keepAll ? '<option value="All" selected>All</option>' : '';
+    [...vals].sort((a,b)=>String(a).localeCompare(String(b))).forEach(v=>{
+      const n = counts.get(v)||0;
+      const opt = document.createElement('option'); opt.value=v; opt.textContent = n?`${v} (${n})`:v;
+      select.appendChild(opt);
     });
   }
-  function hideAC(){ acList.style.display='none'; acList.innerHTML=''; acIdx=-1; }
-  function setActive(i){
-    acIdx = i;
-    Array.from(acList.children).forEach((el,idx)=> el.classList.toggle('active', idx===i));
+  function selected(select, allowEmpty=false){
+    const vals = Array.from(select.selectedOptions).map(o=>o.value);
+    if (!vals.length) return allowEmpty ? [] : ['All'];
+    if (vals.includes('All')) return ['All'];
+    return vals;
+  }
+  function setAll(select){
+    Array.from(select.options).forEach(o => o.selected = o.value==='All');
+  }
+  function filterSelect(select, q){
+    const s = (q||'').toLowerCase();
+    Array.from(select.options).forEach(o => o.style.display = o.textContent.toLowerCase().includes(s) ? '' : 'none');
+  }
+  function distMiles(a,b,c,d){
+    const R=3958.8; const toRad=x=>x*Math.PI/180;
+    const dφ=toRad(c-a), dλ=toRad(d-b);
+    const φ1=toRad(a), φ2=toRad(c);
+    const x = Math.sin(dφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
+    return R*(2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)));
+  }
+  function download(name, text){
+    const blob = new Blob([text],{type:'text/csv;charset=utf-8;'}), url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url);
+  }
+  function hubIcon(h){
+    return L.divIcon({className:'', html:`<div class="hub ${h.status==='accepted'?'staffed':'open'}" title="${escape(h.name)}"></div>`, iconSize:[20,20], iconAnchor:[10,10]});
   }
 
-  function handleEnter(){
-    const q = qInput.value.trim();
-    if(!q){ hideAC(); return; }
-
-    // If a suggestion is highlighted, use it; else build list and use first
-    let items = [];
-    if(acList.style.display==='block' && acList.children.length){
-      items = buildSuggestions(q);
-      if(acIdx>=0 && acIdx<items.length){ chooseItem(items[acIdx]); return; }
-    }
-    items = buildSuggestions(q);
-    if(items.length){ chooseItem(items[0]); }
+  // Cluster icon colored by dominant coverage type
+  function clusterIconByDominantCoverage(cluster){
+    const children = cluster.getAllChildMarkers();
+    const counts = { "Premium + Acosta":0,"Premium Only":0,"Acosta Only":0,"Uncovered":0 };
+    children.forEach(m => counts[m.coverageType] = (counts[m.coverageType]||0)+1);
+    let dom = 'u', cls='marker-u';
+    const pairs = [
+      ['Premium + Acosta','pa'], ['Premium Only','p'], ['Acosta Only','a'], ['Uncovered','u']
+    ];
+    let max=-1;
+    pairs.forEach(([k,short])=>{
+      if ((counts[k]||0) > max){ max = counts[k]||0; dom = short; }
+    });
+    cls = 'marker-'+dom;
+    return new L.DivIcon({
+      html: '<div><span>'+children.length+'</span></div>',
+      className: 'marker-cluster '+cls,
+      iconSize: new L.Point(40, 40)
+    });
   }
 
-  function chooseAC(i){
-    const q = qInput.value.trim();
-    const items = buildSuggestions(q);
-    if(i>=0 && i<items.length) chooseItem(items[i]);
-  }
-
-  function chooseItem(item){
-    hideAC();
-    if(item.type==='store'){
-      zoomToStore(item.store);
-    }else if(item.type==='city'){
-      map.fitBounds(item.bounds, { padding:[24,24] });
-    }
-    // clear and refocus for successive entries
-    qInput.value = '';
-    setTimeout(()=>qInput.focus(), 50);
-  }
-
-  function zoomToStore(s){
-    // If the marker exists in the current filtered set, open it through cluster.
-    const m = storeMarkers.get(s.storeNumberStr);
-    if(m){
-      cluster.zoomToShowLayer(m, ()=>{
-        m.openPopup();
-        flashAt([s.lat,s.lng]);
-      });
-    }else{
-      // Not currently rendered (filtered out). Still pan/zoom and show a temporary highlight.
-      map.setView([s.lat, s.lng], Math.max(map.getZoom(), 12));
-      flashAt([s.lat,s.lng], true, s);
-    }
-  }
-
-  function flashAt(latlng, tempMarker=false, store=null){
-    let temp = null;
-    if(tempMarker){
-      const color = COLORS[store?.coverageType] || '#000';
-      temp = L.circleMarker(latlng, { radius:8, color, fillColor:color, fillOpacity:.95, weight:2 }).addTo(map);
-      if(store){
-        temp.bindPopup(
-          `<b>#${esc(store.storeNumberStr)}</b> — ${esc(store.storeName||'')}<br>`+
-          `${esc(store.address||'')}<br>${esc(store.city||'')}, ${esc(store.state||'')}`
-        ).openPopup();
-      }
-    }
-    const pulse = L.circle(latlng, { radius: 400, color:'#1e88ff', weight:2, fillOpacity:.08 }).addTo(map);
-    setTimeout(()=>{ pulse.setStyle({opacity:0, fillOpacity:0}); }, 600);
-    setTimeout(()=>{ map.removeLayer(pulse); if(temp) map.removeLayer(temp); }, 1200);
-  }
-
-  /* ===== Exports ===== */
-  function doExport(kind){
-    if(kind==='stores'){
-      if(!filtered.length){ alert('No filtered stores to export.'); return; }
-      const headers = ['Store Number','Store Name','Address','City','State','Coverage Type','Trainer City','Area Manager','Regional Manager','Lat','Lng'];
-      const lines = [headers.join(',')];
-      filtered.forEach(s=>{
-        lines.push([qcsv(s.storeNumberStr),qcsv(s.storeName),qcsv(s.address),qcsv(s.city),qcsv(s.state),qcsv(s.coverageType),qcsv(s.trainerCity),qcsv(s.areaManager),qcsv(s.regionalManager),s.lat,s.lng].join(','));
-      });
-      downloadCsv(`filtered_stores_${filtered.length}.csv`, "\uFEFF"+lines.join('\n'));
-    }else if(kind==='hubs'){
-      const lines = [['Hub','Status','Radius (mi)','Covered stores'].join(',')];
-      lastShownHubs.forEach(h=>lines.push([qcsv(h.name),h.status,qcsv(h.radius),h.count].join(',')));
-      downloadCsv('hubs.csv', "\uFEFF"+lines.join('\n'));
-    }else if(kind==='kpis'){
-      const k = { "Premium + Acosta":0,"Premium Only":0,"Acosta Only":0,"Uncovered":0 };
-      filtered.forEach(s=>{ k[s.coverageType]=(k[s.coverageType]||0)+1; });
-      const total = filtered.length||1;
-      const pctUn = Math.round((k['Uncovered']/total)*1000)/10;
-      const lines = [
-        'Metric,Count',
-        `Premium + Acosta,${k['Premium + Acosta']||0}`,
-        `Premium Only,${k['Premium Only']||0}`,
-        `Acosta Only,${k['Acosta Only']||0}`,
-        `Uncovered,${k['Uncovered']||0}`,
-        `Total,${filtered.length}`,
-        `Uncovered %,${pctUn}`
-      ];
-      downloadCsv('kpis.csv', "\uFEFF"+lines.join('\n'));
-    }
-  }
-  function downloadCsv(name, text){
-    const blob = new Blob([text], {type:'text/csv;charset=utf-8;'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url; a.download=name; a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  /* ===== Events ===== */
-  const debounced = (fn, d=120) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),d); }; };
-  const rerun = debounced(()=>runFilter(), 120);
-
-  [covSel, rmSel, amSel, hubSel].forEach(el => el.addEventListener('change', rerun));
-  [showStaffed, showOpen].forEach(el => el.addEventListener('change', rerun));
-  radius.addEventListener('input', ()=>{ radiusLbl.textContent = `${getRadiusMiles()} mi`; rerun(); });
-  minStores.addEventListener('input', ()=>{ minStoresLbl.textContent = String(minStores.value); rerun(); });
-
-  covSearch.addEventListener('input', ()=>filterList(covSel, covSearch.value));
-  rmSearch.addEventListener('input',  ()=>filterList(rmSel, rmSearch.value));
-  amSearch.addEventListener('input',  ()=>filterList(amSel, amSearch.value));
-  hubSearch.addEventListener('input', ()=>filterList(hubSel, hubSearch.value));
-
-  fitBtn.addEventListener('click', fitToResults);
-  resetBtn.addEventListener('click', resetAll);
-  clearQ.addEventListener('click', ()=>{ qInput.value=''; hideAC(); rerun(); qInput.focus(); });
-
-  // Autocomplete interactions
-  qInput.addEventListener('input', ()=>{
-    const q = qInput.value.trim();
-    if(!q){ hideAC(); return; }
-    renderAC(buildSuggestions(q));
-  });
-  qInput.addEventListener('keydown', (e)=>{
-    const open = acList.style.display==='block';
-    if(e.key==='ArrowDown' && open){
-      e.preventDefault();
-      const items = acList.children.length; if(!items) return;
-      setActive(Math.min(items-1, acIdx+1));
-    }else if(e.key==='ArrowUp' && open){
-      e.preventDefault();
-      const items = acList.children.length; if(!items) return;
-      setActive(Math.max(0, acIdx-1));
-    }else if(e.key==='Enter'){
-      e.preventDefault();
-      handleEnter();
-    }else if(e.key==='Escape'){
-      hideAC();
-    }
-  });
-  document.addEventListener('click', (e)=>{ if(!document.querySelector('.ac-wrap').contains(e.target)) hideAC(); });
-
-  // keyboard helpers
-  document.addEventListener('keydown', (e)=>{
-    const tag = document.activeElement?.tagName;
-    if(tag==='INPUT' || tag==='SELECT' || tag==='TEXTAREA') return;
-    if(e.key==='f') fitToResults();
-    if(e.key==='r') resetAll();
-    if(e.key==='/'){ e.preventDefault(); qInput.focus(); }
-  });
+  // Debounce
+  const debouncedRun = debounce(runFilter, 120);
+  function debounce(fn, d){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); }; }
 })();
 </script>
 </body>
