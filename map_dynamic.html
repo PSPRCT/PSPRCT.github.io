@@ -52,7 +52,7 @@ select[multiple]{ height:96px; }              /* was 112+; saves vertical space 
 
   label { font-weight:600; color:#222; }
   input[type="text"], select, button { border:1px solid #d1d5db; border-radius:8px; padding:6px 9px; font-size:14px; }
-  select[multiple]{ width:100%; height:112px; } /* compact pickers */
+  
 
   .btn { background:var(--blue); color:#fff; border:none; font-weight:700; cursor:pointer; border-radius:8px; padding:6px 10px; }
   .btn.secondary { background:#fff; color:#111; border:1px solid #d1d5db; }
@@ -77,14 +77,18 @@ select[multiple]{ height:96px; }              /* was 112+; saves vertical space 
   .kpi-dot{width:10px;height:10px;border-radius:50%}
   .kpi-pct{margin-left:8px;font-size:12px;color:#444}
 
-  /* Map fills remaining screen height reliably */
-  #map { flex:1; min-height:68vh; margin:10px; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,.08); }
 
   /* Legend */
   #legend{position:absolute;bottom:15px;right:15px;background:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 3px 10px rgba(0,0,0,.2);font-size:14px;color:#222;z-index:10000}
   #legend h4{margin:0 0 8px}
   #legend .legend-item{display:flex;align-items:center;margin-bottom:6px;user-select:none}
   .legend-color{width:18px;height:18px;margin-right:10px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
+
+  .hub-icon{width:22px;height:22px;border-radius:50%;border:2px solid #fff;
+         box-shadow:0 0 0 1px rgba(0,0,0,.25),0 2px 6px rgba(0,0,0,.15)}
+.hub-staffed{background:#6a1b9a}
+.hub-open{background:#9e9e9e}
+
 
   /* Panels: safe size & scroll so they don’t cover map forever */
   .panel{
@@ -307,6 +311,16 @@ select[multiple]{ height:96px; }              /* was 112+; saves vertical space 
   function loadJson(k,def){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):def; }catch{ return def; } }
   function q(v){ return `"${String(v ?? '').replace(/"/g,'""')}"`; }
   function getRadiusMiles(){ return allowCustom.checked ? (parseInt(radiusInput.value,10)||DEFAULT_RADIUS) : DEFAULT_RADIUS; }
+
+  function iconForHub(hub){
+  const cls = hub.status === "accepted" ? "hub-staffed" : "hub-open";
+  return L.divIcon({
+    className:"",
+    html:`<div class="hub-icon ${cls}" title="${escapeHtml(hub.name)}"></div>`,
+    iconSize:[22,22], iconAnchor:[11,11], popupAnchor:[0,-10]
+  });
+}
+
 
   /* ===== Map ===== */
   const map = L.map('map').setView([39.5,-98.35],5);
@@ -845,7 +859,7 @@ function showBusy(on){
     const blob = new Blob([text],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob);
     const a=document.createElement('a'); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url);
   }
-  function showBusy(on){ document.getElementById('busyMask').hidden = !on; }
+
 
 })();
 </script>
