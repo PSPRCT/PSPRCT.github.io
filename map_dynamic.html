@@ -17,13 +17,19 @@
 :root { --filters-h: 180px; }                 /* will be set exactly by JS */
 body { height: 100vh; overflow: hidden; }     /* keep the page a single viewport */
 #filters { overflow: clip; }                  /* prevents accidental page growth */
-#map { height: calc(100vh - var(--filters-h)); margin:10px; border-radius:12px;
-       box-shadow:0 4px 16px rgba(0,0,0,.08); }
+#map{
+  height: calc(100vh - var(--filters-h));
+  min-height: 520px;        /* 👈 fallback so it never becomes tiny */
+  margin:10px; border-radius:12px;
+  box-shadow:0 4px 16px rgba(0,0,0,.08);
+}
+
 
 /* tighten the toolbar */
 .toolbar-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px 8px; }
 
-select[multiple]{ height:96px; }              /* was 112+; saves vertical space */
+select[multiple]{ height:84px; } /* was 96px */
+
 .picker .picker-search{ border:1px solid #d1d5db; border-radius:8px; padding:5px 8px; }
 .range-pill{ padding:4px 8px; }
 
@@ -31,11 +37,15 @@ select[multiple]{ height:96px; }              /* was 112+; saves vertical space 
   body { display:flex; flex-direction:column; }
 
   /* ===== Toolbar (compact) ===== */
-  #filters {
-    position:sticky; top:0; z-index:2000; background:#fff;
-    border-bottom:1px solid #e5e7eb; box-shadow:0 2px 6px rgba(0,0,0,.04);
-    padding:8px 10px;
-  }
+ #filters{
+  position:sticky; top:0; z-index:2000; background:#fff;
+  border-bottom:1px solid #e5e7eb; box-shadow:0 2px 6px rgba(0,0,0,.04);
+  padding:8px 10px;
+  /* 👇 NEW: cap height and allow internal scroll */
+  max-height: 260px;
+  overflow: auto;           /* not clip */
+}
+
   .toolbar-grid {
     display:grid; gap:8px 10px;
     grid-template-columns: repeat(12, minmax(0,1fr));
@@ -327,13 +337,14 @@ select[multiple]{ height:96px; }              /* was 112+; saves vertical space 
   // After: const map = L.map('map')…
 const filtersEl = document.getElementById('filters');
 
-function setMapHeight() {
-  // account for sticky toolbar actual height
+function setMapHeight(){
   const h = filtersEl.getBoundingClientRect().height;
-  document.documentElement.style.setProperty('--filters-h', `${Math.ceil(h)}px`);
-  // tell Leaflet its container size may have changed
-  setTimeout(()=> map.invalidateSize(), 0);
+  const CLAMP = 260;                            // match CSS max-height
+  const effective = Math.min(Math.ceil(h), CLAMP);
+  document.documentElement.style.setProperty('--filters-h', `${effective}px`);
+  requestAnimationFrame(() => map.invalidateSize());
 }
+
 
 // keep it fresh on load, resize, and when the toolbar reflows
 setMapHeight();
