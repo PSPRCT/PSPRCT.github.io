@@ -173,6 +173,9 @@
   const markers = L.markerClusterGroup({ disableClusteringAtZoom: 12, iconCreateFunction: clusterIconByDominantCoverage });
   map.addLayer(markers);
   map.on('moveend zoomend', updateInViewCount);
+// --- Debounce helper & instance (must be defined before event wiring)
+function debounce(fn, d){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); }; }
+const debouncedRun = debounce(runFilter, 120);
 
   const STATUS = document.getElementById('dataStatus');
   const busy = id('busy');
@@ -553,8 +556,7 @@
     order.forEach(([k,short])=>{ if ((counts[k]||0) > max){ max = counts[k]||0; dom = short; }});
     return new L.DivIcon({ html:'<div><span>'+children.length+'</span></div>', className:'marker-cluster marker-'+dom, iconSize:new L.Point(40,40) });
   }
-  const debouncedRun = debounce(runFilter, 120);
-  function debounce(fn, d){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); }; }
+ 
 })();
 </script>
 </body>
