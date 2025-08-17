@@ -511,45 +511,64 @@
     heatLayer = L.heatLayer(pts, { radius: 18, blur: 12 }).addTo(map);
   }
 
-  /* ---------- Worker ---------- */
-  const worker = new Worker('filter.worker.js');
-  worker.onmessage = ({data}) => {
-    filteredStores = data.filtered;
-    kpiSnapshot = data.kpi;
-    addLazyLoadedMarkers(filteredStores);
-    updateFilterCount(); updateInViewCount(); updateKPI();
-    updateTrainerHubFilter();
-    refreshHeat();
-    // Auto-fit on first load only
-    if (!firstFitDone && filteredStores.length){ firstFitDone = true; fitToResults(); }
-    hideBusy();
-  };
-
   function runFilter(){
-    showBusy();
-    const selectedCoverage = Array.from(coverageFilter.selectedOptions).map(o=>o.value);
-    const selectedRegional = Array.from(regionalFilter.selectedOptions).map(o=>o.value);
-    const selectedArea     = Array.from(areaFilter.selectedOptions).map(o=>o.value);
-    const chosenHubNames   = Array.from(trainerHubFilter.selectedOptions).map(o=>o.value);
+  const selectedCoverage = Array.from(coverageFilter.selectedOptions).map(o=>o.value);
+  const selectedRegional = Array.from(regionalFilter.selectedOptions).map(o=>o.value);
+  const selectedArea     = Array.from(areaFilter.selectedOptions).map(o=>o.value);
+  const chosenHubNames   = Array.from(trainerHubFilter.selectedOptions).map(o=>o.value);
 
-    const payload = {
-      stores: allStores,
-      filters: {
-        coverage: selectedCoverage,
-        regional: selectedRegional,
-        area: selectedArea,
-        search: (searchBox.value||'').trim(),
-        hubNames: chosenHubNames,
-        radius: getRadiusMiles(),
-        allowStaffed: toggleHubsCheckbox.checked,
-        allowOpen: showOpenHubsCheckbox.checked,
-        testHub: testHubMarker ? { lat: testHubMarker.getLatLng().lat, lng: testHubMarker.getLatLng().lng } : null,
-        hubOverrides
-      },
-      hubs: trainerHubs
-    };
-    worker.postMessage(payload);
+  const sterm = (searchBox.value||'').trim().toLowerCase();
+
+  filteredStores = allStores.filter(s=>{
+    // coverage / manager filters
+    const covOK  = selectedCoverage.includes('All') || selectedCoverage.includes(s.coverageType);
+    const regOK  = selectedRegional.includes('All') || selectedRegional.includes(s.regionalManager);
+    const areaOK = selectedArea.includes('All') || selectedArea.includes(s.areaManager);
+    if (!covOK || !regOK || !areaOK) return false;
+
+    // search: store # or city
+    if (sterm){
+      const num  = String(s.storeNumber||'').toLowerCase();
+      const city = String(s.cityDisplay||'').toLowerCase();
+      if (!num.includes(sterm) && !city.includes(sterm)) return false;
+    }
+
+    // hub selection constraint (only if user selected specific hubs)
+    if (chosenHubNames.length){
+      const allowStaffed = toggleHubsCheckbox.checked;
+      const allowOpen    = showOpenHubsCheckbox.checked;
+      let ok = false;
+
+      for (const h of trainerHubs){
+        const visible = (h.status==='accepted' && allowStaffed) || (h.status==='open' && allowOpen);
+        if (!visible) continue;
+        if (!chosenHubNames.includes(h.name)) continue;
+        const r = getHubRadius(h);
+        if (distMiles(h.coords[0],h.coords[1], s.lat, s.lng) <= r){ ok = true; break; }
+      }
+      if (!ok && testHubMarker){
+        const ll = testHubMarker.getLatLng();
+        if (distMiles(ll.lat,ll.lng, s.lat, s.lng) <= getRadiusMiles()) ok = true;
+      }
+      if (!ok) return false;
+    }
+
+    return true;
+  });
+
+  // render + KPIs
+  addLazyLoadedMarkers(filteredStores);
+  updateFilterCount();
+  updateInViewCount();
+  updateKPI();
+  updateTrainerHubFilter();
+  refreshHeat();
+
+  if (!firstFitDone && filteredStores.length){
+    firstFitDone = true;
+    fitToResults();
   }
+}
 
   /* ---------- Rendering ---------- */
   function addLazyLoadedMarkers(stores){
