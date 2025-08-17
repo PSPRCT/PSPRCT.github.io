@@ -10,554 +10,285 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
 <style>
-  :root{ --blue:#2f71ff; --violet:#6a1b9a; --gray:#9ea3a8;
-         --pa:#6c5ce7; --p:#2ecc71; --a:#f39c12; --u:#e74c3c; }
-  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#fff}
-  body{display:flex;flex-direction:column}
-  .topbar{display:grid;grid-template-columns:460px 1fr auto auto auto auto;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid #eef0f3}
-  .search-wrap{display:flex;gap:8px;align-items:center}
-  .search{flex:1;display:flex;gap:8px}
-  input[type="text"],select{border:1px solid #d0d7de;border-radius:8px;padding:8px 10px;font-size:14px}
-  .toggle{display:inline-flex;align-items:center;gap:8px;border:1px solid #e5e7eb;border-radius:999px;padding:6px 10px;background:#fff;white-space:nowrap}
-  .pillbar{display:flex;gap:6px;flex-wrap:wrap}
-  .pill{display:inline-flex;align-items:center;gap:6px;background:#eef6ff;border:1px solid #cfe6ff;color:#0b5bd3;padding:4px 8px;border-radius:999px;font-weight:600}
-  .pill button{border:none;background:transparent;font-weight:700;cursor:pointer;color:#0b5bd3}
-  .range{display:flex;align-items:center;gap:8px}
-  .range small{color:#6b7280}
-  .btn{border:1px solid #d0d7de;background:#fff;border-radius:8px;padding:8px 10px;font-weight:600;cursor:pointer}
-  .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
-  .dropdown{position:relative}
-  .dropdown-menu{position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.12);padding:6px;display:none;z-index:5}
-  .dropdown.open .dropdown-menu{display:block}
-  .dropdown-menu button{display:block;width:100%;text-align:left;border:none;background:#fff;padding:8px 10px;border-radius:8px;cursor:pointer}
-  .dropdown-menu button:hover{background:#f6f8fa}
-  .filters{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;padding:8px 10px}
-  .picker{display:flex;flex-direction:column;gap:6px}
-  .picker input{padding:6px 8px;font-size:13px}
-  select[multiple]{height:110px}
-  .summary{display:flex;gap:10px;align-items:center;padding:6px 10px;border-top:1px solid #eef0f3;border-bottom:1px solid #eef0f3}
-  .chip{display:inline-flex;align-items:center;gap:8px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:999px;background:#fff}
-  .dot{width:10px;height:10px;border-radius:50%}
-  .muted{color:#6b7280;margin-left:auto}
-  #map{flex:1}
-  .busy{position:fixed;inset:0;background:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;z-index:9999}
-  .busy[hidden]{display:none}
-  .spin{width:36px;height:36px;border-radius:50%;border:4px solid rgba(0,0,0,.15);border-top-color:var(--blue);animation:spin .8s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .marker-cluster.marker-pa div{background:var(--pa);border:2px solid #fff}
-  .marker-cluster.marker-p  div{background:var(--p);border:2px solid #fff}
-  .marker-cluster.marker-a  div{background:var(--a);border:2px solid #fff}
-  .marker-cluster.marker-u  div{background:var(--u);border:2px solid #fff}
-  .hub{width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
-  .hub.staffed{background:var(--violet)}
-  .hub.open{background:#9ea3a8}
+  :root{
+    --blue:#2f71ff; --violet:#6a1b9a; --gray:#f6f7fb; --ink:#1f2937; --muted:#6b7280;
+    --border:#e5e7eb; --bg:#ffffff;
+  }
+  html, body { height:100%; margin:0; }
+  body { display:flex; flex-direction:column; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:var(--ink); background:var(--gray); }
+  #topbar{
+    background:var(--bg); border-bottom:1px solid var(--border);
+    padding:10px 12px; display:grid; grid-template-columns: 1fr auto auto; gap:8px; align-items:center;
+    position:sticky; top:0; z-index:500;
+  }
+  #brand { font-weight:600; color:var(--violet); letter-spacing:.2px; }
+  #searchWrap{
+    grid-column:1 / -1; display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+  }
+  .text { height:38px; padding:0 12px; border:1px solid var(--border); border-radius:10px; outline:none; width:320px; max-width:70vw; }
+  .btn {
+    height:38px; padding:0 14px; border-radius:10px; border:1px solid var(--border); background:#fff; cursor:pointer;
+  }
+  .btn.primary{ background:var(--blue); color:#fff; border-color:transparent; }
+  .btn.ghost{ background:#fff; color:#111; }
+  #map { flex:1; }
+  .pillbar { display:flex; gap:6px; flex-wrap:wrap; }
+  .pill { background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; padding:6px 10px; border-radius:999px; font-size:12px; }
+  .leaflet-popup-content { margin: 8px 12px; }
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="search-wrap">
-    <div class="search">
-      <input id="searchBox" list="searchList" type="text" placeholder="e.g., 2163 or Phoenix" aria-label="Search store number or city" />
-      <datalist id="searchList"></datalist>
-      <button id="searchGo" class="btn primary">Go</button>
-      <button id="searchClear" class="btn">Clear</button>
+  <div id="topbar">
+    <div id="brand">Premium Retail Trainer Map</div>
+
+    <div id="searchWrap">
+      <!-- Live search with Store marker -->
+      <input id="searchBox" class="text" type="text" list="searchOptions" placeholder="Search store #, city, or 'City, ST'…" autocomplete="off" />
+      <datalist id="searchOptions"></datalist>
+      <button id="searchGo" class="btn ghost" title="Not required">Go</button>
+      <button id="searchClear" class="btn" title="Clear search (Esc also clears)">Clear</button>
+
+      <div id="pillBar" class="pillbar" aria-label="Active filters"></div>
     </div>
   </div>
 
-  <label class="toggle"><input id="showStaffed" type="checkbox" checked />Staffed hubs</label>
-  <label class="toggle"><input id="showOpen" type="checkbox" checked />Open hubs</label>
+  <div id="map"></div>
 
-  <div class="range">
-    <span>Radius</span>
-    <input id="radius" type="range" min="25" max="150" step="5" value="75" />
-    <b id="radiusLbl">75</b><small>mi</small>
-  </div>
+  <!-- Leaflet libs -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
-  <div class="range">
-    <span>Min stores / hub</span>
-    <input id="minPerHub" type="range" min="0" max="150" step="5" value="0" />
-    <b id="minPerHubLbl">0</b>
-  </div>
+  <script>
+  /***********************
+   * DATA HOOK
+   * Expects window.STORES = [
+   *   { storeNumber: 1234, name: "Walmart Supercenter", city: "Murfreesboro", state:"TN", lat: 35.85, lng: -86.39 },
+   *   ...
+   * ]
+   * If you already load stores elsewhere, keep doing that. This file will detect it.
+   ************************/
+  const STORES = Array.isArray(window.STORES) ? window.STORES : [];
 
-  <div style="display:flex; gap:8px">
-    <button id="fitBtn" class="btn">Fit to Results</button>
-    <button id="resetBtn" class="btn">Reset</button>
-    <div class="dropdown" id="exportDrop">
-      <button class="btn">Export Data ▾</button>
-      <div class="dropdown-menu">
-        <button id="exportStores">Export filtered stores (CSV)</button>
-        <button id="exportHubs">Export visible hubs (CSV)</button>
-        <button id="exportKpis">Export KPIs summary (CSV)</button>
-      </div>
-    </div>
-  </div>
-</div>
+  /***********************
+   * MAP INIT
+   ************************/
+  const map = L.map('map', {
+    minZoom: 3,
+    maxZoom: 19,
+    worldCopyJump: true
+  }).setView([38.5, -96.0], 5);
 
-<div class="pillbar" id="searchPills" style="padding:6px 10px"></div>
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'&copy; OpenStreetMap'
+  }).addTo(map);
 
-<div class="filters">
-  <div class="picker">
-    <input id="covSearch" type="text" placeholder="Search coverage…" />
-    <select id="covFilter" multiple>
-      <option value="All" selected>All</option>
-      <option>Premium + Acosta</option>
-      <option>Premium Only</option>
-      <option>Acosta Only</option>
-      <option>Uncovered</option>
-    </select>
-  </div>
-  <div class="picker">
-    <input id="rmSearch" type="text" placeholder="Filter regional managers…" />
-    <select id="rmFilter" multiple><option value="All" selected>All</option></select>
-  </div>
-  <div class="picker">
-    <input id="amSearch" type="text" placeholder="Filter area managers…" />
-    <select id="amFilter" multiple><option value="All" selected>All</option></select>
-  </div>
-  <div class="picker">
-    <input id="hubSearch" type="text" placeholder="Filter hubs…" />
-    <select id="hubFilter" multiple></select>
-  </div>
-</div>
+  // Store markers (clustered)
+  const storeCluster = L.markerClusterGroup({ disableClusteringAtZoom: 12, maxClusterRadius: 60 });
 
-<!-- Status line so problems are visible -->
-<div id="dataStatus" style="padding:6px 10px;color:#444;font-size:12px"></div>
-
-<div class="summary" id="summary">
-  <span class="chip"><span class="dot" style="background:var(--pa)"></span>P+A: <b id="k_pa">0</b></span>
-  <span class="chip"><span class="dot" style="background:var(--p)"></span>Premium: <b id="k_p">0</b></span>
-  <span class="chip"><span class="dot" style="background:var(--a)"></span>Acosta: <b id="k_a">0</b></span>
-  <span class="chip"><span class="dot" style="background:var(--u)"></span>Uncov: <b id="k_u">0</b></span>
-  <span class="chip">Total: <b id="k_total">0</b></span>
-  <span class="chip">Hubs — <b id="k_staffed">0</b> staffed / <b id="k_open">0</b> open</span>
-  <span class="muted" id="inView">In view: 0</span>
-</div>
-
-<div id="map" role="region" aria-label="Coverage Map"></div>
-
-<div id="busy" class="busy" hidden><div class="spin"></div></div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<script>
-(async function(){
-  const COLORS = {
-    "Premium + Acosta": getCSS('--pa'),
-    "Premium Only":     getCSS('--p'),
-    "Acosta Only":      getCSS('--a'),
-    "Uncovered":        getCSS('--u')
-  };
-  const DEFAULT_RADIUS = 75;
-
-  const hubs = [
-    { id:"belle_vernon_pa", name:"Belle Vernon, PA (Open)", coords:[40.12507,-79.8664], status:"open", person:null },
-    { id:"centennial_co",   name:"Centennial, CO (Open)",   coords:[39.62732,-104.779], status:"open", person:null },
-    { id:"houston_tx",      name:"Houston, TX (Open)",      coords:[29.8535,-95.5095],  status:"open", person:null },
-    { id:"kansas_city_mo",  name:"Kansas City, MO (Open)",  coords:[39.04512,-94.4429], status:"open", person:null },
-    { id:"wilmington_oh",   name:"Wilmington, OH (Open)",   coords:[39.44499,-83.8244], status:"open", person:null },
-    { id:"granite_falls_nc_walker", name:"Granite Falls, NC — Lisa Walker", coords:[35.800494,-81.405803], status:"accepted", person:"Lisa Walker" },
-    { id:"clarksville_tn_salvato",  name:"Clarksville, TN — Nicholas Salvato", coords:[36.588879,-87.340167], status:"accepted", person:"Nicholas Salvato" },
-    { id:"orange_park_fl_hall",     name:"Orange Park, FL — Sabrina Hall", coords:[30.186756,-81.718887], status:"accepted", person:"Sabrina Hall" },
-    { id:"olive_branch_ms_brown",   name:"Olive Branch, MS — Annette Brown", coords:[34.926688,-89.894859], status:"accepted", person:"Annette Brown" },
-    { id:"riverview_fl_santos",     name:"Riverview, FL — Richard Santos", coords:[27.8661,-82.3265], status:"accepted", person:"Richard Santos" }
-  ];
-
-  let allStores = [];
-  let filteredStores = [];
-  let lastHubsShown = [];
-  let searchTargets = [];
-
-  const map = L.map('map').setView([39.5,-98.35],5);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
-  const markers = L.markerClusterGroup({ disableClusteringAtZoom: 12, iconCreateFunction: clusterIconByDominantCoverage });
-  map.addLayer(markers);
-  map.on('moveend zoomend', updateInViewCount);
-// --- Debounce helper & instance (must be defined before event wiring)
-function debounce(fn, d){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); }; }
-const debouncedRun = debounce(runFilter, 120);
-
-  const STATUS = document.getElementById('dataStatus');
-  const busy = id('busy');
-  const searchBox = id('searchBox');
-  const searchList = id('searchList');
-  const searchPills = id('searchPills');
-  on('click', id('searchGo'), handleSearchCommit);
-  on('click', id('searchClear'), () => { searchTargets = []; renderPills(); runFilter(); });
-  on('keydown', searchBox, (e)=>{ if(e.key==='Enter'){ e.preventDefault(); handleSearchCommit(); } });
-
-  const showStaffed = id('showStaffed');
-  const showOpen    = id('showOpen');
-  const radius      = id('radius');    const radiusLbl   = id('radiusLbl');
-  const minPerHub   = id('minPerHub'); const minPerHubLbl= id('minPerHubLbl');
-
-  const covFilter = id('covFilter'); const covSearch = id('covSearch');
-  const rmFilter  = id('rmFilter');  const rmSearch  = id('rmSearch');
-  const amFilter  = id('amFilter');  const amSearch  = id('amSearch');
-  const hubFilter = id('hubFilter'); const hubSearch = id('hubSearch');
-
-  on('input', radius,   () => { radiusLbl.textContent = radius.value; debouncedRun(); });
-  on('input', minPerHub,() => { minPerHubLbl.textContent = minPerHub.value; debouncedRun(); });
-  on('change', showStaffed, debouncedRun);
-  on('change', showOpen,    debouncedRun);
-
-  on('input', covSearch, () => filterSelect(covFilter, covSearch.value));
-  on('input', rmSearch,  () => filterSelect(rmFilter,  rmSearch.value));
-  on('input', amSearch,  () => filterSelect(amFilter,  amSearch.value));
-  on('input', hubSearch, () => filterSelect(hubFilter, hubSearch.value));
-
-  on('change', covFilter, debouncedRun);
-  on('change', rmFilter,  () => { cascadeAM(); debouncedRun(); });
-  on('change', amFilter,  () => { cascadeHubs(); debouncedRun(); });
-  on('change', hubFilter, debouncedRun);
-
-  on('click', id('fitBtn'), fitToResults);
-  on('click', id('resetBtn'), () => { resetAll(); runFilter(); });
-
-  const exportDrop = id('exportDrop');
-  on('click', exportDrop.querySelector('button'), () => exportDrop.classList.toggle('open'));
-  on('click', document.body, (e) => { if (!exportDrop.contains(e.target)) exportDrop.classList.remove('open'); }, true);
-  on('click', id('exportStores'), exportStoresCsv);
-  on('click', id('exportHubs'),   exportHubsCsv);
-  on('click', id('exportKpis'),   exportKpisCsv);
-
-  const k = { pa:id('k_pa'), p:id('k_p'), a:id('k_a'), u:id('k_u'), total:id('k_total'), staffed:id('k_staffed'), open:id('k_open'), inView:id('inView') };
-
-  // -------- Load data (GH Pages friendly + visible errors) --------
-  showBusy(true);
-  let spinnerFailSafe = setTimeout(() => showBusy(false), 8000);
-
-  function normalizeStores(raw){
-    return (raw||[])
-      .map(s => ({
-        ...s,
-        city:(s.city??'').trim(),
-        city_lc:(s.city??'').trim().toLowerCase(),
-        state:(s.state??'').trim(),
-        storeName:(s.storeName??'').trim(),
-        address:(s.address??'').trim(),
-        coverageType:(s.coverageType??'').trim(),
-        areaManager:(s.areaManager??'').trim(),
-        regionalManager:(s.regionalManager??'').trim(),
-        trainerCity:(s.trainerCity??'').trim(),
-        storeNumberStr:String(s.storeNumber??''),
-        lat:Number(s.latitude), lng:Number(s.longitude),
-      }))
-      .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
-  }
-
-  try {
-    const url = 'store_data.json?v=' + Date.now(); // cache buster
-    const resp = await fetch(url, { cache:'no-store' });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching ${url}`);
-
-    const text = await resp.text();
-    let raw;
-    try {
-      raw = JSON.parse(text.replace(/^\uFEFF/, ''));
-    } catch (e) {
-      console.error('JSON parse failed. First 200 chars:', text.slice(0,200));
-      throw new Error('Invalid JSON format in store_data.json');
-    }
-    if (!Array.isArray(raw)) throw new Error('store_data.json must be a JSON array');
-
-    allStores = normalizeStores(raw);
-    STATUS.textContent = `Loaded ${allStores.length.toLocaleString()} stores from store_data.json`;
-    console.log('Loaded stores:', allStores.length);
-
-    populateRM(allStores);
-    populateAM(allStores);
-    cascadeAM();
-    cascadeHubs();
-    hubFilter.innerHTML = hubs.map(h => `<option>${escape(h.name)}</option>`).join('');
-    buildSearchDatalist(allStores, hubs);
-
-    runFilter();
-  } catch (err){
-    STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Data load error:</span> ${err?.message || err}`;
-    console.error(err);
-    // inline sample so UI still proves itself
-    allStores = normalizeStores([
-      { latitude:41.29136, longitude:-73.1129, storeNumber:2163, storeName:'Walmart', address:'465 BRIDGEPORT AVENUE', city:'SHELTON', state:'CT', coverageType:'Premium Only', trainerCity:'Secaucus', areaManager:'Gibbes, Malin', regionalManager:'Anders, Roy' }
-    ]);
-    populateRM(allStores); populateAM(allStores); cascadeAM(); cascadeHubs();
-    hubFilter.innerHTML = hubs.map(h => `<option>${escape(h.name)}</option>`).join('');
-    buildSearchDatalist(allStores, hubs);
-    runFilter();
-  } finally {
-    clearTimeout(spinnerFailSafe);
-    showBusy(false);
-  }
-
-  // -------- Search etc. --------
-  async function handleSearchCommit(){
-    const q = (searchBox.value||'').trim();
-    if (!q) return;
-    const found = guessTargetFor(q);
-    if (found){
-      searchTargets.push(found);
-      renderPills();
-      map.setView([found.lat, found.lng], 11);
-      searchBox.value='';
-      runFilter();
-    }
-  }
-  function renderPills(){
-    searchPills.innerHTML = searchTargets.map((t,i)=>
-      `<span class="pill">${escape(t.label)} <button aria-label="Remove" data-i="${i}">✕</button></span>`
-    ).join('');
-    Array.from(searchPills.querySelectorAll('button')).forEach(btn=>{
-      btn.addEventListener('click',()=>{
-        const i = Number(btn.getAttribute('data-i'));
-        searchTargets.splice(i,1);
-        renderPills();
-        runFilter();
-      });
+  // Make standard store marker
+  function makeStoreMarker(s){
+    const m = L.marker([s.lat, s.lng], {
+      title: `Store ${s.storeNumber} — ${s.city}, ${s.state}`
     });
+    const label = `
+      <div style="font-weight:700; margin-bottom:4px;">Store ${escapeHtml(String(s.storeNumber))}</div>
+      <div>${escapeHtml(s.name || 'Walmart')}</div>
+      <div style="color:#6b7280">${escapeHtml(s.city || '')}, ${escapeHtml(s.state || '')}</div>
+    `;
+    m.bindPopup(label);
+    return m;
   }
-  function buildSearchDatalist(stores, hubs){
-    const seen = new Set(); const opts = [];
-    stores.slice(0,10000).forEach(s=>{
-      const a = `Store ${s.storeNumberStr} — ${s.city}, ${s.state}`;
-      if (!seen.has(a)){ seen.add(a); opts.push(a); }
-      const b = `${s.city}, ${s.state}`;
-      if (!seen.has(b)){ seen.add(b); opts.push(b); }
-    });
-    hubs.forEach(h=>{ if (!seen.has(h.name)){ seen.add(h.name); opts.push(h.name); } });
-    searchList.innerHTML = opts.slice(0,5000).map(v=>`<option value="${escape(v)}"></option>`).join('');
+
+  // Render any provided stores
+  if (STORES.length){
+    for (const s of STORES){
+      if (isFinite(s.lat) && isFinite(s.lng)) storeCluster.addLayer(makeStoreMarker(s));
+    }
+    map.addLayer(storeCluster);
   }
+
+  /***********************
+   * TARGET PIN (single blue dot for search)
+   ************************/
+  const targetLayer = L.layerGroup().addTo(map);
+  let targetPin = null;
+  const targetIcon = L.divIcon({
+    className: '',
+    html: '<div style="background:#2f71ff;border:2px solid #fff;border-radius:50%;width:18px;height:18px;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>',
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
+  });
+
+  function dropTarget(lat, lng, labelHtml){
+    if (targetPin) targetLayer.removeLayer(targetPin);
+    targetPin = L.marker([lat, lng], { icon: targetIcon }).addTo(targetLayer);
+    targetPin.bindPopup(labelHtml);
+    targetPin.openPopup();
+  }
+  function clearTarget(){
+    if (targetPin){ targetLayer.removeLayer(targetPin); targetPin = null; }
+  }
+
+  /***********************
+   * SEARCH (live — no Enter required)
+   ************************/
+  const searchBox  = document.getElementById('searchBox');
+  const searchGo   = document.getElementById('searchGo');
+  const searchClr  = document.getElementById('searchClear');
+  const dataList   = document.getElementById('searchOptions');
+  const pillBar    = document.getElementById('pillBar');
+
+  // Build datalist options (stores)
+  function rebuildDatalist(){
+    if (!STORES.length) return;
+    const top = STORES.slice(0, 2000); // cap to keep list snappy
+    const opts = [];
+    for (const s of top){
+      const label = `Store ${s.storeNumber} — ${s.city}, ${s.state}`;
+      const opt = document.createElement('option');
+      opt.value = label;
+      opts.push(opt);
+    }
+    dataList.replaceChildren(...opts);
+  }
+  rebuildDatalist();
+
+  // Utility: escape
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  // Small index for store number → store
+  const storeByNum = (() => {
+    const idx = new Map();
+    for (const s of STORES){
+      const n = String(s.storeNumber || '').trim();
+      if (n) idx.set(n, s);
+    }
+    return idx;
+  })();
+
+  // Core resolver: returns {lat,lng,labelHtml} or null
   function guessTargetFor(q){
-    const qs = q.trim().toLowerCase();
-    const m = q.match(/\b(\d{3,6})\b/);
+    if (!q) return null;
+    const raw = q.trim();
+    const txt = raw.toLowerCase();
+
+    // Pattern 1: "store 1234" or just "1234" if exactly matches known store
+    const m = txt.match(/store\s*#?\s*(\d+)/) || txt.match(/^\s*(\d{3,6})\s*$/);
     if (m){
-      const s = allStores.find(x => x.storeNumberStr === m[1]);
-      if (s) return { label:`Store ${s.storeNumberStr} — ${s.city}, ${s.state}`, lat:s.lat, lng:s.lng };
-    }
-    if (qs.startsWith('store ')){
-      const mm = qs.match(/^store\s+(\d{3,6})\b/);
-      if (mm){
-        const s = allStores.find(x => x.storeNumberStr === mm[1]);
-        if (s) return { label:`Store ${s.storeNumberStr} — ${s.city}, ${s.state}`, lat:s.lat, lng:s.lng };
+      const num = m[1];
+      const s = storeByNum.get(num);
+      if (s && isFinite(s.lat) && isFinite(s.lng)){
+        return {
+          lat: s.lat, lng: s.lng,
+          labelHtml: `
+            <div style="font-weight:700;margin-bottom:4px;">Store ${escapeHtml(String(s.storeNumber))}</div>
+            <div>${escapeHtml(s.name || 'Walmart')}</div>
+            <div style="color:#6b7280">${escapeHtml(s.city || '')}, ${escapeHtml(s.state || '')}</div>
+          `
+        };
       }
     }
-    let s = allStores.find(x => `${x.city}, ${x.state}`.toLowerCase() === qs);
-    if (s) return { label:`${s.city}, ${s.state}`, lat:s.lat, lng:s.lng };
-    const h = hubs.find(h=>h.name.toLowerCase()===qs);
-    if (h) return { label:h.name, lat:h.coords[0], lng:h.coords[1] };
-    s = allStores.find(x => x.city_lc.includes(qs) || qs.includes(x.city_lc));
-    if (s) return { label:`${s.city}, ${s.state}`, lat:s.lat, lng:s.lng };
+
+    // Pattern 2: "City, ST"
+    const cityState = raw.match(/^\s*([^,]+)\s*,\s*([A-Za-z]{2})\s*$/);
+    if (cityState){
+      const city = cityState[1].toLowerCase();
+      const st   = cityState[2].toUpperCase();
+      // find first store in that city/state (or compute centroid)
+      const matches = STORES.filter(s => (s.city||'').toLowerCase()===city && (s.state||'').toUpperCase()===st && isFinite(s.lat) && isFinite(s.lng));
+      if (matches.length){
+        // center on average
+        const {lat, lng} = centroid(matches);
+        return {
+          lat, lng,
+          labelHtml: `<div style="font-weight:700;">${escapeHtml(cityState[1])}, ${escapeHtml(st)}</div><div style="color:#6b7280">${matches.length} store(s)</div>`
+        };
+      }
+    }
+
+    // Pattern 3: bare city OR partial match on city/state/name
+    if (txt.length >= 2){
+      const matches = STORES.filter(s => {
+        const blob = `${s.city||''}, ${s.state||''} ${s.name||''} store ${s.storeNumber||''}`.toLowerCase();
+        return blob.includes(txt) && isFinite(s.lat) && isFinite(s.lng);
+      }).slice(0, 200);
+      if (matches.length){
+        const {lat, lng} = centroid(matches);
+        const first = matches[0];
+        return {
+          lat, lng,
+          labelHtml: `<div style="font-weight:700;">${escapeHtml(raw)}</div><div style="color:#6b7280">${matches.length} matching store(s). Nearest: Store ${escapeHtml(String(first.storeNumber))} — ${escapeHtml(first.city)}, ${escapeHtml(first.state)}</div>`
+        };
+      }
+    }
+
     return null;
   }
 
-  // -------- Filters/render --------
-  function populateRM(source){
-    setOptionsWithCounts(rmFilter, new Set(source.map(s=>s.regionalManager).filter(Boolean)), countBy(source,'regionalManager'));
-  }
-  function populateAM(source){
-    setOptionsWithCounts(amFilter, new Set(source.map(s=>s.areaManager).filter(Boolean)), countBy(source,'areaManager'));
-  }
-  function cascadeAM(){
-    const selRM = selected(rmFilter);
-    const subset = allStores.filter(s => selRM.includes('All') || selRM.includes(s.regionalManager));
-    populateAM(subset);
-  }
-  function cascadeHubs(){
-    const selAM = selected(amFilter);
-    const allowed = hubs.filter(h => h.status === 'accepted'
-      ? (selAM.includes('All') || (h.person && selAM.includes(h.person)))
-      : true);
-    hubFilter.innerHTML = allowed.map(h => `<option>${escape(h.name)}</option>`).join('');
+  function centroid(points){
+    let lat=0, lng=0, n=0;
+    for (const p of points){ if (isFinite(p.lat) && isFinite(p.lng)){ lat+=p.lat; lng+=p.lng; n++; } }
+    if (!n) return {lat: 38.5, lng:-96.0};
+    return {lat: lat/n, lng: lng/n};
   }
 
-  function runFilter(){
-    const selCov = selected(covFilter);
-    const selRM  = selected(rmFilter);
-    const selAM  = selected(amFilter);
-    const selHubNames = selected(hubFilter, true);
-
-    filteredStores = allStores.filter(s=>{
-      if (!(selCov.includes('All') || selCov.includes(s.coverageType))) return false;
-      if (!(selRM.includes('All') || selRM.includes(s.regionalManager))) return false;
-      if (!(selAM.includes('All') || selAM.includes(s.areaManager))) return false;
-
-      if (selHubNames.length){
-        const includeStaffed = showStaffed.checked;
-        const includeOpen    = showOpen.checked;
-        const r = Number(radius.value)||DEFAULT_RADIUS;
-        let near = false;
-        for (const h of hubs){
-          const visible = (h.status==='accepted' ? includeStaffed : includeOpen);
-          if (!visible) continue;
-          if (!selHubNames.includes(h.name)) continue;
-          if (distMiles(s.lat,s.lng,h.coords[0],h.coords[1]) <= r){ near=true; break; }
-        }
-        if (!near) return false;
-      }
-      return true;
-    });
-
-    renderStores(filteredStores);
-    refreshHubs();
-    updateKpis();
+  // Live search handlers
+  function handleLiveSearch(){
+    const q = (searchBox.value || '').trim();
+    if (!q){ clearTarget(); renderPills([]); return; }
+    const found = guessTargetFor(q);
+    if (found){
+      map.setView([found.lat, found.lng], Math.max(map.getZoom(), 11));
+      dropTarget(found.lat, found.lng, found.labelHtml);
+      renderPills([q]); // show what we’re focused on
+    }
   }
 
-  function renderStores(list){
-    markers.clearLayers();
-    list.forEach(s=>{
-      const color = COLORS[s.coverageType] || '#888';
-      const m = L.circleMarker([s.lat,s.lng],{radius:6,color,fillColor:color,fillOpacity:.9,weight:1});
-      m.bindPopup(`
-        <b>#${escape(s.storeNumberStr)}</b><br/>
-        ${escape(s.storeName||'')}<br/>
-        ${escape(s.address||'')}<br/>
-        ${escape(s.city||'')}, ${escape(s.state||'')}<br/>
-        Coverage: <b>${escape(s.coverageType||'')}</b><br/>
-        Area: ${escape(s.areaManager||'')}<br/>
-        Regional: ${escape(s.regionalManager||'')}
-      `);
-      m.coverageType = s.coverageType;
-      markers.addLayer(m);
-    });
-    updateInViewCount();
+  function renderPills(items){
+    pillBar.replaceChildren(...(items||[]).map(txt => {
+      const el = document.createElement('div');
+      el.className = 'pill';
+      el.textContent = txt;
+      return el;
+    }));
   }
 
-  function refreshHubs(){
-    const includeStaffed = showStaffed.checked;
-    const includeOpen    = showOpen.checked;
-    const r = Number(radius.value)||DEFAULT_RADIUS;
-    const minN = Number(minPerHub.value)||0;
+  // Wire events – no Enter needed
+  searchBox.addEventListener('input', handleLiveSearch);
+  searchBox.addEventListener('change', handleLiveSearch); // picks from datalist
+  searchBox.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape'){
+      searchBox.value = '';
+      clearTarget();
+      renderPills([]);
+    }
+  });
+  searchGo.addEventListener('click', handleLiveSearch); // optional
+  searchClr.addEventListener('click', () => {
+    searchBox.value = '';
+    clearTarget();
+    renderPills([]);
+    searchBox.focus();
+  });
 
-    lastHubsShown.forEach(o => map.removeLayer(o.marker));
-    lastHubsShown = [];
+  // Focus on load for quick typing
+  window.addEventListener('load', () => { searchBox.focus({ preventScroll:true }); });
 
-    hubs.forEach(h=>{
-      const vis = (h.status==='accepted' ? includeStaffed : includeOpen);
-      if (!vis) return;
-      const covered = filteredStores.filter(s => distMiles(s.lat,s.lng,h.coords[0],h.coords[1]) <= r);
-      if (covered.length < minN) return;
+  </script>
 
-      const marker = L.marker(h.coords,{icon:hubIcon(h)}).addTo(map);
-      marker.bindPopup(`
-        <b>${escape(h.name)}</b><br/>
-        ${h.status==='accepted' ? '<span style="color:'+getCSS('--violet')+';font-weight:700">STAFFED</span>'
-                                 : '<span style="color:'+getCSS('--gray')+';font-weight:700">OPEN</span>'}
-        <div style="margin-top:6px">${covered.length} stores in ${r} mi</div>
-      `);
-      lastHubsShown.push({ ...h, marker, coveredCount: covered.length });
-    });
-  }
+  <!--
+    If you inject store data separately, keep doing that (window.STORES = [...] before this script).
+    Example (remove this block in production):
 
-  function updateKpis(){
-    const counts = { "Premium + Acosta":0,"Premium Only":0,"Acosta Only":0,"Uncovered":0 };
-    filteredStores.forEach(s => counts[s.coverageType] = (counts[s.coverageType]||0)+1);
-    k.pa.textContent = counts["Premium + Acosta"]||0;
-    k.p.textContent  = counts["Premium Only"]||0;
-    k.a.textContent  = counts["Acosta Only"]||0;
-    k.u.textContent  = counts["Uncovered"]||0;
-    k.total.textContent = filteredStores.length;
-
-    const staffed = lastHubsShown.filter(h => h.status==='accepted').length;
-    const open    = lastHubsShown.filter(h => h.status==='open').length;
-    k.staffed.textContent = staffed; k.open.textContent = open;
-    updateInViewCount();
-  }
-
-  function updateInViewCount(){
-    const b = map.getBounds(); let n=0;
-    filteredStores.forEach(s => { if (b.contains([s.lat,s.lng])) n++; });
-    k.inView.textContent = `In view: ${n}`;
-  }
-
-  function fitToResults(){
-    if (!filteredStores.length) return;
-    const bounds = L.latLngBounds(filteredStores.map(s => [s.lat,s.lng]));
-    map.fitBounds(bounds.pad(0.1));
-  }
-
-  function resetAll(){
-    showStaffed.checked = true; showOpen.checked = true;
-    radius.value = DEFAULT_RADIUS; radiusLbl.textContent = DEFAULT_RADIUS;
-    minPerHub.value = 0; minPerHubLbl.textContent = '0';
-    setAll(covFilter); setAll(rmFilter); setAll(amFilter);
-    cascadeAM(); cascadeHubs();
-    hubFilter.innerHTML = hubs.map(h=>`<option>${escape(h.name)}</option>`).join('');
-    searchTargets = []; renderPills();
-    buildSearchDatalist(allStores, hubs);
-    map.setView([39.5,-98.35],5);
-  }
-
-  function exportStoresCsv(){
-    if (!filteredStores.length){ alert('No filtered stores.'); return; }
-    const headers = ['Store Number','Store Name','Address','City','State','Coverage Type','Trainer City','Area Manager','Regional Manager','Lat','Lng'];
-    const lines = [headers.join(',')];
-    filteredStores.forEach(s=> lines.push(csv([s.storeNumberStr,s.storeName,s.address,s.city,s.state,s.coverageType,s.trainerCity,s.areaManager,s.regionalManager,s.lat,s.lng])));
-    download('filtered_stores.csv', "\uFEFF"+lines.join('\n'));
-  }
-  function exportHubsCsv(){
-    if (!lastHubsShown.length){ alert('No visible hubs.'); return; }
-    const headers = ['Hub','Status','Covered Stores'];
-    const lines = [headers.join(',')];
-    lastHubsShown.forEach(h=> lines.push(csv([h.name,h.status,h.coveredCount])));
-    download('visible_hubs.csv', "\uFEFF"+lines.join('\n'));
-  }
-  function exportKpisCsv(){
-    const headers = ['Premium + Acosta','Premium Only','Acosta Only','Uncovered','Total','Staffed hubs','Open hubs'];
-    const staffed = lastHubsShown.filter(h=>h.status==='accepted').length;
-    const open    = lastHubsShown.filter(h=>h.status==='open').length;
-    const line = [id('k_pa').textContent,id('k_p').textContent,id('k_a').textContent,id('k_u').textContent,id('k_total').textContent,staffed,open];
-    download('kpis.csv', "\uFEFF"+headers.join(',')+'\n'+line.join(','));
-  }
-
-  function getCSS(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
-  function id(x){ return document.getElementById(x); }
-  function on(ev, el, fn, capture){ el.addEventListener(ev, fn, capture||false); }
-  function showBusy(v){ busy.hidden = !v; }
-  function escape(s){ return String(s??'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m])); }
-  function csv(arr){ return arr.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','); }
-  function countBy(arr,key){ const m=new Map(); arr.forEach(x=>m.set(x[key]||'(blank)',(m.get(x[key]||'(blank)')||0)+1)); return m; }
-  function setOptionsWithCounts(select, vals, counts){
-    const keepAll = Array.from(select.options).some(o=>o.value==='All');
-    select.innerHTML = keepAll ? '<option value="All" selected>All</option>' : '';
-    [...vals].sort((a,b)=>String(a).localeCompare(String(b))).forEach(v=>{
-      const n = counts.get(v)||0;
-      const opt = document.createElement('option'); opt.value=v; opt.textContent = n?`${v} (${n})`:v;
-      select.appendChild(opt);
-    });
-  }
-  function selected(select, allowEmpty=false){
-    const vals = Array.from(select.selectedOptions).map(o=>o.value);
-    if (!vals.length) return allowEmpty ? [] : ['All'];
-    if (vals.includes('All')) return ['All'];
-    return vals;
-  }
-  function setAll(select){ Array.from(select.options).forEach(o => o.selected = (o.value==='All')); }
-  function filterSelect(select, q){
-    const s = (q||'').toLowerCase();
-    Array.from(select.options).forEach(o => o.style.display = o.textContent.toLowerCase().includes(s) ? '' : 'none');
-  }
-  function distMiles(a,b,c,d){
-    const R=3958.8; const toRad=x=>x*Math.PI/180;
-    const dφ=toRad(c-a), dλ=toRad(d-b); const φ1=toRad(a), φ2=toRad(c);
-    const x = Math.sin(dφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
-    return R*(2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)));
-  }
-  function download(name, text){
-    const blob = new Blob([text],{type:'text/csv;charset=utf-8;'}), url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url);
-  }
-  function hubIcon(h){
-    return L.divIcon({className:'', html:`<div class="hub ${h.status==='accepted'?'staffed':'open'}" title="${escape(h.name)}"></div>`, iconSize:[20,20], iconAnchor:[10,10]});
-  }
-  function clusterIconByDominantCoverage(cluster){
-    const children = cluster.getAllChildMarkers();
-    const counts = { "Premium + Acosta":0,"Premium Only":0,"Acosta Only":0,"Uncovered":0 };
-    children.forEach(m => counts[m.coverageType] = (counts[m.coverageType]||0)+1);
-    let dom='u', max=-1; const order=[['Premium + Acosta','pa'],['Premium Only','p'],['Acosta Only','a'],['Uncovered','u']];
-    order.forEach(([k,short])=>{ if ((counts[k]||0) > max){ max = counts[k]||0; dom = short; }});
-    return new L.DivIcon({ html:'<div><span>'+children.length+'</span></div>', className:'marker-cluster marker-'+dom, iconSize:new L.Point(40,40) });
-  }
- 
-})();
-</script>
+    <script>
+      window.STORES = [
+        { storeNumber: 1027, name: "Walmart Supercenter", city:"Murfreesboro", state:"TN", lat:35.845, lng:-86.390 },
+        { storeNumber: 2115, name: "Walmart Supercenter", city:"Birmingham", state:"AL", lat:33.520, lng:-86.803 }
+      ];
+    </script>
+  -->
 </body>
 </html>
