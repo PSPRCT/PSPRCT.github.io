@@ -251,72 +251,75 @@
   // KPI labels
   const k = { pa:id('k_pa'), p:id('k_p'), a:id('k_a'), u:id('k_u'), total:id('k_total'), staffed:id('k_staffed'), open:id('k_open'), inView:id('inView') };
 
-  // ---------- Load data (robust + visible status) ----------
-  const CANDIDATES = [
-    new URL('store_data.json', location.href).toString(),
-    new URL('./store_data.json', location.href).toString(),
-    new URL('/store_data.json', location.href).toString(),
-  ];
+  // ---------- Load data (GitHub Pages friendly) ----------
+showBusy(true);
+let spinnerFailSafe = setTimeout(() => showBusy(false), 8000);
 
-  showBusy(true);
-  let spinnerFailSafe = setTimeout(() => showBusy(false), 8000);
+function normalizeStores(raw){
+  return (raw||[])
+    .map(s => ({
+      ...s,
+      city:(s.city??'').trim(),
+      city_lc:(s.city??'').trim().toLowerCase(),
+      state:(s.state??'').trim(),
+      storeName:(s.storeName??'').trim(),
+      address:(s.address??'').trim(),
+      coverageType:(s.coverageType??'').trim(),
+      areaManager:(s.areaManager??'').trim(),
+      regionalManager:(s.regionalManager??'').trim(),
+      trainerCity:(s.trainerCity??'').trim(),
+      storeNumberStr:String(s.storeNumber??''),
+      lat:Number(s.latitude),
+      lng:Number(s.longitude),
+    }))
+    .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+}
 
+try {
+  const url = 'store_data.json?v=' + Date.now(); // cache-buster for GH Pages
+  const resp = await fetch(url, { cache:'no-store' });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching ${url}`);
+
+  const text = await resp.text();
+  let raw;
   try {
-    let resp, text, lastErr;
-    for (const url of CANDIDATES) {
-      try {
-        resp = await fetch(url, { cache:'no-cache' });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status} at ${url}`);
-        text = await resp.text();
-        allStores = JSON.parse(text.replace(/^\uFEFF/, ''))
-          .map(s => ({
-            ...s,
-            city:(s.city??'').trim(),
-            city_lc:(s.city??'').trim().toLowerCase(),
-            state:(s.state??'').trim(),
-            storeName:(s.storeName??'').trim(),
-            address:(s.address??'').trim(),
-            coverageType:(s.coverageType??'').trim(),
-            areaManager:(s.areaManager??'').trim(),
-            regionalManager:(s.regionalManager??'').trim(),
-            trainerCity:(s.trainerCity??'').trim(),
-            storeNumberStr:String(s.storeNumber??''),
-            lat:Number(s.latitude), lng:Number(s.longitude),
-          }))
-          .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
-        STATUS.textContent = `Loaded ${allStores.length.toLocaleString()} stores from ${url}`;
-        break;
-      } catch(e){
-        lastErr = e;
-        console.warn('Load attempt failed:', e?.message || e, 'First 200 chars:', (text||'').slice(0,200));
-      }
-    }
-
-    if (!Array.isArray(allStores) || !allStores.length){
-      STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Could not load <code>store_data.json</code>.</span> Using inline sample so the UI remains testable. Last error: ${lastErr?.message || lastErr}`;
-      allStores = [
-        { latitude:41.29136, longitude:-73.1129, storeNumber:2163, storeName:'Walmart', address:'465 BRIDGEPORT AVENUE', city:'SHELTON', state:'CT', coverageType:'Premium Only', trainerCity:'Secaucus', areaManager:'Gibbes, Malin', regionalManager:'Anders, Roy' },
-        { latitude:41.81855, longitude:-73.0780, storeNumber:2144, storeName:'Walmart', address:'970 TORRINGFORD STREET', city:'TORRINGTON', state:'CT', coverageType:'Premium Only', trainerCity:'Worcester', areaManager:'Gibbes, Malin', regionalManager:'Anders, Roy' },
-        { latitude:41.69759, longitude:-72.8976, storeNumber:2719, storeName:'Walmart', address:'1400 FARMINGTON AVE', city:'BRISTOL', state:'CT', coverageType:'Premium Only', trainerCity:'Worcester', areaManager:'Gibbes, Malin', regionalManager:'Anders, Roy' },
-      ].map(s => ({ ...s, city:s.city.trim(), city_lc:s.city.trim().toLowerCase(), storeNumberStr:String(s.storeNumber), lat:s.latitude, lng:s.longitude }));
-    }
-
-    // Populate pickers & suggestions
-    populateRM(allStores);
-    populateAM(allStores);
-    cascadeAM();
-    cascadeHubs();
-    hubFilter.innerHTML = hubs.map(h => `<option>${escape(h.name)}</option>`).join('');
-    buildSearchDatalist(allStores, hubs);
-
-    runFilter();
-  } catch(err){
-    STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Data load error:</span> ${err?.message || err}`;
-    console.error(err);
-  } finally {
-    clearTimeout(spinnerFailSafe);
-    showBusy(false);
+    raw = JSON.parse(text.replace(/^\uFEFF/, ''));
+  } catch (e) {
+    console.error('JSON parse failed. First 200 chars:', text.slice(0,200));
+    throw new Error('Invalid JSON format in store_data.json');
   }
+  if (!Array.isArray(raw)) throw new Error('store_data.json must be a JSON array');
+
+  allStores = normalizeStores(raw);
+  STATUS.textContent = `Loaded ${allStores.length.toLocaleString()} stores from store_data.json`;
+  console.log('Loaded stores:', allStores.length, allStores[0]);
+
+  // Populate pickers & suggestions
+  populateRM(allStores);
+  populateAM(allStores);
+  cascadeAM();
+  cascadeHubs();
+  hubFilter.innerHTML = hubs.map(h => `<option>${escape(h.name)}</option>`).join('');
+  buildSearchDatalist(allStores, hubs);
+
+  runFilter();
+} catch (err){
+  STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Data load error:</span> ${err?.message || err}`;
+  console.error(err);
+
+  // Last-resort sample so UI still proves itself
+  allStores = normalizeStores([
+    { latitude:41.29136, longitude:-73.1129, storeNumber:2163, storeName:'Walmart', address:'465 BRIDGEPORT AVENUE', city:'SHELTON', state:'CT', coverageType:'Premium Only', trainerCity:'Secaucus', areaManager:'Gibbes, Malin', regionalManager:'Anders, Roy' }
+  ]);
+  populateRM(allStores); populateAM(allStores); cascadeAM(); cascadeHubs();
+  hubFilter.innerHTML = hubs.map(h => `<option>${escape(h.name)}</option>`).join('');
+  buildSearchDatalist(allStores, hubs);
+  runFilter();
+} finally {
+  clearTimeout(spinnerFailSafe);
+  showBusy(false);
+}
+
 
   // ---------- Search (chips + autosuggest + pan/zoom) ----------
   async function handleSearchCommit(){
