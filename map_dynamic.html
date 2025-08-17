@@ -11,42 +11,18 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
 <style>
-  :root { --blue:#3399ff; --violet:#6a1b9a; --gray:#9e9e9e; --ring:#d0d7de; --chip:#eef6ff; }
+  :root { --blue:#3399ff; --violet:#6a1b9a; --gray:#9e9e9e; --ring:#d0d7de; --chip:#eef6ff; --filters-h: 180px; }
+
   html, body { height:100%; margin:0; font-family:Inter, system-ui, Arial, sans-serif; background:#fff; }
-  /* put these inside <style> … */
-:root { --filters-h: 180px; }                 /* will be set exactly by JS */
-body { height: 100vh; overflow: hidden; }     /* keep the page a single viewport */
-#filters { overflow: clip; }                  /* prevents accidental page growth */
-#map{
-  height: calc(100vh - var(--filters-h));
-  min-height: 520px;        /* 👈 fallback so it never becomes tiny */
-  margin:10px; border-radius:12px;
-  box-shadow:0 4px 16px rgba(0,0,0,.08);
-}
+  body { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
 
-
-/* tighten the toolbar */
-.toolbar-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px 8px; }
-
-select[multiple]{ height:84px; } /* was 96px */
-
-.picker .picker-search{ border:1px solid #d1d5db; border-radius:8px; padding:5px 8px; }
-.range-pill{ padding:4px 8px; }
-
-  /* Layout: a compact sticky toolbar above a big map. */
-  body { display:flex; flex-direction:column; }
-
-  /* ===== Toolbar (compact) ===== */
- #filters{
-  position:sticky; top:0; z-index:2000; background:#fff;
-  border-bottom:1px solid #e5e7eb; box-shadow:0 2px 6px rgba(0,0,0,.04);
-  padding:8px 10px;
-  /* 👇 NEW: cap height and allow internal scroll */
-  max-height: 260px;
-  overflow: auto;           /* not clip */
-}
-
-  .toolbar-grid {
+  /* Sticky, compact toolbar */
+  #filters {
+    position:sticky; top:0; z-index:2000; background:#fff;
+    border-bottom:1px solid #e5e7eb; box-shadow:0 2px 6px rgba(0,0,0,.04);
+    padding:8px 10px; overflow:clip;
+  }
+  .toolbar-grid{
     display:grid; gap:8px 10px;
     grid-template-columns: repeat(12, minmax(0,1fr));
     align-items:center;
@@ -57,36 +33,47 @@ select[multiple]{ height:84px; } /* was 96px */
   .c-span-4 {grid-column:1 / span 4}
   .c-span-3 {grid-column:1 / span 3}
   .c-span-2 {grid-column:1 / span 2}
-  @media (max-width:1200px){ .c-span-8,.c-span-6{grid-column:1 / span 12} .c-span-4,.c-span-3,.c-span-2{grid-column:1 / span 6} }
-  @media (max-width:790px){ .c-span-4,.c-span-3,.c-span-2{grid-column:1 / span 12} }
+  @media (max-width:1200px){
+    .c-span-8,.c-span-6{grid-column:1 / span 12}
+    .c-span-4,.c-span-3,.c-span-2{grid-column:1 / span 6}
+  }
+  @media (max-width:790px){
+    .c-span-4,.c-span-3,.c-span-2{grid-column:1 / span 12}
+  }
 
   label { font-weight:600; color:#222; }
   input[type="text"], select, button { border:1px solid #d1d5db; border-radius:8px; padding:6px 9px; font-size:14px; }
-  
 
-  .btn { background:var(--blue); color:#fff; border:none; font-weight:700; cursor:pointer; border-radius:8px; padding:6px 10px; }
-  .btn.secondary { background:#fff; color:#111; border:1px solid #d1d5db; }
-  .btn:disabled { opacity:.6; cursor:not-allowed; }
+  /* Pickers */
+  .picker { display:flex; flex-direction:column; gap:6px; }
+  select[multiple]{ width:100%; height:96px; } /* compact */
+  .picker .picker-search{ border:1px solid #d1d5db; border-radius:8px; padding:5px 8px; }
 
-  .chip { background:var(--chip); color:#0759c1; border:1px solid #cfe6ff; font-weight:700; border-radius:999px; padding:5px 10px; cursor:pointer; }
-  .chip.active { background:#ffe5e5; color:#b42318; border-color:#ffb3b3; }
-
+  /* Toggles & ranges */
   .toggle-inline { display:inline-flex; align-items:center; gap:8px; padding:4px 8px; border:1px solid #e5e7eb; border-radius:999px; background:#fff; }
   .toggle-inline input{opacity:0;width:0;height:0;position:absolute}
   .toggle-inline .tgl-slider{position:relative;display:inline-block;width:42px;height:22px;background:#ccc;border-radius:34px;transition:.25s}
   .toggle-inline .tgl-slider:before{content:"";position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.25s}
   .toggle-inline input:checked + .tgl-slider{background:var(--blue)}
   .toggle-inline input:checked + .tgl-slider:before{transform:translateX(20px)}
-
   .range-pill{display:inline-flex;align-items:center;gap:8px;padding:4px 8px;border-radius:999px;border:1px solid #e5e7eb;background:#fff}
-  .picker { display:flex; flex-direction:column; gap:6px; }
 
-  /* Counts/KPIs strip just under controls */
+  /* Tools strip (top-right) */
+  .tools-row{
+    display:flex; gap:8px; align-items:center; justify-content:flex-end; flex-wrap:wrap;
+  }
+  .btn { background:var(--blue); color:#fff; border:none; font-weight:700; cursor:pointer; border-radius:10px; padding:6px 10px; }
+  .btn.secondary { background:#fff; color:#111; border:1px solid #d1d5db; }
+  .btn:disabled { opacity:.6; cursor:not-allowed; }
+
+  /* KPI strip */
   .kpi-strip{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .kpi-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid #e0e0e0;background:#fff}
   .kpi-dot{width:10px;height:10px;border-radius:50%}
   .kpi-pct{margin-left:8px;font-size:12px;color:#444}
 
+  /* Map sizes itself under toolbar */
+  #map { height: calc(100vh - var(--filters-h)); margin:10px; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,.08); }
 
   /* Legend */
   #legend{position:absolute;bottom:15px;right:15px;background:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 3px 10px rgba(0,0,0,.2);font-size:14px;color:#222;z-index:10000}
@@ -94,13 +81,13 @@ select[multiple]{ height:84px; } /* was 96px */
   #legend .legend-item{display:flex;align-items:center;margin-bottom:6px;user-select:none}
   .legend-color{width:18px;height:18px;margin-right:10px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
 
+  /* Hub icons */
   .hub-icon{width:22px;height:22px;border-radius:50%;border:2px solid #fff;
-         box-shadow:0 0 0 1px rgba(0,0,0,.25),0 2px 6px rgba(0,0,0,.15)}
-.hub-staffed{background:#6a1b9a}
-.hub-open{background:#9e9e9e}
+           box-shadow:0 0 0 1px rgba(0,0,0,.25),0 2px 6px rgba(0,0,0,.15)}
+  .hub-staffed{background:#6a1b9a}
+  .hub-open{background:#9e9e9e}
 
-
-  /* Panels: safe size & scroll so they don’t cover map forever */
+  /* Panels */
   .panel{
     position:fixed; top:86px; right:12px; width:min(520px, 92vw);
     max-height:calc(100vh - 110px); overflow:auto; background:#fff; border:1px solid #ddd;
@@ -112,10 +99,8 @@ select[multiple]{ height:84px; } /* was 96px */
   /* Tables */
   table{width:100%;border-collapse:collapse}
   th,td{border:1px solid #eee;padding:6px;text-align:left;font-size:12px}
-  th.sortable{cursor:pointer}
-  th.sortable:after{content:" ⇅"; color:#999; font-weight:400}
 
-  /* Busy */
+  /* Busy spinner */
   .busy-mask{position:fixed;inset:0;background:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;z-index:40000}
   .busy-mask[hidden]{display:none !important}
   .spinner{width:36px;height:36px;border-radius:50%;border:4px solid rgba(0,0,0,.15);border-top-color:var(--blue);animation:spin .8s linear infinite}
@@ -127,7 +112,7 @@ select[multiple]{ height:84px; } /* was 96px */
 <!-- ===== Toolbar ===== -->
 <div id="filters">
   <div class="toolbar-grid">
-    <!-- Row: search + toggles -->
+    <!-- Row 1: Search + toggles -->
     <div class="c-span-8">
       <label for="searchBox" style="display:block">Search store # / city</label>
       <div style="display:flex;gap:8px;align-items:center">
@@ -148,7 +133,7 @@ select[multiple]{ height:84px; } /* was 96px */
       </label>
     </div>
 
-    <!-- Row: radius + min stores + quick buttons -->
+    <!-- Row 2: radius + min stores + circles -->
     <div class="c-span-4">
       <div class="range-pill" title="Default 75mi unless custom enabled">
         <span>Radius:</span>
@@ -171,13 +156,9 @@ select[multiple]{ height:84px; } /* was 96px */
         <span>Circles</span>
         <input type="checkbox" id="toggleRadius" checked /><span class="tgl-slider"></span>
       </label>
-      <button id="fitToResults" class="btn secondary">Fit to Results</button>
-      <button id="resetFilters" class="btn secondary">Reset</button>
-      <button id="groupSummaryBtn" class="btn secondary">Group summary</button>
-      <button id="exportBtn" class="btn">Export CSV</button>
     </div>
 
-    <!-- Row: pickers -->
+    <!-- Row 3: pickers (3+3+3+3 = 12 cols on wide screens) -->
     <div class="c-span-3 picker">
       <label>Coverage Type</label>
       <select id="coverageFilter" multiple>
@@ -198,13 +179,28 @@ select[multiple]{ height:84px; } /* was 96px */
       <input class="picker-search" id="areaSearch" placeholder="Filter names…" />
       <select id="areaFilter" multiple><option value="All" selected>All</option></select>
     </div>
+
+    <!-- Top-right tools strip (same row as Trainer Hub Filter on wide screens) -->
     <div class="c-span-3 picker">
       <label>Trainer Hub Filter</label>
       <input class="picker-search" id="hubSearch" placeholder="Filter hubs…" />
       <select id="trainerHubFilter" multiple></select>
     </div>
+    <div class="c-span-3">
+      <div class="tools-row">
+        <button id="btnUncoveredOnly" class="btn secondary">Uncovered only</button>
+        <button id="btnTestHub" class="btn secondary">Test hub</button>
+        <button id="fitToResults" class="btn secondary">Fit to Results</button>
+        <button id="resetFilters" class="btn secondary">Reset</button>
+        <button id="exportBtn" class="btn">Export</button>
+        <button id="groupSummaryBtn" class="btn secondary">Group summary</button>
+        <button id="btnNextWin" class="btn secondary">Next Win</button>
+        <button id="btnCopyLink" class="btn secondary">Copy link</button>
+        <button id="btnHelp" class="btn secondary">Help</button>
+      </div>
+    </div>
 
-    <!-- Row: counts + KPIs -->
+    <!-- Counts + KPIs -->
     <div class="c-span-12" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
       <div id="filterCount" style="font-weight:700;">Showing 0 of 0 stores</div>
       <div id="inViewCount" style="color:#555"></div>
@@ -301,7 +297,6 @@ select[multiple]{ height:84px; } /* was 96px */
   /* ===== State ===== */
   let allStores = [];
   let filteredStores = [];
-  let kpiSnapshot = { counts:{}, total:0, pctUncov:0 };
   let hubsMarkers = [], coverageCircles = [];
   let lastHubsShown = [];
   let nearestLine = null;
@@ -319,37 +314,30 @@ select[multiple]{ height:84px; } /* was 96px */
   function escapeHtml(s){ return String(s ?? "").replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
   function saveJson(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
   function loadJson(k,def){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):def; }catch{ return def; } }
-  function q(v){ return `"${String(v ?? '').replace(/"/g,'""')}"`; }
+  function q(v){ return '"' + String(v ?? '').replace(/"/g,'""') + '"'; }
   function getRadiusMiles(){ return allowCustom.checked ? (parseInt(radiusInput.value,10)||DEFAULT_RADIUS) : DEFAULT_RADIUS; }
 
   function iconForHub(hub){
-  const cls = hub.status === "accepted" ? "hub-staffed" : "hub-open";
-  return L.divIcon({
-    className:"",
-    html:`<div class="hub-icon ${cls}" title="${escapeHtml(hub.name)}"></div>`,
-    iconSize:[22,22], iconAnchor:[11,11], popupAnchor:[0,-10]
-  });
-}
-
+    const cls = hub.status === "accepted" ? "hub-staffed" : "hub-open";
+    return L.divIcon({
+      className:"",
+      html:`<div class="hub-icon ${cls}" title="${escapeHtml(hub.name)}"></div>`,
+      iconSize:[22,22], iconAnchor:[11,11], popupAnchor:[0,-10]
+    });
+  }
 
   /* ===== Map ===== */
   const map = L.map('map').setView([39.5,-98.35],5);
-  // After: const map = L.map('map')…
-const filtersEl = document.getElementById('filters');
 
-function setMapHeight(){
-  const h = filtersEl.getBoundingClientRect().height;
-  const CLAMP = 260;                            // match CSS max-height
-  const effective = Math.min(Math.ceil(h), CLAMP);
-  document.documentElement.style.setProperty('--filters-h', `${effective}px`);
-  requestAnimationFrame(() => map.invalidateSize());
-}
-
-
-// keep it fresh on load, resize, and when the toolbar reflows
-setMapHeight();
-window.addEventListener('resize', setMapHeight);
-new ResizeObserver(setMapHeight).observe(filtersEl);
+  const filtersEl = document.getElementById('filters');
+  function setMapHeight() {
+    const h = filtersEl.getBoundingClientRect().height;
+    document.documentElement.style.setProperty('--filters-h', `${Math.ceil(h)}px`);
+    setTimeout(()=> map.invalidateSize(), 0);
+  }
+  setMapHeight();
+  window.addEventListener('resize', setMapHeight);
+  new ResizeObserver(setMapHeight).observe(filtersEl);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap contributors'}).addTo(map);
   const markers = L.markerClusterGroup({ disableClusteringAtZoom: 12 });
@@ -386,43 +374,35 @@ new ResizeObserver(setMapHeight).observe(filtersEl);
   const kpiStripEl    = document.getElementById('kpiStrip');
 
   /* ===== Data load ===== */
-  // ===== Data load =====
-showBusy(true);
-let spinnerFailSafe = setTimeout(() => showBusy(false), 8000); // never spin forever
-try {
-  const resp = await fetch('store_data.json', { cache: 'no-cache' });
-  if (!resp.ok) throw new Error(`Failed to load store_data.json (HTTP ${resp.status})`);
-  const raw = await resp.json();
-  allStores = raw.map(s => ({
-    ...s,
-    city: (s.city||"").trim(),
-    city_lc: (s.city||"").trim().toLowerCase(),
-    state: (s.state||"").trim(),
-    trainerCity: (s.trainerCity||"").trim(),
-    storeNumberStr: String(s.storeNumber ?? ''),
-    lat: Number(s.latitude), lng: Number(s.longitude)
-  })).filter(s => isFinite(s.lat) && isFinite(s.lng));
+  showBusy(true);
+  let spinnerFailSafe = setTimeout(() => showBusy(false), 8000); // fail-safe: never spin forever
+  try {
+    const resp = await fetch('store_data.json', { cache: 'no-cache' });
+    if (!resp.ok) throw new Error(`Failed to load store_data.json (HTTP ${resp.status})`);
+    const raw = await resp.json();
+    allStores = raw.map(s => ({
+      ...s,
+      city: (s.city||"").trim(),
+      city_lc: (s.city||"").trim().toLowerCase(),
+      state: (s.state||"").trim(),
+      trainerCity: (s.trainerCity||"").trim(),
+      storeNumberStr: String(s.storeNumber ?? ''),
+      lat: Number(s.latitude), lng: Number(s.longitude)
+    })).filter(s => isFinite(s.lat) && isFinite(s.lng));
 
-  populateRegionals(allStores);
-  populateAreas(allStores);
-  populateHubPicker(trainerHubs);
+    populateRegionals(allStores);
+    populateAreas(allStores);
+    populateHubPicker(trainerHubs);
 
-  runFilter();
-} catch (err) {
-  console.error(err);
-  document.getElementById('filterCount').textContent =
-    'Error: could not load store_data.json — serve over HTTP and check path.';
-} finally {
-  clearTimeout(spinnerFailSafe);
-  showBusy(false);
-  setMapHeight(); // ensure correct height once controls are populated
-}
-function showBusy(on){
-  const el = document.getElementById('busyMask');
-  if (!el) return;
-  el.hidden = !on;
-}
-
+    runFilter();
+  } catch (err) {
+    console.error(err);
+    filterCountEl.textContent = 'Error: could not load store_data.json — serve over HTTP and check path.';
+  } finally {
+    clearTimeout(spinnerFailSafe);
+    showBusy(false);
+    setMapHeight();
+  }
 
   /* ===== Picker population with counts ===== */
   function countMap(items, key){
@@ -473,18 +453,19 @@ function showBusy(on){
     const selHubs     = Array.from(trainerHubFilter.selectedOptions).map(o=>o.value);
     const sterm       = (searchBox.value||'').trim().toLowerCase();
 
-    // Cascade Areas from Regionals
+    // Cascade Areas from selected Regionals
     const storesForAreaPicker = allStores.filter(s => selRegs.includes('All') || selRegs.includes(s.regionalManager));
     const prevAreas = new Set(selAreas);
     populateAreas(storesForAreaPicker);
-    // keep selected area(s) if still valid, else All
     let keptAny = false;
     Array.from(areaFilter.options).forEach(o => {
       if (prevAreas.has(o.value)){ o.selected=true; keptAny = true; }
     });
-    if (!keptAny) areaFilter.querySelector('option[value="All"]').selected = true;
+    if (!keptAny && areaFilter.querySelector('option[value="All"]')) {
+      areaFilter.querySelector('option[value="All"]').selected = true;
+    }
 
-    // Main store filter
+    // Main store filter (scopes to manager filters and optional hub coverage)
     filteredStores = allStores.filter(s=>{
       const covOK  = selCoverage.includes('All') || selCoverage.includes(s.coverageType);
       const regOK  = selRegs.includes('All')     || selRegs.includes(s.regionalManager);
@@ -536,7 +517,7 @@ function showBusy(on){
         Area: ${escapeHtml(s.areaManager||'')}<br>
         Regional: ${escapeHtml(s.regionalManager||'')}
       `);
-      // Hover preview: nearest hub line (only among visible hubs)
+      // Hover preview: nearest visible hub line
       marker.on('mouseover', () => {
         const n = nearestVisibleHubFor(s.lat,s.lng);
         if (nearestLine){ map.removeLayer(nearestLine); nearestLine=null; }
@@ -559,8 +540,7 @@ function showBusy(on){
     for (const h of trainerHubs){
       const vis = (h.status==='accepted' && allowStaffed) || (h.status==='open' && allowOpen);
       if (!vis) continue;
-      // Only consider hubs that are currently shown (cover filtered stores)
-      if (!lastHubsShown.some(x=>x.id===h.id)) continue;
+      if (!lastHubsShown.some(x=>x.id===h.id)) continue; // only hubs currently shown
       const d = distMiles(lat,lng,h.coords[0],h.coords[1]);
       if (d<bestD){ bestD=d; best=h; }
     }
@@ -573,7 +553,7 @@ function showBusy(on){
 
     let hubsToShow = trainerHubs.filter(h => (h.status==='accepted' && includeStaffed) || (h.status==='open' && includeOpen));
 
-    // Only hubs that cover >=1 filtered store (enforces “only their hubs” when manager filters/search are active)
+    // Only hubs that cover >=1 filtered store (scoped to manager filters)
     const rGlobal = getRadiusMiles();
     hubsToShow = hubsToShow.map(h=>{
       const r = hubOverrides[h.id] || rGlobal;
@@ -594,7 +574,7 @@ function showBusy(on){
       trainerHubFilter.appendChild(opt);
     });
 
-    // Render
+    // Render hubs & circles
     addHubsAndCircles(hubsToShow);
 
     const staffedCount = hubsToShow.filter(h => h.status==='accepted').length;
@@ -679,7 +659,6 @@ function showBusy(on){
       chip('red','Uncovered', c['Uncovered']||0),
       `<span class="kpi-pct">Uncovered: <strong>${isFinite(pctUn)?pctUn:0}%</strong></span>`
     ].join('');
-    kpiSnapshot = { counts:c, total:filteredStores.length, pctUncov:pctUn };
   }
 
   /* ===== Hub panel (per-hub radius override) ===== */
@@ -796,6 +775,32 @@ function showBusy(on){
     downloadCsv(`filtered_stores_${filteredStores.length}.csv`, "\uFEFF"+lines.join('\n'));
   });
 
+  /* ===== Tools strip: actions ===== */
+  document.getElementById('btnUncoveredOnly').addEventListener('click', () => {
+    [...coverageFilter.options].forEach(o => o.selected = (o.value === 'Uncovered'));
+    runFilter();
+  });
+  document.getElementById('btnTestHub').addEventListener('click', () => {
+    const opt = [...trainerHubFilter.options][0];
+    if (opt){ opt.selected = true; runFilter(); fitToResults(); }
+  });
+  document.getElementById('btnNextWin').addEventListener('click', () => {
+    alert('Next Win: implement your scoring/logic here.');
+  });
+  document.getElementById('btnCopyLink').addEventListener('click', async () => {
+    const params = new URLSearchParams({
+      q: (searchBox.value||''),
+      cov: selectedValues(coverageFilter).join('|'),
+      reg: selectedValues(regionalFilter).join('|'),
+      area: selectedValues(areaFilter).join('|'),
+    });
+    const url = `${location.origin}${location.pathname}?${params.toString()}`;
+    try { await navigator.clipboard.writeText(url); alert('Link copied!'); } catch { alert(url); }
+  });
+  document.getElementById('btnHelp').addEventListener('click', () => {
+    alert('Filter stores by manager/coverage, zoom to results, click hubs to see covered stores. Export from the top-right.');
+  });
+
   /* ===== Events ===== */
   const debounced = ((fn,d=120)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),d); }; })(()=>runFilter(),120);
 
@@ -870,7 +875,7 @@ function showBusy(on){
     const blob = new Blob([text],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob);
     const a=document.createElement('a'); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url);
   }
-
+  function showBusy(on){ document.getElementById('busyMask').hidden = !on; }
 
 })();
 </script>
