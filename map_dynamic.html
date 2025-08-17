@@ -78,7 +78,7 @@
 <div class="topbar">
   <div class="search-wrap">
     <div class="search">
-      <input id="searchBox" list="searchList" type="text" placeholder="e.g., 1234 or Phoenix" aria-label="Search store number or city" />
+      <input id="searchBox" list="searchList" type="text" placeholder="e.g., 2163 or Phoenix" aria-label="Search store number or city" />
       <datalist id="searchList"></datalist>
       <button id="searchGo" class="btn primary">Go</button>
       <button id="searchClear" class="btn">Clear</button>
@@ -208,6 +208,7 @@
   const searchPills = id('searchPills');
   on('click', id('searchGo'), handleSearchCommit);
   on('click', id('searchClear'), () => { searchTargets = []; renderPills(); runFilter(); });
+  on('keydown', searchBox, (e) => { if (e.key === 'Enter'){ e.preventDefault(); handleSearchCommit(); } });
 
   const showStaffed = id('showStaffed');
   const showOpen    = id('showOpen');
@@ -255,77 +256,72 @@
   };
 
   // ---------- Load data ----------
-  // ===== Data load (robust) =====
-const DATA_URL = new URL('store_data.json', location.href).toString();
+  const DATA_URL = new URL('store_data.json', location.href).toString();
 
-showBusy(true);
-let spinnerFailSafe = setTimeout(() => showBusy(false), 8000);
+  showBusy(true);
+  let spinnerFailSafe = setTimeout(() => showBusy(false), 8000);
 
-try {
-  const resp = await fetch(DATA_URL, { cache: 'no-cache' });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching ${DATA_URL}`);
-
-  // Some servers deliver JSON with the wrong MIME or stray BOM; parse defensively
-  const rawText = await resp.text();
-  let raw;
   try {
-    raw = JSON.parse(rawText.replace(/^\uFEFF/, ''));
-  } catch (e) {
-    console.error('JSON parse failed. First 200 chars:', rawText.slice(0, 200));
-    throw new Error('Invalid JSON format in store_data.json');
+    const resp = await fetch(DATA_URL, { cache: 'no-cache' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching ${DATA_URL}`);
+
+    // Handle BOM / bad MIME defensively
+    const rawText = await resp.text();
+    let raw;
+    try {
+      raw = JSON.parse(rawText.replace(/^\uFEFF/, ''));
+    } catch {
+      console.error('JSON parse failed. First 200 chars:', rawText.slice(0, 200));
+      throw new Error('Invalid JSON format in store_data.json');
+    }
+    if (!Array.isArray(raw)) throw new Error('Expected an array of stores');
+
+    // Normalize & trim
+    allStores = raw
+      .map(s => ({
+        ...s,
+        city: (s.city ?? '').trim(),
+        city_lc: (s.city ?? '').trim().toLowerCase(),
+        state: (s.state ?? '').trim(),
+        storeName: (s.storeName ?? '').trim(),
+        address: (s.address ?? '').trim(),
+        coverageType: (s.coverageType ?? '').trim(),
+        areaManager: (s.areaManager ?? '').trim(),
+        regionalManager: (s.regionalManager ?? '').trim(),
+        trainerCity: (s.trainerCity ?? '').trim(),
+        storeNumberStr: String(s.storeNumber ?? ''),
+        lat: Number(s.latitude),
+        lng: Number(s.longitude),
+      }))
+      .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+
+    // Minimal schema sanity check
+    const reqKeys = ['latitude','longitude','storeNumber','city','state','coverageType'];
+    if (allStores.length && !reqKeys.every(k => k in raw[0])) {
+      console.warn('First record keys:', Object.keys(raw[0]));
+      throw new Error('One or more expected keys are missing/renamed in JSON');
+    }
+
+    // Populate pickers & suggestions (ensure cascades happen BEFORE suggestions)
+    populateRM(allStores);
+    populateAM(allStores);
+    cascadeAM();
+    cascadeHubs();
+    // fill hub picker with all hubs initially (in case cascade didn’t trim)
+    hubFilter.innerHTML = hubs.map(h => `<option>${escape(h.name)}</option>`).join('');
+
+    // build autosuggest list for the search box
+    buildSearchDatalist(allStores, hubs);
+
+    runFilter();
+  } catch (err) {
+    console.error(err);
+    const msg = (err && err.message) ? err.message : String(err);
+    alert('Data load error: ' + msg);
+  } finally {
+    clearTimeout(spinnerFailSafe);
+    showBusy(false);
   }
-
-  if (!Array.isArray(raw)) throw new Error('Expected an array of stores');
-
-  // Normalize & trim so filters/search are stable regardless of whitespace/case
-allStores = raw
-  .map(s => ({
-    ...s,
-    city: (s.city ?? '').trim(),
-    city_lc: (s.city ?? '').trim().toLowerCase(),   // <— add this
-    state: (s.state ?? '').trim(),
-    storeName: (s.storeName ?? '').trim(),
-    address: (s.address ?? '').trim(),
-    coverageType: (s.coverageType ?? '').trim(),
-    areaManager: (s.areaManager ?? '').trim(),
-    regionalManager: (s.regionalManager ?? '').trim(),
-    trainerCity: (s.trainerCity ?? '').trim(),
-    storeNumberStr: String(s.storeNumber ?? ''),
-    lat: Number(s.latitude),
-    lng: Number(s.longitude),
-  }))
-  .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
-
-
-  // Minimal schema sanity check (helps catch a misnamed key fast)
-  const reqKeys = ['latitude','longitude','storeNumber','city','state','coverageType'];
-  if (allStores.length && !reqKeys.every(k => k in raw[0])) {
-    console.warn('First record keys:', Object.keys(raw[0]));
-    throw new Error('One or more expected keys are missing/renamed in JSON');
-  }
-
- populateRM(allStores);
-populateAM(allStores);
-
-// fill hub picker with all hubs initially
-hubFilter.innerHTML = hubs.map(h => `<option>${escape(h.name)}</option>`).join('');
-
-// build autosuggest list for the search box
-buildSearchDatalist(allStores, hubs);
-
-runFilter();
-
-} catch (err) {
-  console.error(err);
-  const msg = (err && err.message) ? err.message : String(err);
-console.error('Data load error:', msg);
-alert('Data load error: ' + msg);
-
-} finally {
-  clearTimeout(spinnerFailSafe);
-  showBusy(false);
-}
-
 
   // ---------- Search (chips + autosuggest + pan/zoom) ----------
   async function handleSearchCommit(){
@@ -335,12 +331,9 @@ alert('Data load error: ' + msg);
     if (found){
       searchTargets.push(found);
       renderPills();
-      // Pan to the *latest* target
       map.setView([found.lat, found.lng], 11);
       searchBox.value='';
-      runFilter(); // restrict to target area only if desired (we’ll keep stores global; search is just navigation)
-    }else{
-      // If not found, leave the text (user can adjust)
+      runFilter(); // navigation only
     }
   }
 
@@ -359,7 +352,6 @@ alert('Data load error: ' + msg);
   }
 
   function buildSearchDatalist(stores, hubs){
-    // a light list: store numbers + city,state + hubs
     const seen = new Set();
     const opts = [];
     stores.slice(0,10000).forEach(s=>{
@@ -375,21 +367,35 @@ alert('Data load error: ' + msg);
   }
 
   function guessTargetFor(q){
-    const qs = q.toLowerCase();
-    // 1) store #
-    let s = allStores.find(x => x.storeNumberStr === q);
-    if (s) return { label:`Store ${s.storeNumberStr} — ${s.city}, ${s.state}`, lat:s.lat, lng:s.lng };
+    const qs = q.trim().toLowerCase();
 
-    // 2) city, state
-    s = allStores.find(x => `${x.city}, ${x.state}`.toLowerCase() === qs);
+    // 0) contains a 3–6 digit number → store #
+    const m = q.match(/\b(\d{3,6})\b/);
+    if (m){
+      const num = m[1];
+      const s = allStores.find(x => x.storeNumberStr === num);
+      if (s) return { label:`Store ${s.storeNumberStr} — ${s.city}, ${s.state}`, lat:s.lat, lng:s.lng };
+    }
+
+    // 1) exact "Store NNNN — City, ST"
+    if (qs.startsWith('store ')){
+      const mm = qs.match(/^store\s+(\d{3,6})\b/);
+      if (mm){
+        const s = allStores.find(x => x.storeNumberStr === mm[1]);
+        if (s) return { label:`Store ${s.storeNumberStr} — ${s.city}, ${s.state}`, lat:s.lat, lng:s.lng };
+      }
+    }
+
+    // 2) exact "City, ST"
+    let s = allStores.find(x => `${x.city}, ${x.state}`.toLowerCase() === qs);
     if (s) return { label:`${s.city}, ${s.state}`, lat:s.lat, lng:s.lng };
 
     // 3) hub name
     const h = hubs.find(h=>h.name.toLowerCase()===qs);
     if (h) return { label:h.name, lat:h.coords[0], lng:h.coords[1] };
 
-    // 4) partial city: choose centroid-ish (first match)
-    s = allStores.find(x => x.city_lc.includes(qs));
+    // 4) partial city
+    s = allStores.find(x => x.city_lc.includes(qs) || qs.includes(x.city_lc));
     if (s) return { label:`${s.city}, ${s.state}`, lat:s.lat, lng:s.lng };
 
     return null;
@@ -409,18 +415,13 @@ alert('Data load error: ' + msg);
   }
   function cascadeHubs(){
     const selAM = selected(amFilter);
-    // If AM selected, only include hubs whose 'person' is in selected AMs (for staffed),
-    // open hubs remain visible unless you prefer to hide them as well:
     const allowed = hubs.filter(h => {
       if (h.status === 'accepted') {
         return selAM.includes('All') || (h.person && selAM.includes(h.person));
       }
-      // Keep open hubs regardless of AM selection; change if you want stricter behavior:
-      return true;
+      return true; // keep open hubs
     });
-    hubFilter.innerHTML = allowed
-      .map(h => `<option>${escape(h.name)}</option>`)
-      .join('');
+    hubFilter.innerHTML = allowed.map(h => `<option>${escape(h.name)}</option>`).join('');
   }
 
   // ---------- Core filtering/render ----------
@@ -430,14 +431,12 @@ alert('Data load error: ' + msg);
     const selAM  = selected(amFilter);
     const selHubNames = selected(hubFilter, true); // empty => no hub constraint
 
-    // main store filter
     filteredStores = allStores.filter(s=>{
       if (!(selCov.includes('All') || selCov.includes(s.coverageType))) return false;
       if (!(selRM.includes('All') || selRM.includes(s.regionalManager))) return false;
       if (!(selAM.includes('All') || selAM.includes(s.areaManager))) return false;
 
       if (selHubNames.length){
-        // keep stores within radius of at least one selected & visible hub
         const includeStaffed = showStaffed.checked;
         const includeOpen    = showOpen.checked;
         const r = Number(radius.value)||DEFAULT_RADIUS;
@@ -472,7 +471,6 @@ alert('Data load error: ' + msg);
         Area: ${escape(s.areaManager||'')}<br/>
         Regional: ${escape(s.regionalManager||'')}
       `);
-      // tag marker with coverage for cluster coloring
       m.coverageType = s.coverageType;
       markers.addLayer(m);
     });
@@ -480,7 +478,6 @@ alert('Data load error: ' + msg);
   }
 
   function refreshHubs(){
-    // compute coverage for each hub (within radius) then apply min count
     const includeStaffed = showStaffed.checked;
     const includeOpen    = showOpen.checked;
     const r = Number(radius.value)||DEFAULT_RADIUS;
@@ -541,9 +538,12 @@ alert('Data load error: ' + msg);
     minPerHub.value = 0; minPerHubLbl.textContent = '0';
     // Filters
     setAll(covFilter); setAll(rmFilter); setAll(amFilter);
+    cascadeAM();
+    cascadeHubs();
     hubFilter.innerHTML = hubs.map(h=>`<option>${escape(h.name)}</option>`).join('');
     // Search
     searchTargets = []; renderPills();
+    buildSearchDatalist(allStores, hubs);
     map.setView([39.5,-98.35],5);
   }
 
