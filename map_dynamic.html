@@ -80,6 +80,19 @@
   .hub{width:22px;height:22px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25),0 2px 6px rgba(0,0,0,.15)}
   .hub.staffed{background:#6a1b9a}
   .hub.open{background:#9e9e9e}
+
+  /* ===== Autocomplete ===== */
+  .ac-wrap{position:relative}
+  .ac-list{
+    position:absolute;left:0;right:0;top:100%;margin-top:6px;background:#fff;border:1px solid #e3e7eb;border-radius:10px;
+    box-shadow:0 10px 24px rgba(0,0,0,.12);z-index:1800;max-height:280px;overflow:auto;display:none;
+  }
+  .ac-item{padding:8px 10px;display:flex;gap:8px;align-items:center;cursor:pointer}
+  .ac-item .tag{font-size:11px;padding:2px 6px;border-radius:999px;background:#eef4ff;color:#0843a0;border:1px solid #cfe1ff}
+  .ac-item .sub{color:#667085;font-size:12px;margin-left:auto}
+  .ac-item.active, .ac-item:hover{background:#f5f8fb}
+  .ac-empty{padding:10px;color:#667085}
+  .hide{display:none}
 </style>
 </head>
 <body>
@@ -90,9 +103,12 @@
   <div class="row">
     <div class="grow">
       <label for="q">Search store # / city</label>
-      <div style="display:flex;gap:8px">
-        <input id="q" type="text" placeholder="e.g. 1234 or Phoenix" class="grow">
-        <button id="clearQ" class="btn secondary">Clear</button>
+      <div class="ac-wrap">
+        <div style="display:flex;gap:8px">
+          <input id="q" type="text" placeholder="e.g. 1234 or Phoenix" class="grow" autocomplete="off">
+          <button id="clearQ" class="btn secondary">Clear</button>
+        </div>
+        <div id="acList" class="ac-list" role="listbox" aria-label="Suggestions"></div>
       </div>
     </div>
 
@@ -208,7 +224,7 @@
 
   /* ===== DOM ===== */
   const qEl = id => document.getElementById(id);
-  const qInput     = qEl('q'), clearQ = qEl('clearQ');
+  const qInput     = qEl('q'), clearQ = qEl('clearQ'), acList = qEl('acList');
   const showStaffed= qEl('showStaffed'), showOpen = qEl('showOpen');
   const radius     = qEl('radius'), radiusLbl = qEl('radiusLbl');
   const minStores  = qEl('minStores'), minStoresLbl = qEl('minStoresLbl');
@@ -248,7 +264,12 @@
   let all = [];           // all stores
   let filtered = [];      // filtered stores
   let hubMarkers = [], hubCircles = [], lastShownHubs = [];
+  let storeMarkers = new Map(); // storeNumberStr -> Leaflet marker (only for filtered set)
   let firstFit = false;
+
+  // indices for autosuggest
+  const byStore = new Map();              // storeNumberStr -> store object
+  const byCityKey = new Map();            // "city|state" -> array of stores
 
   /* ===== Utils ===== */
   const toRad = a => a*Math.PI/180;
@@ -307,6 +328,14 @@
         storeNumberStr: String(s.storeNumber ?? ''),
         lat: Number(s.latitude), lng: Number(s.longitude)
       })).filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+
+      // indices for autosuggest
+      all.forEach(s=>{
+        byStore.set(s.storeNumberStr, s);
+        const key = `${s.city.trim().toLowerCase()}|${s.state}`;
+        if(!byCityKey.has(key)) byCityKey.set(key, []);
+        byCityKey.get(key).push(s);
+      });
 
       // populate pickers
       setOptions(rmSel, new Set(all.map(s=>s.regionalManager).filter(Boolean)), counts(all,'regionalManager'));
@@ -373,6 +402,7 @@
 
   function renderStores(){
     cluster.clearLayers();
+    storeMarkers.clear();
     filtered.forEach(s=>{
       const color = COLORS[s.coverageType] || 'gray';
       const m = L.circleMarker([s.lat, s.lng], { radius:6, color, fillColor:color, fillOpacity:.9, weight:1 });
@@ -383,12 +413,12 @@
         `Area: ${esc(s.areaManager||'')}<br>Regional: ${esc(s.regionalManager||'')}`
       );
       cluster.addLayer(m);
+      storeMarkers.set(s.storeNumberStr, m);
     });
     updateInView();
   }
 
   function refreshHubs(){
-    // Only show hubs that cover >=1 filtered store (and honor staffed/open toggles).
     const r = getRadiusMiles();
     let list = hubs.filter(h => (h.status==='accepted' && showStaffed.checked) || (h.status==='open' && showOpen.checked))
       .map(h=>{
@@ -396,23 +426,22 @@
         return { ...h, covered, count: covered.length, radius: r };
       }).filter(h => h.count > 0);
 
-    // If a specific RM is selected (not All), **only show hubs that cover their stores**
+    // If a RM/AM filter is on, “only their hubs”
     const rms = selected(rmSel), ams = selected(amSel);
     if(!(rms.includes('All') && ams.includes('All'))){
-      const managerStores = filtered; // already filtered by RM/AM above
+      const managerStores = filtered;
       list = list.filter(h => h.covered.some(s => managerStores.includes(s)));
     }
 
-    // apply min stores filter
-    const minN = parseInt(minStores.value,10)||0;
-    list = list.filter(h => h.count >= minN);
+    // min stores
+    list = list.filter(h => h.count >= (parseInt(minStores.value,10)||0));
 
     // update hub picker to only visible hubs
     const prev = new Set(Array.from(hubSel.selectedOptions).map(o=>o.value));
     setOptions(hubSel, list.map(h=>h.name));
     Array.from(hubSel.options).forEach(o=>{ if(prev.has(o.value)) o.selected = true; });
 
-    // draw hubs
+    // draw
     hubMarkers.forEach(m=>map.removeLayer(m)); hubMarkers=[];
     hubCircles.forEach(c=>map.removeLayer(c)); hubCircles=[];
     list.forEach(h=>{
@@ -451,6 +480,7 @@
 
   function resetAll(){
     qInput.value = '';
+    hideAC();
     radius.value = DEFAULT_RADIUS; radiusLbl.textContent = `${DEFAULT_RADIUS} mi`;
     minStores.value = 0; minStoresLbl.textContent = '0';
     showStaffed.checked = true; showOpen.checked = true;
@@ -464,6 +494,145 @@
 
     map.setView([39.5, -98.35], 5);
     runFilter();
+  }
+
+  /* ===== Autocomplete (store # + city) ===== */
+  let acIdx = -1; // active suggestion index
+
+  function buildSuggestions(q){
+    const suggestions = [];
+    if(!q) return suggestions;
+    const isNum = /^\d+$/.test(q);
+
+    // 1) exact store number first
+    if(isNum && byStore.has(q)){
+      const s = byStore.get(q);
+      suggestions.push({ type:'store', key:s.storeNumberStr, label:`#${s.storeNumberStr} — ${s.city}, ${s.state}`, sub:s.storeName||'', lat:s.lat, lng:s.lng, store:s });
+    }
+
+    // 2) store numbers starting with q
+    if(isNum){
+      const nn = q.length;
+      for(const [num, s] of byStore){
+        if(num.startsWith(q) && num !== q){
+          suggestions.push({ type:'store', key:s.storeNumberStr, label:`#${s.storeNumberStr} — ${s.city}, ${s.state}`, sub:s.storeName||'', lat:s.lat, lng:s.lng, store:s });
+        }
+        if(suggestions.length >= 10) break;
+      }
+    }
+
+    // 3) city matches (prefix first, then substring)
+    const lower = q.toLowerCase();
+    const cityCandidates = [];
+    for(const [key, arr] of byCityKey){
+      const [city, state] = key.split('|');
+      if(city.startsWith(lower) || city.includes(lower)){
+        cityCandidates.push({ city, state, stores: arr });
+      }
+    }
+    cityCandidates
+      .sort((a,b)=> a.city.localeCompare(b.city))
+      .slice(0, 10 - suggestions.length)
+      .forEach(c => {
+        suggestions.push({
+          type:'city',
+          key:`${c.city}|${c.state}`,
+          label: `${titleCase(c.city)}, ${c.state}`,
+          sub: `${c.stores.length} stores`,
+          bounds: L.latLngBounds(c.stores.map(s=>[s.lat,s.lng])),
+          stores: c.stores
+        });
+      });
+
+    return suggestions.slice(0, 10);
+  }
+
+  function titleCase(s){ return s.replace(/\b\w/g, m=>m.toUpperCase()); }
+
+  function renderAC(items){
+    acIdx = -1;
+    if(!items.length){ acList.innerHTML = '<div class="ac-empty">No matches</div>'; acList.style.display='block'; return; }
+    acList.innerHTML = items.map((it,i)=>`
+      <div class="ac-item" role="option" data-i="${i}">
+        <span class="tag">${it.type==='store'?'Store':'City'}</span>
+        <span>${esc(it.label)}</span>
+        <span class="sub">${esc(it.sub||'')}</span>
+      </div>
+    `).join('');
+    acList.style.display='block';
+    Array.from(acList.querySelectorAll('.ac-item')).forEach(el=>{
+      el.addEventListener('mouseenter',()=>setActive(+el.dataset.i));
+      el.addEventListener('click',()=>chooseAC(+el.dataset.i));
+    });
+  }
+  function hideAC(){ acList.style.display='none'; acList.innerHTML=''; acIdx=-1; }
+  function setActive(i){
+    acIdx = i;
+    Array.from(acList.children).forEach((el,idx)=> el.classList.toggle('active', idx===i));
+  }
+
+  function handleEnter(){
+    const q = qInput.value.trim();
+    if(!q){ hideAC(); return; }
+
+    // If a suggestion is highlighted, use it; else build list and use first
+    let items = [];
+    if(acList.style.display==='block' && acList.children.length){
+      items = buildSuggestions(q);
+      if(acIdx>=0 && acIdx<items.length){ chooseItem(items[acIdx]); return; }
+    }
+    items = buildSuggestions(q);
+    if(items.length){ chooseItem(items[0]); }
+  }
+
+  function chooseAC(i){
+    const q = qInput.value.trim();
+    const items = buildSuggestions(q);
+    if(i>=0 && i<items.length) chooseItem(items[i]);
+  }
+
+  function chooseItem(item){
+    hideAC();
+    if(item.type==='store'){
+      zoomToStore(item.store);
+    }else if(item.type==='city'){
+      map.fitBounds(item.bounds, { padding:[24,24] });
+    }
+    // clear and refocus for successive entries
+    qInput.value = '';
+    setTimeout(()=>qInput.focus(), 50);
+  }
+
+  function zoomToStore(s){
+    // If the marker exists in the current filtered set, open it through cluster.
+    const m = storeMarkers.get(s.storeNumberStr);
+    if(m){
+      cluster.zoomToShowLayer(m, ()=>{
+        m.openPopup();
+        flashAt([s.lat,s.lng]);
+      });
+    }else{
+      // Not currently rendered (filtered out). Still pan/zoom and show a temporary highlight.
+      map.setView([s.lat, s.lng], Math.max(map.getZoom(), 12));
+      flashAt([s.lat,s.lng], true, s);
+    }
+  }
+
+  function flashAt(latlng, tempMarker=false, store=null){
+    let temp = null;
+    if(tempMarker){
+      const color = COLORS[store?.coverageType] || '#000';
+      temp = L.circleMarker(latlng, { radius:8, color, fillColor:color, fillOpacity:.95, weight:2 }).addTo(map);
+      if(store){
+        temp.bindPopup(
+          `<b>#${esc(store.storeNumberStr)}</b> — ${esc(store.storeName||'')}<br>`+
+          `${esc(store.address||'')}<br>${esc(store.city||'')}, ${esc(store.state||'')}`
+        ).openPopup();
+      }
+    }
+    const pulse = L.circle(latlng, { radius: 400, color:'#1e88ff', weight:2, fillOpacity:.08 }).addTo(map);
+    setTimeout(()=>{ pulse.setStyle({opacity:0, fillOpacity:0}); }, 600);
+    setTimeout(()=>{ map.removeLayer(pulse); if(temp) map.removeLayer(temp); }, 1200);
   }
 
   /* ===== Exports ===== */
@@ -509,7 +678,6 @@
   const rerun = debounced(()=>runFilter(), 120);
 
   [covSel, rmSel, amSel, hubSel].forEach(el => el.addEventListener('change', rerun));
-  [qInput].forEach(el => el.addEventListener('input', rerun));
   [showStaffed, showOpen].forEach(el => el.addEventListener('change', rerun));
   radius.addEventListener('input', ()=>{ radiusLbl.textContent = `${getRadiusMiles()} mi`; rerun(); });
   minStores.addEventListener('input', ()=>{ minStoresLbl.textContent = String(minStores.value); rerun(); });
@@ -521,7 +689,32 @@
 
   fitBtn.addEventListener('click', fitToResults);
   resetBtn.addEventListener('click', resetAll);
-  clearQ.addEventListener('click', ()=>{ qInput.value=''; rerun(); });
+  clearQ.addEventListener('click', ()=>{ qInput.value=''; hideAC(); rerun(); qInput.focus(); });
+
+  // Autocomplete interactions
+  qInput.addEventListener('input', ()=>{
+    const q = qInput.value.trim();
+    if(!q){ hideAC(); return; }
+    renderAC(buildSuggestions(q));
+  });
+  qInput.addEventListener('keydown', (e)=>{
+    const open = acList.style.display==='block';
+    if(e.key==='ArrowDown' && open){
+      e.preventDefault();
+      const items = acList.children.length; if(!items) return;
+      setActive(Math.min(items-1, acIdx+1));
+    }else if(e.key==='ArrowUp' && open){
+      e.preventDefault();
+      const items = acList.children.length; if(!items) return;
+      setActive(Math.max(0, acIdx-1));
+    }else if(e.key==='Enter'){
+      e.preventDefault();
+      handleEnter();
+    }else if(e.key==='Escape'){
+      hideAC();
+    }
+  });
+  document.addEventListener('click', (e)=>{ if(!document.querySelector('.ac-wrap').contains(e.target)) hideAC(); });
 
   // keyboard helpers
   document.addEventListener('keydown', (e)=>{
