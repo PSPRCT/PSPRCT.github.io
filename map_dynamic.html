@@ -66,13 +66,31 @@
   .hub-open{background:var(--gray)}
 
   #hubCount{padding:4px 18px 0; color:#333; font-size:14px;}
-  /* Option searchers */
   .picker{display:flex;flex-direction:column;gap:6px}
   .picker .search{border-radius:8px;border:1px solid #d1d5db;padding:6px 8px;font-size:13px}
 
-  /* Panels */
-  .panel{position:absolute;top:140px;right:20px;max-height:70vh;overflow:auto;background:#fff;border:1px solid #ddd;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,.12);z-index:12000;display:none}
-  .panel header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #eee;font-weight:700}
+  /* Panels (fixed so they never clip) */
+  .panel{
+    position:fixed;
+    top:110px;
+    right:20px;
+    bottom:20px;                 /* anchors bottom; panel won’t overflow viewport */
+    max-width:min(680px, 92vw);
+    overflow:auto;               /* scroll inside the panel */
+    background:#fff;
+    border:1px solid #ddd;
+    border-radius:12px;
+    box-shadow:0 8px 20px rgba(0,0,0,.12);
+    z-index:12000;
+    display:none;
+  }
+  .panel header{
+    position:sticky; top:0;      /* keep header visible while scrolling */
+    background:#fff;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 12px; border-bottom:1px solid #eee; font-weight:700;
+    z-index:1;
+  }
   .panel .body{padding:10px 12px;font-size:13px}
   #hubOverlay{position:fixed;inset:0;background:rgba(0,0,0,.25);display:none;z-index:11000}
 
@@ -150,7 +168,6 @@
         <option value="Acosta Only">Acosta Only</option>
         <option value="Uncovered">Uncovered</option>
       </select>
-      <!-- Quick isolate via legend Alt-click; no per-picker search for coverage -->
     </div>
 
     <div class="picker">
@@ -254,7 +271,7 @@
   </div>
 </div>
 
-<div id="nextWinPanel" class="panel" style="top:160px;">
+<div id="nextWinPanel" class="panel" style="top:140px;">
   <header><span>Next Win Planner</span><button id="nextWinClose" class="btn secondary">Close</button></header>
   <div class="body">
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
@@ -317,20 +334,17 @@
 
   /* ---------- Hubs ---------- */
   const trainerHubs = [
-    /* (include your full list—shortened here) */
     { id:"belle_vernon_pa",      name:"Belle Vernon, PA (Open)",      coords:[40.12507,-79.8664],  status:"open", person:null },
     { id:"centennial_co",        name:"Centennial, CO (Open)",        coords:[39.62732,-104.779],  status:"open", person:null },
     { id:"houston_tx",           name:"Houston, TX (Open)",           coords:[29.8535,-95.5095],   status:"open", person:null },
     { id:"kansas_city_mo",       name:"Kansas City, MO (Open)",       coords:[39.04512,-94.4429],  status:"open", person:null },
     { id:"wilmington_oh",        name:"Wilmington, OH (Open)",        coords:[39.44499,-83.8244],  status:"open", person:null },
-
     { id:"granite_falls_nc_walker", name:"Granite Falls, NC - Lisa Walker", coords:[35.8004940664,-81.4058033973], status:"accepted", person:"Lisa Walker" },
     { id:"clarksville_tn_salvato",  name:"Clarksville, TN - Nicholas Salvato", coords:[36.5888792506,-87.34016706], status:"accepted", person:"Nicholas Salvato" },
     { id:"orange_park_fl_hall",     name:"Orange Park, FL - Sabrina Hall", coords:[30.1867559229,-81.7188867025], status:"accepted", person:"Sabrina Hall" },
     { id:"olive_branch_ms_brown",   name:"Olive Branch, MS - Annette Brown", coords:[34.926688,-89.894859], status:"accepted", person:"Annette Brown" },
     { id:"riverview_fl_santos",     name:"Riverview, FL - Richard Santos", coords:[27.8661,-82.3265], status:"accepted", person:"Richard Santos" }
   ];
-  trainerHubs.forEach(h => { h.latRad = toRad(h.coords[0]); h.lngRad = toRad(h.coords[1]); });
 
   /* ---------- State ---------- */
   let allStores = [];
@@ -343,12 +357,11 @@
   let heatLayer = null;
   let firstFitDone = false;
 
-  // Per-hub radius overrides
   const hubOverrides = loadJson(HUB_RADIUS_OVERRIDES_KEY, {});
 
   /* Test hub */
   let testMode=false, testHubMarker=null, testHubCircle=null;
-  const TEST_HUB = { id:'test_hub', name:'Test Hub (temporary)', status:'open', person:null, coords:null, latRad:null, lngRad:null };
+  const TEST_HUB = { id:'test_hub', name:'Test Hub (temporary)', status:'open', person:null, coords:null };
 
   /* ---------- Utils ---------- */
   function toRad(a){ return a*Math.PI/180; }
@@ -357,7 +370,7 @@
   function getRadiusMiles(){ const allow = allowCustom.checked; return allow? (parseInt(radiusInput.value,10)||DEFAULT_RADIUS) : DEFAULT_RADIUS; }
   function getHubRadius(h){ return hubOverrides[h.id] || getRadiusMiles(); }
   function milesToMeters(m){ return m*1609.34; }
-  function distMiles(a,b,c,d){ // haversine
+  function distMiles(a,b,c,d){
     const R=3958.8, φ1=toRad(a), λ1=toRad(b), φ2=toRad(c), λ2=toRad(d), dφ=φ2-φ1, dλ=λ2-λ1;
     const x = Math.sin(dφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
     return R * (2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x)));
@@ -409,7 +422,6 @@
   const copyLinkBtn   = document.getElementById('copyLinkBtn');
   const groupSummaryBtn = document.getElementById('groupSummaryBtn');
   const nextWinBtn    = document.getElementById('nextWinBtn');
-  const exportNearestBtn = document.getElementById('exportNearestCsv'); // (not used—split button covers)
 
   const helpBtn = document.getElementById('helpBtn');
 
@@ -437,7 +449,6 @@
   /* ---------- Build pickers + counts ---------- */
   function countMap(items, key){ const m=new Map(); for(const it of items){ m.set(it[key]||'(blank)', (m.get(it[key]||'(blank)')||0)+1); } return m; }
   function setOptionsWithCounts(select, values, counts){
-    // Keep 'All' if present
     const hadAll = [...select.options].some(o=>o.value==='All');
     select.innerHTML = hadAll ? '<option value="All" selected>All</option>' : '';
     [...values].sort((a,b)=>String(a).localeCompare(String(b))).forEach(v=>{
@@ -472,13 +483,11 @@
   let hubIndex = new KDBush(trainerHubs, p=>p.coords[1], p=>p.coords[0]); // x=lng, y=lat
 
   function nearestAllowedHubFor(lat,lng){
-    // geokdbush.around(index, lng, lat, n, maxDistance=undefined, filter)
     const includeStaffed = toggleHubsCheckbox.checked;
     const includeOpen = showOpenHubsCheckbox.checked;
     const res = geokdbush.around(hubIndex, lng, lat, 5, undefined, (h)=>{
       return (h.status==='accepted' && includeStaffed) || (h.status==='open' && includeOpen);
     });
-    // Also consider test hub if active
     let best = null, bestD = Infinity;
     for (const h of res){
       const d = distMiles(lat,lng,h.coords[0],h.coords[1]);
@@ -493,7 +502,6 @@
   }
 
   function hubsCoveringStore(lat,lng, maxRadius){
-    // Query around to a generous n and then filter by radius
     const includeStaffed = toggleHubsCheckbox.checked;
     const includeOpen = showOpenHubsCheckbox.checked;
     const nearby = geokdbush.around(hubIndex, lng, lat, 20, undefined, (h)=>{
@@ -506,69 +514,67 @@
   function refreshHeat(){
     if (heatLayer){ map.removeLayer(heatLayer); heatLayer=null; }
     if (!heatToggle.checked) return;
-    const pts = filteredStores.filter(s=>s.coverageType==='Uncovered')
-                  .map(s=>[s.lat, s.lng, 0.6]); // lat, lng, intensity
+    const pts = filteredStores.filter(s=>s.coverageType==='Uncovered').map(s=>[s.lat, s.lng, 0.6]);
     heatLayer = L.heatLayer(pts, { radius: 18, blur: 12 }).addTo(map);
   }
 
+  /* ---------- Filtering (inline, no worker) ---------- */
   function runFilter(){
-  const selectedCoverage = Array.from(coverageFilter.selectedOptions).map(o=>o.value);
-  const selectedRegional = Array.from(regionalFilter.selectedOptions).map(o=>o.value);
-  const selectedArea     = Array.from(areaFilter.selectedOptions).map(o=>o.value);
-  const chosenHubNames   = Array.from(trainerHubFilter.selectedOptions).map(o=>o.value);
+    const selectedCoverage = Array.from(coverageFilter.selectedOptions).map(o=>o.value);
+    const selectedRegional = Array.from(regionalFilter.selectedOptions).map(o=>o.value);
+    const selectedArea     = Array.from(areaFilter.selectedOptions).map(o=>o.value);
+    const chosenHubNames   = Array.from(trainerHubFilter.selectedOptions).map(o=>o.value);
 
-  const sterm = (searchBox.value||'').trim().toLowerCase();
+    const sterm = (searchBox.value||'').trim().toLowerCase();
 
-  filteredStores = allStores.filter(s=>{
-    // coverage / manager filters
-    const covOK  = selectedCoverage.includes('All') || selectedCoverage.includes(s.coverageType);
-    const regOK  = selectedRegional.includes('All') || selectedRegional.includes(s.regionalManager);
-    const areaOK = selectedArea.includes('All') || selectedArea.includes(s.areaManager);
-    if (!covOK || !regOK || !areaOK) return false;
+    filteredStores = allStores.filter(s=>{
+      const covOK  = selectedCoverage.includes('All') || selectedCoverage.includes(s.coverageType);
+      const regOK  = selectedRegional.includes('All') || selectedRegional.includes(s.regionalManager);
+      const areaOK = selectedArea.includes('All') || selectedArea.includes(s.areaManager);
+      if (!covOK || !regOK || !areaOK) return false;
 
-    // search: store # or city
-    if (sterm){
-      const num  = String(s.storeNumber||'').toLowerCase();
-      const city = String(s.cityDisplay||'').toLowerCase();
-      if (!num.includes(sterm) && !city.includes(sterm)) return false;
-    }
-
-    // hub selection constraint (only if user selected specific hubs)
-    if (chosenHubNames.length){
-      const allowStaffed = toggleHubsCheckbox.checked;
-      const allowOpen    = showOpenHubsCheckbox.checked;
-      let ok = false;
-
-      for (const h of trainerHubs){
-        const visible = (h.status==='accepted' && allowStaffed) || (h.status==='open' && allowOpen);
-        if (!visible) continue;
-        if (!chosenHubNames.includes(h.name)) continue;
-        const r = getHubRadius(h);
-        if (distMiles(h.coords[0],h.coords[1], s.lat, s.lng) <= r){ ok = true; break; }
+      if (sterm){
+        const num  = String(s.storeNumber||'').toLowerCase();
+        const city = String(s.cityDisplay||'').toLowerCase();
+        if (!num.includes(sterm) && !city.includes(sterm)) return false;
       }
-      if (!ok && testHubMarker){
-        const ll = testHubMarker.getLatLng();
-        if (distMiles(ll.lat,ll.lng, s.lat, s.lng) <= getRadiusMiles()) ok = true;
+
+      if (chosenHubNames.length){
+        const allowStaffed = toggleHubsCheckbox.checked;
+        const allowOpen    = showOpenHubsCheckbox.checked;
+        let ok = false;
+        for (const h of trainerHubs){
+          const visible = (h.status==='accepted' && allowStaffed) || (h.status==='open' && allowOpen);
+          if (!visible) continue;
+          if (!chosenHubNames.includes(h.name)) continue;
+          const r = getHubRadius(h);
+          if (distMiles(h.coords[0],h.coords[1], s.lat, s.lng) <= r){ ok=true; break; }
+        }
+        if (!ok && testHubMarker){
+          const ll = testHubMarker.getLatLng();
+          if (distMiles(ll.lat,ll.lng, s.lat, s.lng) <= getRadiusMiles()) ok = true;
+        }
+        if (!ok) return false;
       }
-      if (!ok) return false;
+
+      return true;
+    });
+
+    addLazyLoadedMarkers(filteredStores);
+    updateFilterCount();
+    updateInViewCount();
+    updateKPI();
+    updateTrainerHubFilter();
+    refreshHeat();
+
+    if (sterm && filteredStores.length){
+      map.fitBounds(L.latLngBounds(filteredStores.map(s=>[s.lat,s.lng])), { padding:[20,20] });
     }
-
-    return true;
-  });
-
-  // render + KPIs
-  addLazyLoadedMarkers(filteredStores);
-  updateFilterCount();
-  updateInViewCount();
-  updateKPI();
-  updateTrainerHubFilter();
-  refreshHeat();
-
-  if (!firstFitDone && filteredStores.length){
-    firstFitDone = true;
-    fitToResults();
+    if (!firstFitDone && filteredStores.length){
+      firstFitDone = true;
+      fitToResults();
+    }
   }
-}
 
   /* ---------- Rendering ---------- */
   function addLazyLoadedMarkers(stores){
@@ -602,7 +608,6 @@
         Regional: ${escapeHtml(store.regionalManager)}<br>
         ${nearest.hub ? `Nearest hub: ${escapeHtml(nearest.hub.name)} (${nearest.miles.toFixed(1)} mi)` : 'No visible hub nearby'}
       `);
-      // Hover preview (Enhancement #6)
       marker.on('mouseover', () => {
         if (nearestLine){ map.removeLayer(nearestLine); nearestLine=null; }
         const start = [store.lat, store.lng];
@@ -661,7 +666,7 @@
 
       const statusKey = hub.status === 'accepted' ? 'staffed' : 'open';
       const nextWin = (hub.status==='open' && uncovered >= (parseInt(document.getElementById('nextWinThreshold').value,10)||35));
-      const badge = `<span style="display:inline-block;padding:2px 6px;border-radius:10px;font-size:12px;font-weight:700;color:#fff;background:${statusKey==='staffed' ? '#6a1b9a' : '#9e9e9e'}">${statusKey.toUpperCase()}</span>${nextWin ? ' <span style="display:inline-block;padding:2px 6px;border-radius:10px;font-size:12px;font-weight:700;color:#fff;background:#ff8c00">NEXT WIN</span>' : ''}`;
+      const badge = `<span style="display:inline-block;padding:2px 6px;border-radius:10px;font-size:12px;font-weight:700;color:#fff;background:${statusKey==='staffed' ? '#6a1b9a' : '#9e9e9e'}">${statusKey.toUpperCase()}</span>${nextWin ? ' <span style="display:inline-block;padding:2px 6px;border-radius:10px;font-size:12px;font-weight:700;color:#fff;background:#ff8c00">NEXT WIN</span>` : ''}`;
       const person = hub.person ? ` &nbsp;•&nbsp; <strong>${escapeHtml(hub.person)}</strong>` : "";
 
       const popupHtml = `
@@ -790,7 +795,7 @@
   });
   groupSummaryBtn.addEventListener('click', openSummaryPanel);
 
-  /* ---------- Next Win panel (sortable) ---------- */
+  /* ---------- Next Win panel ---------- */
   const nextWinThreshold = document.getElementById('nextWinThreshold');
   const nextWinValue = document.getElementById('nextWinValue');
   nextWinThreshold.addEventListener('input', ()=>{ nextWinValue.textContent = nextWinThreshold.value; refreshHubs(); renderNextWinTable(); });
@@ -820,7 +825,6 @@
         const u = list.filter(s=>s.coverageType==='Uncovered').length;
         const total = list.length;
         const pct = total? (u/total)*100 : 0;
-        // Simple effort score: uncovered weighted by inverse of median distance (closer = easier)
         const dists = list.map(s=>distMiles(hub.coords[0],hub.coords[1],s.lat,s.lng)).sort((a,b)=>a-b);
         const median = dists[Math.floor(dists.length/2)] || r;
         const score = Math.round((u * (1/(median||1))) * 100)/100;
@@ -834,7 +838,7 @@
     tbody.innerHTML = rows.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${r.uncovered}</td><td>${r.total}</td><td>${r.pct}%</td><td>${r.score}</td></tr>`).join('');
   }
 
-  /* ---------- Hub panel + per-hub radius override (#7) ---------- */
+  /* ---------- Hub panel + per-hub radius override ---------- */
   let currentPanelHub = null;
   function openHubPanel(hub){
     currentPanelHub = hub;
@@ -869,14 +873,14 @@
     hubOverrides[currentPanelHub.id] = Math.max(10, (hubOverrides[currentPanelHub.id]||getRadiusMiles()) - 5);
     saveJson(HUB_RADIUS_OVERRIDES_KEY, hubOverrides);
     refreshHubs();
-    openHubPanel(currentPanelHub); // re-render
+    openHubPanel(currentPanelHub);
   });
   document.getElementById('radiusPlus').addEventListener('click', ()=>{
     if (!currentPanelHub) return;
     hubOverrides[currentPanelHub.id] = Math.min(300, (hubOverrides[currentPanelHub.id]||getRadiusMiles()) + 5);
     saveJson(HUB_RADIUS_OVERRIDES_KEY, hubOverrides);
     refreshHubs();
-    openHubPanel(currentPanelHub); // re-render
+    openHubPanel(currentPanelHub);
   });
 
   document.getElementById('exportHubPanelCsv').addEventListener('click', ()=>{
@@ -889,7 +893,7 @@
     downloadCsv(`stores_for_${(currentPanelHub.id||'hub')}.csv`, lines.join('\n'));
   });
 
-  /* ---------- Legend improvements (#5) ---------- */
+  /* ---------- Legend improvements ---------- */
   function syncLegendFromCoverage(){
     const selected = new Set(Array.from(coverageFilter.selectedOptions).map(o=>o.value));
     document.querySelectorAll('#legend .legend-item[data-coverage]').forEach(item => {
@@ -914,9 +918,8 @@
     item.addEventListener('click', (e) => {
       const cov = item.getAttribute('data-coverage');
       const opts = Array.from(coverageFilter.options);
-      if (e.altKey){ // isolate
-        opts.forEach(o => o.selected = (o.value===cov));
-      } else {
+      if (e.altKey){ opts.forEach(o => o.selected = (o.value===cov)); }
+      else {
         const disabled = item.classList.contains('disabled');
         if (disabled) { const allOpt=opts.find(o=>o.value==='All'); if (allOpt) allOpt.selected=false; opts.find(o=>o.value===cov).selected=true; }
         else { opts.find(o=>o.value===cov).selected=false; if (!opts.some(o=>o.value!=='All' && o.selected)) opts.find(o=>o.value==='All').selected=true; }
@@ -926,7 +929,7 @@
     });
   });
 
-  /* ---------- Export split (#10) ---------- */
+  /* ---------- Export split ---------- */
   exportBtn.addEventListener('click', ()=> exportSplit.classList.toggle('open'));
   exportSplit.querySelectorAll('.menu button').forEach(b=>{
     b.addEventListener('click', ()=>{
@@ -1146,7 +1149,7 @@
         testHubCircle.setRadius(milesToMeters(getRadiusMiles()));
         TEST_HUB.coords = [ll.lat, ll.lng];
       }
-      runFilter(); // include test hub in worker
+      runFilter();
       refreshHubs();
     };
     map.on('click', map._testHubClick);
@@ -1168,7 +1171,6 @@
 
     lastHubsToShow = hubsToShow.map(h => ({ ...h, coveredCount: getStoresCoveredByHub(h).length }));
 
-    // Min-stores filter
     const minN = parseInt(minStoresInput.value,10) || 0;
     hubsToShow = lastHubsToShow.filter(h => h.coveredCount >= minN);
 
@@ -1190,8 +1192,8 @@
   const usedHash = loadStateFromHash(); if (!usedHash) loadState();
   if (![...coverageFilter.options].some(o=>o.selected)){ coverageFilter.querySelector('option[value="All"]').selected = true; }
   syncLegendFromCoverage();
-  runFilter(); // triggers worker; will auto-fit once
-
+  runFilter();
+  refreshHubs();   // ensure hubs render on first load
 })();
 </script>
 </body>
