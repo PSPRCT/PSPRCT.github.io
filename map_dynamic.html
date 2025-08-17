@@ -50,6 +50,7 @@
   .chip{display:inline-flex;align-items:center;gap:8px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:999px;background:#fff}
   .dot{width:10px;height:10px;border-radius:50%}
   .muted{color:#6b7280;margin-left:auto}
+<div id="dataStatus" style="padding:6px 10px;color:#444;font-size:12px"></div>
 
   /* Map */
   #map{flex:1}
@@ -256,44 +257,91 @@
   };
 
   // ---------- Load data ----------
-  const DATA_URL = new URL('store_data.json', location.href).toString();
+  // ---------- Load data (robust + visible status) ----------
+const STATUS = document.getElementById('dataStatus');
+const CANDIDATES = [
+  new URL('store_data.json', location.href).toString(),
+  new URL('./store_data.json', location.href).toString(),
+  new URL('/store_data.json', location.href).toString(),
+];
 
-  showBusy(true);
-  let spinnerFailSafe = setTimeout(() => showBusy(false), 8000);
+showBusy(true);
+let spinnerFailSafe = setTimeout(() => showBusy(false), 8000);
 
-  try {
-    const resp = await fetch(DATA_URL, { cache: 'no-cache' });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching ${DATA_URL}`);
-
-    // Handle BOM / bad MIME defensively
-    const rawText = await resp.text();
-    let raw;
+try {
+  let resp, text, lastErr;
+  for (const url of CANDIDATES) {
     try {
-      raw = JSON.parse(rawText.replace(/^\uFEFF/, ''));
-    } catch {
-      console.error('JSON parse failed. First 200 chars:', rawText.slice(0, 200));
-      throw new Error('Invalid JSON format in store_data.json');
+      resp = await fetch(url, { cache: 'no-cache' });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} at ${url}`);
+      text = await resp.text();
+      // Try to parse with BOM stripped
+      allStores = JSON.parse(text.replace(/^\uFEFF/, ''))
+        .map(s => ({
+          ...s,
+          city: (s.city ?? '').trim(),
+          city_lc: (s.city ?? '').trim().toLowerCase(),
+          state: (s.state ?? '').trim(),
+          storeName: (s.storeName ?? '').trim(),
+          address: (s.address ?? '').trim(),
+          coverageType: (s.coverageType ?? '').trim(),
+          areaManager: (s.areaManager ?? '').trim(),
+          regionalManager: (s.regionalManager ?? '').trim(),
+          trainerCity: (s.trainerCity ?? '').trim(),
+          storeNumberStr: String(s.storeNumber ?? ''),
+          lat: Number(s.latitude),
+          lng: Number(s.longitude),
+        }))
+        .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+      STATUS.textContent = `Loaded ${allStores.length.toLocaleString()} stores from ${url}`;
+      console.log('Loaded stores:', allStores.length, 'from', url);
+      break; // success
+    } catch (e) {
+      lastErr = e;
+      console.warn('Load attempt failed:', e?.message || e, 'First 200 chars:', (text||'').slice(0,200));
     }
-    if (!Array.isArray(raw)) throw new Error('Expected an array of stores');
+  }
 
-    // Normalize & trim
-    allStores = raw
-      .map(s => ({
-        ...s,
-        city: (s.city ?? '').trim(),
-        city_lc: (s.city ?? '').trim().toLowerCase(),
-        state: (s.state ?? '').trim(),
-        storeName: (s.storeName ?? '').trim(),
-        address: (s.address ?? '').trim(),
-        coverageType: (s.coverageType ?? '').trim(),
-        areaManager: (s.areaManager ?? '').trim(),
-        regionalManager: (s.regionalManager ?? '').trim(),
-        trainerCity: (s.trainerCity ?? '').trim(),
-        storeNumberStr: String(s.storeNumber ?? ''),
-        lat: Number(s.latitude),
-        lng: Number(s.longitude),
-      }))
-      .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+  if (!Array.isArray(allStores) || !allStores.length) {
+    // As a fallback, seed with a tiny inline sample so you can still test UI
+    STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Could not load <code>store_data.json</code>.</span> Using inline sample so the UI remains testable. Last error: ${lastErr?.message || lastErr}`;
+    allStores = [
+      { latitude:41.29136, longitude:-73.1129, storeNumber:2163, storeName:'Walmart', address:'465 BRIDGEPORT AVENUE', city:'SHELTON', state:'CT', coverageType:'Premium Only', trainerCity:'Secaucus', areaManager:'Gibbes, Malin', regionalManager:'Anders, Roy' },
+      { latitude:41.81855, longitude:-73.0780, storeNumber:2144, storeName:'Walmart', address:'970 TORRINGFORD STREET', city:'TORRINGTON', state:'CT', coverageType:'Premium Only', trainerCity:'Worcester', areaManager:'Gibbes, Malin', regionalManager:'Anders, Roy' },
+      { latitude:41.69759, longitude:-72.8976, storeNumber:2719, storeName:'Walmart', address:'1400 FARMINGTON AVE', city:'BRISTOL', state:'CT', coverageType:'Premium Only', trainerCity:'Worcester', areaManager:'Gibbes, Malin', regionalManager:'Anders, Roy' },
+    ].map(s => ({
+      ...s,
+      city: (s.city||'').trim(),
+      city_lc: (s.city||'').trim().toLowerCase(),
+      state: (s.state||'').trim(),
+      storeNumberStr: String(s.storeNumber),
+      lat: Number(s.latitude), lng: Number(s.longitude)
+    }));
+  } else {
+    // minimal schema sanity check
+    const req = ['latitude','longitude','storeNumber','city','state','coverageType'];
+    if (!req.every(k => k in allStores[0])) {
+      STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Loaded file but fields look off.</span> First record keys: ${Object.keys(allStores[0]).join(', ')}`;
+    }
+  }
+
+  // Populate pickers & suggestions
+  populateRM(allStores);
+  populateAM(allStores);
+  cascadeAM();
+  cascadeHubs();
+  hubFilter.innerHTML = hubs.map(h => `<option>${escape(h.name)}</option>`).join('');
+  buildSearchDatalist(allStores, hubs);
+
+  runFilter();
+} catch (err) {
+  STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Data load error:</span> ${err?.message || err}`;
+  console.error(err);
+} finally {
+  clearTimeout(spinnerFailSafe);
+  showBusy(false);
+}
+
 
     // Minimal schema sanity check
     const reqKeys = ['latitude','longitude','storeNumber','city','state','coverageType'];
