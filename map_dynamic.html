@@ -13,6 +13,20 @@
 <style>
   :root { --blue:#3399ff; --violet:#6a1b9a; --gray:#9e9e9e; --ring:#d0d7de; --chip:#eef6ff; }
   html, body { height:100%; margin:0; font-family:Inter, system-ui, Arial, sans-serif; background:#fff; }
+  /* put these inside <style> … */
+:root { --filters-h: 180px; }                 /* will be set exactly by JS */
+body { height: 100vh; overflow: hidden; }     /* keep the page a single viewport */
+#filters { overflow: clip; }                  /* prevents accidental page growth */
+#map { height: calc(100vh - var(--filters-h)); margin:10px; border-radius:12px;
+       box-shadow:0 4px 16px rgba(0,0,0,.08); }
+
+/* tighten the toolbar */
+.toolbar-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px 8px; }
+
+select[multiple]{ height:96px; }              /* was 112+; saves vertical space */
+.picker .picker-search{ border:1px solid #d1d5db; border-radius:8px; padding:5px 8px; }
+.range-pill{ padding:4px 8px; }
+
   /* Layout: a compact sticky toolbar above a big map. */
   body { display:flex; flex-direction:column; }
 
@@ -296,6 +310,22 @@
 
   /* ===== Map ===== */
   const map = L.map('map').setView([39.5,-98.35],5);
+  // After: const map = L.map('map')…
+const filtersEl = document.getElementById('filters');
+
+function setMapHeight() {
+  // account for sticky toolbar actual height
+  const h = filtersEl.getBoundingClientRect().height;
+  document.documentElement.style.setProperty('--filters-h', `${Math.ceil(h)}px`);
+  // tell Leaflet its container size may have changed
+  setTimeout(()=> map.invalidateSize(), 0);
+}
+
+// keep it fresh on load, resize, and when the toolbar reflows
+setMapHeight();
+window.addEventListener('resize', setMapHeight);
+new ResizeObserver(setMapHeight).observe(filtersEl);
+
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap contributors'}).addTo(map);
   const markers = L.markerClusterGroup({ disableClusteringAtZoom: 12 });
   map.addLayer(markers);
@@ -331,31 +361,43 @@
   const kpiStripEl    = document.getElementById('kpiStrip');
 
   /* ===== Data load ===== */
-  showBusy(true);
-  try{
-    const resp = await fetch('store_data.json', { cache: 'no-cache' });
-    if(!resp.ok) throw new Error(`Failed to load store_data.json (HTTP ${resp.status})`);
-    const raw = await resp.json();
-    allStores = raw.map(s => ({
-      ...s,
-      city: (s.city||"").trim(),
-      city_lc: (s.city||"").trim().toLowerCase(),
-      state: (s.state||"").trim(),
-      trainerCity: (s.trainerCity||"").trim(),
-      storeNumberStr: String(s.storeNumber ?? ''),
-      lat: Number(s.latitude), lng: Number(s.longitude)
-    })).filter(s => isFinite(s.lat) && isFinite(s.lng));
-  }catch(err){
-    filterCountEl.textContent = 'Error: could not load store_data.json — serve over HTTP and check path.';
-    console.error(err); showBusy(false); return;
-  }
+  // ===== Data load =====
+showBusy(true);
+let spinnerFailSafe = setTimeout(() => showBusy(false), 8000); // never spin forever
+try {
+  const resp = await fetch('store_data.json', { cache: 'no-cache' });
+  if (!resp.ok) throw new Error(`Failed to load store_data.json (HTTP ${resp.status})`);
+  const raw = await resp.json();
+  allStores = raw.map(s => ({
+    ...s,
+    city: (s.city||"").trim(),
+    city_lc: (s.city||"").trim().toLowerCase(),
+    state: (s.state||"").trim(),
+    trainerCity: (s.trainerCity||"").trim(),
+    storeNumberStr: String(s.storeNumber ?? ''),
+    lat: Number(s.latitude), lng: Number(s.longitude)
+  })).filter(s => isFinite(s.lat) && isFinite(s.lng));
 
   populateRegionals(allStores);
   populateAreas(allStores);
   populateHubPicker(trainerHubs);
 
   runFilter();
+} catch (err) {
+  console.error(err);
+  document.getElementById('filterCount').textContent =
+    'Error: could not load store_data.json — serve over HTTP and check path.';
+} finally {
+  clearTimeout(spinnerFailSafe);
   showBusy(false);
+  setMapHeight(); // ensure correct height once controls are populated
+}
+function showBusy(on){
+  const el = document.getElementById('busyMask');
+  if (!el) return;
+  el.hidden = !on;
+}
+
 
   /* ===== Picker population with counts ===== */
   function countMap(items, key){
