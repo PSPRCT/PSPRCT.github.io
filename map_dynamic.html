@@ -42,7 +42,7 @@
   .toggle-inline input:checked + .tgl-slider:before{transform:translateX(22px)}
 
   .radius-group,.minstores-group{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid #e5e7eb;background:#fff}
-  #map { flex:1; margin:14px; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,.08); }
+  #map { flex:1; min-height:70vh; margin:14px; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,.08); }
 
   /* Legend */
   #legend{position:absolute;bottom:15px;right:15px;background:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 3px 10px rgba(0,0,0,.2);font-size:14px;color:#222;z-index:10000}
@@ -66,31 +66,16 @@
   .hub-open{background:var(--gray)}
 
   #hubCount{padding:4px 18px 0; color:#333; font-size:14px;}
-  .picker{display:flex;flex-direction:column;gap:6px}
-  .picker .search{border-radius:8px;border:1px solid #d1d5db;padding:6px 8px;font-size:13px}
 
-  /* Panels (fixed so they never clip) */
+  /* Panels (fixed to avoid clipping) */
   .panel{
     position:fixed;
-    top:110px;
-    right:20px;
-    bottom:20px;                 /* anchors bottom; panel won’t overflow viewport */
-    max-width:min(680px, 92vw);
-    overflow:auto;               /* scroll inside the panel */
-    background:#fff;
-    border:1px solid #ddd;
-    border-radius:12px;
-    box-shadow:0 8px 20px rgba(0,0,0,.12);
-    z-index:12000;
-    display:none;
+    top:90px; right:20px; bottom:20px;
+    max-width:560px; width:min(560px, 90vw);
+    overflow:auto;background:#fff;border:1px solid #ddd;border-radius:12px;
+    box-shadow:0 8px 20px rgba(0,0,0,.12);z-index:12000;display:none
   }
-  .panel header{
-    position:sticky; top:0;      /* keep header visible while scrolling */
-    background:#fff;
-    display:flex; justify-content:space-between; align-items:center;
-    padding:10px 12px; border-bottom:1px solid #eee; font-weight:700;
-    z-index:1;
-  }
+  .panel header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #eee;font-weight:700; position:sticky; top:0; background:#fff; z-index:1}
   .panel .body{padding:10px 12px;font-size:13px}
   #hubOverlay{position:fixed;inset:0;background:rgba(0,0,0,.25);display:none;z-index:11000}
 
@@ -111,6 +96,7 @@
 
   @media (max-width:1000px){
     #filters { grid-template-columns: 1fr; }
+    .panel{left:20px; right:20px; width:auto}
   }
 </style>
 </head>
@@ -250,7 +236,7 @@
       <span style="margin-left:8px;color:#555">Per-hub radius override</span>
     </div>
     <button id="exportHubPanelCsv" class="btn">Export stores CSV</button>
-    <div class="list" style="max-height:50vh;overflow:auto;margin-top:8px"></div>
+    <div class="list" style="max-height:none"></div>
   </div>
 </div>
 
@@ -271,7 +257,7 @@
   </div>
 </div>
 
-<div id="nextWinPanel" class="panel" style="top:140px;">
+<div id="nextWinPanel" class="panel" style="top:120px;">
   <header><span>Next Win Planner</span><button id="nextWinClose" class="btn secondary">Close</button></header>
   <div class="body">
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
@@ -329,10 +315,9 @@
   };
 
   const DEFAULT_RADIUS = 75; // miles
-  const VIEWS_KEY = 'trainerMapViews';
   const HUB_RADIUS_OVERRIDES_KEY = 'hubRadiusOverrides_v1';
 
-  /* ---------- Hubs ---------- */
+  /* ---------- Hubs (sample subset) ---------- */
   const trainerHubs = [
     { id:"belle_vernon_pa",      name:"Belle Vernon, PA (Open)",      coords:[40.12507,-79.8664],  status:"open", person:null },
     { id:"centennial_co",        name:"Centennial, CO (Open)",        coords:[39.62732,-104.779],  status:"open", person:null },
@@ -357,6 +342,7 @@
   let heatLayer = null;
   let firstFitDone = false;
 
+  // Per-hub radius overrides
   const hubOverrides = loadJson(HUB_RADIUS_OVERRIDES_KEY, {});
 
   /* Test hub */
@@ -425,29 +411,53 @@
 
   const helpBtn = document.getElementById('helpBtn');
 
-  /* ---------- Data load ---------- */
+  /* ---------- Data load (robust) ---------- */
   try{
     const resp = await fetch('store_data.json', { cache: 'no-cache' });
     if(!resp.ok) throw new Error(`Failed to load store_data.json (HTTP ${resp.status})`);
-    const raw = await resp.json();
-    allStores = raw.map(s => ({
-      ...s,
-      city: (s.city||"").trim().toLowerCase(),
-      cityDisplay: (s.city||"").trim(),
-      state: (s.state||"").trim(),
-      trainerCity: (s.trainerCity||"").trim(),
-      storeNumber: String(s.storeNumber),
-      lat: s.latitude, lng: s.longitude
-    }));
+
+    let raw = await resp.json();
+    if (raw && !Array.isArray(raw) && Array.isArray(raw.stores)) raw = raw.stores;
+    if (!Array.isArray(raw)) throw new Error('store_data.json is not an array');
+
+    const pick = (o, keys, def='') => {
+      for (const k of keys) if (o[k] !== undefined && o[k] !== null) return o[k];
+      return def;
+    };
+
+    allStores = raw.map(s => {
+      const lat = Number(pick(s, ['latitude','Latitude','lat','Lat']));
+      const lng = Number(pick(s, ['longitude','Longitude','lng','Lon','lon']));
+      return {
+        ...s,
+        storeNumber : String(pick(s, ['storeNumber','StoreNumber','store','Store','store_id'])).trim(),
+        storeName   : String(pick(s, ['storeName','StoreName','name','Name'])).trim(),
+        address     : String(pick(s, ['address','Address'])).trim(),
+        cityDisplay : String(pick(s, ['city','City'])).trim(),
+        city        : String(pick(s, ['city','City'])).toLowerCase().trim(),
+        state       : String(pick(s, ['state','State'])).trim(),
+        trainerCity : String(pick(s, ['trainerCity','TrainerCity','trainer_city'])).trim(),
+        areaManager : String(pick(s, ['areaManager','AreaManager','area_manager'])).trim(),
+        regionalManager : String(pick(s, ['regionalManager','RegionalManager','regional_manager'])).trim(),
+        coverageType: String(pick(s, ['coverageType','CoverageType','coverage','Coverage','Coverage Type'])).trim(),
+        lat, lng
+      };
+    }).filter(r => Number.isFinite(r.lat) && Number.isFinite(r.lng));
+
     console.log('Loaded stores:', allStores.length);
+    if (allStores.length === 0){
+      document.getElementById('filterCount').textContent =
+        'Loaded 0 stores from store_data.json — check column names and coordinates.';
+    }
   }catch(err){
     console.error(err);
-    document.getElementById('filterCount').textContent = 'Error: could not load store_data.json — serve over HTTP and check path.';
+    document.getElementById('filterCount').textContent =
+      'Error: could not load store_data.json — serve over HTTP and check path/shape.';
     return;
   }
 
   /* ---------- Build pickers + counts ---------- */
-  function countMap(items, key){ const m=new Map(); for(const it of items){ m.set(it[key]||'(blank)', (m.get(it[key]||'(blank)')||0)+1); } return m; }
+  function countMap(items, key){ const m=new Map(); for(const it of items){ const k=it[key]||'(blank)'; m.set(k, (m.get(k)||0)+1); } return m; }
   function setOptionsWithCounts(select, values, counts){
     const hadAll = [...select.options].some(o=>o.value==='All');
     select.innerHTML = hadAll ? '<option value="All" selected>All</option>' : '';
@@ -514,17 +524,17 @@
   function refreshHeat(){
     if (heatLayer){ map.removeLayer(heatLayer); heatLayer=null; }
     if (!heatToggle.checked) return;
-    const pts = filteredStores.filter(s=>s.coverageType==='Uncovered').map(s=>[s.lat, s.lng, 0.6]);
+    const pts = filteredStores.filter(s=>s.coverageType==='Uncovered')
+                  .map(s=>[s.lat, s.lng, 0.6]);
     heatLayer = L.heatLayer(pts, { radius: 18, blur: 12 }).addTo(map);
   }
 
-  /* ---------- Filtering (inline, no worker) ---------- */
+  /* ---------- Filtering (no worker) ---------- */
   function runFilter(){
     const selectedCoverage = Array.from(coverageFilter.selectedOptions).map(o=>o.value);
     const selectedRegional = Array.from(regionalFilter.selectedOptions).map(o=>o.value);
     const selectedArea     = Array.from(areaFilter.selectedOptions).map(o=>o.value);
     const chosenHubNames   = Array.from(trainerHubFilter.selectedOptions).map(o=>o.value);
-
     const sterm = (searchBox.value||'').trim().toLowerCase();
 
     filteredStores = allStores.filter(s=>{
@@ -548,7 +558,7 @@
           if (!visible) continue;
           if (!chosenHubNames.includes(h.name)) continue;
           const r = getHubRadius(h);
-          if (distMiles(h.coords[0],h.coords[1], s.lat, s.lng) <= r){ ok=true; break; }
+          if (distMiles(h.coords[0],h.coords[1], s.lat, s.lng) <= r){ ok = true; break; }
         }
         if (!ok && testHubMarker){
           const ll = testHubMarker.getLatLng();
@@ -556,7 +566,6 @@
         }
         if (!ok) return false;
       }
-
       return true;
     });
 
@@ -567,9 +576,6 @@
     updateTrainerHubFilter();
     refreshHeat();
 
-    if (sterm && filteredStores.length){
-      map.fitBounds(L.latLngBounds(filteredStores.map(s=>[s.lat,s.lng])), { padding:[20,20] });
-    }
     if (!firstFitDone && filteredStores.length){
       firstFitDone = true;
       fitToResults();
@@ -582,10 +588,10 @@
     storeMarkersMap.clear();
 
     const bounds = map.getBounds();
-    const bufferLat = 50/69;
+    const bufferDeg = 50/69; // ~50 miles in degrees
     const extended = L.latLngBounds(
-      [bounds.getSouth()-bufferLat, bounds.getWest()-bufferLat],
-      [bounds.getNorth()+bufferLat, bounds.getEast()+bufferLat]
+      [bounds.getSouth()-bufferDeg, bounds.getWest()-bufferDeg],
+      [bounds.getNorth()+bufferDeg, bounds.getEast()+bufferDeg]
     );
 
     stores.filter(s => extended.contains([s.lat,s.lng])).forEach(store => {
@@ -622,7 +628,7 @@
       marker.on('mouseout', ()=>{ if (nearestLine){ map.removeLayer(nearestLine); nearestLine=null; } marker.unbindTooltip(); });
 
       markers.addLayer(marker);
-      storeMarkersMap.set(store.storeNumber.replace(/^0+/, ''), marker);
+      storeMarkersMap.set(String(store.storeNumber).replace(/^0+/, ''), marker);
     });
   }
 
@@ -666,7 +672,7 @@
 
       const statusKey = hub.status === 'accepted' ? 'staffed' : 'open';
       const nextWin = (hub.status==='open' && uncovered >= (parseInt(document.getElementById('nextWinThreshold').value,10)||35));
-      const badge = `<span style="display:inline-block;padding:2px 6px;border-radius:10px;font-size:12px;font-weight:700;color:#fff;background:${statusKey==='staffed' ? '#6a1b9a' : '#9e9e9e'}">${statusKey.toUpperCase()}</span>${nextWin ? ' <span style="display:inline-block;padding:2px 6px;border-radius:10px;font-size:12px;font-weight:700;color:#fff;background:#ff8c00">NEXT WIN</span>` : ''}`;
+      const badge = `<span style="display:inline-block;padding:2px 6px;border-radius:10px;font-size:12px;font-weight:700;color:#fff;background:${statusKey==='staffed' ? '#6a1b9a' : '#9e9e9e'}">${statusKey.toUpperCase()}</span>${nextWin ? ' <span style="display:inline-block;padding:2px 6px;border-radius:10px;font-size:12px;font-weight:700;color:#fff;background:#ff8c00">NEXT WIN</span>' : ''}`;
       const person = hub.person ? ` &nbsp;•&nbsp; <strong>${escapeHtml(hub.person)}</strong>` : "";
 
       const popupHtml = `
@@ -795,7 +801,7 @@
   });
   groupSummaryBtn.addEventListener('click', openSummaryPanel);
 
-  /* ---------- Next Win panel ---------- */
+  /* ---------- Next Win panel (sortable) ---------- */
   const nextWinThreshold = document.getElementById('nextWinThreshold');
   const nextWinValue = document.getElementById('nextWinValue');
   nextWinThreshold.addEventListener('input', ()=>{ nextWinValue.textContent = nextWinThreshold.value; refreshHubs(); renderNextWinTable(); });
@@ -817,9 +823,9 @@
     const rows = [];
 
     const includeStaffed = toggleHubsCheckbox.checked;
-    const includeOpen    = showOpenHubsCheckbox.checked;
+    theIncludeOpen    = showOpenHubsCheckbox.checked;
 
-    (trainerHubs.filter(h => (h.status==='accepted' && includeStaffed) || (h.status==='open' && includeOpen)))
+    (trainerHubs.filter(h => (h.status==='accepted' && includeStaffed) || (h.status==='open' && theIncludeOpen)))
       .forEach(hub=>{
         const list = getStoresCoveredByHub(hub);
         const u = list.filter(s=>s.coverageType==='Uncovered').length;
@@ -883,17 +889,7 @@
     openHubPanel(currentPanelHub);
   });
 
-  document.getElementById('exportHubPanelCsv').addEventListener('click', ()=>{
-    if (!currentPanelHub) return;
-    const list = getStoresCoveredByHub(currentPanelHub);
-    const headers = ['Store Number','Store Name','Address','City','State','Coverage Type','Trainer City','Area Manager','Regional Manager'];
-    const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
-    const lines = [ '# Export: Stores for hub', headers.join(',') ];
-    list.forEach(s => lines.push([q(s.storeNumber), q(s.storeName), q(s.address), q(s.cityDisplay), q(s.state), q(s.coverageType), q(s.trainerCity), q(s.areaManager), q(s.regionalManager)].join(',')));
-    downloadCsv(`stores_for_${(currentPanelHub.id||'hub')}.csv`, lines.join('\n'));
-  });
-
-  /* ---------- Legend improvements ---------- */
+  /* ---------- Legend ---------- */
   function syncLegendFromCoverage(){
     const selected = new Set(Array.from(coverageFilter.selectedOptions).map(o=>o.value));
     document.querySelectorAll('#legend .legend-item[data-coverage]').forEach(item => {
@@ -918,8 +914,9 @@
     item.addEventListener('click', (e) => {
       const cov = item.getAttribute('data-coverage');
       const opts = Array.from(coverageFilter.options);
-      if (e.altKey){ opts.forEach(o => o.selected = (o.value===cov)); }
-      else {
+      if (e.altKey){
+        opts.forEach(o => o.selected = (o.value===cov));
+      } else {
         const disabled = item.classList.contains('disabled');
         if (disabled) { const allOpt=opts.find(o=>o.value==='All'); if (allOpt) allOpt.selected=false; opts.find(o=>o.value===cov).selected=true; }
         else { opts.find(o=>o.value===cov).selected=false; if (!opts.some(o=>o.value!=='All' && o.selected)) opts.find(o=>o.value==='All').selected=true; }
@@ -929,7 +926,7 @@
     });
   });
 
-  /* ---------- Export split ---------- */
+  /* ---------- Export ---------- */
   exportBtn.addEventListener('click', ()=> exportSplit.classList.toggle('open'));
   exportSplit.querySelectorAll('.menu button').forEach(b=>{
     b.addEventListener('click', ()=>{
@@ -1039,16 +1036,38 @@
   uncoveredChip.addEventListener('click', () => {
     const active = uncoveredChip.classList.toggle('active');
     const opts = Array.from(coverageFilter.options);
-    if (active){
-      for (const o of opts) o.selected = (o.value==='Uncovered');
-    } else {
-      for (const o of opts) o.selected = (o.value==='All');
-    }
+    if (active){ for (const o of opts) o.selected = (o.value==='Uncovered'); }
+    else { for (const o of opts) o.selected = (o.value==='All'); }
     syncLegendFromCoverage();
     debounced(); saveState();
   });
 
   // Test hub chip
+  function enableTestHub(){
+    if (testHubMarker) return;
+    map._testHubClick = (e) => {
+      if (!testHubMarker){
+        testHubMarker = L.marker(e.latlng, { draggable:true, icon:iconForHub({status:'open', name:'Test Hub'}) }).addTo(map);
+        testHubCircle = L.circle(e.latlng, { radius:milesToMeters(getRadiusMiles()), color:'purple', weight:1, fillOpacity:.08, dashArray:'4,8' }).addTo(map);
+        TEST_HUB.coords = [e.latlng.lat, e.latlng.lng];
+      } else {
+        const ll = e.latlng;
+        testHubMarker.setLatLng(ll); testHubCircle.setLatLng(ll);
+        testHubCircle.setRadius(milesToMeters(getRadiusMiles()));
+        TEST_HUB.coords = [ll.lat, ll.lng];
+      }
+      runFilter();
+      refreshHubs();
+    };
+    map.on('click', map._testHubClick);
+  }
+  function disableTestHub(){
+    if (map._testHubClick){ map.off('click', map._testHubClick); map._testHubClick = null; }
+    if (testHubMarker){ map.removeLayer(testHubMarker); testHubMarker=null; }
+    if (testHubCircle){ map.removeLayer(testHubCircle); testHubCircle=null; }
+    runFilter();
+    refreshHubs();
+  }
   testHubChip.addEventListener('click', () => {
     testMode = testHubChip.classList.toggle('active');
     if (testMode){ enableTestHub(); } else { disableTestHub(); }
@@ -1135,33 +1154,6 @@
     try{ const s = JSON.parse(raw); applyStateFromObject(s); }catch{}
   }
 
-  /* ---------- Test hub ---------- */
-  function enableTestHub(){
-    if (testHubMarker) return;
-    map._testHubClick = (e) => {
-      if (!testHubMarker){
-        testHubMarker = L.marker(e.latlng, { draggable:true, icon:iconForHub({status:'open', name:'Test Hub'}) }).addTo(map);
-        testHubCircle = L.circle(e.latlng, { radius:milesToMeters(getRadiusMiles()), color:'purple', weight:1, fillOpacity:.08, dashArray:'4,8' }).addTo(map);
-        TEST_HUB.coords = [e.latlng.lat, e.latlng.lng];
-      } else {
-        const ll = e.latlng;
-        testHubMarker.setLatLng(ll); testHubCircle.setLatLng(ll);
-        testHubCircle.setRadius(milesToMeters(getRadiusMiles()));
-        TEST_HUB.coords = [ll.lat, ll.lng];
-      }
-      runFilter();
-      refreshHubs();
-    };
-    map.on('click', map._testHubClick);
-  }
-  function disableTestHub(){
-    if (map._testHubClick){ map.off('click', map._testHubClick); map._testHubClick = null; }
-    if (testHubMarker){ map.removeLayer(testHubMarker); testHubMarker=null; }
-    if (testHubCircle){ map.removeLayer(testHubCircle); testHubCircle=null; }
-    runFilter();
-    refreshHubs();
-  }
-
   /* ---------- Hub refresh wrapper ---------- */
   function refreshHubs(){
     const includeStaffed = toggleHubsCheckbox.checked;
@@ -1193,7 +1185,8 @@
   if (![...coverageFilter.options].some(o=>o.selected)){ coverageFilter.querySelector('option[value="All"]').selected = true; }
   syncLegendFromCoverage();
   runFilter();
-  refreshHubs();   // ensure hubs render on first load
+  refreshHubs();   // <— important so hubs/circles show immediately
+
 })();
 </script>
 </body>
