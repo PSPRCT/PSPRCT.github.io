@@ -344,7 +344,7 @@ const debouncedRun = (() => {
     cascadeAM();
     cascadeHubs();
     hubFilter.innerHTML = hubs.map(h => `<option>${escape(h.name)}</option>`).join('');
-    buildSearchDatalist(allStores, hubs);
+    
 
     runFilter();
   } catch (err){
@@ -675,8 +675,7 @@ const debouncedRun = (() => {
     order.forEach(([k,short])=>{ if ((counts[k]||0) > max){ max = counts[k]||0; dom = short; }});
     return new L.DivIcon({ html:'<div><span>'+children.length+'</span></div>', className:'marker-cluster marker-'+dom, iconSize:new L.Point(40,40) });
   }
-  const debouncedRun = debounce(runFilter, 120);
-  function debounce(fn, d){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); }; }
+  
 })();
 </script>
 </body>
