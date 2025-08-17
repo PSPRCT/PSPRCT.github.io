@@ -283,6 +283,7 @@
   const k = { pa:id('k_pa'), p:id('k_p'), a:id('k_a'), u:id('k_u'), total:id('k_total'), staffed:id('k_staffed'), open:id('k_open'), inView:id('inView') };
 
   // ---------- Load data (cache-busting + visible errors) ----------
+    // -------- Load data (GitHub Pages friendly + clear status) --------
   showBusy(true);
   let spinnerFailSafe = setTimeout(() => showBusy(false), 8000);
 
@@ -306,46 +307,46 @@
   }
 
   try {
-    const url = 'store_data.json?v=' + Date.now(); // cache buster
+    // IMPORTANT: file is at repo root (same folder as this HTML)
+    const url = `${location.origin}/store_data.json?v=${Date.now()}`; // cache-bust
+    STATUS.textContent = `Loading ${url} …`;
+
     const resp = await fetch(url, { cache:'no-store' });
     if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching ${url}`);
 
     const text = await resp.text();
     let raw;
     try {
+      // Strip possible UTF-8 BOM then parse
       raw = JSON.parse(text.replace(/^\uFEFF/, ''));
     } catch (e) {
       console.error('JSON parse failed. First 200 chars:', text.slice(0,200));
-      throw new Error('Invalid JSON format in store_data.json');
+      throw new Error('Invalid JSON in store_data.json (could not parse).');
     }
-    if (!Array.isArray(raw)) throw new Error('store_data.json must be a JSON array');
+    if (!Array.isArray(raw)) throw new Error('store_data.json must be a JSON array.');
 
     allStores = normalizeStores(raw);
+
     STATUS.textContent = `Loaded ${allStores.length.toLocaleString()} stores from store_data.json`;
     console.log('Loaded stores:', allStores.length);
 
+    // Populate pickers & search
     populateRM(allStores);
     populateAM(allStores);
     cascadeAM();
     cascadeHubs();
     hubFilter.innerHTML = hubs.map(h => `<option>${escape(h.name)}</option>`).join('');
-    buildSearchDatalist(allStores, hubs); // (used for chips; search uses live list below)
+    buildSearchDatalist(allStores, hubs);
 
     runFilter();
   } catch (err){
-    STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Data load error:</span> ${err?.message || err}`;
+    STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Data load error:</span> ${escape(err?.message || String(err))}`;
     console.error(err);
-    // tiny inline sample so UI still proves itself
-    allStores = normalizeStores([
-      { latitude:41.29136, longitude:-73.1129, storeNumber:2163, storeName:'Walmart', address:'465 BRIDGEPORT AVENUE', city:'SHELTON', state:'CT', coverageType:'Premium Only', trainerCity:'Secaucus', areaManager:'Gibbes, Malin', regionalManager:'Anders, Roy' }
-    ]);
-    populateRM(allStores); populateAM(allStores); cascadeAM(); cascadeHubs();
-    hubFilter.innerHTML = hubs.map(h => `<option>${escape(h.name)}</option>`).join('');
-    runFilter();
   } finally {
     clearTimeout(spinnerFailSafe);
     showBusy(false);
   }
+
 
   // ---------- SEARCH (live results + STORE badge + blue pin) ----------
   const targetIcon = L.divIcon({
