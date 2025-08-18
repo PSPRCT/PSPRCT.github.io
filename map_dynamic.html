@@ -72,8 +72,8 @@
   .sp-list input{position: sticky; top: 0; z-index: 3; background: var(--panel); border-bottom-left-radius: 0; border-bottom-right-radius: 0; box-shadow: 0 4px 6px rgba(0,0,0,.04);}
   .sp-quick{ position: sticky; top: 0; z-index: 3; background: var(--panel); }
 
-  .sp-rows{position:static;height:auto}
-  .row{position:relative;display:flex;gap:8px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--border);background:var(--panel);cursor:pointer;min-height:56px}
+  .sp-rows{position:relative;height:auto;will-change:transform;}
+  .row{position:absolute;left:0;right:0;display:flex;gap:8px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--border);background:var(--panel);cursor:pointer;min-height:56px;box-sizing:border-box}
   .row .title{font-weight:800;line-height:1.25}
   .row .addr{color:var(--muted);font-size:12px;line-height:1.25}
   .row .num{min-width:62px;font-variant-numeric:tabular-nums;color:var(--muted)}
@@ -121,13 +121,20 @@
   .empty-card{pointer-events:auto;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 28px rgba(0,0,0,.12);padding:14px 16px;max-width:520px}
   .empty-card h4{margin:0 0 6px 0}
   .empty-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-  /* important: let hidden actually hide it */
   .empty-state[hidden]{display:none !important;}
 
   /* Compare/Venn panel */
   .compare-panel{position:absolute;left:10px;bottom:120px;z-index:402;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:none;min-width:280px;box-shadow:0 10px 24px rgba(0,0,0,.12)}
   .compare-panel.show{display:block}
   .compare-grid{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:baseline}
+
+  /* Toasts (progress + cancel) */
+  .toasts{position:fixed;right:12px;bottom:12px;display:flex;flex-direction:column;gap:8px;z-index:6000}
+  .toast{background:#111;color:#fff;padding:10px 12px;border-radius:10px;min-width:220px;box-shadow:0 12px 24px rgba(0,0,0,.32)}
+  .toast .bar{height:4px;background:#555;margin-top:8px;border-radius:999px;overflow:hidden}
+  .toast .bar>div{height:100%;width:0;background:#2f71ff}
+  .toast .row{display:flex;align-items:center;gap:8px}
+  .toast button{margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:8px;padding:4px 8px;cursor:pointer}
 
   @media (max-width:720px){ .card .body{grid-template-columns:1fr;} }
   @media (max-width: 1100px){ .filters{grid-template-columns:repeat(2,minmax(220px,1fr));} }
@@ -379,6 +386,7 @@
 </div>
 
 <div id="busy" class="busy" hidden><div class="spin"></div></div>
+<div id="toasts" class="toasts"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
@@ -401,15 +409,14 @@
     "Acosta Only":      getCSS('--a'),
     "Uncovered":        getCSS('--u')
   };
-  const DEFAULT_RADIUS = 75;
+  const DEFAULT_RADIUS = 75; // UI ring/list radius (classification stays fixed at 75 regardless)
+  const CLASSIFY_RADIUS = 75; // coverage classification radius (fixed)
   const LS_STATE = 'prt_state_v9';
   const LS_VIEWS = 'prt_views_v2';
   const LS_LAST_QUERY = 'prt_last_query';
   const HOME_VIEW = { center:[39.5,-98.35], zoom:5 };
   const AUTO_RESET = ()=> id('autoReset')?.checked;
-
-  // Revision storage key (dataset badge)
-  const REV_KEY = 'prt_dataset_revs_v1';
+  const REV_KEY = 'prt_dataset_revs_v1'; // for dataset badge versioning
 
   // Hub sets
   let premiumConfirmed = [];
@@ -423,6 +430,9 @@
 
   let PENDING_OPEN_HUB_ID = null;
   let PENDING_PIN_IDS = [];
+
+  // Worker for coverage
+  const coverageWorker = makeCoverageWorker();
 
   // Map/layers
   const map = L.map('map', { zoomControl: true, inertia: true }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
@@ -464,7 +474,6 @@
   const spTitle = id('spTitle'); const spMeta = id('spMeta'); const spCounts = id('spCounts');
   const spRowsEl = id('spRows'); const spSearch = id('spSearch');
   const spLink = id('spLink');
-
   const spClose = id('spClose'); const spExport = id('spExport'); const spPinBtn = id('spPinBtn'); const spPrint = id('spPrint'); const spOnlyUncovEl = id('spOnlyUncov'); const spCollapse = id('spCollapse');
   let spHub = null; let spRows = []; let spFilter = ''; let spOnlyUncov = false;
 
@@ -490,11 +499,10 @@
 
   on('input', radius,   ()=>{
     radiusLbl.textContent = radius.value;
-    recomputeCoverage();
+    // classification fixed at 75; only rings/lists/compare update on radius change
     debouncedRun();
     updateRings();
     buildHubFilterOptions();
-
     if (tgOverlap.checked) drawOverlap();
     if (sandboxMarker) refreshSandbox();
     if (spHub) openSidepanel(spHub);
@@ -558,7 +566,7 @@
   document.querySelectorAll('.sp-quick .btn[data-r]').forEach(b=>{
     b.addEventListener('click', ()=>{
       radius.value = b.dataset.r; radiusLbl.textContent=b.dataset.r;
-      recomputeCoverage(); runFilter(); updateRings(); if (spHub) openSidepanel(spHub); refreshComparePanel(); saveState();
+      runFilter(); updateRings(); if (spHub) openSidepanel(spHub); refreshComparePanel(); saveState();
     });
   });
 
@@ -686,6 +694,7 @@
         return (Number.isFinite(lat) && Number.isFinite(lng)) ? [lat, lng] : null;
       };
 
+      // minor overrides used in your workbook
       const NAME_OVERRIDES = {
         'dandridge|tn':'Jennifer Matthews','acworth|ga':'John Orr','king george|va':'Amy Faulk','minden|la':'Sami Jo Slater','olive branch|ms':'Annette Brown','clarksville|tn':'Nicholas Salvato','darlington|sc':'Kristen Jones','orange park|fl':'Sabrina Hall','fort myers|fl':'Muriel Curry Whitfield','sparta|mo':'Michelle Rogers','granite falls|nc':'Lisa Walker','seguin|tx':'Christina Winston','sequin|tx':'Christina Winston','louisville|ky':'Heather Lilla',"o'fallon|mo":'Michael McAllister','kenly|nc':'Brooke Gross','folsom|ca':'Gerard White','navassa|nc':'Jennifer Hook','willimantic|ct':'Melissa Bokoff','excelsior springs|mo':'Teresa Estep','arlington|tx':'Michelle Paoli','ingleside|il':'Miguel Gonzalez','ashtabula|oh':'Sherry Hamrick','belvidere|il':'Justin Vargas Salgado','riverview|fl':'Richard Santos','mabelvale|ar':'Angela Eslick','norman|ok':'Teryl Ard','kimberly|al':'Jessica Salvage',
       };
@@ -694,74 +703,10 @@
         'excelsior springs|mo': { city: 'Kansas City', state: 'MO', coords: [39.0997, -94.5786] },
       };
 
-      const PROPOSED_CITY_OVERRIDES = { AZ:['Casa Grande'], CA:['Colton'], CO:['Centennial'], IL:['Lincoln'], MI:['White Lake'], NE:['Blair'], NJ:['Secaucus'], NY:['Waterloo'], OH:['Wilmington'], OK:['Muskogee'], OR:['Salem'], TX:['Houston'], UT:['Centerville'], VA:['Williamsburg'], WA:['Poulsbo'] };
-
       const CITY_COORD_FIXES = {
         'fort wayne|in':[41.0793,-85.1394],'plainfield|in':[39.7042,-86.3994],
         'dandridge|tn':[36.0159,-83.4143],'acworth|ga':[34.0659,-84.6769],'king george|va':[38.2668,-77.1847],'minden|la':[32.6154,-93.2729],'olive branch|ms':[34.9618,-89.8295],'clarksville|tn':[36.5298,-87.3595],'darlington|sc':[34.2999,-79.8762],'orange park|fl':[30.1660,-81.7060],'fort myers|fl':[26.6406,-81.8723],'sparta|mo':[36.9959,-93.0816],'granite falls|nc':[35.7960,-81.4300],'seguin|tx':[29.5688,-97.9647],"o'fallon|mo":[38.8106,-90.6998],'louisville|ky':[38.2527,-85.7585],'kenly|nc':[35.5950,-78.1250],'folsom|ca':[38.6779,-121.1761],'navassa|nc':[34.2491,-78.0250],'willimantic|ct':[41.7107,-72.2081],'sequin|tx':[29.5688,-97.9647],
       };
-
-      const GEO_CITY_CANDIDATES = {
-        PA:[{city:'Belle Vernon',lat:40.1251,lng:-79.8692},{city:'Parkesburg',lat:39.9587,lng:-75.9191}],
-        IN:[{city:'Fort Wayne',lat:41.0793,lng:-85.1394},{city:'Plainfield',lat:39.7042,lng:-86.3994}],
-        FL:[{city:'Coral Springs',lat:26.2712,lng:-80.2706},{city:'Lakeland',lat:28.0395,lng:-81.9498}],
-        AL:[{city:'Mobile',lat:30.6954,lng:-88.0399},{city:'Oneonta',lat:33.94815,lng:-86.47276}],
-        MO:[{city:'Excelsior Springs',lat:39.3397,lng:-94.2222},{city:'Kansas City',lat:39.0997,lng:-94.5786}],
-      };
-
-      function chooseCityForMissing(lat, lng, state){
-        const ST = (state||'').toUpperCase();
-        if (!ST) return '';
-        const choices = GEO_CITY_CANDIDATES[ST];
-        if (choices && choices.length){
-          const best = choices.map(c => ({...c, d: distMiles(lat, lng, c.lat, c.lng)})).sort((a,b)=>a.d-b.d)[0];
-          if (best) return best.city;
-        }
-        const picks = PROPOSED_CITY_OVERRIDES[ST];
-        if (Array.isArray(picks) && picks.length === 1) return picks[0];
-        const inState = allStores.filter(s => (s.state||'').toUpperCase() === ST);
-        if (inState.length){
-          const nearest = inState.map(s => ({ city:s.city, d: distMiles(lat,lng,s.lat,s.lng) })).sort((a,b)=>a.d-b.d)[0];
-          if (nearest?.city) return nearest.city;
-        }
-        return '';
-      }
-
-      const classify = r => {
-        const s = statusText(r);
-        const hasName = !!getName(r);
-        if (hasName && !isOffer(s) && !isProposed(s) && !isRecruiting(s) && !/pend/i.test(s)) {
-          return { status: 'confirmed', statusSub: 'confirmed' };
-        }
-        if (isOffer(s))      return { status: 'pending', statusSub: 'pending_offer' };
-        if (isProposed(s))   return { status: 'pending', statusSub: 'proposed' };
-        if (isRecruiting(s)) return { status: 'pending', statusSub: 'open' };
-        return { status: 'pending', statusSub: hasName ? 'pending_candidate' : 'proposed' };
-      };
-
-      const pretty = sub => ({
-        confirmed:          'Confirmed',
-        pending_offer:      'Pending Offer',
-        pending_candidate:  'Pending',
-        proposed:           'Proposed',
-        open:               'Open'
-      }[sub] || 'Pending');
-
-      function coordsFromCityState(city, state){
-        if (!city || !state) return null;
-        const fix = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
-        if (fix) return fix;
-        const rows = allStores.filter(s =>
-          (s.city||'').toLowerCase() === city.toLowerCase() &&
-          (s.state||'').toUpperCase() === state.toUpperCase()
-        );
-        if (rows.length){
-          const lat = rows.reduce((a,b)=>a+b.lat,0)/rows.length;
-          const lng = rows.reduce((a,b)=>a+b.lng,0)/rows.length;
-          return [lat, lng];
-        }
-        return null;
-      }
 
       const toHub = (r) => {
         let coords = getCoords(r);
@@ -769,7 +714,10 @@
         let state  = getState(r);
         let nm     = getName(r);
 
-        if (!coords && city && state) coords = coordsFromCityState(city, state);
+        if (!coords && city && state) {
+          const fix = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
+          if (fix) coords = fix;
+        }
         if (!coords) return null;
         let [lat, lng] = coords;
 
@@ -777,61 +725,36 @@
           const fixed = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
           if (fixed) { [lat, lng] = fixed; coords = fixed; }
         }
-
         if (!nm && city && state) nm = NAME_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`] || '';
 
-        const { status, statusSub } = classify(r);
+        const s = (statusText(r) || '');
+        const status =
+          (nm && !/(offer|propos|recruit|pend)/i.test(s)) ? 'confirmed' : 'pending';
+        const statusSub =
+          /(offer)/i.test(s) ? 'pending_offer' :
+          /(propos|plan|target)/i.test(s) ? 'proposed' :
+          /(recruit|open|tbd|no\s*app)/i.test(s) ? 'open' :
+          (status === 'confirmed' ? 'confirmed' : 'pending');
 
-        if (!city && state && status !== 'confirmed') city = chooseCityForMissing(lat, lng, state);
+        const statusLabel = ({
+          confirmed:'Confirmed', pending_offer:'Pending Offer',
+          pending:'Pending', proposed:'Proposed', open:'Open'
+        }[statusSub]) || 'Pending';
 
-        if (city && state) {
-          const alias = CITY_ALIAS_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`];
-          if (alias) {
-            city  = alias.city  || city;
-            state = alias.state || state;
-            if (Array.isArray(alias.coords)) { [lat, lng] = alias.coords; coords = alias.coords; }
-          }
-        }
-
-        const statusLabel = pretty(statusSub);
         const trainerBit  = nm ? ` — ${nm}` : '';
         const place = city && state ? `${city}, ${state}` : (city || state || '');
         const label = `${place} (${statusLabel}${trainerBit})`;
 
         return {
           id: `${status[0]}_${slug(`${city||''}-${state||''}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
-          name: nm || 'Proposed',
-          label, fullName: label,
-          coords: [lat, lng],
-          status, statusSub, statusLabel,
-          city, state
+          name: nm || 'Proposed', fullName: label,
+          coords: [lat, lng], status, statusSub, statusLabel, city, state
         };
       };
 
-      const STATUS_PRIORITY = { confirmed:5, pending_offer:4, pending_candidate:3, open:2, proposed:1 };
-      function hubKey(h){
-        if (h.city && h.state) return `${h.city.toLowerCase()}|${h.state.toLowerCase()}`;
-        return `${h.coords[0].toFixed(3)},${h.coords[1].toFixed(3)}`;
-      }
-      function coalesceHubs(list){
-        const byKey = new Map();
-        for (const h of list){
-          const key = hubKey(h);
-          const cur = byKey.get(key);
-          if (!cur) { byKey.set(key, h); continue; }
-          const a = cur, b = h;
-          const pa = STATUS_PRIORITY[a.statusSub] || 0;
-          const pb = STATUS_PRIORITY[b.statusSub] || 0;
-          const pick = (pb > pa || (pb === pa && !a.name && b.name)) ? b : a;
-          byKey.set(key, pick);
-        }
-        return Array.from(byKey.values());
-      }
-
       const hubs = rows.map(toHub).filter(Boolean);
-      const merged = coalesceHubs(hubs);
-      premiumConfirmed = merged.filter(h => h.status === 'confirmed');
-      premiumPending   = merged.filter(h => h.status === 'pending');
+      premiumConfirmed = hubs.filter(h => h.status === 'confirmed');
+      premiumPending   = hubs.filter(h => h.status === 'pending');
 
     } catch (e) {
       console.warn('Premium file missing/invalid', e);
@@ -845,8 +768,8 @@
 
     if (!tryLoadSnapshot()){ tryLoadLocal(); }
 
-    // Compute coverage once all hubs are ready
-    recomputeCoverage();
+    // Compute coverage (offloaded to worker)
+    await recomputeCoverage();
 
     // Draw
     runFilter(); renderChips(); renderHubs(); updateRings();
@@ -865,7 +788,6 @@
   if (PENDING_PIN_IDS.length){
     pinnedHubs = visibleHubs().filter(h => PENDING_PIN_IDS.includes(h.id));
     if (tgOverlap.checked) drawOverlap();
-    refreshComparePanel();
   }
   if (PENDING_OPEN_HUB_ID){
     const h = visibleHubs().find(x => x.id === PENDING_OPEN_HUB_ID);
@@ -1124,8 +1046,8 @@
     if (id('tgHeat').checked) updateHeat();
     if (id('tgRings').checked) updateRings();
 
-    const emptyEl = id('emptyState');
-    emptyEl.hidden = filteredStores.length !== 0;
+    // Empty state overlay
+    id('emptyState').hidden = filteredStores.length !== 0;
   }
 
   function updateCounts(){
@@ -1238,21 +1160,19 @@
     spPinBtn.textContent = pinnedHubs.some(x => x.id === spHub.id) ? 'Unpin' : 'Pin';
   }
 
-  // ---------- Coverage ----------
-  function recomputeCoverage(){
-    const RULE_RADIUS = 75; // miles (classification is fixed)
-    const prem = [...premiumConfirmed, ...premiumPending];
-    const ac   = [...acostaHubs];
-
-    allStores.forEach(s=>{
-      const nearPrem = prem.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= RULE_RADIUS);
-      const nearAco  = ac.some(  h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= RULE_RADIUS);
-
-      if (nearPrem && nearAco)      s.coverageType = 'Premium + Acosta';
-      else if (nearPrem)            s.coverageType = 'Premium Only';
-      else if (nearAco)             s.coverageType = 'Acosta Only';
-      else                          s.coverageType = 'Uncovered';
-    });
+  // ---------- Coverage (Web Worker) ----------
+  async function recomputeCoverage(){
+    const msg = {
+      action:'classify',
+      radius: CLASSIFY_RADIUS,
+      stores: allStores.map(s => ({ id:s.storeNumberStr, lat:s.lat, lng:s.lng })),
+      premium: [...premiumConfirmed, ...premiumPending].map(h=>({ lat:h.coords[0], lng:h.coords[1] })),
+      acosta: acostaHubs.map(h=>({ lat:h.coords[0], lng:h.coords[1] }))
+    };
+    const res = await callWorker(msg);
+    // apply coverage
+    const mapC = new Map(res.coverage); // [[id,'Premium Only'], ...]
+    allStores.forEach(s => { s.coverageType = mapC.get(s.storeNumberStr) || 'Uncovered'; });
   }
 
   // ---------- Sidepanel ----------
@@ -1271,7 +1191,7 @@
   function renderSidepanelMeta(){
     if(!spHub) return;
     const r = Number(radius.value)||DEFAULT_RADIUS;
-    const stores = storesWithin(spHub.coords, r, /*useFiltered*/false);
+    const stores = storesWithin(spHub.coords, r);
     const [hlat, hlng] = spHub.coords;
     const gHub = `https://www.google.com/maps?q=${encodeURIComponent(hlat+','+hlng)}`;
     const aHub = `http://maps.apple.com/?ll=${encodeURIComponent(hlat+','+hlng)}`;
@@ -1283,11 +1203,18 @@
       ? `<span class="sp-chip"><b>Status:</b> ${escape(spHub.statusLabel)}</span>`
       : '';
 
+    // What-if 50/75/100mi (classification is still fixed at 75)
+    const whatIfR = [50,75,100].map(rr=>{
+      const n = storesWithin(spHub.coords, rr).length;
+      return `<span class="sp-chip"><b>${rr}mi:</b> ${n}</span>`;
+    }).join('');
+
     spMeta.innerHTML = `
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         ${statusChip}
         <span class="sp-chip"><b>Maps:</b> <a target="_blank" rel="noopener" href="${gHub}">Google</a> • <a target="_blank" rel="noopener" href="${aHub}">Apple</a></span>
         <span class="sp-chip"><b>Radius:</b> ${r} mi</span>
+        ${whatIfR}
       </div>
       <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
         <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
@@ -1296,48 +1223,11 @@
         <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
         <span class="sp-chip">Total: <b>${stores.length}</b></span>
       </div>
-      ${renderWhatIfTable(spHub)}
     `;
   }
 
-  // What-if radii (50/75/100)
-  function renderWhatIfTable(hub){
-    const rList = [50,75,100];
-    const [lat,lng] = hub.coords;
-    const rows = rList.map(rr=>{
-      const list = allStores.filter(s => distMiles(lat,lng,s.lat,s.lng) <= rr);
-      const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
-      list.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0)+1; });
-      return { r: rr, totals, total: list.length };
-    });
-    return `
-      <div style="margin-top:8px">
-        <div style="font-weight:700;margin-bottom:4px">What-if radii</div>
-        <table style="border-collapse:collapse;width:100%;font-size:12px">
-          <thead><tr>
-            <th style="text-align:left;border-bottom:1px solid var(--border);padding:2px 4px">Radius</th>
-            <th style="text-align:right;border-bottom:1px solid var(--border);padding:2px 4px">P+A</th>
-            <th style="text-align:right;border-bottom:1px solid var(--border);padding:2px 4px">Premium</th>
-            <th style="text-align:right;border-bottom:1px solid var(--border);padding:2px 4px">Acosta</th>
-            <th style="text-align:right;border-bottom:1px solid var(--border);padding:2px 4px">Uncov</th>
-            <th style="text-align:right;border-bottom:1px solid var(--border);padding:2px 4px">Total</th>
-          </tr></thead>
-          <tbody>
-            ${rows.map(x=>`
-              <tr>
-                <td style="padding:2px 4px">${x.r} mi</td>
-                <td style="padding:2px 4px;text-align:right">${x.totals['Premium + Acosta']||0}</td>
-                <td style="padding:2px 4px;text-align:right">${x.totals['Premium Only']||0}</td>
-                <td style="padding:2px 4px;text-align:right">${x.totals['Acosta Only']||0}</td>
-                <td style="padding:2px 4px;text-align:right">${x.totals['Uncovered']||0}</td>
-                <td style="padding:2px 4px;text-align:right"><b>${x.total}</b></td>
-              </tr>`).join('')}
-          </tbody>
-        </table>
-        <div style="color:var(--muted);margin-top:4px">Coverage classification is fixed at 75 mi.</div>
-      </div>`;
-  }
-
+  // Virtualized list
+  let virt = null;
   function renderSidepanelList(rebuild=false){
     if(!spHub) return;
     const r = Number(radius.value)||DEFAULT_RADIUS;
@@ -1365,23 +1255,19 @@
       ${spOnlyUncov?'<span class="sp-chip">Uncovered only</span>':''}
     `;
 
-    spRowsEl.innerHTML = list.map(s => `
-      <div class="row" data-id="${htmlEscape(s.storeNumberStr)}" title="Zoom to store">
-        <div class="num">#${htmlEscape(s.storeNumberStr)}</div>
-        <div class="text">
-          <div class="title">${htmlEscape(s.storeName||'')}</div>
-          <div class="addr">${htmlEscape(s.address||'')}, ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</div>
-        </div>
-        <div class="kind">${htmlEscape(s.coverageType||'')}</div>
-        <div style="margin-left:auto; min-width:64px; text-align:right; color:var(--muted)">${s.__d.toFixed(1)} mi</div>
+    // mount simple virtualization
+    const rowH = 62;
+    mountVirtual(spRowsEl, list, rowH, (s)=>`
+      <div class="num">#${htmlEscape(s.storeNumberStr)}</div>
+      <div class="text">
+        <div class="title">${htmlEscape(s.storeName||'')}</div>
+        <div class="addr">${htmlEscape(s.address||'')} · ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</div>
       </div>
-    `).join('');
-
-    Array.from(spRowsEl.querySelectorAll('.row')).forEach(el=>{
+      <div class="kind">${htmlEscape(s.coverageType||'')}</div>
+      <div style="margin-left:auto; min-width:64px; text-align:right; color:var(--muted)">${s.__d.toFixed(1)} mi</div>
+    `, (el, s)=>{
       el.addEventListener('click', ()=>{
-        const idd = el.getAttribute('data-id');
-        const s = list.find(x => x.storeNumberStr === idd);
-        if (s) openStorePopup(s);
+        openStorePopup(s);
         Array.from(spRowsEl.querySelectorAll('.row')).forEach(e=>e.classList.remove('active'));
         el.classList.add('active');
       });
@@ -1390,7 +1276,59 @@
     if (rebuild) renderSidepanelMeta();
   }
 
-  // ---------- Export/print helpers ----------
+  // ---------- Compare / Venn ----------
+  id('cmpClear').onclick = ()=>{ pinnedHubs=[]; refreshComparePanel(); };
+  id('cmpExport').onclick = ()=> exportCompareCsv();
+
+  function refreshComparePanel(){
+    const panel = id('comparePanel');
+    if (!compareMode || pinnedHubs.length !== 2){ panel.classList.remove('show'); id('compareBody').innerHTML=''; return; }
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const [A,B] = pinnedHubs;
+
+    const Aset = new Set(storesWithin(A.coords, r).map(s=>s.storeNumberStr));
+    const Bset = new Set(storesWithin(B.coords, r).map(s=>s.storeNumberStr));
+    const onlyA = [...Aset].filter(x=>!Bset.has(x));
+    const onlyB = [...Bset].filter(x=>!Aset.has(x));
+    const both  = [...Aset].filter(x=>Bset.has(x));
+    const union = onlyA.length + onlyB.length + both.length;
+
+    const pct = n => union ? Math.round(n*100/union)+'%' : '0%';
+
+    id('compareBody').innerHTML = `
+      <div class="compare-grid">
+        <div><b>${escape(hubDisplay(A))}</b></div><div></div>
+        <div>Only A</div><div><b>${onlyA.length}</b> (${pct(onlyA.length)})</div>
+        <div>Overlap</div><div><b>${both.length}</b> (${pct(both.length)})</div>
+        <div>Only B</div><div><b>${onlyB.length}</b> (${pct(onlyB.length)})</div>
+      </div>
+      <div style="margin-top:6px;color:var(--muted)">Union: ${union}</div>
+    `;
+    panel.classList.add('show');
+  }
+
+  function exportCompareCsv(){
+    if (pinnedHubs.length!==2) { alert('Pin exactly 2 hubs.'); return; }
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const [A,B] = pinnedHubs;
+    const Aset = new Set(storesWithin(A.coords, r).map(s=>s.storeNumberStr));
+    const Bset = new Set(storesWithin(B.coords, r).map(s=>s.storeNumberStr));
+
+    const rows = [['Bucket','Store #','Name','Address','City','State','Coverage','AM','RM','Lat','Lng']];
+    const pushList = (label, ids)=>{
+      ids.forEach(id=>{
+        const s = (filteredStores.find(x=>x.storeNumberStr===id) || allStores.find(x=>x.storeNumberStr===id));
+        if (!s) return;
+        rows.push([label, s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'', s.coverageType||'', s.areaManager||'', s.regionalManager||'', s.lat, s.lng]);
+      });
+    };
+    pushList('Only A', [...Aset].filter(x=>!Bset.has(x)));
+    pushList('Overlap', [...Aset].filter(x=>Bset.has(x)));
+    pushList('Only B', [...Bset].filter(x=>!Aset.has(x)));
+    exportCsvWithToast(rows, `compare_${slug(hubDisplay(A))}_vs_${slug(hubDisplay(B))}.csv`);
+  }
+
+  // ---------- Export/print helpers with toast ----------
   function exportStoresCsv(){
     const rows = [
       ['Store #','Name','Address','City','State','Coverage','Area Manager','Regional Manager','Lat','Lng'],
@@ -1399,7 +1337,7 @@
         s.coverageType||'', s.areaManager||'', s.regionalManager||'', s.lat, s.lng
       ])
     ];
-    downloadCsv(rows, `filtered_stores_${Date.now()}.csv`);
+    exportCsvWithToast(rows, `filtered_stores_${Date.now()}.csv`);
   }
   function exportSidepanelCsv(){
     if(!spHub){ alert('Open a hub panel first.'); return; }
@@ -1416,49 +1354,41 @@
         ];
       })
     ];
-    downloadCsv(rows, `${slug(spHub.name)}_${r}mi_${Date.now()}.csv`);
+    exportCsvWithToast(rows, `${slug(spHub.name)}_${r}mi_${Date.now()}.csv`);
   }
-  function downloadCsv(rows, filename){
-    const csv = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
-  }
+  function exportCsvWithToast(rows, filename){
+    const t = makeToast('Preparing CSV…', true);
+    const chunk = 4000;
+    let i = 0, canceled = false, csvParts = [];
+    t.onCancel(()=>{ canceled = true; t.done('Canceled'); });
 
-  // Dataset badge revision helpers
-  function getRevs(){ try{return JSON.parse(localStorage.getItem(REV_KEY)||'{}')}catch{ return {}; } }
-  function setRevs(x){ localStorage.setItem(REV_KEY, JSON.stringify(x)); }
-  function bumpRevision(name, fingerprint){
-    const r = getRevs();
-    const cur = r[name] || { rev:0, fp:'' };
-    if (cur.fp !== fingerprint){ cur.rev = (cur.rev||0)+1; cur.fp = fingerprint; }
-    r[name] = cur; setRevs(r); return cur.rev;
+    (function step(){
+      if (canceled) return;
+      const end = Math.min(rows.length, i+chunk);
+      const slice = rows.slice(i,end)
+        .map(r => r.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
+      csvParts.push(slice);
+      i = end;
+      t.progress(i/rows.length, `Writing ${i.toLocaleString()}/${rows.length.toLocaleString()} rows…`);
+      if (i < rows.length) { setTimeout(step, 0); }
+      else {
+        const csv = csvParts.join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        t.done('Downloaded');
+      }
+    })();
   }
-  function updateDatasetBadge(storesFp, premiumFp, acostaFp){
-    const badge = id('datasetBadge');
-    if (!badge) return;
-    const today = new Date().toISOString().slice(0,10);
-    const pRev = bumpRevision('premium', premiumFp);
-    const aRev = bumpRevision('acosta',  acostaFp);
-    badge.innerHTML =
-      `<span class="chip">Stores v${today}</span>`+
-      ` <span class="chip">Premium v${pRev}</span>`+
-      ` <span class="chip">Acosta v${aRev}</span>`;
-  }
-
   function printSidepanelList(){
     if(!spHub){ alert('Open a hub panel first.'); return; }
     const r = Number(radius.value)||DEFAULT_RADIUS;
-    const [clat, clng] = spHub.coords;
-
     const rows = spRows
       .slice()
-      .map(s => ({...s, __d: (typeof s.__d === 'number') ? s.__d : distMiles(clat, clng, s.lat, s.lng)}))
+      .map(s => ({...s}))
       .sort((a,b)=> a.__d - b.__d)
       .map(s=>`
         <tr>
@@ -1498,6 +1428,152 @@
       </body></html>
     `);
     win.document.close();
+  }
+
+  // Dataset badge revision helpers
+  function getRevs(){ try{return JSON.parse(localStorage.getItem(REV_KEY)||'{}')}catch{ return {}; } }
+  function setRevs(x){ localStorage.setItem(REV_KEY, JSON.stringify(x)); }
+  function bumpRevision(name, fingerprint){
+    const r = getRevs();
+    const cur = r[name] || { rev:0, fp:'' };
+    if (cur.fp !== fingerprint){ cur.rev = (cur.rev||0)+1; cur.fp = fingerprint; }
+    r[name] = cur; setRevs(r); return cur.rev;
+  }
+  function updateDatasetBadge(storesFp, premiumFp, acostaFp){
+    const badge = id('datasetBadge');
+    if (!badge) return;
+    const today = new Date().toISOString().slice(0,10);
+    const pRev = bumpRevision('premium', premiumFp);
+    const aRev = bumpRevision('acosta',  acostaFp);
+    badge.innerHTML =
+      `<span class="chip">Stores v${today}</span>`+
+      ` <span class="chip">Premium v${pRev}</span>`+
+      ` <span class="chip">Acosta v${aRev}</span>`;
+  }
+
+  // ---------- Gap Finder ----------
+  const gapModal = id('gapModal'); id('gapBtn').onclick = ()=> gapModal.classList.add('show'); id('gapClose').onclick = ()=> gapModal.classList.remove('show');
+  id('gapRun').onclick = runGapFinder;
+  id('gapExport').onclick = ()=> exportGapCsv();
+  let lastGap = [];
+  function runGapFinder(){
+    const N = Math.max(1, Number(id('gapMin').value)||10);
+    const M = Math.max(1, Number(id('gapMiles').value)||50);
+
+    const base = filteredStores.filter(s=> (s.coverageType||'')==='Uncovered');
+    // group by city/state
+    const byCity = new Map();
+    base.forEach(s=>{
+      const key = `${(s.city||'').toLowerCase()}|${(s.state||'').toUpperCase()}`;
+      const g = byCity.get(key) || { city:s.city, state:s.state, lat:0, lng:0, n:0, am:new Set(), rm:new Set(), stores:[] };
+      g.lat += s.lat; g.lng += s.lng; g.n += 1; g.am.add(s.areaManager||''); g.rm.add(s.regionalManager||''); g.stores.push(s);
+      byCity.set(key, g);
+    });
+
+    const rows = [];
+    byCity.forEach(g=>{
+      const center = { lat: g.lat/g.n, lng: g.lng/g.n };
+      const count = base.reduce((acc,s)=> acc + (distMiles(center.lat,center.lng,s.lat,s.lng)<=M ? 1 : 0), 0);
+      if (count >= N){
+        rows.push({
+          city:g.city, state:g.state, rm:[...g.rm].filter(Boolean).join('; '), am:[...g.am].filter(Boolean).join('; '),
+          count, center
+        });
+      }
+    });
+    rows.sort((a,b)=> b.count - a.count);
+    lastGap = rows.slice();
+
+    const html = `
+      <table style="border-collapse:collapse;width:100%">
+        <thead>
+          <tr>
+            <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">City</th>
+            <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">State</th>
+            <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">RM</th>
+            <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">AM</th>
+            <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Uncovered (≤ ${M} mi)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r=>`
+            <tr>
+              <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.city||'')}</td>
+              <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.state||'')}</td>
+              <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.rm||'')}</td>
+              <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.am||'')}</td>
+              <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.count}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+    id('gapResults').innerHTML = html || '<div style="color:var(--muted)">No gaps found.</div>';
+  }
+  function exportGapCsv(){
+    if (!lastGap.length){ alert('Run the gap finder first.'); return; }
+    const M = Math.max(1, Number(id('gapMiles').value)||50);
+    const rows = [['City','State','Regional Manager(s)','Area Manager(s)',`Uncovered (≤ ${M} mi)`, 'Center Lat','Center Lng']];
+    lastGap.forEach(r=> rows.push([r.city, r.state, r.rm, r.am, r.count, r.center.lat, r.center.lng]));
+    exportCsvWithToast(rows, `gap_finder_${Date.now()}.csv`);
+  }
+
+  // ---------- Rollups (RM/AM) ----------
+  const rollModal = id('rollupModal'); id('rollupBtn').onclick = ()=>{ rollModal.classList.add('show'); buildRollups(); }; id('rollupClose').onclick = ()=> rollModal.classList.remove('show');
+  id('rollByRM').onchange = buildRollups; id('rollByAM').onchange = buildRollups;
+  id('rollExport').onclick = ()=> exportRollCsv();
+  let lastRoll = { rows:[], by:'RM' };
+
+  function buildRollups(){
+    const by = id('rollByAM').checked ? 'AM' : 'RM';
+    const keyOf = s => by==='RM' ? (s.regionalManager||'') : (s.areaManager||'');
+    const byMap = new Map();
+    filteredStores.forEach(s=>{
+      const k = keyOf(s) || '(Blank)';
+      const g = byMap.get(k) || { key:k, premiumCovered:0, acostaOnly:0, uncovered:0, total:0 };
+      if (s.coverageType === 'Premium + Acosta' || s.coverageType === 'Premium Only') g.premiumCovered++;
+      else if (s.coverageType === 'Acosta Only') g.acostaOnly++;
+      else g.uncovered++;
+      g.total++; byMap.set(k,g);
+    });
+    const rows = Array.from(byMap.values()).sort((a,b)=> b.total - a.total);
+    lastRoll = { rows, by };
+
+    const pct = (n,t)=> t? (Math.round(n*1000/t)/10)+'%':'0%';
+    const html = `
+      <table style="border-collapse:collapse;width:100%">
+        <thead><tr>
+          <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">${by}</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Premium-covered</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">%</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Acosta-only</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">%</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Uncovered</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">%</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Total</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r=>`
+            <tr>
+              <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.key)}</td>
+              <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.premiumCovered}</td>
+              <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.premiumCovered,r.total)}</td>
+              <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.acostaOnly}</td>
+              <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.acostaOnly,r.total)}</td>
+              <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.uncovered}</td>
+              <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.uncovered,r.total)}</td>
+              <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.total}</b></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+    id('rollTable').innerHTML = html || '<div style="color:var(--muted)">No data.</div>';
+  }
+  function exportRollCsv(){
+    const by = lastRoll.by;
+    const rows = [['Group', 'Premium-covered', 'Premium-covered %', 'Acosta-only', 'Acosta-only %', 'Uncovered', 'Uncovered %', 'Total']];
+    const pct = (n,t)=> t? (Math.round(n*1000/t)/10)+'%':'0%';
+    lastRoll.rows.forEach(r=> rows.push([r.key, r.premiumCovered, pct(r.premiumCovered,r.total), r.acostaOnly, pct(r.acostaOnly,r.total), r.uncovered, pct(r.uncovered,r.total), r.total]));
+    exportCsvWithToast(rows, `rollups_by_${by.toLowerCase()}_${Date.now()}.csv`);
   }
 
   // ---------- Helpers ----------
@@ -1561,7 +1637,7 @@
   function clusterIconByDominantCoverage(cluster){
     const children = cluster.getAllChildMarkers();
     const counts = { 'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0 };
-    children.forEach(m=>{ const s = m.store; if(!s) return; counts[s.coverageType] = (counts[s.coverageType]||0) + 1; });
+    children.forEach(m=>{ const s = m.store; if(!s) return; counts[s.coverageType] = (counts[s.coverageType] || 0) + 1; });
     const domKey = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'Uncovered';
     const cls =
       domKey === 'Premium + Acosta' ? 'marker-pa' :
@@ -1572,9 +1648,9 @@
     return L.divIcon({ html, className: `marker-cluster ${cls}`, iconSize: L.point(40, 40) });
   }
   function slug(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
-  function storesWithin(center, r, useFiltered=true){
+  function storesWithin(center, r){
     const [lat, lng] = Array.isArray(center) ? center : [center.lat, center.lng];
-    const src = useFiltered && filteredStores.length ? filteredStores : allStores;
+    const src = filteredStores.length ? filteredStores : allStores;
     return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
   }
   function buildHubFilterOptions(){
@@ -1582,11 +1658,13 @@
     if (showConfirmed.checked) hubsAll = hubsAll.concat(premiumConfirmed);
     if (showPending.checked)   hubsAll = hubsAll.concat(premiumPending);
 
+    // dedupe
     const seen = new Set();
     hubsAll = hubsAll.filter(h => h && !seen.has(h.id) && seen.add(h.id));
 
     const r = Number(radius.value) || DEFAULT_RADIUS;
 
+    // cascade by current store filters (coverage + RM + AM)
     const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
     const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o => o.value));
     const amSel  = new Set(Array.from(amFilter.selectedOptions).map(o => o.value));
@@ -1595,10 +1673,11 @@
     const amOK  = s => amSel.has('All')  || amSel.has(s.areaManager || '');
     const subset = allStores.filter(s => covOK(s) && rmOK(s) && amOK(s));
 
+    // only hubs that touch at least 1 store in subset
     const counted = hubsAll.map(h => ({
       hub: h,
       n: subset.reduce((acc,s)=> acc + (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r ? 1 : 0), 0)
-    }));
+    })).filter(x=>x.n>0);
 
     const prevSel = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
 
@@ -1834,8 +1913,7 @@
         if (!v) return;
         localStorage.setItem(LS_STATE, JSON.stringify(v.state));
         tryLoadLocal();
-        recomputeCoverage();
-        runFilter(); renderChips(); renderHubs(); updateRings(); fitToResults();
+        recomputeCoverage().then(()=>{ runFilter(); renderChips(); renderHubs(); updateRings(); fitToResults(); });
       });
     });
     Array.from(viewList.querySelectorAll('button.del')).forEach(b=>{
@@ -1847,6 +1925,7 @@
       });
     });
 
+    // paint thumbnails
     const canvases = Array.from(viewList.querySelectorAll('canvas.view-thumb'));
     canvases.forEach(cv=>{
       const idv = Number(cv.getAttribute('data-id'));
@@ -1885,7 +1964,7 @@
     tgHeat.checked = false; clearHeat();
     tgRings.checked = false; updateRings();
     tgOverlap.checked = false; highlightLayer.clearLayers();
-    tgCompare.checked = false; compareMode=false; pinnedHubs=[]; refreshComparePanel();
+    tgCompare.checked = false; compareMode=false; pinnedHubs=[];
     tgWithin.checked = false;
     tgCluster.checked = true;
     showConfirmed.checked = true; showPending.checked = true; showAcosta.checked = true;
@@ -1896,18 +1975,20 @@
     const searchBox = id('searchBox');
     searchBox.value=''; localStorage.removeItem(LS_LAST_QUERY); hideResults(); clearTarget();
     map.setView(HOME_VIEW.center, HOME_VIEW.zoom);
-    recomputeCoverage();
+    recomputeCoverage().then(()=> runFilter());
   }
 
   function handleHubVisibilityChange(){
     lastFilterChanged = 'visibility';
     renderHubs();
     updateRings();
-    if (tgOverlap.checked) drawOverlap();
-    if (tgWithin.checked){ runFilter(); fitToResults(); } else { runFilter(); }
-    if (spHub && !visibleHubs().some(h => h.id === spHub.id)) hideSidepanel();
-    refreshComparePanel();
-    saveState();
+    recomputeCoverage().then(()=>{
+      if (tgOverlap.checked) drawOverlap();
+      if (tgWithin.checked){ runFilter(); fitToResults(); } else { runFilter(); }
+      if (spHub && !visibleHubs().some(h => h.id === spHub.id)) hideSidepanel();
+      refreshComparePanel();
+      saveState();
+    });
   }
 
   // ---------- Sandbox ----------
@@ -1980,7 +2061,7 @@
     const c = sandboxMarker?.getLatLng?.();
     if (!c) return;
     if (sandboxCircle){ sandboxCircle.setLatLng(c); sandboxCircle.setRadius(r*1609); }
-    const list = storesWithin([c.lat,c.lng], r, /*useFiltered*/false);
+    const list = storesWithin([c.lat,c.lng], r);
     const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
     list.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0)+1; });
     id('sandboxStats').innerHTML = `
@@ -2143,180 +2224,98 @@
   };
   id('emptyReset').onclick = ()=>{ resetAll(); runFilter(); renderChips(); saveState(); };
 
-  // ---------- Compare / Venn metrics ----------
-  function refreshComparePanel(){
-    const panel = id('comparePanel');
-    if (!compareMode || pinnedHubs.length !== 2){ panel.classList.remove('show'); return; }
-    const [A,B] = pinnedHubs;
-    const r = Number(radius.value)||DEFAULT_RADIUS;
-
-    const groups = { Aonly:[], Bonly:[], Both:[] };
-    allStores.forEach(s=>{
-      const inA = distMiles(s.lat,s.lng,A.coords[0],A.coords[1]) <= r;
-      const inB = distMiles(s.lat,s.lng,B.coords[0],B.coords[1]) <= r;
-      if (inA && !inB) groups.Aonly.push(s);
-      else if (inB && !inA) groups.Bonly.push(s);
-      else if (inA && inB) groups.Both.push(s);
-    });
-    const total = groups.Aonly.length + groups.Bonly.length + groups.Both.length || 1;
-    const pct = n => Math.round(n*100/total);
-
-    id('compareBody').innerHTML = `
-      <div class="compare-grid" title="Union of stores within ${r}mi of either hub">
-        <div><b>${escape(hubDisplay(A))}</b> only</div><div><b>${groups.Aonly.length}</b> (${pct(groups.Aonly.length)}%)</div>
-        <div><b>${escape(hubDisplay(B))}</b> only</div><div><b>${groups.Bonly.length}</b> (${pct(groups.Bonly.length)}%)</div>
-        <div><b>Overlap</b></div><div><b>${groups.Both.length}</b> (${pct(groups.Both.length)}%)</div>
-      </div>
-    `;
-    id('cmpExport').onclick = ()=> exportCompareCsv(A,B,groups,r);
-    id('cmpClear').onclick  = ()=> { pinnedHubs=[]; panel.classList.remove('show'); drawOverlap(); tgCompare.checked=false; compareMode=false; saveState(); };
-    panel.classList.add('show');
-  }
-  function exportCompareCsv(A,B,groups,r){
-    const rows = [['Group','Hub A','Hub B','Radius(mi)','Store #','Name','Address','City','State','Coverage','Area Manager','Regional Manager','Lat','Lng']];
-    const push = (tag,list)=> list.forEach(s=> rows.push([tag, hubDisplay(A), hubDisplay(B), r, s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'', s.coverageType||'', s.areaManager||'', s.regionalManager||'', s.lat, s.lng]));
-    push('A-only', groups.Aonly);
-    push('B-only', groups.Bonly);
-    push('Overlap', groups.Both);
-    downloadCsv(rows, `compare_${slug(hubDisplay(A))}_vs_${slug(hubDisplay(B))}_${r}mi_${Date.now()}.csv`);
-  }
-
-  // ---------- Gap finder ----------
-  id('gapBtn').onclick = ()=> id('gapModal').classList.add('show');
-  id('gapClose').onclick = ()=> id('gapModal').classList.remove('show');
-  id('gapRun').onclick = runGapFinder;
-  id('gapExport').onclick = exportGapCsv;
-
-  let lastGapResults = [];
-  function runGapFinder(){
-    const N = Math.max(1, parseInt(id('gapMin').value||'10',10));
-    const M = Math.max(5, parseInt(id('gapMiles').value||'50',10));
-
-    // build city centroids
-    const byCity = new Map();
-    allStores.forEach(s=>{
-      const key = `${(s.city||'').trim()}|${(s.state||'').trim()}`;
-      if (!byCity.has(key)) byCity.set(key,{ city:s.city||'', state:s.state||'', lat:0, lng:0, n:0 });
-      const g = byCity.get(key); g.lat+=s.lat; g.lng+=s.lng; g.n++;
-    });
-    const centroids = Array.from(byCity.values()).map(g=>({ city:g.city, state:g.state, lat:g.lat/g.n, lng:g.lng/g.n }));
-
-    const results = [];
-    centroids.forEach(c=>{
-      const hits = allStores.filter(s => s.coverageType==='Uncovered' && distMiles(c.lat,c.lng,s.lat,s.lng) <= M);
-      if (hits.length >= N){
-        const topRM = mode(hits.map(h=>h.regionalManager||''));
-        const topAM = mode(hits.map(h=>h.areaManager||''));
-        results.push({ city:c.city, state:c.state, lat:c.lat, lng:c.lng, uncov:hits.length, rm:topRM, am:topAM });
+  // ---------- Tiny virtualization helper ----------
+  function mountVirtual(container, items, rowH, renderHTML, afterMount){
+    const wrap = container;
+    wrap.innerHTML = '';
+    let topPad = document.createElement('div');
+    let botPad = document.createElement('div');
+    topPad.style.height = '0px'; botPad.style.height = Math.max(0, items.length*rowH)+'px';
+    wrap.appendChild(topPad); wrap.appendChild(botPad);
+    const viewport = wrap.parentElement; // .sp-list
+    function paint(){
+      const scrollTop = viewport.scrollTop;
+      const h = viewport.clientHeight;
+      const start = Math.max(0, Math.floor(scrollTop / rowH) - 8);
+      const end = Math.min(items.length, Math.ceil((scrollTop+h)/rowH) + 8);
+      // clear existing rows
+      Array.from(wrap.querySelectorAll('.row')).forEach(n=> n.remove());
+      topPad.style.height = (start*rowH)+'px';
+      botPad.style.height = Math.max(0,(items.length - end)*rowH)+'px';
+      for(let i=start;i<end;i++){
+        const s = items[i];
+        const el = document.createElement('div');
+        el.className='row';
+        el.style.top = (i*rowH)+'px';
+        el.style.height = rowH+'px';
+        el.innerHTML = renderHTML(s);
+        wrap.appendChild(el);
+        afterMount?.(el, s, i);
       }
+    }
+    viewport.onscroll = paint;
+    paint();
+  }
+
+  // ---------- Toasts ----------
+  function makeToast(msg, cancellable=false){
+    const host = id('toasts');
+    const el = document.createElement('div');
+    el.className='toast';
+    el.innerHTML = `
+      <div class="row"><div>${escape(msg)}</div>${cancellable?'<button>Cancel</button>':''}</div>
+      <div class="bar"><div></div></div>
+    `;
+    host.appendChild(el);
+    const bar = el.querySelector('.bar>div'); const btn = el.querySelector('button');
+    let onCancelCb = null;
+    if (btn){ btn.onclick = ()=> onCancelCb?.(); }
+    return {
+      progress(p, txt){ bar.style.width = Math.max(1,Math.floor(p*100))+'%'; if (txt) el.querySelector('.row>div').textContent = txt; },
+      done(txt){ if (txt) el.querySelector('.row>div').textContent = txt; setTimeout(()=> el.remove(), 900); },
+      onCancel(cb){ onCancelCb = cb; }
+    };
+  }
+
+  // ---------- Worker plumbing ----------
+  function makeCoverageWorker(){
+    const code = `
+      self.onmessage = (e)=>{
+        const { action, radius, stores, premium, acosta } = e.data || {};
+        if (action !== 'classify') return;
+        const R = 3958.8;
+        const toRad = d=>d*Math.PI/180;
+        function dmi(a,b){
+          const dLat = toRad(b.lat-a.lat), dLon = toRad(b.lng-a.lng);
+          const s = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLon/2)**2;
+          return 2*R*Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+        }
+        const out = [];
+        for (let i=0;i<stores.length;i++){
+          const s = stores[i];
+          let nearPrem=false, nearAco=false;
+          for (let j=0;j<premium.length;j++){ if (dmi(s, premium[j]) <= radius){ nearPrem=true; break; } }
+          for (let k=0;k<acosta.length;k++){ if (dmi(s, acosta[k])  <= radius){ nearAco=true; break; } }
+          let cov = 'Uncovered';
+          if (nearPrem && nearAco) cov = 'Premium + Acosta';
+          else if (nearPrem) cov = 'Premium Only';
+          else if (nearAco) cov = 'Acosta Only';
+          out.push([s.id, cov]);
+        }
+        postMessage({ coverage: out });
+      };
+    `;
+    const blob = new Blob([code], { type: 'text/javascript' });
+    const url = URL.createObjectURL(blob);
+    return new Worker(url);
+  }
+  function callWorker(payload){
+    return new Promise(res=>{
+      const handler = (ev)=>{ coverageWorker.removeEventListener('message', handler); res(ev.data); };
+      coverageWorker.addEventListener('message', handler);
+      coverageWorker.postMessage(payload);
     });
-
-    results.sort((a,b)=> b.uncov - a.uncov || a.state.localeCompare(b.state) || a.city.localeCompare(b.city));
-    lastGapResults = results;
-
-    const tbl = `
-      <table style="border-collapse:collapse;width:100%;font-size:13px">
-        <thead><tr>
-          <th style="text-align:left;border-bottom:1px solid var(--border);padding:6px">City</th>
-          <th style="text-align:left;border-bottom:1px solid var(--border);padding:6px">State</th>
-          <th style="text-align:right;border-bottom:1px solid var(--border);padding:6px">Uncovered (≤ ${M}mi)</th>
-          <th style="text-align:left;border-bottom:1px solid var(--border);padding:6px">Top RM</th>
-          <th style="text-align:left;border-bottom:1px solid var(--border);padding:6px">Top AM</th>
-          <th style="text-align:left;border-bottom:1px solid var(--border);padding:6px">Zoom</th>
-        </tr></thead>
-        <tbody>
-          ${results.map(r=>`
-            <tr>
-              <td style="padding:6px">${htmlEscape(r.city)}</td>
-              <td style="padding:6px">${htmlEscape(r.state)}</td>
-              <td style="padding:6px;text-align:right"><b>${r.uncov}</b></td>
-              <td style="padding:6px">${htmlEscape(r.rm||'')}</td>
-              <td style="padding:6px">${htmlEscape(r.am||'')}</td>
-              <td style="padding:6px"><button class="btn link gap-zoom" data-lat="${r.lat}" data-lng="${r.lng}">Zoom</button></td>
-            </tr>`).join('')}
-        </tbody>
-      </table>`;
-    id('gapResults').innerHTML = tbl;
-
-    Array.from(document.querySelectorAll('.gap-zoom')).forEach(b=>{
-      b.addEventListener('click', ()=>{
-        const lat = parseFloat(b.getAttribute('data-lat'));
-        const lng = parseFloat(b.getAttribute('data-lng'));
-        id('gapModal').classList.remove('show');
-        map.setView([lat,lng], 9);
-      });
-    });
   }
-  function exportGapCsv(){
-    if (!lastGapResults.length){ alert('Run the gap finder first.'); return; }
-    const rows = [['City','State','Lat','Lng','Uncovered','Top RM','Top AM']];
-    lastGapResults.forEach(r=> rows.push([r.city,r.state,r.lat,r.lng,r.uncov,r.rm||'',r.am||'']));
-    downloadCsv(rows, `gap_finder_${Date.now()}.csv`);
-  }
-  function mode(arr){
-    const by = new Map(); arr.forEach(v=> by.set(v, (by.get(v)||0)+1));
-    let best='', n=0; by.forEach((c,k)=>{ if (c>n || (c===n && String(k).localeCompare(best)<0)){ n=c; best=k; } });
-    return best || '';
-  }
-
-  // ---------- RM/AM rollups ----------
-  id('rollupBtn').onclick = ()=> { id('rollupModal').classList.add('show'); buildRollups('RM'); };
-  id('rollupClose').onclick = ()=> id('rollupModal').classList.remove('show');
-  id('rollByRM').onchange = ()=> buildRollups('RM');
-  id('rollByAM').onchange = ()=> buildRollups('AM');
-  id('rollExport').onclick = exportRollupsCsv;
-
-  let lastRollRows = []; let lastRollKind = 'RM';
-  function buildRollups(kind){
-    lastRollKind = kind;
-    const keyOf = s => kind==='RM' ? (s.regionalManager||'(none)') : (s.areaManager||'(none)');
-    const rowsMap = new Map();
-    allStores.forEach(s=>{
-      const k = keyOf(s);
-      if (!rowsMap.has(k)) rowsMap.set(k, { name:k, pa:0, p:0, a:0, u:0, total:0 });
-      const r = rowsMap.get(k);
-      if (s.coverageType==='Premium + Acosta') r.pa++;
-      else if (s.coverageType==='Premium Only')  r.p++;
-      else if (s.coverageType==='Acosta Only')   r.a++;
-      else r.u++;
-      r.total++;
-    });
-    const rows = Array.from(rowsMap.values()).sort((a,b)=> b.total - a.total || a.name.localeCompare(b.name));
-    lastRollRows = rows;
-
-    const tbl = `
-      <table style="border-collapse:collapse;width:100%;font-size:13px">
-        <thead><tr>
-          <th style="text-align:left;border-bottom:1px solid var(--border);padding:6px">${kind==='RM'?'Regional Manager':'Area Manager'}</th>
-          <th style="text-align:right;border-bottom:1px solid var(--border);padding:6px">P+A</th>
-          <th style="text-align:right;border-bottom:1px solid var(--border);padding:6px">Premium</th>
-          <th style="text-align:right;border-bottom:1px solid var(--border);padding:6px">Acosta</th>
-          <th style="text-align:right;border-bottom:1px solid var(--border);padding:6px">Uncov</th>
-          <th style="text-align:right;border-bottom:1px solid var(--border);padding:6px">Total</th>
-        </tr></thead>
-        <tbody>
-          ${rows.map(r=>`
-            <tr>
-              <td style="padding:6px">${htmlEscape(r.name)}</td>
-              <td style="padding:6px;text-align:right">${r.pa}</td>
-              <td style="padding:6px;text-align:right">${r.p}</td>
-              <td style="padding:6px;text-align:right">${r.a}</td>
-              <td style="padding:6px;text-align:right">${r.u}</td>
-              <td style="padding:6px;text-align:right"><b>${r.total}</b></td>
-            </tr>`).join('')}
-        </tbody>
-      </table>`;
-    id('rollTable').innerHTML = tbl;
-  }
-  function exportRollupsCsv(){
-    if (!lastRollRows.length){ alert('Open rollups first.'); return; }
-    const rows = [[ lastRollKind==='RM'?'Regional Manager':'Area Manager', 'P+A','Premium','Acosta','Uncovered','Total' ]];
-    lastRollRows.forEach(r=> rows.push([r.name, r.pa, r.p, r.a, r.u, r.total]));
-    downloadCsv(rows, `rollups_${lastRollKind}_${Date.now()}.csv`);
-  }
-
-  // ---------- Compare panel update on start ----------
-  refreshComparePanel();
 
 })();
 </script>
