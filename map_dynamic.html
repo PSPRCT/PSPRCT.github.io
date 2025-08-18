@@ -418,7 +418,8 @@ on('change', covFilter, ()=>{ runFilter(); saveState(); renderChips(); buildHubF
   id('resetBtn').onclick= ()=>{ resetAll(); runFilter(); saveState(); renderChips(); };
 
   // Dropdowns & views
-   exportDrop = id('exportDrop'); const menu = exportDrop.querySelector('.dropdown-menu');
+const exportDrop = id('exportDrop'); const menu = exportDrop.querySelector('.dropdown-menu');
+
   exportDrop.querySelector('button').onclick = ()=> toggleDropdown(menu);
   on('click', document.body, (e)=>{ if (!exportDrop.contains(e.target)) menu.style.display='none'; }, true);
   id('exportStores').onclick  = ()=>{ exportStoresCsv(); if(AUTO_RESET()) { resetAll(); runFilter(); renderChips(); } };
@@ -717,50 +718,50 @@ function chooseCityForMissing(lat, lng, state){
   if (!coords) return null;
   let [lat, lng] = coords;
 
-  let  city  = getCity(r);
+  let city  = getCity(r);
   const state = getState(r);
-  let  nm    = getName(r);
+  let nm    = getName(r);
 
   // If City|State match a known fix, use those coordinates instead
-if (city && state) {
-  const fix = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
-  if (fix) { [lat, lng] = fix; coords = [lat, lng]; }
-}
+  if (city && state) {
+    const fix = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
+    if (fix) { [lat, lng] = fix; coords = [lat, lng]; }
+  }
 
-// Fallback name by city/state if file didn't include it
-if (!nm && city && state) {
-  nm = NAME_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`] || '';
-}
+  // Fallback name by city/state if file didn't include it
+  if (!nm && city && state) {
+    nm = NAME_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`] || '';
+  }
 
-const { status, statusSub } = classify(r);
+  const { status, statusSub } = classify(r);
 
-// If the row isn't confirmed and the city is missing, choose a sensible city
-// (requires chooseCityForMissing(lat, lng, state) helper)
-if (!city && state && status !== 'confirmed') {
-  city = chooseCityForMissing(lat, lng, state);
-}
+  // If the row isn't confirmed and the city is missing, choose a sensible city
+  if (!city && state && status !== 'confirmed') {
+    city = chooseCityForMissing(lat, lng, state);
+  }
 
-const statusLabel = pretty(statusSub);
-const trainerBit  = nm ? ` — ${nm}` : '';
+  const statusLabel = pretty(statusSub);
+  const trainerBit  = nm ? ` — ${nm}` : '';
 
-// Prefer "City, ST", else whichever we have
-const place = city && state ? `${city}, ${state}` : (city || state || '');
+  // Prefer "City, ST", else whichever we have
+  const place = city && state ? `${city}, ${state}` : (city || state || '');
 
-// Show city for pending/open/proposed hubs when available
-const label = `${place} (${statusLabel}${trainerBit})`;
+  // Show city for pending/open/proposed hubs when available
+  const label = `${place} (${statusLabel}${trainerBit})`;
 
-return {
-  id: `${status[0]}_${slug(`${city||''}-${state||''}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
-  name: nm || 'Proposed',
-  label,
-  fullName: label,
-  coords: [lat, lng],
-  status,
-  statusSub,
-  statusLabel,
-  city,
-  state
-};
+  return {
+    id: `${status[0]}_${slug(`${city||''}-${state||''}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
+    name: nm || 'Proposed',
+    label,
+    fullName: label,
+    coords: [lat, lng],
+    status,
+    statusSub,
+    statusLabel,
+    city,
+    state
+  };
+}; // ← this closes the function
 
 
   const hubs = rows.map(toHub).filter(Boolean);
@@ -1815,7 +1816,8 @@ id('sandboxR').addEventListener('input', ()=>{
   function tryLoadSnapshot(){
     if (!location.hash || location.hash.length < 2) return false;
     try{
-      const raw = decodeURIComponent(escape(atob(location.hash.slice(1))));
+      const raw = decodeURIComponent(window.escape(atob(location.hash.slice(1))));
+
       const st = JSON.parse(raw);
       localStorage.setItem(LS_STATE, JSON.stringify(st));
       // restore last query if present for search badge behavior
