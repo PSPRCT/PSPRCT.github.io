@@ -22,28 +22,16 @@
   html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg)}
   body{display:flex;flex-direction:column;min-width:320px}
 
-  /* Topbar */
-  .topbar{
-    position:sticky; top:0; background:var(--panel);
-    display:flex;flex-wrap:wrap;gap:10px;align-items:center;
-    padding:8px 10px;border-bottom:1px solid #eef0f3;z-index:10
-  }
+  .topbar{position:sticky; top:0; background:var(--panel); display:flex;flex-wrap:wrap;gap:10px;align-items:center; padding:8px 10px;border-bottom:1px solid #eef0f3;z-index:10}
   body.dark .topbar{border-color:var(--border)}
   .search-wrap{display:flex;gap:8px;align-items:center;min-width:280px;flex:1}
   .searchbox{position:relative;flex:1}
   .searchbox input{width:100%;border:1px solid #d0d7de;border-radius:10px;padding:10px 12px 10px 64px;font-size:14px;background:var(--bg);color:var(--fg)}
   body.dark .searchbox input{border-color:var(--ring)}
-  .badge-left{
-    position:absolute;left:8px;top:50%;transform:translateY(-50%);
-    font-size:12px;font-weight:800;letter-spacing:.3px;background:#eef6ff;color:#0b5bd3;border:1px solid #cfe6ff;border-radius:999px;padding:3px 8px;display:none
-  }
+  .badge-left{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:800;letter-spacing:.3px;background:#eef6ff;color:#0b5bd3;border:1px solid #cfe6ff;border-radius:999px;padding:3px 8px;display:none}
   body.dark .badge-left{background:#112143;color:#8db6ff;border-color:#1f3b74}
   .badge-left.show{display:inline-block}
-  .results{
-    position:absolute;left:0;right:0;top:calc(100% + 6px);
-    background:var(--panel);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 24px rgba(0,0,0,.18);
-    display:none;z-index:20;max-height:360px;overflow:auto
-  }
+  .results{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--panel);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 24px rgba(0,0,0,.18);display:none;z-index:20;max-height:360px;overflow:auto}
   .results.show{display:block}
   .res{display:flex;gap:10px;padding:10px;cursor:pointer;align-items:flex-start}
   .res:hover{background:#f6f8fa}
@@ -61,7 +49,6 @@
   .range{display:flex;align-items:center;gap:8px;white-space:nowrap}
   .range small{color:var(--muted)}
 
-  /* Chips (kept only Uncovered preset per request) */
   .pillbar{display:flex;gap:6px;flex-wrap:wrap;padding:6px 10px}
   .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid #d0d7de;border-radius:999px;padding:6px 10px;background:var(--panel);color:var(--fg)}
   body.dark .pill{border-color:var(--ring)}
@@ -69,7 +56,6 @@
   .pill.active{background:#eef6ff;border-color:#cfe6ff}
   body.dark .pill.active{background:#122b59;border-color:#204b9e}
 
-  /* Filters */
   .filters{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:10px;padding:8px 10px;border-top:1px solid #eef0f3;border-bottom:1px solid #eef0f3;background:var(--panel)}
   body.dark .filters{border-color:var(--border)}
   .picker{display:flex;flex-direction:column;gap:6px}
@@ -78,21 +64,15 @@
   select[multiple]{height:110px;border:1px solid #d0d7de;border-radius:8px;padding:6px 8px;background:var(--bg);color:var(--fg)}
   body.dark select[multiple]{border-color:var(--ring)}
 
-  /* Summary */
   .summary{display:flex;gap:10px;align-items:center;padding:6px 10px;border-bottom:1px solid #eef0f3;background:var(--panel)}
   body.dark .summary{border-color:var(--border)}
   .chip{display:inline-flex;align-items:center;gap:8px;padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:var(--panel)}
   .dot{width:10px;height:10px;border-radius:50%}
   .muted{color:var(--muted);margin-left:auto}
 
-  /* Map area + panel */
   .mapwrap{position:relative;flex:1;min-height:460px;display:flex;overflow:hidden}
   #map{flex:1}
-  .sidepanel{
-    width:380px;max-width:90vw;flex:0 0 380px;background:var(--panel);
-    border-left:1px solid var(--border);box-shadow:-4px 0 18px rgba(0,0,0,.12);
-    display:none;flex-direction:column;z-index:6
-  }
+  .sidepanel{width:380px;max-width:90vw;flex:0 0 380px;background:var(--panel);border-left:1px solid var(--border);box-shadow:-4px 0 18px rgba(0,0,0,.12);display:none;flex-direction:column;z-index:6}
   .sidepanel.show{display:flex}
   .sp-head{padding:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
   .sp-head h3{margin:0;font-size:16px;line-height:1.2;flex:1}
@@ -106,7 +86,6 @@
   .sp-list li .num{min-width:62px;font-variant-numeric:tabular-nums;color:var(--muted)}
   .sp-list li .cov{width:8px;height:8px;border-radius:50%}
 
-  /* Floating map controls */
   .floating{position:absolute;left:10px;top:10px;z-index:402;display:flex;gap:8px;flex-wrap:wrap}
   .floating .btn,.floating .toggle{padding:6px 8px;font-size:12px}
 
@@ -118,11 +97,7 @@
   .sandbox h4{margin:0 0 6px 0;font-size:13px}
   .sandbox small{color:var(--muted)}
 
-  .dropdown-menu{
-    position:absolute;right:0;top:calc(100% + 4px);
-    background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:6px;z-index:5;
-    max-height:70vh;overflow:auto;box-sizing:border-box;display:none
-  }
+  .dropdown-menu{position:absolute;right:0;top:calc(100% + 4px);background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:6px;z-index:5;max-height:70vh;overflow:auto;box-sizing:border-box;display:none}
 
   .busy{position:fixed;inset:0;background:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;z-index:9999}
   body.dark .busy{background:rgba(0,0,0,.35)}
@@ -145,7 +120,6 @@
 </head>
 <body>
 
-<!-- Topbar -->
 <div class="topbar">
   <div class="search-wrap">
     <div class="searchbox">
@@ -167,7 +141,6 @@
 
   <button id="fitBtn" class="btn" type="button">Fit to Results</button>
   <button id="resetBtn" class="btn" type="button">Reset</button>
-
   <button id="darkBtn" class="btn" type="button" title="Toggle dark mode">🌙</button>
   <button id="locateBtn" class="btn" type="button" title="Locate me">Locate me</button>
 
@@ -182,14 +155,12 @@
   </div>
 </div>
 
-<!-- Chips (only Uncovered preset kept) -->
 <div class="pillbar">
   <button id="presetUncov" class="pill" type="button" title="Uncovered + Rings + Heatmap">
     <span class="dot" style="background:var(--u)"></span> Preset: Uncovered focus
   </button>
 </div>
 
-<!-- Filters -->
 <div class="filters">
   <div class="picker">
     <input id="covSearch" type="text" placeholder="Search coverage…" />
@@ -215,10 +186,8 @@
   </div>
 </div>
 
-<!-- Status -->
 <div id="dataStatus" style="padding:6px 10px;color:var(--fg);font-size:12px"></div>
 
-<!-- Summary -->
 <div class="summary" id="summary">
   <span class="chip"><span class="dot" style="background:var(--pa)"></span>P+A: <b id="k_pa">0</b></span>
   <span class="chip"><span class="dot" style="background:var(--p)"></span>Premium: <b id="k_p">0</b></span>
@@ -229,11 +198,9 @@
   <span class="muted" id="inView">In view: 0</span>
 </div>
 
-<!-- Map + side panel -->
 <div class="mapwrap">
   <div id="map" role="region" aria-label="Coverage Map"></div>
 
-  <!-- Floating controls on map -->
   <div class="floating">
     <label class="toggle"><input id="tgHeat" type="checkbox" />Heatmap</label>
     <label class="toggle"><input id="tgRings" type="checkbox" />Hub radii</label>
@@ -261,7 +228,6 @@
     <div style="margin-top:8px"><small>Click “New-hub sandbox” again to close.</small></div>
   </div>
 
-  <!-- Side panel -->
   <div class="sidepanel" id="sidepanel">
     <div class="sp-head">
       <h3 id="spTitle">Hub</h3>
@@ -283,7 +249,6 @@
   </div>
 </div>
 
-<!-- Busy -->
 <div id="busy" class="busy" hidden><div class="spin"></div></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -291,7 +256,6 @@
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
 (async function(){
-  // ---------- Config ----------
   const COLORS = {
     "Premium + Acosta": getCSS('--pa'),
     "Premium Only":     getCSS('--p'),
@@ -315,7 +279,6 @@
     { id:"riverview_fl_santos",     name:"Riverview, FL — Richard Santos", coords:[27.8661,-82.3265], status:"accepted", person:"Richard Santos" }
   ];
 
-  // ---------- State ----------
   let allStores = [];
   let filteredStores = [];
   let lastHubsShown = [];
@@ -331,19 +294,13 @@
   let resIndex = -1;
   let geoMarker=null, geoCircle=null;
 
-  // side panel state
-  let spHub = null;
-  let spRows = [];
-  let spFilter = '';
+  let spHub = null; let spRows = []; let spFilter = '';
 
-  // tighter debounce
   const debouncedRun = (()=>{ let t; return ()=>{ clearTimeout(t); t=setTimeout(runFilter,90); }; })();
 
-  // ---------- Map ----------
   const map = L.map('map', { zoomControl:true, inertia:true }).setView([39.5,-98.35],5);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
 
-  // chunked loading for speed
   const markers = L.markerClusterGroup({
     disableClusteringAtZoom: 12,
     spiderfyOnMaxZoom:false,
@@ -364,7 +321,6 @@
     saveState();
   });
 
-  // ---------- DOM ----------
   const STATUS = id('dataStatus'); const busy = id('busy');
   const legend = id('legend'); id('legendClose').onclick = ()=> legend.style.display='none';
 
@@ -409,7 +365,6 @@
   id('fitBtn').onclick = ()=>{ fitToResults(); saveState(); };
   id('resetBtn').onclick = ()=>{ resetAll(); runFilter(); saveState(); };
 
-  // Export dropdown
   const exportDrop = id('exportDrop'); const menu = exportDrop.querySelector('.dropdown-menu');
   exportDrop.querySelector('button').onclick = ()=>{
     const show = menu.style.display !== 'block';
@@ -428,7 +383,6 @@
 
   const k = { pa:id('k_pa'), p:id('k_p'), a:id('k_a'), u:id('k_u'), total:id('k_total'), staffed:id('k_staffed'), open:id('k_open'), inView:id('inView') };
 
-  // floating UI
   tgHeat.onchange = ()=>{ if (tgHeat.checked) updateHeat(); else clearHeat(); saveState(); };
   tgRings.onchange= ()=>{ updateRings(); saveState(); };
   tgOverlap.onchange= ()=>{ if (tgOverlap.checked) drawOverlap(); else highlightLayer.clearLayers(); saveState(); };
@@ -436,7 +390,6 @@
   id('snapBtn').onclick = saveSnapshot;
   id('sandboxBtn').onclick = toggleSandbox;
 
-  // Dark mode & geolocate
   darkBtn.onclick = ()=>{
     document.body.classList.toggle('dark');
     darkBtn.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
@@ -455,7 +408,6 @@
     }, ()=>alert('Could not get your location'), { enableHighAccuracy:true, timeout:8000 });
   };
 
-  // ---------- Side panel elements ----------
   const sidepanel = id('sidepanel');
   const spTitle = id('spTitle'); const spMeta = id('spMeta'); const spCounts = id('spCounts');
   const spList = id('spList'); const spSearch = id('spSearch');
@@ -464,10 +416,9 @@
   spClose.onclick = ()=> hideSidepanel();
   spSearch.addEventListener('input', ()=>{ spFilter = spSearch.value.trim().toLowerCase(); renderSidepanelList(); });
   spExport.onclick = ()=> exportSidepanelCsv();
-  spZoom.onclick = ()=> zoomHubRadius();       // fixed: now always fits to the ring bounds
+  spZoom.onclick = ()=> zoomHubRadius();
   spPinBtn.onclick = ()=> togglePinFromPanel();
 
-  // ---------- Load data ----------
   showBusy(true); let spinnerFailSafe = setTimeout(()=>showBusy(false), 7000);
   try {
     const url = './store_data.json?v=' + Date.now();
@@ -496,7 +447,6 @@
     console.error(err);
   } finally { clearTimeout(spinnerFailSafe); showBusy(false); }
 
-  // ---------- Search ----------
   function buildSearchIndex(){
     searchIdx = allStores.map(s => ({
       kind:'STORE', store:s, lat:s.lat, lng:s.lng,
@@ -568,9 +518,7 @@
     });
     searchResults._data = list; resIndex=-1;
   }
-  function toResFromStore(s,score,kind='STORE'){
-    return { kind, store:s, label:`Store ${s.storeNumberStr} — ${s.storeName||''}, ${s.city}, ${s.state}`, lat:s.lat, lng:s.lng, score };
-  }
+  function toResFromStore(s,score,kind='STORE'){ return { kind, store:s, label:`Store ${s.storeNumberStr} — ${s.storeName||''}, ${s.city}, ${s.state}`, lat:s.lat, lng:s.lng, score }; }
   function toCityRes(city,state,lat,lng,score){ return { kind:'CITY', label:`${city}, ${state}`, lat, lng, score }; }
   function smartNearest(center,limit=5){
     const arr = allStores.map(s => [distMiles(center.lat,center.lng,s.lat,s.lng), s]).sort((a,b)=>a[0]-b[0]).slice(0,limit).map((x,i)=>toResFromStore(x[1], 80-i,'NEAR'));
@@ -606,9 +554,7 @@
     map.setView([r.lat,r.lng], r.kind==='HUB' ? 9 : 11);
     if (r.kind==='STORE' && r.store){
       dropTarget(r.store.lat, r.store.lng, r.label, storePopupHTML(r.store));
-    } else {
-      dropTarget(r.lat, r.lng, r.label);
-    }
+    } else { dropTarget(r.lat, r.lng, r.label); }
   }
   function dropTarget(lat,lng,label,html){
     if (targetPin){ targetLayer.removeLayer(targetPin); targetPin=null; }
@@ -625,7 +571,6 @@
     if (e.key === 'Enter' && resIndex>=0){ items[resIndex].click(); }
   });
 
-  // ---------- Filters / cascade ----------
   function populateRM(source){ setOptionsWithCounts(rmFilter, new Set(source.map(s=>s.regionalManager).filter(Boolean)), countBy(source,'regionalManager')); }
   function populateAM(source){ setOptionsWithCounts(amFilter, new Set(source.map(s=>s.areaManager).filter(Boolean)), countBy(source,'areaManager')); }
   function cascadeAM(){
@@ -646,14 +591,12 @@
     }
   }
 
-  // ---------- Core filter/render ----------
   function runFilter(){
     const selCov = selected(covFilter);
     const selRM  = selected(rmFilter);
     const selAM  = selected(amFilter);
     const selHubNames = selected(hubFilter, true);
 
-    // filter stores
     filteredStores = allStores.filter(s=>{
       if (!(selCov.includes('All') || selCov.includes(s.coverageType))) return false;
       if (!(selRM.includes('All') || selRM.includes(s.regionalManager))) return false;
@@ -681,27 +624,20 @@
     updateRings();
     if (tgOverlap.checked) drawOverlap(); else highlightLayer.clearLayers();
 
-    // keep panel in sync
     if (spHub) openSidepanel(spHub);
   }
 
   function renderStores(list){
     markers.clearLayers();
     markerByStore.clear();
-
-    // add in a single chunked batch for speed; lazy popup creation
     list.forEach(s=>{
       const color = COLORS[s.coverageType] || '#888';
       const m = L.circleMarker([s.lat,s.lng],{radius:6,color,fillColor:color,fillOpacity:.9,weight:1});
       m.coverageType = s.coverageType;
-      m.on('click', function(){
-        // build popup lazily
-        this.bindPopup(storePopupHTML(s), { autoPan:true, autoPanPadding: POPUP_PAD }).openPopup();
-      });
+      m.on('click', function(){ this.bindPopup(storePopupHTML(s), { autoPan:true, autoPanPadding: POPUP_PAD }).openPopup(); });
       markers.addLayer(m);
       markerByStore.set(s.storeNumberStr, m);
     });
-
     updateInViewCount();
   }
 
@@ -733,7 +669,6 @@
     });
   }
 
-  // ---------- Side panel (hub click) ----------
   function openSidepanel(hub){
     spHub = hub;
     const r = Number(radius.value)||DEFAULT_RADIUS;
@@ -789,9 +724,7 @@
       </li>
     `).join('');
   }
-
   function hideSidepanel(){ sidepanel.classList.remove('show'); spHub=null; spRows=[]; }
-
   function exportSidepanelCsv(){
     if (!spHub || !spRows.length){ alert('No hub list to export.'); return; }
     const headers = ['Hub','Radius(mi)','Store Number','Store Name','City','State','Coverage','Distance(mi)','Lat','Lng'];
@@ -807,7 +740,7 @@
     const rMeters = (Number(radius.value)||DEFAULT_RADIUS) * 1609.34;
     const circle = L.circle(spHub.coords, { radius:rMeters });
     const b = circle.getBounds();
-    map.fitBounds(b.pad(0.15), { animate:true });   // <-- FIX: reliably fits to the computed circle bounds
+    map.fitBounds(b.pad(0.15), { animate:true });
   }
   function togglePinFromPanel(){
     if (!spHub) return;
@@ -817,7 +750,6 @@
     drawCompare();
   }
 
-  // ---------- Heat / rings / overlap / compare ----------
   function updateHeat(){
     clearHeat();
     const points = filteredStores.map(s => [s.lat, s.lng, s.coverageType==='Uncovered'?1.5:0.8]);
@@ -863,7 +795,6 @@
     });
   }
 
-  // ---------- KPIs / totals ----------
   function updateKpis(){
     const counts = { "Premium + Acosta":0,"Premium Only":0,"Acosta Only":0,"Uncovered":0 };
     filteredStores.forEach(s => counts[s.coverageType] = (counts[s.coverageType]||0)+1);
@@ -875,14 +806,15 @@
     const staffed = lastHubsShown.filter(h => h.status==='accepted').length;
     const open    = lastHubsShown.filter(h => h.status==='open').length;
     k.staffed.textContent = staffed; k.open.textContent = open;
-
-    // “In view” = stores intersecting current map viewport (info only)
+    updateInViewCount();
+  }
+  function updateInViewCount(){
+    if (!filteredStores.length){ k.inView.textContent = 'In view: 0'; return; }
     const b = map.getBounds(); let n=0;
     filteredStores.forEach(s => { if (b.contains([s.lat,s.lng])) n++; });
     k.inView.textContent = `In view: ${n}`;
   }
 
-  // ---------- Fit / Reset ----------
   function fitToResults(){ if (!filteredStores.length) return; const bounds = L.latLngBounds(filteredStores.map(s => [s.lat,s.lng])); map.fitBounds(bounds.pad(0.1)); }
   function resetAll(){
     showStaffed.checked = true; showOpen.checked = true;
@@ -897,7 +829,6 @@
     map.setView([39.5,-98.35],5);
   }
 
-  // ---------- Exports ----------
   function exportStoresCsv(){
     const list = filteredStores;
     if (!list.length){ alert('No stores to export.'); return; }
@@ -933,7 +864,6 @@
     download('overlap_stores.csv', "\uFEFF"+rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n'));
   }
 
-  // ---------- Snapshot & Autosave ----------
   function saveSnapshot(){
     const state = collectState();
     const enc = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
@@ -965,12 +895,11 @@
     tgHeat.checked=!!s.heat; tgRings.checked=!!s.rings; tgOverlap.checked=!!s.overlap; tgCompare.checked=!!s.compare; compareMode=tgCompare.checked;
     map.setView(s.center||{lat:39.5,lng:-98.35}, s.zoom||5);
     document.body.classList.toggle('dark', !!s.dark);
-    darkBtn.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
+    id('darkBtn').textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
   }
   function saveState(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(collectState())); }catch{} }
   function tryLoadLocal(){ try{ const t = localStorage.getItem(LS_KEY); if (t) applyState(JSON.parse(t)); }catch{} }
 
-  // ---------- Sandbox ----------
   let sandboxMarker=null, sandboxCircle=null;
   id('sandboxR').oninput = ()=>{ id('sandboxRlbl').textContent=id('sandboxR').value; refreshSandbox(); };
   function toggleSandbox(){
@@ -1009,7 +938,6 @@
       <div>Uncovered: <b>${p["Uncovered"]||0}</b> (potential gain)</div>`;
   }
 
-  // ---------- Helpers ----------
   function normalizeStores(raw){
     return (raw||[])
       .map(s => ({
