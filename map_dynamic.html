@@ -889,10 +889,13 @@
     drawOverlap();
   }
   function togglePinFromPanel(){
-    if (!spHub) return;
-    togglePin(spHub);
-         ? 'Pinned for compare' : 'Unpinned');
-  }
+  if (!spHub) return;
+  togglePin(spHub);
+  const isPinned = pinnedHubs.some(x => x.id === spHub.id);
+  spPinBtn.textContent = isPinned ? 'Unpin' : 'Pin';
+  alert(isPinned ? 'Pinned for compare' : 'Unpinned');
+}
+
 
   // ---------- Sidepanel ----------
   function openSidepanel(h){
