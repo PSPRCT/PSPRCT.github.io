@@ -411,26 +411,40 @@
   // --- Sync sidepanel row highlight when a store popup opens ---
 map.on('popupopen', (e)=>{
   const s = e?.popup?._source?.store;
-  if(!s || !spHub) return;
+  if (!s || !spHub) return;
 
   // only act if this store is in the current panel list
   const i = spRows.findIndex(x => x.storeNumberStr === s.storeNumberStr);
-  if(i < 0) return;
+  if (i < 0) return;
 
-  // compute row Y, scroll into view, highlight
-  const y = i * rowH;
-  const margin = 6 * rowH; // preload margin
-  if (spWrap.scrollTop > y - margin || (spWrap.scrollTop + spWrap.clientHeight) < (y + rowH + margin)) {
-    spWrap.scrollTo({ top: Math.max(0, y - (spWrap.clientHeight/2 - rowH)), behavior:'smooth' });
+  const rowTop    = i * rowH;
+  const rowBottom = rowTop + rowH;
+
+  const viewTop   = spWrap.scrollTop;
+  const viewBot   = viewTop + spWrap.clientHeight;
+
+  const preload = 2 * rowH; // small margin
+  const outside = (rowTop < viewTop - preload) || (rowBottom > viewBot + preload);
+
+  if (outside) {
+    // center the target row in view
+    const targetTop = Math.max(0, rowTop - (spWrap.clientHeight/2 - rowH));
+    spWrap.scrollTo({ top: targetTop, behavior: 'smooth' });
   }
 
-  // re-render visible slice and set active
+  // make sure the visible slice includes our row, then highlight it
   requestAnimationFrame(()=>{
+    renderVirtualSlice(); // ensure rows for this viewport exist
+
+    // clear any previous active
     Array.from(spRowsEl.querySelectorAll('.row')).forEach(el => el.classList.remove('active'));
-    const rel = spRowsEl.querySelector(`.row[style*="top: ${y}px"]`);
+
+    // select by dataset (robust), not style string
+    const rel = spRowsEl.querySelector(`.row[data-i="${i}"]`);
     if (rel) rel.classList.add('active');
   });
 });
+
 
 
   const STATUS = id('dataStatus'); const busy = id('busy');
@@ -640,12 +654,7 @@ map.on('popupopen', (e)=>{
     if (!q){ showResults(smartNearest(map.getCenter(), 8)); searchBadge.classList.remove('show'); return; }
     if (q==='near' || q==='near me'){ showResults(smartNearest(map.getCenter(),8)); return; }
     const items = [];
-    const num = q.match(/^\s*(\d{3,6})\s*$/); // quick jump if only digits
-    if (num){
-      const s = allStores.find(x => x.storeNumberStr === num[1]);
-      if (s){ selectResult(toResFromStore(s, 120)); return; }
-    }
-    const numInside = q.match(/\b(\d{3,6})\b/);
+        const numInside = q.match(/\b(\d{3,6})\b/);
     if (numInside){
       const s = allStores.find(x => x.storeNumberStr === numInside[1]);
       if (s) items.push(toResFromStore(s, 120));
@@ -668,11 +677,14 @@ map.on('popupopen', (e)=>{
     const items = searchResults._data || [];
     if (e.key === 'ArrowDown'){ e.preventDefault(); resIndex = Math.min(items.length-1,resIndex+1); highlightResult(); }
     if (e.key === 'ArrowUp'){ e.preventDefault(); resIndex = Math.max(0,resIndex-1); highlightResult(); }
-    if (e.key === 'Enter'){ 
-      e.preventDefault();
-      if (resIndex>=0 && items[resIndex]) selectResult(items[resIndex]);
-      else if(items.length===1) selectResult(items[0]); // open only result on Enter
-    }
+if (e.key === 'Enter'){
+  e.preventDefault();
+  if (resIndex>=0 && items[resIndex]) {
+    selectResult(items[resIndex]); // only when user chose a row
+  }
+  // else: do nothing; user must click or use arrows first
+}
+
     if (e.key === 'Escape'){ hideResults(); }
   });
 
@@ -710,16 +722,55 @@ map.on('popupopen', (e)=>{
   }
  function openStorePopup(store){
   const ll = L.latLng(store.lat, store.lng);
-  const padRight = sidepanel.classList.contains('show') ? 420 : 20; // keep popup visible when panel is open
+  const padRight = sidepanel.classList.contains('show') ? 420 : 20;
   const panOpts = { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] };
 
   const m = markerByStore.get(store.storeNumberStr);
+   const m = markerByStore.get(s.storeNumberStr);
+if (m) {
+  if (!m.getPopup()) m.bindPopup(storePopupHTML(s));  // <-- add this line
+  if (tgCluster.checked) {
+    markers.zoomToShowLayer(m, ()=> m.openPopup());
+  } else {
+    m.openPopup();
+  }
+} else {
+  showPinPopup([s.lat, s.lng], storePopupHTML(s));
+}
 
-  // Helper: open popup and pan inside view
-  const doOpen = (marker) => {
-    marker.openPopup();
-    map.panInside(marker.getLatLng(), panOpts);
+
+  // helper to pan and then open, once
+  const panThenOpen = (latlng, marker) => {
+    let opened = false;
+    const doOpen = () => {
+      if (opened) return;
+      opened = true;
+      if (marker) {
+        // safety: ensure popup is bound (should already be)
+        if (!marker.getPopup()) marker.bindPopup(storePopupHTML(store));
+        marker.openPopup();
+      } else {
+        showPinPopup(latlng, storePopupHTML(store));
+      }
+      map.off('moveend', doOpen);
+    };
+    map.once('moveend', doOpen);
+    // pan *before* opening so first open always renders
+    map.panInside(latlng, panOpts);
   };
+
+  if (m) {
+    if (tgCluster.checked) {
+      markers.zoomToShowLayer(m, () => panThenOpen(m.getLatLng(), m));
+    } else {
+      panThenOpen(m.getLatLng(), m);
+    }
+  } else {
+    // fallback when marker temporarily not present
+    panThenOpen(ll, null);
+  }
+}
+
 
   // Clustered marker? ensure it is visible, then open.
   if (m) {
@@ -1102,6 +1153,11 @@ map.on('popupopen', (e)=>{
       </div>
       <div style="min-width:70px;text-align:right">${s._dist?.toFixed(1)??''} mi</div>
     `;
+    // inside the for-loop that creates each row:
+el.className = 'row';
+el.style.top = (i * rowH) + 'px';
+el.dataset.i = i;                 // ← add this
+
 
     // click = highlight row + zoom + popup
     el.addEventListener('click', ()=>{
