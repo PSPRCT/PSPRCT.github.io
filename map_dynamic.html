@@ -398,9 +398,12 @@ hubPane.style.pointerEvents = 'auto';
   on('input', amSearch,  ()=> filterSelect(amFilter,  amSearch.value));
   on('input', hubSearch, ()=> filterSelect(hubFilter, hubSearch.value));
 
-  on('change', covFilter, ()=>{ runFilter(); saveState(); renderChips(); });
-  on('change', rmFilter,  ()=>{ cascadeAM(); runFilter(); fitToResults(); saveState(); renderChips(); });
-  on('change', amFilter,  ()=>{ runFilter(); fitToResults(); saveState(); renderChips(); });
+
+  on('change', rmFilter,  ()=>{ cascadeAM(); runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
+on('change', amFilter,  ()=>{ runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
+on('change', covFilter, ()=>{ runFilter(); saveState(); renderChips(); buildHubFilterOptions(); });
+on('input',  radius,    ()=>{ /* existing stuff… */ buildHubFilterOptions(); });
+
   on('change', hubFilter, ()=>{ runFilter(); fitToResults(); saveState(); renderChips(); });
 
   id('fitBtn').onclick  = ()=>{ fitToResults(); saveState(); };
@@ -530,7 +533,7 @@ try {
   const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
   const pJson = await pResp.json();
 
-  // Accept flat array or bucketed object
+  // Accept flat or bucketed shapes
   const rows = Array.isArray(pJson)
     ? pJson
     : [
@@ -541,33 +544,31 @@ try {
         ...(pJson.cities   || []),
       ];
 
-  const statusText = r =>
-    [
-      r.Status, r.status, r.HubStatus, r.Hub_Status,
-      r.TrainerStatus, r.Trainer_Status, r.CandidateStatus
-    ].map(x => String(x || '').toLowerCase()).find(Boolean) || '';
+  const txt = v => String(v ?? '').toLowerCase();
 
-  // treat flags like IsOpen/NeedsHire/etc as pending too
-  const flagPending = r => {
-    const v = (k) => (r[k] === true) || String(r[k] || '').toLowerCase() === 'true';
-    return ['IsOpen','Open','NeedsHire','Open_Flag','OpenFlag'].some(k => v(k));
+  const statusText = r => {
+    const fields = [
+      r.Status, r.status, r.HubStatus, r.Hub_Status,
+      r.TrainerStatus, r.Trainer_Status, r.CandidateStatus, r.AssignmentStatus
+    ];
+    return fields.map(txt).find(Boolean) || '';
   };
 
-  const CONFIRM_RE = /(confirm|active|live|assigned|hired|onboard|approved|current)/;
-  const PENDING_RE = /(pend|open|recruit|sourc|offer|interview|pipeline|candidate|tbd|propos|plan)/;
+  // pending Open/Recruit/Pending variants
+  const PENDING_RE = /(pend|open|recruit|pipeline|offer|interview|candidate|tbd|propos|plan|sourc)/;
 
-  const getName = r => String(
-    r.RepName ?? r.repName ?? r.TrainerName ?? r['Trainer Name'] ??
-    r.Premium_Trainer ?? r.PremiumTrainer ?? r.name ?? r.Name ?? ''
-  ).trim();
+  const getName  = r => String(
+      r.RepName ?? r.repName ?? r.TrainerName ?? r['Trainer Name'] ??
+      r.Premium_Trainer ?? r.PremiumTrainer ?? r.name ?? r.Name ?? ''
+    ).trim();
 
   const getCity  = r => String(r.City  ?? r.city  ?? r.Hub_City  ?? '').trim();
   const getState = r => String(r.State ?? r.state ?? r.Hub_State ?? '').trim();
 
   const getCoords = r => {
-    const lat = Number(r.Latitude  ?? r.latitude  ?? r.lat ?? r.Lat ?? r.Latitude__c ?? r.lat_dd);
-    const lng = Number(r.Longitude ?? r.longitude ?? r.lng ?? r.Lon ?? r.Longitude__c ?? r.lng_dd);
-    return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null;
+    const lat = Number(r.Latitude  ?? r.latitude  ?? r.lat ?? r.Lat ?? r.lat_dd ?? r.Latitude__c);
+    const lng = Number(r.Longitude ?? r.longitude ?? r.lng ?? r.Lon ?? r.lng_dd ?? r.Longitude__c);
+    return (Number.isFinite(lat) && Number.isFinite(lng)) ? [lat, lng] : null;
   };
 
   const toHub = (r, status) => {
@@ -575,7 +576,7 @@ try {
     if (!coords) return null;
     const [lat, lng] = coords;
     const city = getCity(r), state = getState(r);
-    const nm   = getName(r) || (status === 'pending' ? `Proposed City` : 'Trainer');
+    const nm   = getName(r) || (status === 'pending' ? 'Proposed City' : 'Trainer');
     return {
       id: `${status[0]}_${slug(`${nm}-${city}-${state}-${lat.toFixed(3)}-${lng.toFixed(3)}`)}`,
       name: nm,
@@ -585,17 +586,31 @@ try {
     };
   };
 
-  const confirmedRows = rows.filter(r => CONFIRM_RE.test(statusText(r)) && getName(r));
-  const pendingRows   = rows.filter(r => PENDING_RE.test(statusText(r)) || flagPending(r));
+  // RULES:
+  // - CONFIRMED = has a name AND NOT pending/open wording
+  // - PENDING   = pending/open wording OR no name
+  const confirmedRows = rows.filter(r => getName(r) && !PENDING_RE.test(statusText(r)));
+  const pendingRows   = rows.filter(r =>  PENDING_RE.test(statusText(r)) || !getName(r));
 
   premiumConfirmed = confirmedRows.map(r => toHub(r, 'confirmed')).filter(Boolean);
   premiumPending   = pendingRows.map(r   => toHub(r, 'pending')).filter(Boolean);
+
+  // de-dupe any accidental repeats
+  const dedupe = list => {
+    const seen = new Set(); const out = [];
+    for (const h of list) {
+      const key = `${h.fullName}|${h.coords[0].toFixed(4)},${h.coords[1].toFixed(4)}`;
+      if (!seen.has(key)) { seen.add(key); out.push(h); }
+    }
+    return out;
+  };
+  premiumConfirmed = dedupe(premiumConfirmed);
+  premiumPending   = dedupe(premiumPending);
 } catch (e) {
   console.warn('Premium file missing/invalid', e);
   premiumConfirmed = [];
   premiumPending   = [];
 }
-
 
 
     // Build initial UI state
@@ -1114,11 +1129,40 @@ function recomputeCoverage(){
     return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
   }
 function buildHubFilterOptions(){
-  const hubsNow = [...premiumConfirmed, ...premiumPending]; // Premium only
-  const opts = uniqSorted(hubsNow.map(h => h.fullName || h.name));
+  // We want Premium hubs only…
+  const hubsAll = [...premiumConfirmed, ...premiumPending];
+
+  // …that are within the current radius of at least one store in the
+  // current RM/AM/Coverage selection (ignore existing hub filter to avoid loops).
+  const r = Number(radius.value) || DEFAULT_RADIUS;
+
+  // read current selector choices
+  const covSel = Array.from(covFilter.selectedOptions).map(o => o.value);
+  const rmSel  = Array.from(rmFilter.selectedOptions).map(o => o.value);
+  const amSel  = Array.from(amFilter.selectedOptions).map(o => o.value);
+
+  const covOK = s => covSel.includes('All') || covSel.includes(s.coverageType || '');
+  const rmOK  = s => rmSel.includes('All')  || rmSel.includes(s.regionalManager || '');
+  const amOK  = s => amSel.includes('All')  || amSel.includes(s.areaManager || '');
+
+  // subset of stores used for cascading the hub list
+  const subset = allStores.filter(s => covOK(s) && rmOK(s) && amOK(s));
+
+  const cascaded = subset.length
+    ? hubsAll.filter(h => subset.some(s => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r))
+    : hubsAll.slice(); // if no subset, show all premium hubs
+
+  // preserve previous selections if still present
+  const prev = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
+
+  const opts = uniqSorted(cascaded.map(h => h.fullName || h.name));
   hubFilter.innerHTML = opts.map(v => `<option value="${escape(v)}">${escape(v)}</option>`).join('');
-  filterSelect(hubFilter, hubSearch.value);
+
+  // try to re-select
+  const keep = opts.filter(v => prev.has(v));
+  if (keep.length) setMulti(hubFilter, keep);
 }
+
 
 
 
