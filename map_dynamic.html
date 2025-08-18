@@ -634,8 +634,9 @@ const CITY_COORD_FIXES = {
 };
 
   // For states with multiple proposed cities, choose the nearest by coords
+// Add MO choices (KC area)
 const GEO_CITY_CANDIDATES = {
-  // keep your existing PA and IN, etc...
+  // ... keep PA/IN/FL/AL that you already have
   PA: [
     { city: 'Belle Vernon', lat: 40.1251, lng: -79.8692 },
     { city: 'Parkesburg',   lat: 39.9587, lng: -75.9191 },
@@ -644,19 +645,50 @@ const GEO_CITY_CANDIDATES = {
     { city: 'Fort Wayne', lat: 41.0793, lng: -85.1394 },
     { city: 'Plainfield', lat: 39.7042, lng: -86.3994 },
   ],
-
-  // NEW: Florida has Coral Springs & Lakeland
   FL: [
     { city: 'Coral Springs', lat: 26.2712, lng: -80.2706 },
     { city: 'Lakeland',      lat: 28.0395, lng: -81.9498 },
   ],
-
-  // NEW: Alabama has Mobile & Oneonta
   AL: [
     { city: 'Mobile',  lat: 30.6954,  lng: -88.0399 },
     { city: 'Oneonta', lat: 33.94815, lng: -86.47276 },
   ],
+  MO: [
+    { city: 'Excelsior Springs', lat: 39.3397, lng: -94.2222 },
+    { city: 'Kansas City',       lat: 39.0997, lng: -94.5786 },
+  ],
 };
+
+// Keep your existing PROPOSED_CITY_OVERRIDES block as-is
+
+// Last-resort city picker for missing-city rows
+function chooseCityForMissing(lat, lng, state){
+  const ST = (state||'').toUpperCase();
+  if (!ST) return '';
+
+  // 1) nearest from known candidates
+  const choices = GEO_CITY_CANDIDATES[ST];
+  if (choices && choices.length){
+    const best = choices
+      .map(c => ({...c, d: distMiles(lat, lng, c.lat, c.lng)}))
+      .sort((a,b)=>a.d-b.d)[0];
+    if (best) return best.city;
+  }
+
+  // 2) single-option override
+  const picks = PROPOSED_CITY_OVERRIDES[ST];
+  if (Array.isArray(picks) && picks.length === 1) return picks[0];
+
+  // 3) nearest store city in same state
+  const inState = allStores.filter(s => (s.state||'').toUpperCase() === ST);
+  if (inState.length){
+    const nearest = inState
+      .map(s => ({ city:s.city, d: distMiles(lat,lng,s.lat,s.lng) }))
+      .sort((a,b)=>a.d-b.d)[0];
+    if (nearest?.city) return nearest.city;
+  }
+  return '';
+}
 
 
 
@@ -690,61 +722,46 @@ const GEO_CITY_CANDIDATES = {
   let  nm    = getName(r);
 
   // If City|State match a known fix, use those coordinates instead
-  if (city && state) {
-    const fix = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
-    if (fix) { [lat, lng] = fix; coords = fix; }
-  }
-
-
-    // fallback name by city/state if file didn't include it
-    if (!nm && city && state) {
-      nm = NAME_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`] || '';
-    }
-
-    const { status, statusSub } = classify(r);
-// If proposed + missing city, pick nearest known candidate for that state
-if (!city && state && statusSub === 'proposed') {
-  const choices = GEO_CITY_CANDIDATES[state.toUpperCase()];
-  if (choices && choices.length) {
-    const nearest = choices
-      .map(c => ({ ...c, d: distMiles(lat, lng, c.lat, c.lng) }))
-      .sort((a,b)=> a.d - b.d)[0];
-    if (nearest) city = nearest.city;
-  } else {
-    // fallback: only apply single-option override
-    const picks = PROPOSED_CITY_OVERRIDES[state.toUpperCase()];
-    if (Array.isArray(picks) && picks.length === 1) city = picks[0];
-  }
+if (city && state) {
+  const fix = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
+  if (fix) { [lat, lng] = fix; coords = [lat, lng]; }
 }
 
-    // if proposed and city missing, safely use a single-option override
-    if (!city && state && statusSub === 'proposed') {
-      const picks = PROPOSED_CITY_OVERRIDES[state.toUpperCase()];
-      if (Array.isArray(picks) && picks.length === 1) city = picks[0];
-    }
+// Fallback name by city/state if file didn't include it
+if (!nm && city && state) {
+  nm = NAME_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`] || '';
+}
 
-    const statusLabel = pretty(statusSub);
-    const trainerBit  = nm ? ` — ${nm}` : '';
+const { status, statusSub } = classify(r);
 
-    // prefer "City, ST", else whichever we have
-    const place = city && state ? `${city}, ${state}` : (city || state || '');
+// If the row isn't confirmed and the city is missing, choose a sensible city
+// (requires chooseCityForMissing(lat, lng, state) helper)
+if (!city && state && status !== 'confirmed') {
+  city = chooseCityForMissing(lat, lng, state);
+}
 
-    // show city for proposed hubs when available
-    const label = `${place} (${statusLabel}${trainerBit})`;
+const statusLabel = pretty(statusSub);
+const trainerBit  = nm ? ` — ${nm}` : '';
 
-    return {
-      id: `${status[0]}_${slug(`${city||''}-${state||''}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
-      name: nm || 'Proposed',
-      label,
-      fullName: label,
-      coords: [lat, lng],
-      status,
-      statusSub,
-      statusLabel,
-      city,
-      state
-    };
-  };
+// Prefer "City, ST", else whichever we have
+const place = city && state ? `${city}, ${state}` : (city || state || '');
+
+// Show city for pending/open/proposed hubs when available
+const label = `${place} (${statusLabel}${trainerBit})`;
+
+return {
+  id: `${status[0]}_${slug(`${city||''}-${state||''}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
+  name: nm || 'Proposed',
+  label,
+  fullName: label,
+  coords: [lat, lng],
+  status,
+  statusSub,
+  statusLabel,
+  city,
+  state
+};
+
 
   const hubs = rows.map(toHub).filter(Boolean);
 
