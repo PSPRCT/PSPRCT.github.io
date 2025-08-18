@@ -74,6 +74,8 @@
   .row .cov{width:8px;height:8px;border-radius:50%}
   .row .title{font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .row .addr{color:var(--muted);font-size:12px;line-height:1.25;white-space:normal;overflow:visible;text-overflow:clip}
+  .row.active{ background:#eef6ff; }
+
 
   .floating{position:absolute;left:10px;top:10px;z-index:402;display:flex;gap:8px;flex-wrap:wrap}
   .floating .btn,.floating .toggle{padding:6px 8px;font-size:12px}
@@ -998,6 +1000,8 @@
     renderSidepanelCounts();
     spFilter = ''; spSearch.value='';
     renderSidepanelList(true);
+    setTimeout(()=> spSearch.focus(), 0);
+
   }
   function hideSidepanel(){
     spHub = null; sidepanel.classList.remove('show');
@@ -1062,18 +1066,29 @@
         </div>
         <div style="min-width:70px;text-align:right">${s._dist?.toFixed(1)??''} mi</div>
       `;
+      el.title = `#${s.storeNumberStr} • ${s.storeName || ''}\n${(s.address||'')}, ${s.city||''}, ${s.state||''} • ${s._dist?.toFixed(1)??''} mi`;
+
       // click = zoom + popup
-      el.addEventListener('click', ()=>{
-        map.setView([s.lat,s.lng], 12, {animate:true,padding:POPUP_PAD});
-        openStorePopup(s);
-      });
-      // hover = highlight on map
-      el.addEventListener('mouseenter', ()=> showHover(s.lat,s.lng));
-      el.addEventListener('mouseleave', hideHover);
-      frag.appendChild(el);
-    }
-    spRowsEl.innerHTML = '';
-    spRowsEl.appendChild(frag);
+      // click = highlight row + zoom + popup
+el.addEventListener('click', ()=>{
+  // 1) clear highlight from any previously visible row elements
+  Array.from(spRowsEl.children).forEach(c => c.classList.remove('active'));
+  // 2) mark this one active
+  el.classList.add('active');
+
+  // 3) center the map and open the store popup
+  map.setView([s.lat,s.lng], 12, {animate:true, padding:POPUP_PAD});
+  openStorePopup(s);
+});
+
+// hover = highlight on map
+el.addEventListener('mouseenter', ()=> showHover(s.lat,s.lng));
+el.addEventListener('mouseleave', hideHover);
+frag.appendChild(el);
+}
+spRowsEl.innerHTML = '';
+spRowsEl.appendChild(frag);
+
   }
   function zoomHubRadius(){
     if(!spHub) return;
