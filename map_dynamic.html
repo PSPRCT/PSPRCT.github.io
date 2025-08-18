@@ -327,6 +327,11 @@
   // Map/layers
   const map = L.map('map', { zoomControl: true, inertia: true }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
+  // Ensure hub markers render above clusters & circles
+const hubPane = map.createPane('hubPane');
+hubPane.style.zIndex = 650;           // above marker clusters
+hubPane.style.pointerEvents = 'auto';
+
   const markers = L.markerClusterGroup({
     disableClusteringAtZoom: 12,
     spiderfyOnMaxZoom: false,
@@ -702,7 +707,16 @@ try {
     const amOK = amSel.includes('All') || amSel.includes(s.areaManager || '');
 
     const hubSel = Array.from(hubFilter.selectedOptions).map(o=>o.value);
-    const hubOK = hubSel.length === 0 || hubSel.includes((s.trainerCity || '').trim());
+    const hubSel = Array.from(hubFilter.selectedOptions).map(o=>o.value);
+let hubOK = true;
+if (hubSel.length){
+  const r = Number(radius.value) || DEFAULT_RADIUS;
+  const hubsNow = [...premiumConfirmed, ...premiumPending, ...acostaHubs];
+  const selHubs = hubsNow.filter(h => hubSel.includes(h.fullName || h.name));
+  // Store passes only if it’s within r mi of at least one selected hub
+  hubOK = selHubs.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+}
+
 
     let withinOK = true;
     if (tgWithin.checked){
@@ -773,19 +787,27 @@ try {
     if (showAcosta.checked)    out.push(...acostaHubs);
     return out;
   }
-  function renderHubs(){
-    hubLayer.clearLayers();
-    visibleHubs().forEach(h=>{
-      const el = document.createElement('div');
-      el.className = 'hub ' + (h.status === 'confirmed' ? 'confirmed' : h.status === 'pending' ? 'pending' : 'acosta');
-      const icon = L.divIcon({ className:'', html: el, iconSize:[20,20], iconAnchor:[10,10] });
-      const m = L.marker(h.coords, { icon, title: (h.fullName || h.name) }).addTo(hubLayer);
-      m.hub = h;
-      m.on('click', ()=> compareMode ? togglePin(h) : openSidepanel(h));
-      m.on('mouseover', ()=> m.bindTooltip(h.fullName || h.name, {direction:'top', offset:[0,-8]}).openTooltip());
-      m.on('mouseout',  ()=> m.closeTooltip());
+function renderHubs(){
+  hubLayer.clearLayers();
+  const vis = visibleHubs();
+  vis.forEach(h=>{
+    const cls =
+      h.status === 'confirmed' ? 'confirmed' :
+      h.status === 'pending'   ? 'pending'   : 'acosta';
+    const icon = L.divIcon({
+      className: '',
+      html: `<div class="hub ${cls}"></div>`,
+      iconSize: [20,20],
+      iconAnchor: [10,10]
     });
-  }
+    const m = L.marker(h.coords, { icon, title: (h.fullName || h.name), pane: 'hubPane' }).addTo(hubLayer);
+    m.hub = h;
+    m.on('click', ()=> compareMode ? togglePin(h) : openSidepanel(h));
+    m.on('mouseover', ()=> m.bindTooltip(h.fullName || h.name, {direction:'top', offset:[0,-8]}).openTooltip());
+    m.on('mouseout',  ()=> m.closeTooltip());
+  });
+}
+
   function updateRings(){
     ringLayer.clearLayers();
     if(!tgRings.checked) return;
@@ -1023,13 +1045,12 @@ function recomputeCoverage(){
     return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
   }
   function buildHubFilterOptions(){
-    // Keep this simple: pull trainerCity values from stores (legacy), plus all hub names
-    const namesFromStores = uniqSorted(allStores.map(s => (s.trainerCity||'').trim()).filter(Boolean));
-    const hubNames = uniqSorted([...premiumConfirmed, ...premiumPending, ...acostaHubs].map(h => h.name));
-    const opts = uniqSorted([...namesFromStores, ...hubNames]);
-    hubFilter.innerHTML = opts.map(v => `<option value="${escape(v)}">${escape(v)}</option>`).join('');
-    filterSelect(hubFilter, hubSearch.value);
-  }
+  const hubsNow = [...premiumConfirmed, ...premiumPending, ...acostaHubs];
+  const opts = uniqSorted(hubsNow.map(h => h.fullName || h.name));
+  hubFilter.innerHTML = opts.map(v => `<option value="${escape(v)}">${escape(v)}</option>`).join('');
+  filterSelect(hubFilter, hubSearch.value);
+}
+
   function uniqSorted(arr){
     const set = new Set();
     arr.forEach(v => { const s = (v ?? '').toString().trim(); if (s) set.add(s); });
