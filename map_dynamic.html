@@ -357,14 +357,14 @@
     { id:"riverview_fl_santos",     name:"Riverview, FL — Richard Santos", coords:[27.8661,-82.3265], status:"accepted", person:"Richard Santos" }
   ];
 
-  let allStores = [];
+ let allStores = [];
 let filteredStores = [];
 const markerByStore = new Map();
 
 const targetLayer    = L.layerGroup();
 const ringLayer      = L.layerGroup();
 const highlightLayer = L.layerGroup();
-const hubLayer       = L.layerGroup();   // <-- create early so it's initialized
+const hubLayer       = L.layerGroup();   // define once
 const heatLayerHolder = { layer: null };
 
 let compareMode = false;
@@ -391,12 +391,13 @@ const markers = L.markerClusterGroup({
 });
 const plainMarkers = L.layerGroup();
 
-// add all layers up front
+// add layers to map exactly once
 map.addLayer(markers);
 targetLayer.addTo(map);
 ringLayer.addTo(map);
 highlightLayer.addTo(map);
-hubLayer.addTo(map);                 // <-- add to map now
+hubLayer.addTo(map);
+
 
 
   // keep map sized correctly even after fonts/layout ready
@@ -853,19 +854,20 @@ hubLayer.addTo(map);                 // <-- add to map now
   // ---------- Hubs (render icons & interactions) ----------
   const hubLayer = L.layerGroup().addTo(map);
 
-  function renderHubs(){
-    hubLayer.clearLayers();
-    visibleHubs().forEach(h=>{
-      const el = document.createElement('div');
-      el.className = `hub ${h.status==='accepted' ? 'staffed':'open'}`;
-      const icon = L.divIcon({ className:'', html: el, iconSize:[20,20], iconAnchor:[10,10] });
-      const m = L.marker(h.coords, { icon, title:h.name }).addTo(hubLayer);
-      m.hub = h;
-      m.on('click', ()=> compareMode ? togglePin(h) : openSidepanel(h));
-      m.on('mouseover', ()=> m.bindTooltip(h.name, {direction:'top', offset:[0,-8]}).openTooltip());
-      m.on('mouseout',  ()=> m.closeTooltip());
-    });
-  }
+// ---------- Hubs (render icons & interactions) ----------
+function renderHubs(){
+  hubLayer.clearLayers();
+  visibleHubs().forEach(h=>{
+    const el = document.createElement('div');
+    el.className = `hub ${h.status==='accepted' ? 'staffed' : 'open'}`;
+    const icon = L.divIcon({ className:'', html: el, iconSize:[20,20], iconAnchor:[10,10] });
+    const m = L.marker(h.coords, { icon, title:h.name }).addTo(hubLayer);
+    m.hub = h;
+    m.on('click', ()=> compareMode ? togglePin(h) : openSidepanel(h));
+    m.on('mouseover', ()=> m.bindTooltip(h.name, {direction:'top', offset:[0,-8]}).openTooltip());
+    m.on('mouseout',  ()=> m.closeTooltip());
+  });
+}
 
   function updateRings(){
     ringLayer.clearLayers();
