@@ -819,28 +819,11 @@ try {
   }
 
   // ---------- Coverage ----------
-  function recomputeCoverage(){
-    const r = Number(radius.value) || DEFAULT_RADIUS;
-
-    // Which sets contribute to *Premium* coverage:
-    const premiumSets = [];
-    if (showConfirmed.checked) premiumSets.push(...premiumConfirmed);
-    if (showPending.checked)   premiumSets.push(...premiumPending);
-
-    // Acosta coverage set:
-    const acostaSet = showAcosta.checked ? acostaHubs : [];
-
-    allStores.forEach(s=>{
-      const inAcosta  = acostaSet.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
-      const inPremium = premiumSets.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
-
-      s.coverageType =
-        (inPremium && inAcosta) ? 'Premium + Acosta' :
-        (inPremium)             ? 'Premium Only'     :
-        (inAcosta)              ? 'Acosta Only'      :
-                                  'Uncovered';
-    });
-  }
+// Replace the whole function with this:
+function recomputeCoverage(){
+  // Intentionally blank: keep s.coverageType as provided by store_data.json.
+  // (Hubs are still used elsewhere: rings, Within hubs filter, overlap, sandbox.)
+}
 
   // ---------- Sidepanel ----------
   function openSidepanel(h){
@@ -1258,8 +1241,7 @@ try {
   function handleHubVisibilityChange(){
     renderHubs();
     updateRings();
-    recomputeCoverage();      // coverage changes when visibility changes
-    if (tgOverlap.checked) drawOverlap();
+      if (tgOverlap.checked) drawOverlap();
     if (tgWithin.checked){ runFilter(); fitToResults(); } else { runFilter(); }
     if (spHub && !visibleHubs().some(h => h.id === spHub.id)) hideSidepanel();
     saveState();
