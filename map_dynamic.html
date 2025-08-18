@@ -236,13 +236,26 @@
   </div>
 
   <div class="sandbox" id="sandboxPanel">
-    <h4>New-hub Sandbox</h4>
-    <div>Click the map to position the blue ring. Adjust radius below.</div>
-    <div style="margin-top:6px"><b>Radius:</b> <input id="sandboxR" type="range" min="25" max="150" step="5" value="75"> <b id="sandboxRlbl">75</b> mi</div>
-    <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
-    <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>
-    <div style="margin-top:8px"><small>Click “New-hub sandbox” again to close.</small></div>
+  <h4>New-hub Sandbox</h4>
+  <div>Click the map to position the blue ring, <b>or</b> enter an address/“lat,lng” below. Adjust radius as needed.</div>
+
+  <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+    <input id="sandboxAddr" type="text" placeholder="e.g. 9339 Brookhaven Rd, Kimberly, AL 35091  (or 33.123,-86.456)"
+           style="flex:1;min-width:260px;border:1px solid var(--border);border-radius:8px;padding:6px 8px"/>
+    <button id="sandboxGeocode" class="btn" type="button" title="Use this address for the sandbox ring">Use address</button>
   </div>
+  <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
+
+  <div style="margin-top:10px">
+    <b>Radius:</b> <input id="sandboxR" type="range" min="25" max="150" step="5" value="75">
+    <b id="sandboxRlbl">75</b> mi
+  </div>
+
+  <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
+  <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>
+  <div style="margin-top:8px"><small>Click “New-hub sandbox” again to close.</small></div>
+</div>
+
 
   <div class="sidepanel" id="sidepanel">
     <div class="sp-head">
@@ -1034,28 +1047,42 @@
     try { applyState(JSON.parse(s), false); return true; }
     catch(e){ console.warn('State load error', e); return false; }
   }
-  function captureState(){
-    return {
-      map: { center: map.getCenter(), zoom: map.getZoom() },
-      filters: {
-        showStaffed: showStaffed.checked,
-        showOpen: showOpen.checked,
-        radius: Number(radius.value),
-        cov: Array.from(covFilter.selectedOptions).map(o=>o.value),
-        rm:  Array.from(rmFilter.selectedOptions).map(o=>o.value),
-        am:  Array.from(amFilter.selectedOptions).map(o=>o.value),
-        hub: Array.from(hubFilter.selectedOptions).map(o=>o.value),
-        within: tgWithin.checked
-      },
-      toggles: {
-        heat: tgHeat.checked,
-        rings: tgRings.checked,
-        overlap: tgOverlap.checked,
-        compare: tgCompare.checked,
-        cluster: tgCluster.checked
-      }
+function captureState(){
+  // capture sandbox position/label if present
+  let sandbox = null;
+  if (sandboxMarker){
+    const c = sandboxMarker.getLatLng();
+    sandbox = {
+      lat: c.lat,
+      lng: c.lng,
+      radius: Number(id('sandboxR').value) || DEFAULT_RADIUS,
+      label: sandboxLabel || '',
+      visible: id('sandboxPanel').style.display !== 'none'
     };
   }
+  return {
+    map: { center: map.getCenter(), zoom: map.getZoom() },
+    filters: {
+      showStaffed: showStaffed.checked,
+      showOpen: showOpen.checked,
+      radius: Number(radius.value),
+      cov: Array.from(covFilter.selectedOptions).map(o=>o.value),
+      rm:  Array.from(rmFilter.selectedOptions).map(o=>o.value),
+      am:  Array.from(amFilter.selectedOptions).map(o=>o.value),
+      hub: Array.from(hubFilter.selectedOptions).map(o=>o.value),
+      within: tgWithin.checked
+    },
+    toggles: {
+      heat: tgHeat.checked,
+      rings: tgRings.checked,
+      overlap: tgOverlap.checked,
+      compare: tgCompare.checked,
+      cluster: tgCluster.checked
+    },
+    sandbox // NEW
+  };
+}
+
   function applyState(state, fit){
     try{
       showStaffed.checked = !!state.filters.showStaffed;
@@ -1077,6 +1104,34 @@
       tgOverlap.checked= !!state.toggles.overlap;
       tgCompare.checked= !!state.toggles.compare;
       tgCluster.checked= !!state.toggles.cluster;
+
+      // --- Restore sandbox if present
+try{
+  if (state.sandbox){
+    const s = state.sandbox;
+    id('sandboxR').value = Number(s.radius) || DEFAULT_RADIUS;
+    id('sandboxRlbl').textContent = id('sandboxR').value;
+    sandboxLabel = s.label || '';
+    if (!sandboxMarker){
+      sandboxMarker = L.circle([s.lat, s.lng], {
+        radius: Number(id('sandboxR').value)*1609, color:'#2f71ff', weight:2, fill:false, opacity:.7
+      }).addTo(map);
+    } else {
+      sandboxMarker.setLatLng([s.lat, s.lng]);
+      sandboxMarker.setRadius(Number(id('sandboxR').value)*1609);
+    }
+    // show/hide panel to match previous state
+    id('sandboxPanel').style.display = s.visible ? 'block' : 'none';
+    if (s.visible){
+      const ph = proposedHubFromSandbox(); if (ph) openSidepanel(ph);
+    }
+  } else {
+    // no sandbox in saved state — remove if exists
+    if (sandboxMarker){ map.removeLayer(sandboxMarker); sandboxMarker=null; }
+    sandboxLabel='';
+    id('sandboxPanel').style.display='none';
+  }
+}catch(e){ console.warn('applyState sandbox restore issue', e); }
 
       refreshLayerMode();
       renderHubs();          // ensure hubs reflect toggles
@@ -1296,65 +1351,219 @@
   }, true);
   map.on('movestart', hideResults);
 
-  // ---------- Sandbox ----------
-  let sandboxMarker = null;
+  // --- Geocoding helpers for sandbox
+function parseLatLng(text){
+  const m = (text||'').trim().match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+  if (!m) return null;
+  const lat = Number(m[1]), lng = Number(m[2]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return { lat, lng };
+}
 
-  function proposedHubFromSandbox() {
-    if (!sandboxMarker) return null;
-    const c = sandboxMarker.getLatLng();
-    return {
-      id: 'proposed',
-      name: `Proposed hub — ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)}`,
-      coords: [c.lat, c.lng],
-      status: 'proposed',
-      person: null
-    };
+async function geocodeAddress(q){
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+  const resp = await fetch(url, {
+    headers:{
+      // IMPORTANT: Use a real contact here per Nominatim policy:
+      'User-Agent': 'PRT-coverage-tool/1.0 (you@example.com)',
+      'Accept': 'application/json'
+    }
+  });
+  if (resp.status === 429) {
+    // Too many requests: backoff a touch and retry once
+    await new Promise(r => setTimeout(r, 800));
+    const resp2 = await fetch(url, {
+      headers:{
+        'User-Agent': 'PRT-coverage-tool/1.0 (you@example.com)',
+        'Accept': 'application/json'
+      }
+    });
+    if (!resp2.ok) throw new Error(`Geocode HTTP ${resp2.status}`);
+    const arr2 = await resp2.json();
+    if (!Array.isArray(arr2) || !arr2.length) throw new Error('No results found.');
+    const r2 = arr2[0];
+    return { lat: Number(r2.lat), lng: Number(r2.lon), label: r2.display_name || q };
+  }
+  if (!resp.ok) throw new Error(`Geocode HTTP ${resp.status}`);
+  const arr = await resp.json();
+  if (!Array.isArray(arr) || !arr.length) throw new Error('No results found.');
+  const r = arr[0];
+  return { lat: Number(r.lat), lng: Number(r.lon), label: r.display_name || q };
+}
+
+
+  async function setSandboxToAddress(){
+  const q = (sandboxAddr.value||'').trim();
+  sandboxGeoMsg.textContent = '';
+  if (!q){ sandboxGeoMsg.textContent = 'Enter an address or "lat,lng".'; return; }
+
+  sandboxGeocode.disabled = true;   // <-- add
+  try {
+    // ... existing code ...
+  } finally {
+    sandboxGeocode.disabled = false; // <-- add
+  }
+}
+
+
+  // Allow raw coordinates
+  const ll = parseLatLng(q);
+  if (ll){
+    ensureSandboxExists();
+    sandboxMarker.setLatLng(ll);
+    sandboxLabel = ''; // raw coords; keep title as lat/lng
+    refreshSandbox();
+    map.panTo(ll);
+    sandboxGeoMsg.textContent = `Placed at ${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)}.`;
+    // Always show panel for convenience:
+    const ph = proposedHubFromSandbox(); if (ph) openSidepanel(ph);
+    return;
   }
 
-  id('sandboxBtn').onclick = ()=>{
-    if (sandboxMarker){
-      map.removeLayer(sandboxMarker); sandboxMarker = null;
-      id('sandboxPanel').style.display='none';
-      if (spHub?.id === 'proposed') hideSidepanel();
-      return;
-    }
+  // Geocode via Nominatim
+  try{
+    sandboxGeoMsg.textContent = 'Looking up address…';
+    const { lat, lng, label } = await geocodeAddress(q);
+    ensureSandboxExists();
+    const latlng = L.latLng(lat, lng);
+    sandboxMarker.setLatLng(latlng);
+    sandboxLabel = label; // remember label
+    refreshSandbox();
+    map.flyTo(latlng, Math.max(map.getZoom(), 11));
+    sandboxGeoMsg.textContent = `Placed at: ${label}`;
+    // Always show panel with the resolved label:
+    const ph = proposedHubFromSandbox(); if (ph) openSidepanel(ph);
+  }catch(err){
+    console.error(err);
+    sandboxGeoMsg.textContent = `Geocoding failed: ${err.message || err}`;
+  }
+}
+
+
+
+  // ---------- Sandbox ----------
+  
+let sandboxMarker = null;              // existing
+let sandboxLabel = '';                 // NEW: human-readable label for proposed hub
+
+
+function proposedHubFromSandbox() {
+  if (!sandboxMarker) return null;
+  const c = sandboxMarker.getLatLng();
+  const base = sandboxLabel && sandboxLabel.trim()
+    ? `Proposed hub — ${sandboxLabel}`
+    : `Proposed hub — ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)}`;
+  return {
+    id: 'proposed',
+    name: base,
+    coords: [c.lat, c.lng],
+    status: 'proposed',
+    person: null
+  };
+}
+
+
+id('sandboxBtn').onclick = ()=>{
+  const panel = id('sandboxPanel');
+  if (sandboxMarker){
+    map.removeLayer(sandboxMarker); sandboxMarker = null;
+    panel.style.display='none';
+    if (spHub?.id === 'proposed') hideSidepanel();
+    return;
+  }
+  const c = map.getCenter();
+  sandboxMarker = L.circle(c, { radius: Number(id('sandboxR').value)*1609, color:'#2f71ff', weight:2, fill:false, opacity:.7 }).addTo(map);
+  panel.style.display='block';
+  refreshSandbox();
+};
+
+map.on('click', e=>{
+  if (!sandboxMarker) return;
+  sandboxMarker.setLatLng(e.latlng);
+  refreshSandbox();
+  if (spHub?.id === 'proposed') { const ph = proposedHubFromSandbox(); if (ph) openSidepanel(ph); }
+});
+
+id('sandboxR').addEventListener('input', ()=>{
+  if (!sandboxMarker) return;
+  sandboxMarker.setRadius(Number(id('sandboxR').value)*1609);
+  id('sandboxRlbl').textContent = id('sandboxR').value;
+  refreshSandbox();
+  if (spHub?.id === 'proposed') { const ph = proposedHubFromSandbox(); if (ph) openSidepanel(ph); }
+});
+
+id('sandboxListBtn').onclick = ()=>{
+  const ph = proposedHubFromSandbox();
+  if (!ph){ alert('Place the proposed hub first (click the map or enter an address).'); return; }
+  openSidepanel(ph);
+});
+
+// --- NEW: Address -> sandbox position
+const sandboxAddr = id('sandboxAddr');
+const sandboxGeocode = id('sandboxGeocode');
+const sandboxGeoMsg = id('sandboxGeoMsg');
+
+async function setSandboxToAddress(){
+  const q = (sandboxAddr.value||'').trim();
+  sandboxGeoMsg.textContent = '';
+  if (!q){ sandboxGeoMsg.textContent = 'Enter an address or "lat,lng".'; return; }
+
+  // Allow raw coordinates
+  const ll = parseLatLng(q);
+  if (ll){
+    ensureSandboxExists();
+    sandboxMarker.setLatLng(ll);
+    refreshSandbox();
+    map.panTo(ll);
+    sandboxGeoMsg.textContent = `Placed at ${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)}.`;
+    openProposedIfVisible();
+    return;
+  }
+
+  // Geocode via Nominatim
+  try{
+    sandboxGeoMsg.textContent = 'Looking up address…';
+    const { lat, lng, label } = await geocodeAddress(q);
+    ensureSandboxExists();
+    const latlng = L.latLng(lat, lng);
+    sandboxMarker.setLatLng(latlng);
+    refreshSandbox();
+    map.flyTo(latlng, Math.max(map.getZoom(), 11));
+    sandboxGeoMsg.textContent = `Placed at: ${label}`;
+    openProposedIfVisible();
+  }catch(err){
+    console.error(err);
+    sandboxGeoMsg.textContent = `Geocoding failed: ${err.message || err}`;
+  }
+}
+
+function ensureSandboxExists(){
+  if (!sandboxMarker){
     const c = map.getCenter();
     sandboxMarker = L.circle(c, { radius: Number(id('sandboxR').value)*1609, color:'#2f71ff', weight:2, fill:false, opacity:.7 }).addTo(map);
     id('sandboxPanel').style.display='block';
-    refreshSandbox();
-  };
-
-  map.on('click', e=>{
-    if (!sandboxMarker) return;
-    sandboxMarker.setLatLng(e.latlng);
-    refreshSandbox();
-    if (spHub?.id === 'proposed') { const ph = proposedHubFromSandbox(); if (ph) openSidepanel(ph); }
-  });
-
-  id('sandboxR').addEventListener('input', ()=>{
-    if (!sandboxMarker) return;
-    sandboxMarker.setRadius(Number(id('sandboxR').value)*1609);
-    id('sandboxRlbl').textContent = id('sandboxR').value;
-    refreshSandbox();
-    if (spHub?.id === 'proposed') { const ph = proposedHubFromSandbox(); if (ph) openSidepanel(ph); }
-  });
-
-  id('sandboxListBtn').onclick = ()=>{
-    const ph = proposedHubFromSandbox();
-    if (!ph){ alert('Click the map to place the proposed hub first.'); return; }
-    openSidepanel(ph);
-  };
-
-  function refreshSandbox(){
-    const R = Number(id('sandboxR').value)||DEFAULT_RADIUS;
-    const c = sandboxMarker.getLatLng();
-    const inside = allStores.filter(s => distMiles(s.lat,s.lng,c.lat,c.lng) <= R);
-    const uncov  = inside.filter(s => s.coverageType==='Uncovered');
-    id('sandboxStats').innerHTML = `
-      <div><b>${inside.length}</b> stores in ${R} mi</div>
-      <div>Uncovered: <b>${uncov.length}</b></div>
-    `;
   }
+}
+
+function openProposedIfVisible(){
+  if (spHub?.id === 'proposed'){ const ph = proposedHubFromSandbox(); if (ph) openSidepanel(ph); }
+}
+
+sandboxGeocode.addEventListener('click', setSandboxToAddress);
+sandboxAddr.addEventListener('keydown', (e)=>{ if (e.key==='Enter'){ e.preventDefault(); setSandboxToAddress(); } });
+
+function refreshSandbox(){
+  const R = Number(id('sandboxR').value)||DEFAULT_RADIUS;
+  const c = sandboxMarker.getLatLng();
+  const inside = allStores.filter(s => distMiles(s.lat,s.lng,c.lat,c.lng) <= R);
+  const uncov  = inside.filter(s => s.coverageType==='Uncovered');
+  id('sandboxStats').innerHTML = `
+    <div><b>${inside.length}</b> stores in ${R} mi</div>
+    <div>Uncovered: <b>${uncov.length}</b></div>
+  `;
+}
+
 
   // ---------- Final initial renders ----------
   renderHubs();
