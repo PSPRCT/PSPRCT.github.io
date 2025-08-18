@@ -607,6 +607,19 @@ const getState = r => String(
     proposed:           'Proposed',
     open:               'Open'
   }[sub] || 'Pending');
+  // Hand-entered proposed locations -> used when the premium row is missing City
+const PROPOSED_CITY_OVERRIDES = {
+  PA: ['Belle Vernon', 'Parkesburg'],
+  NE: ['Blair'],
+  AZ: ['Casa Grande'],
+  CO: ['Centennial'],
+  UT: ['Centerville'],
+  CA: ['Colton'],
+  FL: ['Coral Springs'],
+  IN: ['Fort Wayne', 'Plainfield'],
+  TX: ['Houston'],
+ 
+
 const toHub = r => {
   const coords = getCoords(r);
   if (!coords) return null;
