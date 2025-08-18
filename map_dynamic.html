@@ -373,6 +373,13 @@ hubPane.style.pointerEvents = 'auto';
   let compareMode = false;
   let pinnedHubs = [];
   const debouncedRun = (() => { let t; return () => { clearTimeout(t); t = setTimeout(runFilter, 90); }; })();
+const getName = r => String(
+  r.CandidateName ?? r.Candidate ?? r.RepName ?? r.repName ??
+  r.TrainerName ?? r['Trainer Name'] ??
+  r.Premium_Trainer ?? r.PremiumTrainer ??
+  r.name ?? r.Name ?? ''
+).trim();
+const isOffer = s => /(offer|accepted)/.test(s);
 
   // Keep map sized correctly
   setTimeout(()=> map.invalidateSize(), 120);
@@ -411,7 +418,7 @@ on('change', covFilter, ()=>{ runFilter(); saveState(); renderChips(); buildHubF
   id('resetBtn').onclick= ()=>{ resetAll(); runFilter(); saveState(); renderChips(); };
 
   // Dropdowns & views
-  const exportDrop = id('exportDrop'); const menu = exportDrop.querySelector('.dropdown-menu');
+   exportDrop = id('exportDrop'); const menu = exportDrop.querySelector('.dropdown-menu');
   exportDrop.querySelector('button').onclick = ()=> toggleDropdown(menu);
   on('click', document.body, (e)=>{ if (!exportDrop.contains(e.target)) menu.style.display='none'; }, true);
   id('exportStores').onclick  = ()=>{ exportStoresCsv(); if(AUTO_RESET()) { resetAll(); runFilter(); renderChips(); } };
@@ -580,6 +587,12 @@ const getState = r => String(
   r.HubState ?? ''
 ).trim();
 
+  // Fallback names keyed by "city|ST" (lowercased)
+const NAME_OVERRIDES = {
+  'excelsior springs|mo': 'Teresa Estep',
+  'riverview|fl':         'Richard Santos',
+};
+
 
   const getCoords = r => {
     const lat = Number(r.Latitude  ?? r.latitude  ?? r.lat ?? r.Lat ?? r.lat_dd ?? r.Latitude__c);
@@ -625,9 +638,23 @@ const toHub = r => {
   if (!coords) return null;
   const [lat, lng] = coords;
 
-  const city  = getCity(r);
-  const state = getState(r);
-  const nm    = getName(r);
+const city  = getCity(r);
+const state = getState(r);
+let   nm    = getName(r);
+
+// fallback name by city/state if file didn't include it
+if (!nm && city && state) {
+  nm = NAME_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`] || '';
+}
+
+const { status, statusSub } = classify(r);
+const statusLabel = pretty(statusSub);
+const trainerBit  = nm ? ` — ${nm}` : '';
+
+const place = city && state ? `${city}, ${state}` : (city || state || '');
+const label = `${place} (${statusLabel}${trainerBit})`;
+
+  
 
   const { status, statusSub } = classify(r);
   const statusLabel = pretty(statusSub);
