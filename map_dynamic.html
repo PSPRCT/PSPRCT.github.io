@@ -933,23 +933,30 @@ function runFilter(){
     spTitle.textContent = h.name;
     const r = Number(radius.value) || DEFAULT_RADIUS;
 
-    const center = L.latLng(h.coords[0], h.coords[1]);
-    const base = allStores.filter(s => distMiles(s.lat,s.lng, center.lat, center.lng) <= r);
-    const onlyUncov = spOnlyUncovEl.checked;
-    const rows = base
-      .filter(s => !onlyUncov || (s.coverageType === 'Uncovered'))
-      .map(s => ({
-        storeNumberStr: s.storeNumberStr,
-        title: `Store ${s.storeNumberStr} — ${s.storeName || ''}`,
-        addr: `${s.address || ''}, ${s.city}, ${s.state}`,
-        lat: s.lat, lng: s.lng,
-        coverageType: s.coverageType || '',
-        areaManager: s.areaManager || '',
-        regionalManager: s.regionalManager || '',
-        trainerCity: s.trainerCity || ''
-      }));
+  const center = L.latLng(h.coords[0], h.coords[1]);
+const base = allStores
+  .map(s => ({ s, dmi: distMiles(s.lat, s.lng, center.lat, center.lng) }))
+  .filter(x => x.dmi <= r);
 
-    spRows = rows;
+const onlyUncov = spOnlyUncovEl.checked;
+const rows = base
+  .map(x => x.s)
+  .filter(s => !onlyUncov || s.coverageType === 'Uncovered')
+  .map(s => ({
+    storeNumberStr: s.storeNumberStr,
+    title: `${s.storeName || 'Walmart'}`,   // no store # here
+    addr: `${s.address || ''}, ${s.city}, ${s.state}`,
+    lat: s.lat, lng: s.lng,
+    coverageType: s.coverageType || '',
+    areaManager: s.areaManager || '',
+    regionalManager: s.regionalManager || '',
+    trainerCity: s.trainerCity || '',
+    dmi: distMiles(s.lat, s.lng, center.lat, center.lng)
+  }))
+  .sort((a,b)=>a.dmi-b.dmi);
+
+spRows = rows;
+
     spSearch.value = '';
     spFilter = '';
     spCounts.innerHTML = `
@@ -984,8 +991,37 @@ function runFilter(){
       r.addr.toLowerCase().includes(q) ||
       r.coverageType.toLowerCase().includes(q) ||
       r.areaManager.toLowerCase().includes(q) ||
-      r.regionalManager.toLowerCase().includes(q));
+      r.regionalManager.toLowerCase().includes(q) ||
+      r.storeNumberStr.includes(q)
+    );
   }
+
+  spRowsEl.innerHTML = rows.map(r => `
+    <div class="row" data-id="${r.storeNumberStr}">
+      <div class="num">#${r.storeNumberStr}</div>
+      <div style="flex:1;min-width:0">
+        <div class="title">${escape(r.title)}</div>
+        <div class="addr">${escape(r.addr)}</div>
+        <div class="meta" style="color:var(--muted);font-size:12px;margin-top:2px">
+          AM: ${escape(r.areaManager)} · RM: ${escape(r.regionalManager)} · Trainer City: ${escape(r.trainerCity)}
+        </div>
+      </div>
+      <div style="text-align:right;min-width:70px">
+        <div class="chip" style="margin-bottom:6px">${escape(r.coverageType)}</div>
+        <div style="color:var(--muted);font-variant-numeric:tabular-nums">${r.dmi.toFixed(1)} mi</div>
+      </div>
+    </div>
+  `).join('');
+
+  Array.from(spRowsEl.querySelectorAll('.row')).forEach(div=>{
+    div.addEventListener('click', ()=>{
+      const id = div.getAttribute('data-id');
+      const store = allStores.find(s => s.storeNumberStr === id);
+      if (store) openStorePopup(store);
+    });
+  });
+}
+
 
   spRowsEl.innerHTML = rows.map(r => `
     <div class="row" data-id="${r.storeNumberStr}">
@@ -1296,33 +1332,46 @@ function runFilter(){
 
   // ---------- Data normalization ----------
   function normalizeStores(arr){
-    return arr.map((r, i)=>{
-      const lat = Number(r.lat ?? r.Lat ?? r.latitude ?? r.Latitude);
-      const lng = Number(r.lng ?? r.Lng ?? r.lon ?? r.Longitude ?? r.longitude);
-      const storeNum = r.storeNumberStr ?? r.Store_Number ?? r.StoreNumber ?? r['Store #'] ?? r.Store ?? r.store;
-      const city = r.city ?? r.City;
-      const state = r.state ?? r.State;
-      const addr = r.address ?? r.Address ?? '';
-      const cov  = r.coverageType ?? r.Coverage_Type ?? r.Coverage ?? 'Uncovered';
-      const am   = r.areaManager ?? r.AreaManager ?? r.AM ?? '';
-      const rm   = r.regionalManager ?? r.RegionalManager ?? r.RM ?? '';
-      const trainerCity = r.trainerCity ?? r.TrainerCity ?? r.Assigned_Premium ?? '';
+  const numFromTitle = (v)=>{
+    if(!v) return null;
+    const m = String(v).match(/\bStore\s*(\d{3,6})\b/i);
+    return m ? m[1] : null;
+  };
+  return arr.map((r, i)=>{
+    const lat = Number(r.lat ?? r.Lat ?? r.latitude ?? r.Latitude);
+    const lng = Number(r.lng ?? r.Lng ?? r.lon ?? r.Longitude ?? r.longitude);
 
-      return {
-        id: r.id ?? `${storeNum||i}`,
-        storeNumberStr: String(storeNum || i),
-        storeName: r.storeName ?? r.Store_Name ?? r['Store Name'] ?? '',
-        address: addr,
-        city, state,
-        coverageType: cov,
-        areaManager: am,
-        regionalManager: rm,
-        trainerCity,
-        lat, lng,
-        coveredBy: 'any' // neutral so Staffed/Open toggles don't hide stores unintentionally
-      };
-    }).filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
-  }
+    // STRICT candidates only
+    const numCand = (
+      r.storeNumberStr ?? r.Store_Number ?? r.StoreNumber ??
+      r['Store #'] ?? r['Store#'] ?? r.StoreNum ?? r['Walmart #'] ??
+      numFromTitle(r.storeName ?? r.Store_Name ?? r['Store Name'])
+    );
+    const storeNum = numCand ? String(numCand).trim() : String(i);
+
+    const city  = r.city ?? r.City ?? '';
+    const state = r.state ?? r.State ?? '';
+    const addr  = r.address ?? r.Address ?? '';
+    const cov   = r.coverageType ?? r.Coverage_Type ?? r.Coverage ?? 'Uncovered';
+    const am    = r.areaManager ?? r.AreaManager ?? r.AM ?? '';
+    const rm    = r.regionalManager ?? r.RegionalManager ?? r.RM ?? '';
+    const trainerCity = r.trainerCity ?? r.TrainerCity ?? r.Assigned_Premium ?? '';
+
+    return {
+      id: r.id ?? storeNum,
+      storeNumberStr: storeNum,
+      storeName: r.storeName ?? r.Store_Name ?? r['Store Name'] ?? '',
+      address: addr, city, state,
+      coverageType: cov,
+      areaManager: am,
+      regionalManager: rm,
+      trainerCity,
+      lat, lng,
+      coveredBy: 'any'
+    };
+  }).filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+}
+
 
   // ---------- Heat/Busy/UI helpers ----------
   function showBusy(on){ busy.hidden = !on; }
@@ -1335,6 +1384,14 @@ function runFilter(){
     searchBadge.textContent = storeLike ? 'STORE' : 'SEARCH';
     searchBadge.classList.add('show');
   });
+
+  // Close results on blur/outside/scroll
+searchBox.addEventListener('blur', ()=> setTimeout(hideResults, 120));
+document.addEventListener('click', (e)=>{
+  if (!document.querySelector('.searchbox').contains(e.target)) hideResults();
+}, true);
+map.on('movestart', hideResults);
+
 
   // ---------- Sandbox (new-hub tester) ----------
   let sandboxMarker = null;
