@@ -604,6 +604,12 @@ try {
     'norman|ok':             'Teryl Ard',
     'kimberly|al':           'Jessica Salvage',
   };
+  // Collapse alternate city labels into a single hub
+const CITY_ALIAS_OVERRIDES = {
+  // Treat Excelsior Springs as KC (same market)
+  'excelsior springs|mo': { city: 'Kansas City', state: 'MO', coords: [39.0997, -94.5786] },
+};
+
 
   // Hand-entered proposed locations -> only used if a proposed row has no City
   const PROPOSED_CITY_OVERRIDES = {
@@ -719,7 +725,7 @@ function chooseCityForMissing(lat, lng, state){
   let [lat, lng] = coords;
 
   let city  = getCity(r);
-  const state = getState(r);
+  let state = getState(r);   // ← was const; make it let
   let nm    = getName(r);
 
   // If City|State match a known fix, use those coordinates instead
@@ -740,13 +746,22 @@ function chooseCityForMissing(lat, lng, state){
     city = chooseCityForMissing(lat, lng, state);
   }
 
+  // Apply city alias AFTER we know city/state
+  if (city && state) {
+    const alias = CITY_ALIAS_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`];
+    if (alias) {
+      city = alias.city || city;
+      state = alias.state || state;
+      if (Array.isArray(alias.coords)) {
+        [lat, lng] = alias.coords;
+        coords = [lat, lng];
+      }
+    }
+  }
+
   const statusLabel = pretty(statusSub);
   const trainerBit  = nm ? ` — ${nm}` : '';
-
-  // Prefer "City, ST", else whichever we have
   const place = city && state ? `${city}, ${state}` : (city || state || '');
-
-  // Show city for pending/open/proposed hubs when available
   const label = `${place} (${statusLabel}${trainerBit})`;
 
   return {
@@ -761,7 +776,8 @@ function chooseCityForMissing(lat, lng, state){
     city,
     state
   };
-}; // ← this closes the function
+};
+
 
 
   const hubs = rows.map(toHub).filter(Boolean);
@@ -769,17 +785,38 @@ function chooseCityForMissing(lat, lng, state){
   premiumConfirmed = hubs.filter(h => h.status === 'confirmed');
   premiumPending   = hubs.filter(h => h.status === 'pending');
 
-  // de-dupe within each bucket
-  const dedupe = list => {
-    const seen = new Set(), out = [];
-    for (const h of list) {
-      const key = `${h.coords[0].toFixed(4)},${h.coords[1].toFixed(4)}|${h.statusSub}|${h.name||''}`;
-      if (!seen.has(key)) { seen.add(key); out.push(h); }
-    }
-    return out;
-  };
-  premiumConfirmed = dedupe(premiumConfirmed);
-  premiumPending   = dedupe(premiumPending);
+ // Merge duplicates across statuses by city/state or rounded coords.
+// Keep the higher-priority status (confirmed > pending_offer > pending > open > proposed).
+const STATUS_PRIORITY = { confirmed:5, pending_offer:4, pending_candidate:3, open:2, proposed:1 };
+
+function hubKey(h){
+  if (h.city && h.state) return `${h.city.toLowerCase()}|${h.state.toLowerCase()}`;
+  return `${h.coords[0].toFixed(3)},${h.coords[1].toFixed(3)}`; // ~3–4 miles
+}
+
+function coalesceHubs(list){
+  const byKey = new Map();
+  for (const h of list){
+    const key = hubKey(h);
+    const cur = byKey.get(key);
+    if (!cur) { byKey.set(key, h); continue; }
+
+    const a = cur, b = h;
+    const pa = STATUS_PRIORITY[a.statusSub] || 0;
+    const pb = STATUS_PRIORITY[b.statusSub] || 0;
+
+    // Prefer higher status; on tie, prefer the one that has a name
+    const pick = (pb > pa || (pb === pa && !a.name && b.name)) ? b : a;
+    byKey.set(key, pick);
+  }
+  return Array.from(byKey.values());
+}
+
+const hubs = rows.map(toHub).filter(Boolean);
+const merged = coalesceHubs(hubs);
+premiumConfirmed = merged.filter(h => h.status === 'confirmed');
+premiumPending   = merged.filter(h => h.status === 'pending');
+
 
 } catch (e) {
   console.warn('Premium file missing/invalid', e);
