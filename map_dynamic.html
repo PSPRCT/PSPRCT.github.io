@@ -1023,29 +1023,7 @@ spRows = rows;
 }
 
 
-  spRowsEl.innerHTML = rows.map(r => `
-    <div class="row" data-id="${r.storeNumberStr}">
-      <div class="num">${r.storeNumberStr}</div>
-      <div style="flex:1;min-width:0">
-        <div class="title">${escape(r.title)}</div>
-        <div class="addr">${escape(r.addr)}</div>
-        <div class="meta" style="color:var(--muted);font-size:12px;margin-top:2px">
-          AM: ${escape(r.areaManager)} · RM: ${escape(r.regionalManager)} · Trainer City: ${escape(r.trainerCity)}
-        </div>
-      </div>
-      <div class="chip">${escape(r.coverageType)}</div>
-    </div>
-  `).join('');
-
-  Array.from(spRowsEl.querySelectorAll('.row')).forEach(div=>{
-    div.addEventListener('click', ()=>{
-      const id = div.getAttribute('data-id');
-      const store = allStores.find(s => s.storeNumberStr === id);
-      if (store) openStorePopup(store);
-    });
-  });
-}
-
+ 
 
   // ---------- Views (save/restore) ----------
   function saveCurrentView(){
