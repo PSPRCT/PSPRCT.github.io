@@ -240,9 +240,10 @@
 
   <div class="sandbox" id="sandboxPanel">
     <h4>New-hub Sandbox</h4>
-    <div>Drag the blue circle marker to test a hub.</div>
+    <div>Click the map to position the blue ring. Adjust radius below.</div>
     <div style="margin-top:6px"><b>Radius:</b> <input id="sandboxR" type="range" min="25" max="150" step="5" value="75"> <b id="sandboxRlbl">75</b> mi</div>
     <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
+    <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>
     <div style="margin-top:8px"><small>Click “New-hub sandbox” again to close.</small></div>
   </div>
 
@@ -256,7 +257,6 @@
     <div class="sp-body">
       <div id="spMeta" class="sp-meta" style="font-size:13px"></div>
       <div class="sp-actions">
-        <!-- Zoom to radius removed -->
         <button id="spExport" class="btn" type="button" title="Download CSV of this list">Export list (CSV)</button>
         <button id="spPrint" class="btn" type="button" title="Print this list">Print store list</button>
       </div>
@@ -580,7 +580,7 @@
   const hoverIcon  = L.divIcon({className:'', html:'<div class="hl"></div>', iconSize:[22,22], iconAnchor:[11,11]});
   let hoverMarker=null;
   function showHover(lat,lng){ if(hoverMarker) highlightLayer.removeLayer(hoverMarker); hoverMarker=L.marker([lat,lng],{icon:hoverIcon}).addTo(highlightLayer); }
-  function hideHover(){ if(hoverMarker){ highlightLayer.removeLayer(hoverMarker); hoverMarker=null; } }
+  function hideHover(){ if(hoverMarker){ highlightLayer.removeLayer(hoverMarker); highlightLayer.clearLayers(); hoverMarker=null; } }
 
   function storePopupHTML(s){
     const r = Number(radius.value)||DEFAULT_RADIUS;
@@ -664,7 +664,6 @@
     if (e.key === 'Enter'){
       e.preventDefault();
       if (resIndex>=0 && items[resIndex]) { selectResult(items[resIndex]); }
-      // else: wait for user to choose explicitly
     }
     if (e.key === 'Escape'){ hideResults(); }
   });
@@ -684,7 +683,7 @@
     if(!d) return;
 
     if(d.kind==='STORE' || d.kind==='NEAR'){
-      openStorePopup(d.store); // let openStorePopup pan & open
+      openStorePopup(d.store);
       return;
     }
 
@@ -869,8 +868,7 @@
   function clusterIconByDominantCoverage(cluster){
     const children = cluster.getAllChildMarkers();
     const counts = { 'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0 };
-    children.forEach(m=>{ const s = m.store; if(!s) return; counts[s        .coverageType] = (counts[s.coverageType] || 0) + 1;
-      });
+    children.forEach(m=>{ const s = m.store; if(!s) return; counts[s.coverageType] = (counts[s.coverageType] || 0) + 1; });
     const domKey = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'Uncovered';
     const cls =
       domKey === 'Premium + Acosta' ? 'marker-pa' :
@@ -924,8 +922,8 @@
     spTitle.textContent = h.name;
     const r = Number(radius.value) || DEFAULT_RADIUS;
 
-    // Build list of stores within radius; keep a compact row model for virtual list
-    const base = allStores.filter(s => distMiles(s.lat,s.lng,h.coords[0],h.coords[1]) <= r);
+    const center = L.latLng(h.coords[0], h.coords[1]);
+    const base = allStores.filter(s => distMiles(s.lat,s.lng, center.lat, center.lng) <= r);
     const onlyUncov = spOnlyUncovEl.checked;
     const rows = base
       .filter(s => !onlyUncov || (s.coverageType === 'Uncovered'))
@@ -945,12 +943,15 @@
     spFilter = '';
     spCounts.innerHTML = `
       <span class="sp-chip"><b>${rows.length}</b> in ${r} mi</span>
-      <span class="sp-chip">Uncovered: <b>${rows.filter(x=>x.coverageType==='Uncovered').length}</b></span>
+            <span class="sp-chip">Uncovered: <b>${rows.filter(x=>x.coverageType==='Uncovered').length}</b></span>
     `;
     spMeta.innerHTML = `
-      <div><b>Status:</b> ${h.status==='accepted'?'Staffed':'Open'}</div>
+      <div><b>Status:</b> ${h.status==='accepted' ? 'Staffed' : (h.status==='open' ? 'Open' : 'Proposed')}</div>
       <div><b>Coords:</b> ${h.coords[0].toFixed(4)}, ${h.coords[1].toFixed(4)}</div>
     `;
+    // Hide pin button for proposed hubs
+    spPinBtn.style.display = (h.id === 'proposed') ? 'none' : 'inline-block';
+
     renderSidepanelList();
 
     // Zoom so the ring and stores are nicely in view
@@ -1012,7 +1013,7 @@
     }
     el.innerHTML = html;
 
-    // Row interactions: click to open + scroll highlight sync handled on popupopen
+    // Row interactions: click to open
     Array.from(el.querySelectorAll('.row')).forEach(div=>{
       div.addEventListener('click', ()=>{
         const r = (el._filtered || [])[Number(div.dataset.i)];
@@ -1176,37 +1177,36 @@
   }
 
   function printSidepanelList(){
-  if (!spRows?.length){ alert('No list to print.'); return; }
-  const rows = spRows.map(r => `
-    <tr>
-      <td>${escape(r.storeNumberStr)}</td>
-      <td>${escape(r.title)}</td>
-      <td>${escape(r.addr)}</td>
-      <td>${escape(r.coverageType)}</td>
-    </tr>
-  `).join('');
-  const html = `
-    <html><head><title>${escape(spHub?.name || 'List')}</title>
-    <style>
-      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
-      table{border-collapse:collapse;width:100%}
-      th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
-      th{background:#f6f8fa;text-align:left}
-    </style></head>
-    <body>
-      <h3>${escape(spHub?.name || 'Hub')}</h3>
-      <p>${spRows.length} stores</p>
-      <table>
-        <thead><tr><th>#</th><th>Store</th><th>Address</th><th>Coverage</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <scr` + `ipt>window.onload=()=>window.print()</scr` + `ipt>
-    </body></html>`;
-  const w = window.open('', '_blank');
-  w.document.write(html);
-  w.document.close();
-}
-
+    if (!spRows?.length){ alert('No list to print.'); return; }
+    const rows = spRows.map(r => `
+      <tr>
+        <td>${escape(r.storeNumberStr)}</td>
+        <td>${escape(r.title)}</td>
+        <td>${escape(r.addr)}</td>
+        <td>${escape(r.coverageType)}</td>
+      </tr>
+    `).join('');
+    const html = `
+      <html><head><title>${escape(spHub?.name || 'List')}</title>
+      <style>
+        body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+        table{border-collapse:collapse;width:100%}
+        th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
+        th{background:#f6f8fa;text-align:left}
+      </style></head>
+      <body>
+        <h3>${escape(spHub?.name || 'Hub')}</h3>
+        <p>${spRows.length} stores</p>
+        <table>
+          <thead><tr><th>#</th><th>Store</th><th>Address</th><th>Coverage</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <scr` + `ipt>window.onload=()=>window.print()</scr` + `ipt>
+      </body></html>`;
+    const w = window.open('', '_blank');
+    w.document.write(html);
+    w.document.close();
+  }
 
   // ---------- Chips ----------
   function renderChips(){
@@ -1349,33 +1349,56 @@
     searchBadge.classList.add('show');
   });
 
-  // ---------- Ensure first search opens popup ----------
-  // Already handled in openStorePopup(): pan first, then open on moveend
-
   // ---------- Sandbox (new-hub tester) ----------
   let sandboxMarker = null;
+
+  function proposedHubFromSandbox() {
+    if (!sandboxMarker) return null;
+    const c = sandboxMarker.getLatLng();
+    return {
+      id: 'proposed',
+      name: `Proposed hub — ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)}`,
+      coords: [c.lat, c.lng],
+      status: 'proposed',
+      person: null
+    };
+  }
+
   id('sandboxBtn').onclick = ()=>{
     if (sandboxMarker){
       map.removeLayer(sandboxMarker); sandboxMarker = null;
       id('sandboxPanel').style.display='none';
+      if (spHub?.id === 'proposed') hideSidepanel();
       return;
     }
     const c = map.getCenter();
     sandboxMarker = L.circle(c, { radius: Number(id('sandboxR').value)*1609, color:'#2f71ff', weight:2, fill:false, opacity:.7 }).addTo(map);
     id('sandboxPanel').style.display='block';
     refreshSandbox();
-    map.on('click', e=>{
-      if (!sandboxMarker) return;
-      sandboxMarker.setLatLng(e.latlng);
-      refreshSandbox();
-    });
   };
+
+  // Place/move sandbox by clicking the map
+  map.on('click', e=>{
+    if (!sandboxMarker) return;
+    sandboxMarker.setLatLng(e.latlng);
+    refreshSandbox();
+    if (spHub?.id === 'proposed') { const ph = proposedHubFromSandbox(); if (ph) openSidepanel(ph); }
+  });
+
   id('sandboxR').addEventListener('input', ()=>{
     if (!sandboxMarker) return;
     sandboxMarker.setRadius(Number(id('sandboxR').value)*1609);
     id('sandboxRlbl').textContent = id('sandboxR').value;
     refreshSandbox();
+    if (spHub?.id === 'proposed') { const ph = proposedHubFromSandbox(); if (ph) openSidepanel(ph); }
   });
+
+  id('sandboxListBtn').onclick = ()=>{
+    const ph = proposedHubFromSandbox();
+    if (!ph){ alert('Click the map to place the proposed hub first.'); return; }
+    openSidepanel(ph);
+  };
+
   function refreshSandbox(){
     const R = Number(id('sandboxR').value)||DEFAULT_RADIUS;
     const c = sandboxMarker.getLatLng();
@@ -1396,3 +1419,4 @@
 </script>
 </body>
 </html>
+
