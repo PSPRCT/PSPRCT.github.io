@@ -502,6 +502,7 @@ hubPane.style.pointerEvents = 'auto';
    // ACOSTA
 try {
   const aResp = await fetch(ACOSTA_URL, { cache: 'no-store' });
+  if (!aResp.ok) throw new Error(`HTTP ${aResp.status} for ${ACOSTA_URL}`);
   const aJson = await aResp.json();
   const rows = Array.isArray(aJson) ? aJson : [];
   acostaHubs = rows
@@ -509,36 +510,34 @@ try {
       lat: Number(r.Latitude ?? r.latitude ?? r.lat),
       lng: Number(r.Longitude ?? r.longitude ?? r.lng),
       name: String(r.RepName ?? r.name ?? 'Acosta Rep'),
-      city: String(r.City ?? ''),
-      state: String(r.State ?? ''),
+      city: String(r.City ?? ''), state: String(r.State ?? '')
     }))
     .filter(r => Number.isFinite(r.lat) && Number.isFinite(r.lng))
     .map(r => ({
       id: 'ac_' + slug(`${r.name}-${r.city}-${r.state}`),
-      name: r.name,
-      fullName: `${r.name} — ${r.city}, ${r.state}`,
-      coords: [r.lat, r.lng],
-      status: 'acosta',
+      name: r.name, fullName: `${r.name} — ${r.city}, ${r.state}`,
+      coords: [r.lat, r.lng], status: 'acosta'
     }));
+  STATUS.textContent += `  |  Acosta hubs: ${acostaHubs.length}`;
 } catch (e) {
-  console.warn('Acosta file missing/invalid', e);
+  STATUS.innerHTML += `  |  <span style="color:#b42318">Acosta failed</span>`;
+  console.error('Acosta load error:', e);
   acostaHubs = [];
 }
 
 // PREMIUM (confirmed + pending)
 try {
   const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
+  if (!pResp.ok) throw new Error(`HTTP ${pResp.status} for ${PREMIUM_URL}`);
   const pJson = await pResp.json();
 
   let confirmedRows = [];
   let pendingRows = [];
 
   if (Array.isArray(pJson)) {
-    // flat array with Status column
-    confirmedRows = pJson.filter(r => /confirm/i.test(String(r.Status ?? r.status ?? '')));
-    pendingRows   = pJson.filter(r => /pend/i.test(String(r.Status ?? r.status ?? '')));
+    confirmedRows = pJson.filter(r => /confirm/i.test(String(r.Status ?? '')));
+    pendingRows   = pJson.filter(r => /pend/i.test(String(r.Status ?? '')));
   } else {
-    // object with confirmed/pending arrays
     confirmedRows = Array.isArray(pJson.confirmed) ? pJson.confirmed : [];
     pendingRows   = Array.isArray(pJson.pending)   ? pJson.pending   : [];
   }
@@ -548,24 +547,23 @@ try {
     const lng = Number(r.Longitude ?? r.longitude ?? r.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
     const name  = String(r.RepName ?? r.name ?? 'Trainer');
-    const city  = String(r.City ?? '');
-    const state = String(r.State ?? '');
-    return {
-      id: status[0] + '_' + slug(`${name}-${city}-${state}`),
-      name,
-      fullName: `${name} — ${city}, ${state}`,
-      coords: [lat, lng],
-      status,
-    };
+    const city  = String(r.City ?? ''), state = String(r.State ?? '');
+    return { id: status[0] + '_' + slug(`${name}-${city}-${state}`),
+             name, fullName: `${name} — ${city}, ${state}`,
+             coords: [lat, lng], status };
   };
 
   premiumConfirmed = confirmedRows.map(r => toHub(r, 'confirmed')).filter(Boolean);
   premiumPending   = pendingRows.map(r => toHub(r, 'pending')).filter(Boolean);
+
+  STATUS.textContent += `  |  Premium hubs: ${premiumConfirmed.length} confirmed, ${premiumPending.length} pending`;
 } catch (e) {
-  console.warn('Premium file missing/invalid', e);
+  STATUS.innerHTML += `  |  <span style="color:#b42318">Premium failed</span>`;
+  console.error('Premium load error:', e);
   premiumConfirmed = [];
   premiumPending   = [];
 }
+
 
     // Build initial UI state
     buildSearchIndex();
