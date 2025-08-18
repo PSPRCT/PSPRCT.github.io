@@ -528,12 +528,11 @@ try {
   acostaHubs = [];
 }
 
-// PREMIUM (confirmed + pending/open/proposed)
+// PREMIUM (confirmed + pending/open/proposed) with rich status + display label
 try {
   const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
   const pJson = await pResp.json();
 
-  // Accept flat or bucketed shapes
   const rows = Array.isArray(pJson)
     ? pJson
     : [
@@ -554,13 +553,15 @@ try {
     return fields.map(txt).find(Boolean) || '';
   };
 
-  // pending Open/Recruit/Pending variants
-  const PENDING_RE = /(pend|open|recruit|pipeline|offer|interview|candidate|tbd|propos|plan|sourc)/;
+  // finer buckets inside "pending"
+  const isOffer      = s => /(offer|accepted)/.test(s);
+  const isProposed   = s => /(propos|plan|target)/.test(s);
+  const isRecruiting = s => /(recruit|source|pipeline|tbd|open|no cand|search)/.test(s);
 
   const getName  = r => String(
-      r.RepName ?? r.repName ?? r.TrainerName ?? r['Trainer Name'] ??
-      r.Premium_Trainer ?? r.PremiumTrainer ?? r.name ?? r.Name ?? ''
-    ).trim();
+    r.RepName ?? r.repName ?? r.TrainerName ?? r['Trainer Name'] ??
+    r.Premium_Trainer ?? r.PremiumTrainer ?? r.name ?? r.Name ?? ''
+  ).trim();
 
   const getCity  = r => String(r.City  ?? r.city  ?? r.Hub_City  ?? '').trim();
   const getState = r => String(r.State ?? r.state ?? r.Hub_State ?? '').trim();
@@ -571,29 +572,81 @@ try {
     return (Number.isFinite(lat) && Number.isFinite(lng)) ? [lat, lng] : null;
   };
 
-  const toHub = (r, status) => {
+  // status classifier
+  const classify = r => {
+    const s = statusText(r);
+    const hasName = !!getName(r);
+    if (hasName && !isOffer(s) && !isProposed(s) && !isRecruiting(s) && !/pend/.test(s)) {
+      return { status: 'confirmed', statusSub: 'confirmed' };
+    }
+    if (isOffer(s))      return { status: 'pending', statusSub: 'pending_offer' };
+    if (isProposed(s))   return { status: 'pending', statusSub: 'proposed' };
+    if (isRecruiting(s)) return { status: 'pending', statusSub: 'open' };
+    // generic pending (candidate or not)
+    return { status: 'pending', statusSub: hasName ? 'pending_candidate' : 'proposed' };
+  };
+
+  const pretty = sub => ({
+    confirmed:          'Confirmed',
+    pending_offer:      'Pending Offer',
+    pending_candidate:  'Pending',
+    proposed:           'Proposed',
+    open:               'Open'
+  }[sub] || 'Pending');
+
+  const toHub = r => {
     const coords = getCoords(r);
     if (!coords) return null;
     const [lat, lng] = coords;
     const city = getCity(r), state = getState(r);
-    const nm   = getName(r) || (status === 'pending' ? 'Proposed City' : 'Trainer');
+    const nm   = getName(r);
+
+    const { status, statusSub } = classify(r);
+    const statusLabel = pretty(statusSub);
+
+    // City-first label; include status and trainer when meaningful
+    // Examples:
+    // "Austin, TX (Proposed)"
+    // "Belvidere, IL (Pending Offer — Justin Vargas Salgado)"
+    // "Mabelvale, AR (Confirmed — Angela Eslick)"
+    const trainerBit = nm ? ` — ${nm}` : '';
+    const label = `${city}${state ? `, ${state}` : ''} (${statusLabel}${trainerBit})`;
+
     return {
-      id: `${status[0]}_${slug(`${nm}-${city}-${state}-${lat.toFixed(3)}-${lng.toFixed(3)}`)}`,
-      name: nm,
-      fullName: `${nm} — ${city}${state ? `, ${state}` : ''}`,
+      id: `${status[0]}_${slug(`${city}-${state}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
+      name: nm || 'Proposed',
+      label,                 // <-- use this everywhere in UI
+      fullName: label,       // backwards-compat for any old references
       coords: [lat, lng],
-      status, // 'confirmed' | 'pending'
+      status,                // 'confirmed' | 'pending'
+      statusSub,             // 'confirmed' | 'pending_offer' | 'proposed' | 'open' | 'pending_candidate'
+      statusLabel            // pretty text used in UI
     };
   };
 
-  // RULES:
-  // - CONFIRMED = has a name AND NOT pending/open wording
-  // - PENDING   = pending/open wording OR no name
-  const confirmedRows = rows.filter(r => getName(r) && !PENDING_RE.test(statusText(r)));
-  const pendingRows   = rows.filter(r =>  PENDING_RE.test(statusText(r)) || !getName(r));
+  const hubs = rows.map(toHub).filter(Boolean);
 
-  premiumConfirmed = confirmedRows.map(r => toHub(r, 'confirmed')).filter(Boolean);
-  premiumPending   = pendingRows.map(r   => toHub(r, 'pending')).filter(Boolean);
+  premiumConfirmed = hubs.filter(h => h.status === 'confirmed');
+  premiumPending   = hubs.filter(h => h.status === 'pending');
+
+  // de-dupe
+  const dedupe = list => {
+    const seen = new Set(), out = [];
+    for (const h of list) {
+      const key = `${h.coords[0].toFixed(4)},${h.coords[1].toFixed(4)}|${h.statusSub}|${h.name||''}`;
+      if (!seen.has(key)) { seen.add(key); out.push(h); }
+    }
+    return out;
+  };
+  premiumConfirmed = dedupe(premiumConfirmed);
+  premiumPending   = dedupe(premiumPending);
+
+} catch (e) {
+  console.warn('Premium file missing/invalid', e);
+  premiumConfirmed = [];
+  premiumPending   = [];
+}
+
 
   // de-dupe any accidental repeats
   const dedupe = list => {
@@ -752,12 +805,16 @@ try {
     const rmOK = rmSel.includes('All') || rmSel.includes(s.regionalManager || '');
     const amOK = amSel.includes('All') || amSel.includes(s.areaManager || '');
 
-    const hubSel = Array.from(hubFilter.selectedOptions).map(o=>o.value);
-    let hubOK = true;
+    // in storeFilter(s) — replace that hubSel block with this:
+const hubSel = Array.from(hubFilter.selectedOptions).map(o=>o.value); // IDs
+let hubOK = true;
 if (hubSel.length){
   const r = Number(radius.value) || DEFAULT_RADIUS;
   const hubsNow = [...premiumConfirmed, ...premiumPending, ...acostaHubs];
-  const selHubs = hubsNow.filter(h => hubSel.includes(h.fullName || h.name));
+  const selHubs = hubsNow.filter(h => hubSel.includes(h.id));
+  hubOK = selHubs.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+}
+
   // Store passes only if it’s within r mi of at least one selected hub
   hubOK = selHubs.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
 }
@@ -840,6 +897,8 @@ function updateCounts(){
     if (showAcosta.checked)    out.push(...acostaHubs);
     return out;
   }
+function hubDisplay(h){ return h.label || h.fullName || h.name; }
+
 function renderHubs(){
   hubLayer.clearLayers();
   const vis = visibleHubs();
@@ -853,6 +912,14 @@ function renderHubs(){
       iconSize: [20,20],
       iconAnchor: [10,10]
     });
+    const m = L.marker(h.coords, { icon, title: hubDisplay(h), pane: 'hubPane' }).addTo(hubLayer);
+    m.hub = h;
+    m.on('click', ()=> compareMode ? togglePin(h) : openSidepanel(h));
+    m.on('mouseover', ()=> m.bindTooltip(hubDisplay(h), {direction:'top', offset:[0,-8]}).openTooltip());
+    m.on('mouseout',  ()=> m.closeTooltip());
+  });
+}
+
     const m = L.marker(h.coords, { icon, title: (h.fullName || h.name), pane: 'hubPane' }).addTo(hubLayer);
     m.hub = h;
     m.on('click', ()=> compareMode ? togglePin(h) : openSidepanel(h));
@@ -915,36 +982,44 @@ function recomputeCoverage(){
 
 
   // ---------- Sidepanel ----------
-  function openSidepanel(h){
-    spHub = h;
-    sidepanel.classList.add('show');
-    spTitle.textContent = h.fullName || h.name;
-    renderSidepanelMeta();
-    renderSidepanelList(true);
-    const padRight = 420;
-    map.panInside(h.coords, { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] });
-    spPinBtn.textContent = pinnedHubs.some(x=>x.id===h.id) ? 'Unpin' : 'Pin';
-  }
+function openSidepanel(h){
+  spHub = h;
+  sidepanel.classList.add('show');
+  spTitle.textContent = hubDisplay(h);
+  renderSidepanelMeta();
+  renderSidepanelList(true);
+  const padRight = 420;
+  map.panInside(h.coords, { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] });
+  spPinBtn.textContent = pinnedHubs.some(x=>x.id===h.id) ? 'Unpin' : 'Pin';
+}
+
   function hideSidepanel(){ sidepanel.classList.remove('show'); spHub=null; spRows=[]; spRowsEl.innerHTML=''; }
-  function renderSidepanelMeta(){
+function renderSidepanelMeta(){
   if(!spHub) return;
   const r = Number(radius.value)||DEFAULT_RADIUS;
   const stores = storesWithin(spHub.coords, r);
   const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
   stores.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0) + 1; });
-  const pct = n => stores.length ? Math.round(n*100/stores.length) + '%' : '0%';
+
+  const statusChip = spHub.statusLabel
+    ? `<span class="sp-chip"><b>Status:</b> ${escape(spHub.statusLabel)}</span>`
+    : '';
 
   spMeta.innerHTML = `
-    <div><b>Radius:</b> ${r} mi</div>
-    <div style="margin-top:4px;display:flex;gap:8px;flex-wrap:wrap">
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b> (${pct(totals['Premium + Acosta']||0)})</span>
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b> (${pct(totals['Premium Only']||0)})</span>
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b> (${pct(totals['Acosta Only']||0)})</span>
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b> (${pct(totals['Uncovered']||0)})</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      ${statusChip}
+      <span class="sp-chip"><b>Radius:</b> ${r} mi</span>
+    </div>
+    <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
       <span class="sp-chip">Total: <b>${stores.length}</b></span>
     </div>
   `;
 }
+
 
   function renderSidepanelList(rebuild=false){
     if(!spHub) return;
@@ -1129,14 +1204,9 @@ function recomputeCoverage(){
     return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
   }
 function buildHubFilterOptions(){
-  // We want Premium hubs only…
   const hubsAll = [...premiumConfirmed, ...premiumPending];
-
-  // …that are within the current radius of at least one store in the
-  // current RM/AM/Coverage selection (ignore existing hub filter to avoid loops).
   const r = Number(radius.value) || DEFAULT_RADIUS;
 
-  // read current selector choices
   const covSel = Array.from(covFilter.selectedOptions).map(o => o.value);
   const rmSel  = Array.from(rmFilter.selectedOptions).map(o => o.value);
   const amSel  = Array.from(amFilter.selectedOptions).map(o => o.value);
@@ -1144,6 +1214,29 @@ function buildHubFilterOptions(){
   const covOK = s => covSel.includes('All') || covSel.includes(s.coverageType || '');
   const rmOK  = s => rmSel.includes('All')  || rmSel.includes(s.regionalManager || '');
   const amOK  = s => amSel.includes('All')  || amSel.includes(s.areaManager || '');
+
+  const subset = allStores.filter(s => covOK(s) && rmOK(s) && amOK(s));
+
+  const cascaded = subset.length
+    ? hubsAll.filter(h => subset.some(s => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r))
+    : hubsAll.slice();
+
+  // remember previous selections by ID
+  const prev = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
+
+  // build options (value=id, text=label)
+  hubFilter.innerHTML = cascaded
+    .sort((a,b)=> (a.label||'').localeCompare(b.label||''))
+    .map(h => `<option value="${escape(h.id)}">${escape(h.label || h.fullName || h.name)}</option>`)
+    .join('');
+
+  // re-select previous if still present
+  const keep = cascaded.filter(h => prev.has(h.id)).map(h => h.id);
+  if (keep.length) setMulti(hubFilter, keep);
+
+  filterSelect(hubFilter, hubSearch.value);
+}
+
 
   // subset of stores used for cascading the hub list
   const subset = allStores.filter(s => covOK(s) && rmOK(s) && amOK(s));
@@ -1214,11 +1307,12 @@ function storePopupHTML(s){
       <div><b>Trainer City:</b> ${escape(s.trainerCity||'')}</div>
       <div><b>Area Manager:</b> ${escape(s.areaManager||'')}</div>
       <div><b>Regional Manager:</b> ${escape(s.regionalManager||'')}</div>
-      ${np ? `<div style="margin-top:6px"><b>Nearest Premium:</b> ${escape(np.hub.fullName||np.hub.name)} • ${np.d.toFixed(1)} mi</div>` : ''}
-      ${na ? `<div><b>Nearest Acosta:</b> ${escape(na.hub.fullName||na.hub.name)} • ${na.d.toFixed(1)} mi</div>` : ''}
+      ${np ? `<div style="margin-top:6px"><b>Nearest Premium:</b> ${escape(hubDisplay(np.hub))} • ${np.d.toFixed(1)} mi</div>` : ''}
+      ${na ? `<div><b>Nearest Acosta:</b> ${escape(na.hub.label || na.hub.fullName || na.hub.name)} • ${na.d.toFixed(1)} mi</div>` : ''}
       <div style="color:var(--muted);margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
     </div>`;
 }
+
 
   function ensureMarkerForStore(store){
     let m = markerByStore.get(store.storeNumberStr);
@@ -1359,7 +1453,7 @@ function storePopupHTML(s){
     const cov = Array.from(covFilter.selectedOptions).map(o=>o.value).filter(v=>v!=='All');
     const rm  = Array.from(rmFilter.selectedOptions).map(o=>o.value).filter(v=>v!=='All');
     const am  = Array.from(amFilter.selectedOptions).map(o=>o.value).filter(v=>v!=='All');
-    const hb  = Array.from(hubFilter.selectedOptions).map(o=>o.value);
+    const hb = Array.from(hubFilter.selectedOptions).map(o=>o.textContent);
     if (cov.length) chips.push(`<span class="chip">Coverage: ${cov.map(escape).join(', ')}</span>`);
     if (rm.length)  chips.push(`<span class="chip">RM: ${rm.map(escape).join(', ')}</span>`);
     if (am.length)  chips.push(`<span class="chip">AM: ${am.map(escape).join(', ')}</span>`);
