@@ -59,7 +59,12 @@
   .sp-head{padding:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
   .sp-head h3{margin:0;font-size:16px;line-height:1.2;flex:1}
   .sp-body{padding:10px;overflow:auto}
-  .sp-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+<div class="sp-actions">
+  <button id="spZoom" class="btn" type="button" title="Fit map to this hub's radius">Zoom to radius</button>
+  <button id="spExport" class="btn" type="button">Export list (CSV)</button>
+  <button id="spPrint" class="btn" type="button">Print store list</button>
+</div>
+
   .sp-counts{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
   .sp-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:3px 8px}
   .sp-list input{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--fg);margin:8px 0}
@@ -121,12 +126,11 @@
 
   <div class="dropdown" id="exportDrop" style="position:relative">
     <button class="btn" type="button">Export ▾</button>
-    <div class="dropdown-menu">
-      <button id="exportStores" class="btn" type="button" style="display:block;width:100%;margin:4px 0">Export filtered stores (CSV)</button>
-      <button id="exportHubs" class="btn" type="button" style="display:block;width:100%;margin:4px 0">Export visible hubs (CSV)</button>
-      <button id="exportKpis" class="btn" type="button" style="display:block;width:100%;margin:4px 0">Export KPIs summary (CSV)</button>
-      <button id="exportOverlap" class="btn" type="button" style="display:block;width:100%;margin:4px 0">Export overlap stores (CSV)</button>
-    </div>
+   <div class="dropdown-menu">
+  <button id="exportStores" class="btn" type="button" style="display:block;width:100%;margin:4px 0">
+    Export filtered stores (CSV)
+  </button>
+</div>
   </div>
 </div>
 
@@ -350,9 +354,7 @@
   };
   on('click', document.body, (e)=>{ if (!exportDrop.contains(e.target)) menu.style.display='none'; }, true);
   id('exportStores').onclick  = ()=> exportStoresCsv();
-  id('exportHubs').onclick    = exportHubsCsv;
-  id('exportKpis').onclick    = exportKpisCsv;
-  id('exportOverlap').onclick = exportOverlapCsv;
+
 
   const k = { pa:id('k_pa'), p:id('k_p'), a:id('k_a'), u:id('k_u'), total:id('k_total'), staffed:id('k_staffed'), open:id('k_open'), inView:id('inView') };
 
@@ -372,6 +374,9 @@
   const sidepanel = id('sidepanel');
   const spTitle = id('spTitle'); const spMeta = id('spMeta'); const spCounts = id('spCounts');
   const spList = id('spList'); const spSearch = id('spSearch');
+  const spPrint = id('spPrint');
+spPrint.onclick = () => printSidepanelList();
+
   const spClose = id('spClose'); const spExport = id('spExport'); const spZoom = id('spZoom'); const spPinBtn = id('spPinBtn');
 
   spClose.onclick = ()=> hideSidepanel();
@@ -698,13 +703,15 @@
     });
     download('hub_list.csv', "\uFEFF"+lines.join('\n'));
   }
-  function zoomHubRadius(){
-    if (!spHub) return;
-    const rMeters = (Number(radius.value)||DEFAULT_RADIUS) * 1609.34;
-    const circle = L.circle(spHub.coords, { radius:rMeters });
-    const b = circle.getBounds();
-    map.fitBounds(b.pad(0.15), { animate:true });
-  }
+function zoomHubRadius(){
+  if (!spHub) return;
+  const rMeters = (Number(radius.value) || DEFAULT_RADIUS) * 1609.34;
+  const center = L.latLng(spHub.coords[0], spHub.coords[1]);
+  // toBounds makes a square around the point at the given "radius" (meters)
+  const bounds = center.toBounds(rMeters * 2); // diameter for a more generous fit
+  map.fitBounds(bounds.pad(0.15), { animate: true });
+}
+
   function togglePinFromPanel(){
     if (!spHub) return;
     const idx = pinnedHubs.indexOf(spHub);
@@ -986,6 +993,53 @@
     order.forEach(([k,short])=>{ if ((counts[k]||0) > max){ max = counts[k]||0; dom = short; }});
     return new L.DivIcon({ html:'<div><span>'+children.length+'</span></div>', className:'marker-cluster marker-'+dom, iconSize:new L.Point(40,40) });
   }
+  function printSidepanelList(){
+  if (!spHub || !spRows.length){
+    alert('Open a hub first to print its store list.');
+    return;
+  }
+  const r = Number(radius.value)||DEFAULT_RADIUS;
+  const rowsHtml = spRows.map(({store,dist})=>`
+    <tr>
+      <td>${escape(store.storeNumberStr)}</td>
+      <td>${escape(store.storeName||'')}</td>
+      <td>${escape(store.city||'')}</td>
+      <td>${escape(store.state||'')}</td>
+      <td>${escape(store.coverageType||'')}</td>
+      <td style="text-align:right">${dist.toFixed(1)}</td>
+    </tr>`).join('');
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!doctype html>
+  <html><head><meta charset="utf-8">
+  <title>${escape(spHub.name)} — ${r} mi</title>
+  <style>
+    body{font:14px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:24px;color:#111}
+    h1{font-size:18px;margin:0 0 8px}
+    .sub{color:#555;margin:0 0 16px}
+    table{border-collapse:collapse;width:100%}
+    th,td{border:1px solid #ddd;padding:6px 8px}
+    th{background:#f6f8fa;text-align:left}
+    tfoot td{font-weight:700}
+    @media print{ @page{margin:12mm} }
+  </style>
+  </head><body>
+    <h1>${escape(spHub.name)}</h1>
+    <div class="sub">Radius: <b>${r} mi</b> • Stores: <b>${spRows.length}</b></div>
+    <table>
+      <thead>
+        <tr><th>Store #</th><th>Name</th><th>City</th><th>State</th><th>Coverage</th><th style="text-align:right">Dist (mi)</th></tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+      <tfoot>
+        <tr><td colspan="5">Total</td><td style="text-align:right">${spRows.length}</td></tr>
+      </tfoot>
+    </table>
+    <script>window.onload = () => setTimeout(()=>window.print(), 50);<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
 
 })(); // end IIFE
 </script>
