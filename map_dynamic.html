@@ -891,9 +891,10 @@
   function togglePinFromPanel(){
     if (!spHub) return;
     togglePin(spHub);
-    alert(pinnedHubs.some(x=>x.id===spHub.id)       ? 'Pinned for compare' : 'Unpinned');
+         ? 'Pinned for compare' : 'Unpinned');
   }
-   // ---------- Sidepanel ----------
+
+  // ---------- Sidepanel ----------
   function openSidepanel(h){
     spHub = h;
     sidepanel.classList.add('show');
