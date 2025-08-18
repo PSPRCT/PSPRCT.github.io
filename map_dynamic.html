@@ -1077,38 +1077,40 @@
   }
 
   // ---------- Printing ----------
-  function printSidepanelList(){
-    if(!spHub){ alert('Open a hub first.'); return; }
-    const list = getStoresForHub(spHub);
-    const rows = list.map(s=>`
-      <tr>
-        <td>${escape(s.storeNumberStr)}</td>
-        <td>${escape(s.storeName||'')}</td>
-        <td>${escape(s.address||'')}</td>
-        <td>${escape(s.city||'')}</td>
-        <td>${escape(s.state||'')}</td>
-        <td>${escape(s.coverageType||'')}</td>
-        <td style="text-align:right">${s._dist?.toFixed(1)??''}</td>
-      </tr>`).join('');
-    const win = window.open('', '_blank');
-    win.document.write(`
-      <html><head><title>${escape(spHub.name)} — Store List</title>
-      <style>
-        body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:16px}
-        table{border-collapse:collapse;width:100%}
-        th,td{border:1px solid #ccc;padding:6px 8px;font-size:12px}
-        th{background:#f6f8fa;text-align:left}
-      </style>
-      </head><body>
-      <h2>${escape(spHub.name)} — Stores within ${Number(radius.value)||DEFAULT_RADIUS} mi</h2>
-      <table>
-        <thead><tr><th>#</th><th>Name</th><th>Address</th><th>City</th><th>State</th><th>Coverage</th><th>Mi</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <script>window.print()</script>
-      </body></html>`);
-    win.document.close();
-  }
+function printSidepanelList(){
+  if(!spHub){ alert('Open a hub first.'); return; }
+  const list = getStoresForHub(spHub);
+  const rows = list.map(s=>`
+    <tr>
+      <td>${escape(s.storeNumberStr)}</td>
+      <td>${escape(s.storeName||'')}</td>
+      <td>${escape(s.address||'')}</td>
+      <td>${escape(s.city||'')}</td>
+      <td>${escape(s.state||'')}</td>
+      <td>${escape(s.coverageType||'')}</td>
+      <td style="text-align:right">${s._dist?.toFixed(1)??''}</td>
+    </tr>`).join('');
+
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <html><head><title>${escape(spHub.name)} — Store List</title>
+    <style>
+      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:16px}
+      table{border-collapse:collapse;width:100%}
+      th,td{border:1px solid #ccc;padding:6px 8px;font-size:12px}
+      th{background:#f6f8fa;text-align:left}
+    </style>
+    </head><body>
+    <h2>${escape(spHub.name)} — Stores within ${Number(radius.value)||DEFAULT_RADIUS} mi</h2>
+    <table>
+      <thead><tr><th>#</th><th>Name</th><th>Address</th><th>City</th><th>State</th><th>Coverage</th><th>Mi</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <script>window.print()<\/script>
+    </body></html>`);
+  win.document.close();
+}
+
 
   // ---------- Views (save/restore) ----------
   function saveCurrentView(){
