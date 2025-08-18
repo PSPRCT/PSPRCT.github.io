@@ -1309,46 +1309,44 @@ spRows = rows;
   }
 
   // ---------- Data normalization ----------
-  function normalizeStores(arr){
+function normalizeStores(arr){
   const numFromTitle = (v)=>{
     if(!v) return null;
     const m = String(v).match(/\bStore\s*(\d{3,6})\b/i);
     return m ? m[1] : null;
   };
+
+  const trim = v => (v ?? '').toString().trim();
+
   return arr.map((r, i)=>{
     const lat = Number(r.lat ?? r.Lat ?? r.latitude ?? r.Latitude);
     const lng = Number(r.lng ?? r.Lng ?? r.lon ?? r.Longitude ?? r.longitude);
 
-    // STRICT candidates only
+    // ✅ include the actual "storeNumber" field
     const numCand = (
-      r.storeNumberStr ?? r.Store_Number ?? r.StoreNumber ??
+      r.storeNumberStr ?? r.storeNumber ?? r.Store_Number ?? r.StoreNumber ??
       r['Store #'] ?? r['Store#'] ?? r.StoreNum ?? r['Walmart #'] ??
       numFromTitle(r.storeName ?? r.Store_Name ?? r['Store Name'])
     );
-    const storeNum = numCand ? String(numCand).trim() : String(i);
-
-    const city  = r.city ?? r.City ?? '';
-    const state = r.state ?? r.State ?? '';
-    const addr  = r.address ?? r.Address ?? '';
-    const cov   = r.coverageType ?? r.Coverage_Type ?? r.Coverage ?? 'Uncovered';
-    const am    = r.areaManager ?? r.AreaManager ?? r.AM ?? '';
-    const rm    = r.regionalManager ?? r.RegionalManager ?? r.RM ?? '';
-    const trainerCity = r.trainerCity ?? r.TrainerCity ?? r.Assigned_Premium ?? '';
+    const storeNum = numCand != null ? String(numCand).trim() : String(i);
 
     return {
       id: r.id ?? storeNum,
       storeNumberStr: storeNum,
-      storeName: r.storeName ?? r.Store_Name ?? r['Store Name'] ?? '',
-      address: addr, city, state,
-      coverageType: cov,
-      areaManager: am,
-      regionalManager: rm,
-      trainerCity,
+      storeName: trim(r.storeName ?? r.Store_Name ?? r['Store Name'] ?? ''),
+      address:  trim(r.address ?? r.Address ?? ''),
+      city:     trim(r.city ?? r.City ?? ''),
+      state:    trim(r.state ?? r.State ?? ''),
+      coverageType: (r.coverageType ?? r.Coverage_Type ?? r.Coverage ?? 'Uncovered'),
+      areaManager: trim(r.areaManager ?? r.AreaManager ?? r.AM ?? ''),
+      regionalManager: trim(r.regionalManager ?? r.RegionalManager ?? r.RM ?? ''),
+      trainerCity: trim(r.trainerCity ?? r.TrainerCity ?? r.Assigned_Premium ?? ''),
       lat, lng,
       coveredBy: 'any'
     };
   }).filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
 }
+
 
 
   // ---------- Heat/Busy/UI helpers ----------
