@@ -963,6 +963,7 @@
   // ---------- Helpers ----------
   function id(x){ return document.getElementById(x); }
   function on(ev,el,fn,capture){ el.addEventListener(ev,fn,capture||false); }
+  function showBusy(v){ if (busy) busy.hidden = !v; }
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
   function num(v){ return Number.isFinite(Number(v)); }
   function escape(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
