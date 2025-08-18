@@ -946,25 +946,67 @@ function renderHubs(){
   }
 
   function renderSidepanelList(rebuild=false){
-    if(!spHub) return;
-    const r = Number(radius.value)||DEFAULT_RADIUS;
-    let list = storesWithin(spHub.coords, r);
-    if (spOnlyUncov) list = list.filter(s=> (s.coverageType||'')==='Uncovered');
+  if(!spHub) return;
+  const r = Number(radius.value)||DEFAULT_RADIUS;
+  const [clat, clng] = spHub.coords;
 
-    // remember base list for print/export
-    spRows = list.slice();
+  // base list within radius + attach distance
+  let list = storesWithin(spHub.coords, r)
+    .map(s => ({ ...s, __d: distMiles(clat, clng, s.lat, s.lng) }));
 
-    // search filter inside panel
-    const q = (spFilter||'').toLowerCase();
-    if (q){
-      list = list.filter(s =>
-        (s.storeNumberStr||'').toLowerCase().includes(q) ||
-        (s.address||'').toLowerCase().includes(q) ||
-        (s.city||'').toLowerCase().includes(q) ||
-        (s.state||'').toLowerCase().includes(q) ||
-        (s.coverageType||'').toLowerCase().includes(q)
-      );
-    }
+  if (spOnlyUncov) list = list.filter(s=> (s.coverageType||'')==='Uncovered');
+
+  // remember full (pre-search) for export/print
+  spRows = list.slice();
+
+  // search inside panel
+  const q = (spFilter||'').toLowerCase();
+  if (q){
+    list = list.filter(s =>
+      (s.storeNumberStr||'').toLowerCase().includes(q) ||
+      (s.address||'').toLowerCase().includes(q) ||
+      (s.city||'').toLowerCase().includes(q) ||
+      (s.state||'').toLowerCase().includes(q) ||
+      (s.coverageType||'').toLowerCase().includes(q)
+    );
+  }
+
+  // 👉 sort by distance
+  list.sort((a,b)=> a.__d - b.__d);
+
+  // counts
+  spCounts.innerHTML = `
+    <span class="sp-chip">In list: <b>${list.length}</b></span>
+    ${spOnlyUncov?'<span class="sp-chip">Uncovered only</span>':''}
+  `;
+
+  // rows (show distance at right)
+  spRowsEl.innerHTML = list.map(s => `
+    <div class="row" data-id="${htmlEscape(s.storeNumberStr)}" title="Zoom to store">
+      <div class="num">#${htmlEscape(s.storeNumberStr)}</div>
+      <div class="text">
+        <div class="title">${htmlEscape(s.storeName||'')}</div>
+        <div class="addr">${htmlEscape(s.address||'')} · ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</div>
+      </div>
+      <div class="kind">${htmlEscape(s.coverageType||'')}</div>
+      <div style="margin-left:auto; min-width:64px; text-align:right; color:var(--muted)">${s.__d.toFixed(1)} mi</div>
+    </div>
+  `).join('');
+
+  // handlers
+  Array.from(spRowsEl.querySelectorAll('.row')).forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const idd = el.getAttribute('data-id');
+      const s = list.find(x => x.storeNumberStr === idd); // use filtered list for correct distance
+      if (s) openStorePopup(s);
+      Array.from(spRowsEl.querySelectorAll('.row')).forEach(e=>e.classList.remove('active'));
+      el.classList.add('active');
+    });
+  });
+
+  if (rebuild) renderSidepanelMeta();
+}
+
 
     // sort by store #
     list.sort((a,b)=> (a.storeNumberStr||'').localeCompare(b.storeNumberStr||''));
@@ -1086,46 +1128,67 @@ function renderHubs(){
     downloadCsv(rows, `filtered_stores_${Date.now()}.csv`);
   }
 
-  function exportSidepanelCsv(){
-    if(!spHub){ alert('Open a hub panel first.'); return; }
-    const r = Number(radius.value)||DEFAULT_RADIUS;
-    const rows = [
-      ['Hub','Radius(mi)','Store #','Name','Address','City','State','Coverage','Area Manager','Regional Manager','Lat','Lng'],
-      ...spRows.map(s=>[
-        spHub.name, r, s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'',
+ function exportSidepanelCsv(){
+  if(!spHub){ alert('Open a hub panel first.'); return; }
+  const r = Number(radius.value)||DEFAULT_RADIUS;
+  const [clat, clng] = spHub.coords;
+
+  const rows = [
+    ['Hub','Radius(mi)','Distance(mi)','Store #','Name','Address','City','State','Coverage','Area Manager','Regional Manager','Lat','Lng'],
+    ...spRows.map(s=>{
+      const d = (typeof s.__d === 'number') ? s.__d : distMiles(clat, clng, s.lat, s.lng);
+      return [
+        spHub.name, r, d.toFixed(1),
+        s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'',
         s.coverageType||'', s.areaManager||'', s.regionalManager||'', s.lat, s.lng
-      ])
-    ];
-    downloadCsv(rows, `${slug(spHub.name)}_${r}mi_${Date.now()}.csv`);
-  }
+      ];
+    })
+  ];
+  downloadCsv(rows, `${slug(spHub.name)}_${r}mi_${Date.now()}.csv`);
+}
+
 
 function printSidepanelList(){
   if(!spHub){ alert('Open a hub panel first.'); return; }
   const r = Number(radius.value)||DEFAULT_RADIUS;
+  const [clat, clng] = spHub.coords;
+
+  const rows = spRows
+    .slice() // don’t mutate
+    .map(s => ({...s, __d: (typeof s.__d === 'number') ? s.__d : distMiles(clat, clng, s.lat, s.lng)}))
+    .sort((a,b)=> a.__d - b.__d)
+    .map(s=>`
+      <tr>
+        <td>#${htmlEscape(s.storeNumberStr)}</td>
+        <td>${htmlEscape(s.storeName||'')}</td>
+        <td>${htmlEscape(s.address||'')}, ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</td>
+        <td>${htmlEscape(s.coverageType||'')}</td>
+        <td style="text-align:right">${s.__d.toFixed(1)}</td>
+        <td>${htmlEscape(s.areaManager||'')}</td>
+        <td>${htmlEscape(s.regionalManager||'')}</td>
+      </tr>
+    `).join('');
+
   const win = window.open('', '_blank');
-  const rows = spRows.map(s=>`
-    <tr>
-      <td>#${escape(s.storeNumberStr)}</td>
-      <td>${escape(s.storeName||'')}</td>
-      <td>${escape(s.address||'')}, ${escape(s.city||'')}, ${escape(s.state||'')}</td>
-      <td>${escape(s.coverageType||'')}</td>
-      <td>${escape(s.areaManager||'')}</td>
-      <td>${escape(s.regionalManager||'')}</td>
-    </tr>
-  `).join('');
   win.document.write(`
-    <html><head><title>${escape(spHub.name)} — ${r}mi</title>
+    <html><head><title>${htmlEscape(spHub.name)} — ${r}mi</title>
     <style>
       body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px}
-      table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
+      table{border-collapse:collapse;width:100%}
+      th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
       th{background:#f3f4f6;text-align:left}
+      td:nth-child(5){text-align:right}
       h2{margin:0 0 8px}
       .meta{color:#555;margin-bottom:10px}
     </style></head><body>
-      <h2>${escape(spHub.name)}</h2>
+      <h2>${htmlEscape(spHub.name)}</h2>
       <div class="meta">Radius: <b>${r} mi</b> • Stores: <b>${spRows.length}</b></div>
       <table>
-        <thead><tr><th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>AM</th><th>RM</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>Distance (mi)</th><th>AM</th><th>RM</th>
+          </tr>
+        </thead>
         <tbody>${rows}</tbody>
       </table>
       <script>window.print()<\\/script>
@@ -1133,6 +1196,7 @@ function printSidepanelList(){
   `);
   win.document.close();
 }
+
 
 
   function downloadCsv(rows, fname){
