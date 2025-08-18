@@ -534,7 +534,8 @@ try {
   console.error('Acosta load error:', e);
   acostaHubs = [];
 }
-// PREMIUM (confirmed + pending/open/proposed) with rich status + display label
+
+    // PREMIUM (confirmed + pending/open/proposed) with rich status + display label
 try {
   const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
   const pJson = await pResp.json();
@@ -564,35 +565,24 @@ try {
   const isProposed   = s => /(propos|plan|target)/i.test(s);
   const isRecruiting = s => /(recruit|source|pipeline|tbd|open|no cand|search)/i.test(s);
 
-  const getName  = r => String(
-    r.RepName ?? r.repName ?? r.TrainerName ?? r['Trainer Name'] ??
-    r.Premium_Trainer ?? r.PremiumTrainer ?? r.name ?? r.Name ?? ''
+  // NOTE: use your global getName defined earlier
+  const getCity = r => String(
+    r.City ?? r.city ??
+    r.Hub_City ?? r['Hub City'] ??
+    r.ProposedCity ?? r['Proposed City'] ??
+    r.TargetCity ?? r['Target City'] ??
+    r.CandidateCity ?? r['Candidate City'] ??
+    r.HubCity ?? ''
   ).trim();
 
-const getCity = r => String(
-  r.City ?? r.city ??
-  r.Hub_City ?? r['Hub City'] ??
-  r.ProposedCity ?? r['Proposed City'] ??
-  r.TargetCity ?? r['Target City'] ??
-  r.CandidateCity ?? r['Candidate City'] ??
-  r.HubCity ?? ''
-).trim();
-
-const getState = r => String(
-  r.State ?? r.state ??
-  r.Hub_State ?? r['Hub State'] ??
-  r.ProposedState ?? r['Proposed State'] ??
-  r.TargetState ?? r['Target State'] ??
-  r.CandidateState ?? r['Candidate State'] ??
-  r.HubState ?? ''
-).trim();
-
-  // Fallback names keyed by "city|ST" (lowercased)
-const NAME_OVERRIDES = {
-  'excelsior springs|mo': 'Teresa Estep',
-  'riverview|fl':         'Richard Santos',
-};
-
+  const getState = r => String(
+    r.State ?? r.state ??
+    r.Hub_State ?? r['Hub State'] ??
+    r.ProposedState ?? r['Proposed State'] ??
+    r.TargetState ?? r['Target State'] ??
+    r.CandidateState ?? r['Candidate State'] ??
+    r.HubState ?? ''
+  ).trim();
 
   const getCoords = r => {
     const lat = Number(r.Latitude  ?? r.latitude  ?? r.lat ?? r.Lat ?? r.lat_dd ?? r.Latitude__c);
@@ -600,7 +590,42 @@ const NAME_OVERRIDES = {
     return (Number.isFinite(lat) && Number.isFinite(lng)) ? [lat, lng] : null;
   };
 
-  // classify status
+  // Pending-offer name fixes (ensure names show even if file row is missing them)
+  const NAME_OVERRIDES = {
+    'arlington|tx':          'Michelle Paoli',
+    'ingleside|il':          'Miguel Gonzalez',
+    'ashtabula|oh':          'Sherry Hamrick',
+    'belvidere|il':          'Justin Vargas Salgado',
+    'excelsior springs|mo':  'Teresa Estep',
+    'riverview|fl':          'Richard Santos',
+    'mabelvale|ar':          'Angela Eslick',
+    'norman|ok':             'Teryl Ard',
+    'kimberly|al':           'Jessica Salvage',
+  };
+
+  // Hand-entered proposed locations -> only used if a proposed row has no City
+  const PROPOSED_CITY_OVERRIDES = {
+    AL: ['Mobile'],
+    AZ: ['Casa Grande'],
+    CA: ['Colton'],
+    CO: ['Centennial'],
+    FL: ['Coral Springs'],
+    IL: ['Lincoln'],
+    IN: ['Fort Wayne', 'Plainfield'],
+    MI: ['White Lake'],
+    NE: ['Blair'],
+    NJ: ['Secaucus'],
+    NY: ['Waterloo'],
+    OH: ['Wilmington'],
+    OK: ['Muskogee'],
+    OR: ['Salem'],
+    PA: ['Belle Vernon', 'Parkesburg'],
+    TX: ['Houston'],
+    UT: ['Centerville'],
+    VA: ['Williamsburg'],
+    WA: ['Poulsbo'],
+  };
+
   const classify = r => {
     const s = statusText(r);
     const hasName = !!getName(r);
@@ -620,66 +645,51 @@ const NAME_OVERRIDES = {
     proposed:           'Proposed',
     open:               'Open'
   }[sub] || 'Pending');
-  // Hand-entered proposed locations -> used when the premium row is missing City
-const PROPOSED_CITY_OVERRIDES = {
-  PA: ['Belle Vernon', 'Parkesburg'],
-  NE: ['Blair'],
-  AZ: ['Casa Grande'],
-  CO: ['Centennial'],
-  UT: ['Centerville'],
-  CA: ['Colton'],
-  FL: ['Coral Springs'],
-  IN: ['Fort Wayne', 'Plainfield'],
-  TX: ['Houston'],
- 
 
-const toHub = r => {
-  const coords = getCoords(r);
-  if (!coords) return null;
-  const [lat, lng] = coords;
+  const toHub = (r) => {
+    const coords = getCoords(r);
+    if (!coords) return null;
+    const [lat, lng] = coords;
 
-const city  = getCity(r);
-const state = getState(r);
-let   nm    = getName(r);
+    let  city  = getCity(r);
+    const state = getState(r);
+    let  nm    = getName(r);
 
-// fallback name by city/state if file didn't include it
-if (!nm && city && state) {
-  nm = NAME_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`] || '';
-}
+    // fallback name by city/state if file didn't include it
+    if (!nm && city && state) {
+      nm = NAME_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`] || '';
+    }
 
-const { status, statusSub } = classify(r);
-const statusLabel = pretty(statusSub);
-const trainerBit  = nm ? ` — ${nm}` : '';
+    const { status, statusSub } = classify(r);
 
-const place = city && state ? `${city}, ${state}` : (city || state || '');
-const label = `${place} (${statusLabel}${trainerBit})`;
+    // if proposed and city missing, safely use a single-option override
+    if (!city && state && statusSub === 'proposed') {
+      const picks = PROPOSED_CITY_OVERRIDES[state.toUpperCase()];
+      if (Array.isArray(picks) && picks.length === 1) city = picks[0];
+    }
 
-  
+    const statusLabel = pretty(statusSub);
+    const trainerBit  = nm ? ` — ${nm}` : '';
 
-  const { status, statusSub } = classify(r);
-  const statusLabel = pretty(statusSub);
-  const trainerBit  = nm ? ` — ${nm}` : '';
+    // prefer "City, ST", else whichever we have
+    const place = city && state ? `${city}, ${state}` : (city || state || '');
 
-  // prefer "City, ST", else whichever we have (city OR state)
-  const place = city && state ? `${city}, ${state}` : (city || state || '');
+    // show city for proposed hubs when available
+    const label = `${place} (${statusLabel}${trainerBit})`;
 
-  // use `place` so proposed hubs show the city when available
-  const label = `${place} (${statusLabel}${trainerBit})`;
-
-  return {
-    id: `${status[0]}_${slug(`${city||''}-${state||''}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
-    name: nm || 'Proposed',
-    label,
-    fullName: label,
-    coords: [lat, lng],
-    status,
-    statusSub,
-    statusLabel,
-    city,
-    state
+    return {
+      id: `${status[0]}_${slug(`${city||''}-${state||''}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
+      name: nm || 'Proposed',
+      label,
+      fullName: label,
+      coords: [lat, lng],
+      status,
+      statusSub,
+      statusLabel,
+      city,
+      state
+    };
   };
-};
-
 
   const hubs = rows.map(toHub).filter(Boolean);
 
@@ -703,7 +713,6 @@ const label = `${place} (${statusLabel}${trainerBit})`;
   premiumConfirmed = [];
   premiumPending   = [];
 }
-
 
 
 
