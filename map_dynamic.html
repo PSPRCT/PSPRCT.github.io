@@ -796,37 +796,35 @@ try {
   }
 
   // ---------- Filtering & markers ----------
-  function storeFilter(s){
-    const covSel = Array.from(covFilter.selectedOptions).map(o=>o.value);
-    const covOK = covSel.includes('All') || covSel.includes(s.coverageType || '');
+function storeFilter(s){
+  const covSel = Array.from(covFilter.selectedOptions).map(o=>o.value);
+  const covOK  = covSel.includes('All') || covSel.includes(s.coverageType || '');
 
-    const rmSel = Array.from(rmFilter.selectedOptions).map(o=>o.value);
-    const amSel = Array.from(amFilter.selectedOptions).map(o=>o.value);
-    const rmOK = rmSel.includes('All') || rmSel.includes(s.regionalManager || '');
-    const amOK = amSel.includes('All') || amSel.includes(s.areaManager || '');
+  const rmSel = Array.from(rmFilter.selectedOptions).map(o=>o.value);
+  const amSel = Array.from(amFilter.selectedOptions).map(o=>o.value);
+  const rmOK  = rmSel.includes('All') || rmSel.includes(s.regionalManager || '');
+  const amOK  = amSel.includes('All') || amSel.includes(s.areaManager || '');
 
-    // in storeFilter(s) — replace that hubSel block with this:
-const hubSel = Array.from(hubFilter.selectedOptions).map(o=>o.value); // IDs
-let hubOK = true;
-if (hubSel.length){
-  const r = Number(radius.value) || DEFAULT_RADIUS;
-  const hubsNow = [...premiumConfirmed, ...premiumPending, ...acostaHubs];
-  const selHubs = hubsNow.filter(h => hubSel.includes(h.id));
-  hubOK = selHubs.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
-}
-
-  // Store passes only if it’s within r mi of at least one selected hub
-  hubOK = selHubs.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
-}
-
-
-    let withinOK = true;
-    if (tgWithin.checked){
-      const r = Number(radius.value) || DEFAULT_RADIUS;
-      withinOK = visibleHubs().some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
-    }
-    return covOK && rmOK && amOK && hubOK && withinOK;
+  // Hubs (value = hub IDs)
+  const hubSel = Array.from(hubFilter.selectedOptions).map(o=>o.value);
+  let hubOK = true;
+  if (hubSel.length){
+    const r = Number(radius.value) || DEFAULT_RADIUS;
+    const hubsNow = [...premiumConfirmed, ...premiumPending, ...acostaHubs];
+    const selHubs = hubsNow.filter(h => hubSel.includes(h.id));
+    hubOK = selHubs.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
   }
+
+  // “Within hubs” toggle
+  let withinOK = true;
+  if (tgWithin.checked){
+    const r = Number(radius.value) || DEFAULT_RADIUS;
+    withinOK = visibleHubs().some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+  }
+
+  return covOK && rmOK && amOK && hubOK && withinOK;
+}
+
 
   function runFilter(){
     markerByStore.clear();
@@ -920,13 +918,6 @@ function renderHubs(){
   });
 }
 
-    const m = L.marker(h.coords, { icon, title: (h.fullName || h.name), pane: 'hubPane' }).addTo(hubLayer);
-    m.hub = h;
-    m.on('click', ()=> compareMode ? togglePin(h) : openSidepanel(h));
-    m.on('mouseover', ()=> m.bindTooltip(h.fullName || h.name, {direction:'top', offset:[0,-8]}).openTooltip());
-    m.on('mouseout',  ()=> m.closeTooltip());
-  });
-}
 
   function updateRings(){
     ringLayer.clearLayers();
@@ -1204,57 +1195,50 @@ function renderSidepanelMeta(){
     return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
   }
 function buildHubFilterOptions(){
-  const hubsAll = [...premiumConfirmed, ...premiumPending];
+  // Premium hubs only (respect the top toggles); Acosta is excluded
+  let hubsAll = [];
+  if (showConfirmed.checked) hubsAll = hubsAll.concat(premiumConfirmed);
+  if (showPending.checked)   hubsAll = hubsAll.concat(premiumPending);
+
+  // De-dupe by id
+  const seen = new Set();
+  hubsAll = hubsAll.filter(h => h && !seen.has(h.id) && seen.add(h.id));
+
   const r = Number(radius.value) || DEFAULT_RADIUS;
 
-  const covSel = Array.from(covFilter.selectedOptions).map(o => o.value);
-  const rmSel  = Array.from(rmFilter.selectedOptions).map(o => o.value);
-  const amSel  = Array.from(amFilter.selectedOptions).map(o => o.value);
+  // Cascade by current store filters (coverage, RM, AM)
+  const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
+  const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o => o.value));
+  const amSel  = new Set(Array.from(amFilter.selectedOptions).map(o => o.value));
 
-  const covOK = s => covSel.includes('All') || covSel.includes(s.coverageType || '');
-  const rmOK  = s => rmSel.includes('All')  || rmSel.includes(s.regionalManager || '');
-  const amOK  = s => amSel.includes('All')  || amSel.includes(s.areaManager || '');
+  const covOK = s => covSel.has('All') || covSel.has(s.coverageType || '');
+  const rmOK  = s => rmSel.has('All')  || rmSel.has(s.regionalManager || '');
+  const amOK  = s => amSel.has('All')  || amSel.has(s.areaManager || '');
 
   const subset = allStores.filter(s => covOK(s) && rmOK(s) && amOK(s));
 
+  // If a subset exists, only show hubs that cover at least one of those stores (within radius)
   const cascaded = subset.length
     ? hubsAll.filter(h => subset.some(s => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r))
     : hubsAll.slice();
 
-  // remember previous selections by ID
-  const prev = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
+  // Remember previous selections by ID
+  const prevSel = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
 
-  // build options (value=id, text=label)
+  // Build options (value=id, text=city/status label)
   hubFilter.innerHTML = cascaded
-    .sort((a,b)=> (a.label||'').localeCompare(b.label||''))
-    .map(h => `<option value="${escape(h.id)}">${escape(h.label || h.fullName || h.name)}</option>`)
+    .sort((a,b)=> (hubDisplay(a)||'').localeCompare(hubDisplay(b)||''))
+    .map(h => `<option value="${escape(h.id)}">${escape(hubDisplay(h))}</option>`)
     .join('');
 
-  // re-select previous if still present
-  const keep = cascaded.filter(h => prev.has(h.id)).map(h => h.id);
+  // Re-select any that still exist
+  const keep = cascaded.map(h => h.id).filter(id => prevSel.has(id));
   if (keep.length) setMulti(hubFilter, keep);
 
+  // Apply the hub search box text
   filterSelect(hubFilter, hubSearch.value);
 }
 
-
-  // subset of stores used for cascading the hub list
-  const subset = allStores.filter(s => covOK(s) && rmOK(s) && amOK(s));
-
-  const cascaded = subset.length
-    ? hubsAll.filter(h => subset.some(s => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r))
-    : hubsAll.slice(); // if no subset, show all premium hubs
-
-  // preserve previous selections if still present
-  const prev = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
-
-  const opts = uniqSorted(cascaded.map(h => h.fullName || h.name));
-  hubFilter.innerHTML = opts.map(v => `<option value="${escape(v)}">${escape(v)}</option>`).join('');
-
-  // try to re-select
-  const keep = opts.filter(v => prev.has(v));
-  if (keep.length) setMulti(hubFilter, keep);
-}
 
 
 
