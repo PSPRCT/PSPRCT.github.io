@@ -643,19 +643,55 @@
         }
       });
     }
-    function selectResult(d){
-      hideResults(); hideHover();
-      if(!d) return;
-      if(d.kind==='STORE' || d.kind==='NEAR'){
-        map.setView([d.lat,d.lng], 12, {animate:true,padding:POPUP_PAD});
-        const s=d.store; const m=markerByStore.get(s.storeNumberStr);
-        if(m){ m.openPopup(); }
-        else { if(!targetPin){ targetPin=L.marker([d.lat,d.lng],{icon:targetIcon}).addTo(targetLayer); } else { targetPin.setLatLng([d.lat,d.lng]); } }
-      } else if(d.kind==='CITY' || d.kind==='HUB'){
-        map.setView([d.lat,d.lng], 10, {animate:true,padding:POPUP_PAD});
-        if(!targetPin){ targetPin=L.marker([d.lat,d.lng],{icon:targetIcon}).addTo(targetLayer); } else { targetPin.setLatLng([d.lat,d.lng]); }
-      }
-    }
+   function selectResult(d){
+  hideResults(); hideHover();
+  if(!d) return;
+
+  if(d.kind==='STORE' || d.kind==='NEAR'){
+    const s = d.store;
+    // Always move the map first (for a nicer animation)
+    map.setView([d.lat,d.lng], 12, {animate:true,padding:POPUP_PAD});
+    openStorePopup(s);
+    return;
+  }
+
+  if(d.kind==='CITY' || d.kind==='HUB'){
+    // Drop/center a pin for non-store results and show a simple popup
+    map.setView([d.lat,d.lng], 10, {animate:true,padding:POPUP_PAD});
+    showPinPopup([d.lat,d.lng], `
+      <div style="font-size:13px;line-height:1.35;min-width:220px">
+        <div style="font-weight:800;margin-bottom:4px">${escape(d.label)}</div>
+        <div style="color:var(--muted)">Lat: ${Number(d.lat).toFixed(4)}, Lng: ${Number(d.lng).toFixed(4)}</div>
+      </div>
+    `);
+    return;
+  }
+}
+
+// Try to open the store's real marker popup (even if clustered).
+function openStorePopup(store){
+  const m = markerByStore.get(store.storeNumberStr);
+  if (m){
+    // If the marker is in a cluster or not yet on screen, ensure it becomes visible then open
+    markers.zoomToShowLayer(m, ()=> m.openPopup());
+  } else {
+    // Marker doesn't exist (likely filtered out). Show a temporary popup at its lat/lng.
+    showPinPopup([store.lat, store.lng], storePopupHTML(store));
+  }
+}
+
+// Re-uses the blue target pin and shows a popup at an arbitrary lat/lng.
+function showPinPopup(latlng, html){
+  if(!targetPin){
+    targetPin = L.marker(latlng,{icon:targetIcon}).addTo(targetLayer);
+  } else {
+    targetPin.setLatLng(latlng);
+  }
+  const p = L.popup({autoClose:true, closeOnClick:true, maxWidth:320})
+    .setLatLng(latlng)
+    .setContent(html);
+  p.openOn(map);
+}
 
     // ---------- Filtering + Rendering ----------
     function runFilter(){
