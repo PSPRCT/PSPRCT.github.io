@@ -494,6 +494,15 @@ map.on('popupopen', (e)=>{
   id('fitBtn').onclick = ()=>{ fitToResults(); saveState(); };
   id('homeBtn').onclick = ()=>{ map.setView(HOME_VIEW.center, HOME_VIEW.zoom); };
   id('resetBtn').onclick = ()=>{ resetAll(); runFilter(); saveState(); renderChips(); };
+  id('panelBtn').onclick = ()=>{
+  if (sidepanel.classList.contains('show')) {
+    hideSidepanel();
+  } else if (spHub) {
+    openSidepanel(spHub);
+  } else {
+    alert('Click a hub marker to open its side panel.');
+  }
+};
 
   // Export menu
   const exportDrop = id('exportDrop'); const menu = exportDrop.querySelector('.dropdown-menu');
@@ -726,27 +735,14 @@ if (e.key === 'Enter'){
   const panOpts = { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] };
 
   const m = markerByStore.get(store.storeNumberStr);
-   const m = markerByStore.get(s.storeNumberStr);
-if (m) {
-  if (!m.getPopup()) m.bindPopup(storePopupHTML(s));  // <-- add this line
-  if (tgCluster.checked) {
-    markers.zoomToShowLayer(m, ()=> m.openPopup());
-  } else {
-    m.openPopup();
-  }
-} else {
-  showPinPopup([s.lat, s.lng], storePopupHTML(s));
-}
 
-
-  // helper to pan and then open, once
+  // open after pan so the first render reliably shows content
   const panThenOpen = (latlng, marker) => {
     let opened = false;
     const doOpen = () => {
       if (opened) return;
       opened = true;
       if (marker) {
-        // safety: ensure popup is bound (should already be)
         if (!marker.getPopup()) marker.bindPopup(storePopupHTML(store));
         marker.openPopup();
       } else {
@@ -755,36 +751,22 @@ if (m) {
       map.off('moveend', doOpen);
     };
     map.once('moveend', doOpen);
-    // pan *before* opening so first open always renders
     map.panInside(latlng, panOpts);
   };
 
   if (m) {
+    if (!m.getPopup()) m.bindPopup(storePopupHTML(store));
     if (tgCluster.checked) {
       markers.zoomToShowLayer(m, () => panThenOpen(m.getLatLng(), m));
     } else {
       panThenOpen(m.getLatLng(), m);
     }
   } else {
-    // fallback when marker temporarily not present
+    // Rare: marker not in current layer yet — use a temporary pin
     panThenOpen(ll, null);
   }
 }
 
-
-  // Clustered marker? ensure it is visible, then open.
-  if (m) {
-    if (tgCluster.checked) {
-      markers.zoomToShowLayer(m, () => doOpen(m));
-    } else {
-      doOpen(m);
-    }
-  } else {
-    // Fallback pin (should be rare)
-    showPinPopup(ll, storePopupHTML(store));
-    map.panInside(ll, panOpts);
-  }
-}
 
   function showPinPopup(latlng, html){
     if(!targetPin){ targetPin = L.marker(latlng,{icon:targetIcon}).addTo(targetLayer); }
