@@ -69,17 +69,17 @@
   .sp-list{flex:1;min-height:160px;border:1px solid var(--border);border-radius:8px;padding:0;display:flex;flex-direction:column;overflow:auto; box-shadow: inset 0 0 0 2px rgba(0,0,0,.02)}
   .sp-list input{margin:8px;border:1px solid var(--border);border-radius:8px;padding:6px 8px}
   /* keep the panel's search bar visible while the store list scrolls */
-.sp-list input{
-  position: sticky;
-  top: 0;
-  z-index: 3;
-  background: var(--panel);
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  box-shadow: 0 4px 6px rgba(0,0,0,.04);
-}
-/* optional: keep the quick radius chips pinned at the very top of panel */
-.sp-quick{ position: sticky; top: 0; z-index: 3; background: var(--panel); }
+  .sp-list input{
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--panel);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    box-shadow: 0 4px 6px rgba(0,0,0,.04);
+  }
+  /* optional: keep the quick radius chips pinned at the very top of panel */
+  .sp-quick{ position: sticky; top: 0; z-index: 3; background: var(--panel); }
 
   .sp-rows{position:static;height:auto}
   .row{position:relative;display:flex;gap:8px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--border);background:var(--panel);cursor:pointer;min-height:56px}
@@ -124,6 +124,9 @@
   @media (max-width: 1100px){ .filters{grid-template-columns:repeat(2,minmax(220px,1fr));} }
   @media (max-width: 640px){ .filters{grid-template-columns:1fr;} }
 </style>
+
+<!-- Optional JSON Schema validator -->
+<script src="https://unpkg.com/ajv@8.17.1/dist/ajv7.min.js"></script>
 </head>
 <body>
 
@@ -173,6 +176,7 @@
   </div>
 
   <button id="helpBtn" class="btn" type="button" title="Quick tips and shortcuts">Help</button>
+  <button id="dataBtn" class="btn" type="button" title="Data issues, diffs, duplicates">Data</button>
 </div>
 
 <div class="pillbar" id="presetBar">
@@ -299,6 +303,23 @@
   </div>
 </div>
 
+<!-- Data Issues modal -->
+<div class="modal" id="dataModal" aria-modal="true" role="dialog">
+  <div class="card">
+    <header>
+      <h3>Data Issues</h3>
+      <button id="dataClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body" style="grid-template-columns:1fr;">
+      <div id="dataIssuesWrap" style="font-size:13px;line-height:1.4"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button id="downloadIssuesJson" class="btn" type="button">Download issues (JSON)</button>
+        <button id="downloadDiffCsv" class="btn" type="button">Download hub changes (CSV)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="busy" class="busy" hidden><div class="spin"></div></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -340,16 +361,15 @@
   const markerByStore = new Map();
 
   let PENDING_OPEN_HUB_ID = null;
-let PENDING_PIN_IDS = [];
-
+  let PENDING_PIN_IDS = [];
 
   // Map/layers
   const map = L.map('map', { zoomControl: true, inertia: true }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
   // Ensure hub markers render above clusters & circles
-const hubPane = map.createPane('hubPane');
-hubPane.style.zIndex = 650;           // above marker clusters
-hubPane.style.pointerEvents = 'auto';
+  const hubPane = map.createPane('hubPane');
+  hubPane.style.zIndex = 650;           // above marker clusters
+  hubPane.style.pointerEvents = 'auto';
 
   const markers = L.markerClusterGroup({
     disableClusteringAtZoom: 12,
@@ -394,13 +414,27 @@ hubPane.style.pointerEvents = 'auto';
   let compareMode = false;
   let pinnedHubs = [];
   const debouncedRun = (() => { let t; return () => { clearTimeout(t); t = setTimeout(runFilter, 90); }; })();
-const getName = r => String(
-  r.CandidateName ?? r.Candidate ?? r.RepName ?? r.repName ??
-  r.TrainerName ?? r['Trainer Name'] ??
-  r.Premium_Trainer ?? r.PremiumTrainer ??
-  r.name ?? r.Name ?? ''
-).trim();
 
+  const getName = r => String(
+    r.CandidateName ?? r.Candidate ?? r.RepName ?? r.repName ??
+    r.TrainerName ?? r['Trainer Name'] ??
+    r.Premium_Trainer ?? r.PremiumTrainer ??
+    r.name ?? r.Name ?? ''
+  ).trim();
+
+  // ---------- Deterministic Hub IDs ----------
+  const HUB_ID_MAP_KEY = 'prt_hub_id_map_v1';
+  function loadHubIdMap(){ try{ return JSON.parse(localStorage.getItem(HUB_ID_MAP_KEY) || '{}'); }catch{ return {}; } }
+  function saveHubIdMap(m){ localStorage.setItem(HUB_ID_MAP_KEY, JSON.stringify(m)); }
+  function hubStableKey({city,state,coords,name}){
+    if (city && state) return `place:${city.toLowerCase()}|${state.toUpperCase()}`;
+    const lat = Number(coords?.[0]||0), lng = Number(coords?.[1]||0);
+    if (Number.isFinite(lat) && Number.isFinite(lng)){
+      const rl = (n)=> (Math.round(n*1000)/1000).toFixed(3); // ~3–4 mi rounding
+      return `geo:${rl(lat)},${rl(lng)}|${(name||'').toLowerCase()}`;
+    }
+    return '';
+  }
 
   // Keep map sized correctly
   setTimeout(()=> map.invalidateSize(), 120);
@@ -428,13 +462,10 @@ const getName = r => String(
   on('input', amSearch,  ()=> filterSelect(amFilter,  amSearch.value));
   on('input', hubSearch, ()=> filterSelect(hubFilter, hubSearch.value));
 
-
   on('change', rmFilter,  ()=>{ cascadeAM(); runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
   rebuildAMOptionsWithCounts();
-
-on('change', amFilter,  ()=>{ runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
-on('change', covFilter, ()=>{ runFilter(); saveState(); renderChips(); buildHubFilterOptions(); });
-
+  on('change', amFilter,  ()=>{ runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
+  on('change', covFilter, ()=>{ runFilter(); saveState(); renderChips(); buildHubFilterOptions(); });
 
   on('change', hubFilter, ()=>{ runFilter(); fitToResults(); saveState(); renderChips(); });
 
@@ -443,8 +474,7 @@ on('change', covFilter, ()=>{ runFilter(); saveState(); renderChips(); buildHubF
   id('resetBtn').onclick= ()=>{ resetAll(); runFilter(); saveState(); renderChips(); };
 
   // Dropdowns & views
-const exportDrop = id('exportDrop'); const menu = exportDrop.querySelector('.dropdown-menu');
-
+  const exportDrop = id('exportDrop'); const menu = exportDrop.querySelector('.dropdown-menu');
   exportDrop.querySelector('button').onclick = ()=> toggleDropdown(menu);
   on('click', document.body, (e)=>{ if (!exportDrop.contains(e.target)) menu.style.display='none'; }, true);
   id('exportStores').onclick  = ()=>{ exportStoresCsv(); if(AUTO_RESET()) { resetAll(); runFilter(); renderChips(); } };
@@ -488,6 +518,10 @@ const exportDrop = id('exportDrop'); const menu = exportDrop.querySelector('.dro
     });
   });
 
+  // Data Issues modal wiring
+  id('dataBtn').onclick = ()=> id('dataModal').classList.add('show');
+  id('dataClose').onclick = ()=> id('dataModal').classList.remove('show');
+
   // Map events
   markers.on('clustermouseover', (e)=>{
     const cts = coverageCounts(e.layer.getAllChildMarkers());
@@ -511,9 +545,8 @@ const exportDrop = id('exportDrop'); const menu = exportDrop.querySelector('.dro
     saveState();
   });
 
-  
-
   // ---------- Load data ----------
+  let RAW_STORES=null, RAW_ACOSTA=null, RAW_PREMIUM=null; // keep raw for schema validation
   showBusy(true); let spinnerFailSafe = setTimeout(()=>showBusy(false), 7000);
   try {
     // STORES
@@ -530,385 +563,276 @@ const exportDrop = id('exportDrop'); const menu = exportDrop.querySelector('.dro
       STATUS.innerHTML = `<span style="color:#a15b00;font-weight:600">Loaded fallback test data</span> — place <code>store_data.json</code> next to this file to load real data.`;
       storeRaw = FALLBACK_STORES;
     }
+    RAW_STORES = storeRaw;
     allStores = normalizeStores(storeRaw);
     STATUS.textContent += `  |  ${allStores.length.toLocaleString()} stores ready`;
 
     populateRM(allStores); populateAM(allStores);
 
-   // ACOSTA
-try {
-  const aResp = await fetch(ACOSTA_URL, { cache: 'no-store' });
-  if (!aResp.ok) throw new Error(`HTTP ${aResp.status} for ${ACOSTA_URL}`);
-  const aJson = await aResp.json();
-  const rows = Array.isArray(aJson) ? aJson : [];
-  acostaHubs = rows
-    .map(r => ({
-      lat: Number(r.Latitude ?? r.latitude ?? r.lat),
-      lng: Number(r.Longitude ?? r.longitude ?? r.lng),
-      name: String(r.RepName ?? r.name ?? 'Acosta Rep'),
-      city: String(r.City ?? ''), state: String(r.State ?? '')
-    }))
-    .filter(r => Number.isFinite(r.lat) && Number.isFinite(r.lng))
-    .map(r => ({
-      id: 'ac_' + slug(`${r.name}-${r.city}-${r.state}`),
-      name: r.name, fullName: `${r.name} — ${r.city}, ${r.state}`,
-      coords: [r.lat, r.lng], status: 'acosta'
-    }));
-  STATUS.textContent += `  |  Acosta hubs: ${acostaHubs.length}`;
-} catch (e) {
-  STATUS.innerHTML += `  |  <span style="color:#b42318">Acosta failed</span>`;
-  console.error('Acosta load error:', e);
-  acostaHubs = [];
-}
+    // ACOSTA
+    try {
+      const aResp = await fetch(ACOSTA_URL, { cache: 'no-store' });
+      if (!aResp.ok) throw new Error(`HTTP ${aResp.status} for ${ACOSTA_URL}`);
+      const aJson = await aResp.json();
+      RAW_ACOSTA = aJson;
+      const rows = Array.isArray(aJson) ? aJson : [];
+      acostaHubs = rows
+        .map(r => ({
+          lat: Number(r.Latitude ?? r.latitude ?? r.lat),
+          lng: Number(r.Longitude ?? r.longitude ?? r.lng),
+          name: String(r.RepName ?? r.name ?? 'Acosta Rep'),
+          city: String(r.City ?? ''), state: String(r.State ?? '')
+        }))
+        .filter(r => Number.isFinite(r.lat) && Number.isFinite(r.lng))
+        .map(r => ({
+          id: (r.hubId ?? r.HubID ?? r.HubId ?? r.hub_id ?? null) || ('ac_' + slug(`${r.name}-${r.city}-${r.state}`)),
+          name: r.name, fullName: `${r.name} — ${r.city}, ${r.state}`,
+          coords: [r.lat, r.lng], status: 'acosta', city: r.city, state: r.state
+        }));
+      STATUS.textContent += `  |  Acosta hubs: ${acostaHubs.length}`;
+    } catch (e) {
+      STATUS.innerHTML += `  |  <span style="color:#b42318">Acosta failed</span>`;
+      console.error('Acosta load error:', e);
+      acostaHubs = [];
+    }
 
     // PREMIUM (confirmed + pending/open/proposed) with rich status + display label
-try {
-  const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
-  const pJson = await pResp.json();
+    try {
+      const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
+      const pJson = await pResp.json();
+      RAW_PREMIUM = pJson;
 
-  const rows = Array.isArray(pJson)
-    ? pJson
-    : [
-        ...(pJson.confirmed || []),
-        ...(pJson.pending  || []),
-        ...(pJson.open     || []),
-        ...(pJson.recruit  || []),
-        ...(pJson.cities   || []),
-      ];
+      const rows = Array.isArray(pJson)
+        ? pJson
+        : [
+            ...(pJson.confirmed || []),
+            ...(pJson.pending  || []),
+            ...(pJson.open     || []),
+            ...(pJson.recruit  || []),
+            ...(pJson.cities   || []),
+          ];
 
-  const txt = v => String(v ?? '').toLowerCase();
+      const txt = v => String(v ?? '').toLowerCase();
 
-  const statusText = r => {
-    const fields = [
-      r.Status, r.status, r.HubStatus, r.Hub_Status,
-      r.TrainerStatus, r.Trainer_Status, r.CandidateStatus, r.AssignmentStatus
-    ];
-    return fields.map(txt).find(Boolean) || '';
-  };
+      const statusText = r => {
+        const fields = [
+          r.Status, r.status, r.HubStatus, r.Hub_Status,
+          r.TrainerStatus, r.Trainer_Status, r.CandidateStatus, r.AssignmentStatus
+        ];
+        return fields.map(txt).find(Boolean) || '';
+      };
 
-  // finer buckets inside "pending"
-  const isOffer      = s => /(offer|accepted)/i.test(s);
-  const isProposed   = s => /(propos|plan|target)/i.test(s);
-  const isRecruiting = s => /(recruit|source|pipeline|tbd|open|no cand|no appl|no\s*applicants|search)/i.test(s);
+      // finer buckets inside "pending"
+      const isOffer      = s => /(offer|accepted)/i.test(s);
+      const isProposed   = s => /(propos|plan|target)/i.test(s);
+      const isRecruiting = s => /(recruit|source|pipeline|tbd|open|no cand|no appl|no\s*applicants|search)/i.test(s);
 
+      const getCity = r => String(
+        r.City ?? r.city ??
+        r.Hub_City ?? r['Hub City'] ??
+        r.ProposedCity ?? r['Proposed City'] ??
+        r.TargetCity ?? r['Target City'] ??
+        r.CandidateCity ?? r['Candidate City'] ??
+        r.HubCity ?? ''
+      ).trim();
 
-  // NOTE: use your global getName defined earlier
-  const getCity = r => String(
-    r.City ?? r.city ??
-    r.Hub_City ?? r['Hub City'] ??
-    r.ProposedCity ?? r['Proposed City'] ??
-    r.TargetCity ?? r['Target City'] ??
-    r.CandidateCity ?? r['Candidate City'] ??
-    r.HubCity ?? ''
-  ).trim();
+      const getState = r => String(
+        r.State ?? r.state ??
+        r.Hub_State ?? r['Hub State'] ??
+        r.ProposedState ?? r['Proposed State'] ??
+        r.TargetState ?? r['Target State'] ??
+        r.CandidateState ?? r['Candidate State'] ??
+        r.HubState ?? ''
+      ).trim();
 
-  const getState = r => String(
-    r.State ?? r.state ??
-    r.Hub_State ?? r['Hub State'] ??
-    r.ProposedState ?? r['Proposed State'] ??
-    r.TargetState ?? r['Target State'] ??
-    r.CandidateState ?? r['Candidate State'] ??
-    r.HubState ?? ''
-  ).trim();
+      const getCoords = r => {
+        const lat = Number(r.Latitude  ?? r.latitude  ?? r.lat ?? r.Lat ?? r.lat_dd ?? r.Latitude__c);
+        const lng = Number(r.Longitude ?? r.longitude ?? r.lng ?? r.Lon ?? r.lng_dd ?? r.Longitude__c);
+        return (Number.isFinite(lat) && Number.isFinite(lng)) ? [lat, lng] : null;
+      };
 
-  const getCoords = r => {
-    const lat = Number(r.Latitude  ?? r.latitude  ?? r.lat ?? r.Lat ?? r.lat_dd ?? r.Latitude__c);
-    const lng = Number(r.Longitude ?? r.longitude ?? r.lng ?? r.Lon ?? r.lng_dd ?? r.Longitude__c);
-    return (Number.isFinite(lat) && Number.isFinite(lng)) ? [lat, lng] : null;
-  };
+      const NAME_OVERRIDES = {
+        'dandridge|tn': 'Jennifer Matthews', 'acworth|ga':'John Orr', 'king george|va':'Amy Faulk',
+        'minden|la':'Sami Jo Slater','olive branch|ms':'Annette Brown','clarksville|tn':'Nicholas Salvato',
+        'darlington|sc':'Kristen Jones','orange park|fl':'Sabrina Hall','fort myers|fl':'Muriel Curry Whitfield',
+        'sparta|mo':'Michelle Rogers','granite falls|nc':'Lisa Walker','seguin|tx':'Christina Winston','sequin|tx':'Christina Winston',
+        'louisville|ky':'Heather Lilla',"o'fallon|mo":'Michael McAllister','kenly|nc':'Brooke Gross','folsom|ca':'Gerard White','navassa|nc':'Jennifer Hook','willimantic|ct':'Melissa Bokoff',
+        'excelsior springs|mo':'Teresa Estep','arlington|tx':'Michelle Paoli','ingleside|il':'Miguel Gonzalez','ashtabula|oh':'Sherry Hamrick','belvidere|il':'Justin Vargas Salgado','riverview|fl':'Richard Santos','mabelvale|ar':'Angela Eslick','norman|ok':'Teryl Ard','kimberly|al':'Jessica Salvage',
+      };
 
-  // Pending-offer name fixes (ensure names show even if file row is missing them)
-  const NAME_OVERRIDES = {
-  'dandridge|tn':        'Jennifer Matthews',
-  'acworth|ga':          'John Orr',
-  'king george|va':      'Amy Faulk',
-  'minden|la':           'Sami Jo Slater',
-  'olive branch|ms':     'Annette Brown',
-  'clarksville|tn':      'Nicholas Salvato',
-  'darlington|sc':       'Kristen Jones',
-  'orange park|fl':      'Sabrina Hall',
-  'fort myers|fl':       'Muriel Curry Whitfield',
-  'sparta|mo':           'Michelle Rogers',
-  'granite falls|nc':    'Lisa Walker',
-  'seguin|tx':           'Christina Winston',
-  'sequin|tx':           'Christina Winston', // spelling variant
-  'louisville|ky':       'Heather Lilla',
-  'o\'fallon|mo':        'Michael McAllister',
-  'kenly|nc':            'Brooke Gross',
-  'folsom|ca':           'Gerard White',
-  'navassa|nc':          'Jennifer Hook',
-  'willimantic|ct':      'Melissa Bokoff',
+      const CITY_ALIAS_OVERRIDES = {
+        'excelsior springs|mo': { city: 'Kansas City', state: 'MO', coords: [39.0997, -94.5786] },
+      };
 
-  // existing:
-  'excelsior springs|mo': 'Teresa Estep',
-  'arlington|tx':         'Michelle Paoli',
-  'ingleside|il':         'Miguel Gonzalez',
-  'ashtabula|oh':         'Sherry Hamrick',
-  'belvidere|il':         'Justin Vargas Salgado',
-  'riverview|fl':         'Richard Santos',
-  'mabelvale|ar':         'Angela Eslick',
-  'norman|ok':            'Teryl Ard',
-  'kimberly|al':          'Jessica Salvage',
-};
+      const PROPOSED_CITY_OVERRIDES = {
+        AZ: ['Casa Grande'], CA: ['Colton'], CO: ['Centennial'],
+        IL: ['Lincoln'], MI: ['White Lake'], NE: ['Blair'], NJ: ['Secaucus'],
+        NY: ['Waterloo'], OH: ['Wilmington'], OK: ['Muskogee'], OR: ['Salem'],
+        TX: ['Houston'], UT: ['Centerville'], VA: ['Williamsburg'], WA: ['Poulsbo'],
+      };
 
-  // Collapse alternate city labels into a single hub
-const CITY_ALIAS_OVERRIDES = {
-  // Treat Excelsior Springs as KC (same market)
-  'excelsior springs|mo': { city: 'Kansas City', state: 'MO', coords: [39.0997, -94.5786] },
-};
+      const CITY_COORD_FIXES = {
+        'fort wayne|in': [41.0793, -85.1394], 'plainfield|in': [39.7042, -86.3994],
+        'dandridge|tn':[36.0159,-83.4143],'acworth|ga':[34.0659,-84.6769],'king george|va':[38.2668,-77.1847],
+        'minden|la':[32.6154,-93.2729],'olive branch|ms':[34.9618,-89.8295],'clarksville|tn':[36.5298,-87.3595],
+        'darlington|sc':[34.2999,-79.8762],'orange park|fl':[30.1660,-81.7060],'fort myers|fl':[26.6406,-81.8723],
+        'sparta|mo':[36.9959,-93.0816],'granite falls|nc':[35.7960,-81.4300],'seguin|tx':[29.5688,-97.9647],
+        "o'fallon|mo":[38.8106,-90.6998],'louisville|ky':[38.2527,-85.7585],'kenly|nc':[35.5950,-78.1250],
+        'folsom|ca':[38.6779,-121.1761],'navassa|nc':[34.2491,-78.0250],'willimantic|ct':[41.7107,-72.2081],
+        'sequin|tx':[29.5688,-97.9647],
+      };
 
+      const GEO_CITY_CANDIDATES = {
+        PA: [{ city:'Belle Vernon', lat:40.1251, lng:-79.8692 },{ city:'Parkesburg', lat:39.9587, lng:-75.9191 }],
+        IN: [{ city:'Fort Wayne', lat:41.0793, lng:-85.1394 },{ city:'Plainfield', lat:39.7042, lng:-86.3994 }],
+        FL: [{ city:'Coral Springs', lat:26.2712, lng:-80.2706 },{ city:'Lakeland', lat:28.0395, lng:-81.9498 }],
+        AL: [{ city:'Mobile', lat:30.6954, lng:-88.0399 },{ city:'Oneonta', lat:33.94815, lng:-86.47276 }],
+        MO: [{ city:'Excelsior Springs', lat:39.3397, lng:-94.2222 },{ city:'Kansas City', lat:39.0997, lng:-94.5786 }],
+      };
 
-  // Hand-entered proposed locations -> only used if a proposed row has no City
-  const PROPOSED_CITY_OVERRIDES = {
-  
-    AZ: ['Casa Grande'],
-    CA: ['Colton'],
-    CO: ['Centennial'],
-  
-    IL: ['Lincoln'],
-    
-    MI: ['White Lake'],
-    NE: ['Blair'],
-    NJ: ['Secaucus'],
-    NY: ['Waterloo'],
-    OH: ['Wilmington'],
-    OK: ['Muskogee'],
-    OR: ['Salem'],
-    
-    TX: ['Houston'],
-    UT: ['Centerville'],
-    VA: ['Williamsburg'],
-    WA: ['Poulsbo'],
-  };
-  // Hard coordinate fixes when the source row has the wrong lat/lng
-const CITY_COORD_FIXES = {
-  // IN (you already had these)
-  'fort wayne|in': [41.0793, -85.1394],
-  'plainfield|in': [39.7042, -86.3994],
+      function chooseCityForMissing(lat, lng, state){
+        const ST = (state||'').toUpperCase();
+        if (!ST) return '';
+        const choices = GEO_CITY_CANDIDATES[ST];
+        if (choices && choices.length){
+          const best = choices.map(c => ({...c, d: distMiles(lat, lng, c.lat, c.lng)})).sort((a,b)=>a.d-b.d)[0];
+          if (best) return best.city;
+        }
+        const picks = PROPOSED_CITY_OVERRIDES[ST];
+        if (Array.isArray(picks) && picks.length === 1) return picks[0];
+        const inState = allStores.filter(s => (s.state||'').toUpperCase() === ST);
+        if (inState.length){
+          const nearest = inState.map(s => ({ city:s.city, d: distMiles(lat,lng,s.lat,s.lng) })).sort((a,b)=>a.d-b.d)[0];
+          if (nearest?.city) return nearest.city;
+        }
+        return '';
+      }
 
-  // Confirmed hubs you listed
-  'dandridge|tn':      [36.0159, -83.4143],
-  'acworth|ga':        [34.0659, -84.6769],
-  'king george|va':    [38.2668, -77.1847],
-  'minden|la':         [32.6154, -93.2729],
-  'olive branch|ms':   [34.9618, -89.8295],
-  'clarksville|tn':    [36.5298, -87.3595],
-  'darlington|sc':     [34.2999, -79.8762],
-  'orange park|fl':    [30.1660, -81.7060],
-  'fort myers|fl':     [26.6406, -81.8723],
-  'sparta|mo':         [36.9959, -93.0816],
-  'granite falls|nc':  [35.7960, -81.4300],
-  'seguin|tx':         [29.5688, -97.9647],
-  "o'fallon|mo":       [38.8106, -90.6998],
-  'louisville|ky':     [38.2527, -85.7585],
-  'kenly|nc':          [35.5950, -78.1250],
-  'folsom|ca':         [38.6779, -121.1761],
-  'navassa|nc':        [34.2491, -78.0250],
-  'willimantic|ct':    [41.7107, -72.2081],
+      const classify = r => {
+        const s = statusText(r);
+        const hasName = !!getName(r);
+        if (hasName && !isOffer(s) && !isProposed(s) && !isRecruiting(s) && !/pend/i.test(s)) {
+          return { status: 'confirmed', statusSub: 'confirmed' };
+        }
+        if (isOffer(s))      return { status: 'pending', statusSub: 'pending_offer' };
+        if (isProposed(s))   return { status: 'pending', statusSub: 'proposed' };
+        if (isRecruiting(s)) return { status: 'pending', statusSub: 'open' };
+        return { status: 'pending', statusSub: hasName ? 'pending_candidate' : 'proposed' };
+      };
 
-  // spelling variant just in case
-  'sequin|tx':         [29.5688, -97.9647],
-};
+      const pretty = sub => ({
+        confirmed:          'Confirmed',
+        pending_offer:      'Pending Offer',
+        pending_candidate:  'Pending',
+        proposed:           'Proposed',
+        open:               'Open'
+      }[sub] || 'Pending');
 
+      function coordsFromCityState(city, state){
+        if (!city || !state) return null;
+        const fix = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
+        if (fix) return fix;
+        const rows = allStores.filter(s =>
+          (s.city||'').toLowerCase() === city.toLowerCase() &&
+          (s.state||'').toUpperCase() === state.toUpperCase()
+        );
+        if (rows.length){
+          const lat = rows.reduce((a,b)=>a+b.lat,0)/rows.length;
+          const lng = rows.reduce((a,b)=>a+b.lng,0)/rows.length;
+          return [lat, lng];
+        }
+        return null;
+      }
 
-  // For states with multiple proposed cities, choose the nearest by coords
-// Add MO choices (KC area)
-const GEO_CITY_CANDIDATES = {
-  // ... keep PA/IN/FL/AL that you already have
-  PA: [
-    { city: 'Belle Vernon', lat: 40.1251, lng: -79.8692 },
-    { city: 'Parkesburg',   lat: 39.9587, lng: -75.9191 },
-  ],
-  IN: [
-    { city: 'Fort Wayne', lat: 41.0793, lng: -85.1394 },
-    { city: 'Plainfield', lat: 39.7042, lng: -86.3994 },
-  ],
-  FL: [
-    { city: 'Coral Springs', lat: 26.2712, lng: -80.2706 },
-    { city: 'Lakeland',      lat: 28.0395, lng: -81.9498 },
-  ],
-  AL: [
-    { city: 'Mobile',  lat: 30.6954,  lng: -88.0399 },
-    { city: 'Oneonta', lat: 33.94815, lng: -86.47276 },
-  ],
-  MO: [
-    { city: 'Excelsior Springs', lat: 39.3397, lng: -94.2222 },
-    { city: 'Kansas City',       lat: 39.0997, lng: -94.5786 },
-  ],
-};
+      const toHub = (r) => {
+        let coords = getCoords(r);
+        let city   = getCity(r);
+        let state  = getState(r);
+        let nm     = getName(r);
 
-// Keep your existing PROPOSED_CITY_OVERRIDES block as-is
+        if (!coords && city && state) coords = coordsFromCityState(city, state);
+        if (!coords) return null;
+        let [lat, lng] = coords;
 
-// Last-resort city picker for missing-city rows
-function chooseCityForMissing(lat, lng, state){
-  const ST = (state||'').toUpperCase();
-  if (!ST) return '';
+        if (city && state) {
+          const fixed = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
+          if (fixed) { [lat, lng] = fixed; coords = fixed; }
+        }
 
-  // 1) nearest from known candidates
-  const choices = GEO_CITY_CANDIDATES[ST];
-  if (choices && choices.length){
-    const best = choices
-      .map(c => ({...c, d: distMiles(lat, lng, c.lat, c.lng)}))
-      .sort((a,b)=>a.d-b.d)[0];
-    if (best) return best.city;
-  }
+        if (!nm && city && state) {
+          nm = NAME_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`] || '';
+        }
 
-  // 2) single-option override
-  const picks = PROPOSED_CITY_OVERRIDES[ST];
-  if (Array.isArray(picks) && picks.length === 1) return picks[0];
+        const { status, statusSub } = classify(r);
 
-  // 3) nearest store city in same state
-  const inState = allStores.filter(s => (s.state||'').toUpperCase() === ST);
-  if (inState.length){
-    const nearest = inState
-      .map(s => ({ city:s.city, d: distMiles(lat,lng,s.lat,s.lng) }))
-      .sort((a,b)=>a.d-b.d)[0];
-    if (nearest?.city) return nearest.city;
-  }
-  return '';
-}
+        if (!city && state && status !== 'confirmed') {
+          city = chooseCityForMissing(lat, lng, state);
+        }
 
+        if (city && state) {
+          const alias = CITY_ALIAS_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`];
+          if (alias) {
+            city  = alias.city  || city;
+            state = alias.state || state;
+            if (Array.isArray(alias.coords)) { [lat, lng] = alias.coords; coords = alias.coords; }
+          }
+        }
 
+        const statusLabel = pretty(statusSub);
+        const trainerBit  = nm ? ` — ${nm}` : '';
+        const place = city && state ? `${city}, ${state}` : (city || state || '');
+        const label = `${place} (${statusLabel}${trainerBit})`;
 
-  const classify = r => {
-    const s = statusText(r);
-    const hasName = !!getName(r);
-    if (hasName && !isOffer(s) && !isProposed(s) && !isRecruiting(s) && !/pend/i.test(s)) {
-      return { status: 'confirmed', statusSub: 'confirmed' };
+        // ---- Deterministic hubId here ----
+        const idMap = loadHubIdMap();
+        const providedId = r.hubId ?? r.HubID ?? r.Hub_Id ?? r.HubId ?? r.hub_id ?? r.id;
+        const stableKey = hubStableKey({ city, state, coords:[lat,lng], name:nm });
+        let finalId = (typeof providedId === 'string' && providedId.trim()) ? String(providedId).trim() : idMap[stableKey];
+        if (!finalId){
+          finalId = `hub_${slug(`${city||''}-${state||''}-${lat.toFixed(4)}-${lng.toFixed(4)}-${nm||''}`)}`;
+          if (stableKey) { idMap[stableKey] = finalId; saveHubIdMap(idMap); }
+        }
+        // ----------------------------------
+
+        return {
+          id: finalId,
+          name: nm || 'Proposed',
+          label, fullName: label,
+          coords: [lat, lng],
+          status, statusSub, statusLabel,
+          city, state
+        };
+      };
+
+      const STATUS_PRIORITY = { confirmed:5, pending_offer:4, pending_candidate:3, open:2, proposed:1 };
+      function hubKey(h){
+        if (h.city && h.state) return `${h.city.toLowerCase()}|${h.state.toLowerCase()}`;
+        return `${h.coords[0].toFixed(3)},${h.coords[1].toFixed(3)}`;
+      }
+      function coalesceHubs(list){
+        const byKey = new Map();
+        for (const h of list){
+          const key = hubKey(h);
+          const cur = byKey.get(key);
+          if (!cur) { byKey.set(key, h); continue; }
+          const a = cur, b = h;
+          const pa = STATUS_PRIORITY[a.statusSub] || 0;
+          const pb = STATUS_PRIORITY[b.statusSub] || 0;
+          const pick = (pb > pa || (pb === pa && !a.name && b.name)) ? b : a;
+          byKey.set(key, pick);
+        }
+        return Array.from(byKey.values());
+      }
+
+      const hubs = rows.map(toHub).filter(Boolean);
+      const merged = coalesceHubs(hubs);
+      premiumConfirmed = merged.filter(h => h.status === 'confirmed');
+      premiumPending   = merged.filter(h => h.status === 'pending');
+    } catch (e) {
+      console.warn('Premium file missing/invalid', e);
+      premiumConfirmed = [];
+      premiumPending   = [];
     }
-    if (isOffer(s))      return { status: 'pending', statusSub: 'pending_offer' };
-    if (isProposed(s))   return { status: 'pending', statusSub: 'proposed' };
-    if (isRecruiting(s)) return { status: 'pending', statusSub: 'open' };
-    return { status: 'pending', statusSub: hasName ? 'pending_candidate' : 'proposed' };
-  };
-
-  const pretty = sub => ({
-    confirmed:          'Confirmed',
-    pending_offer:      'Pending Offer',
-    pending_candidate:  'Pending',
-    proposed:           'Proposed',
-    open:               'Open'
-  }[sub] || 'Pending');
-
-  function coordsFromCityState(city, state){
-  if (!city || !state) return null;
-
-  // 1) explicit fix table
-  const fix = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
-  if (fix) return fix;
-
-  // 2) centroid of all stores in same city/state
-  const rows = allStores.filter(s =>
-    (s.city||'').toLowerCase() === city.toLowerCase() &&
-    (s.state||'').toUpperCase() === state.toUpperCase()
-  );
-  if (rows.length){
-    const lat = rows.reduce((a,b)=>a+b.lat,0)/rows.length;
-    const lng = rows.reduce((a,b)=>a+b.lng,0)/rows.length;
-    return [lat, lng];
-  }
-
-  return null; // no fallback found
-}
-
-
-  const toHub = (r) => {
-  let coords = getCoords(r);
-  let city   = getCity(r);
-  let state  = getState(r);
-  let nm     = getName(r);
-
-  // If coords are missing, try city/state fallbacks
-  if (!coords && city && state) coords = coordsFromCityState(city, state);
-  if (!coords) return null; // still nothing -> skip
-  let [lat, lng] = coords;
-
-  // If City|State match a known fix, prefer that exact point
-  if (city && state) {
-    const fixed = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
-    if (fixed) { [lat, lng] = fixed; coords = fixed; }
-  }
-
-  // Fallback name override if file row lacks it
-  if (!nm && city && state) {
-    nm = NAME_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`] || '';
-  }
-
-  const { status, statusSub } = classify(r);
-
-  // If missing city but we have coords/state, pick a sensible city label
-  if (!city && state && status !== 'confirmed') {
-    city = chooseCityForMissing(lat, lng, state);
-  }
-
-  // Apply any city alias after we have city/state
-  if (city && state) {
-    const alias = CITY_ALIAS_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`];
-    if (alias) {
-      city  = alias.city  || city;
-      state = alias.state || state;
-      if (Array.isArray(alias.coords)) { [lat, lng] = alias.coords; coords = alias.coords; }
-    }
-  }
-
-  const statusLabel = pretty(statusSub);
-  const trainerBit  = nm ? ` — ${nm}` : '';
-  const place = city && state ? `${city}, ${state}` : (city || state || '');
-  const label = `${place} (${statusLabel}${trainerBit})`;
-
-  return {
-    id: `${status[0]}_${slug(`${city||''}-${state||''}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
-    name: nm || 'Proposed',
-    label, fullName: label,
-    coords: [lat, lng],
-    status, statusSub, statusLabel,
-    city, state
-  };
-};
-
-
-
-
- // Merge duplicates across statuses by city/state or rounded coords.
-// Keep the higher-priority status (confirmed > pending_offer > pending > open > proposed).
-const STATUS_PRIORITY = { confirmed:5, pending_offer:4, pending_candidate:3, open:2, proposed:1 };
-
-function hubKey(h){
-  if (h.city && h.state) return `${h.city.toLowerCase()}|${h.state.toLowerCase()}`;
-  return `${h.coords[0].toFixed(3)},${h.coords[1].toFixed(3)}`; // ~3–4 miles
-}
-
-function coalesceHubs(list){
-  const byKey = new Map();
-  for (const h of list){
-    const key = hubKey(h);
-    const cur = byKey.get(key);
-    if (!cur) { byKey.set(key, h); continue; }
-
-    const a = cur, b = h;
-    const pa = STATUS_PRIORITY[a.statusSub] || 0;
-    const pb = STATUS_PRIORITY[b.statusSub] || 0;
-
-    // Prefer higher status; on tie, prefer the one that has a name
-    const pick = (pb > pa || (pb === pa && !a.name && b.name)) ? b : a;
-    byKey.set(key, pick);
-  }
-  return Array.from(byKey.values());
-}
-
-const hubs = rows.map(toHub).filter(Boolean);
-const merged = coalesceHubs(hubs);
-premiumConfirmed = merged.filter(h => h.status === 'confirmed');
-premiumPending   = merged.filter(h => h.status === 'pending');
-
-
-} catch (e) {
-  console.warn('Premium file missing/invalid', e);
-  premiumConfirmed = [];
-  premiumPending   = [];
-}
-
-
 
     // Build initial UI state
     buildSearchIndex();
@@ -921,20 +845,48 @@ premiumPending   = merged.filter(h => h.status === 'pending');
 
     // Draw
     runFilter(); renderChips(); renderHubs(); updateRings();
+
+    // Dataset badge (simple rev bumps on hub files; stores by date)
+    const storesFp  = `stores:${allStores.length}`;
+    const premiumFp = `premium:${premiumConfirmed.length + premiumPending.length}`;
+    const acostaFp  = `acosta:${acostaHubs.length}`;
+    updateDatasetBadge(storesFp, premiumFp, acostaFp);
+
+    // ---------- Validation & Audit ----------
+    const schemaResult = runJsonSchemaValidation(RAW_STORES, RAW_ACOSTA, RAW_PREMIUM);
+    const DATA_REPORT = buildDataAudit({
+      stores: allStores,
+      premiumConfirmed, premiumPending,
+      acosta: acostaHubs
+    });
+
+    // Merge optional schema errors into report
+    if (schemaResult?.errors?.length){
+      DATA_REPORT.errors = [...schemaResult.errors, ...DATA_REPORT.errors];
+    }
+
+    renderDataPanel(DATA_REPORT);
+
+    // Surface a compact summary in status line
+    const add = DATA_REPORT.hubChanges?.summary?.[0]?.msg || '';
+    const rem = DATA_REPORT.hubChanges?.summary?.[1]?.msg || '';
+    const chg = DATA_REPORT.hubChanges?.summary?.[2]?.msg || '';
+    STATUS.innerHTML += `  |  Changes: <b>${add}</b>, <b>${rem}</b>, <b>${chg}</b>`;
+
   } catch(err){
     STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Init error:</span> ${escape(err?.message || String(err))}`;
     console.error(err);
   } finally { clearTimeout(spinnerFailSafe); showBusy(false); }
 
   if (PENDING_PIN_IDS.length){
-  pinnedHubs = visibleHubs().filter(h => PENDING_PIN_IDS.includes(h.id));
-  if (tgOverlap.checked) drawOverlap();
-}
-if (PENDING_OPEN_HUB_ID){
-  const h = visibleHubs().find(x => x.id === PENDING_OPEN_HUB_ID);
-  if (h) openSidepanel(h);
-  PENDING_OPEN_HUB_ID = null;
-}
+    pinnedHubs = visibleHubs().filter(h => PENDING_PIN_IDS.includes(h.id));
+    if (tgOverlap.checked) drawOverlap();
+  }
+  if (PENDING_OPEN_HUB_ID){
+    const h = visibleHubs().find(x => x.id === PENDING_OPEN_HUB_ID);
+    if (h) openSidepanel(h);
+    PENDING_OPEN_HUB_ID = null;
+  }
 
   // ---------- Search ----------
   var searchIdx = []; let resIndex = -1; let targetPin=null; const targetIcon = L.divIcon({className:'', html:'<div style="background:#2f71ff;border:2px solid #fff;border-radius:50%;width:18px;height:18px;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>', iconSize:[18,18], iconAnchor:[9,9]});
@@ -1050,35 +1002,34 @@ if (PENDING_OPEN_HUB_ID){
   }
 
   // ---------- Filtering & markers ----------
-function storeFilter(s){
-  const covSel = Array.from(covFilter.selectedOptions).map(o=>o.value);
-  const covOK  = covSel.includes('All') || covSel.includes(s.coverageType || '');
+  function storeFilter(s){
+    const covSel = Array.from(covFilter.selectedOptions).map(o=>o.value);
+    const covOK  = covSel.includes('All') || covSel.includes(s.coverageType || '');
 
-  const rmSel = Array.from(rmFilter.selectedOptions).map(o=>o.value);
-  const amSel = Array.from(amFilter.selectedOptions).map(o=>o.value);
-  const rmOK  = rmSel.includes('All') || rmSel.includes(s.regionalManager || '');
-  const amOK  = amSel.includes('All') || amSel.includes(s.areaManager || '');
+    const rmSel = Array.from(rmFilter.selectedOptions).map(o=>o.value);
+    const amSel = Array.from(amFilter.selectedOptions).map(o=>o.value);
+    const rmOK  = rmSel.includes('All') || rmSel.includes(s.regionalManager || '');
+    const amOK  = amSel.includes('All') || amSel.includes(s.areaManager || '');
 
-  // Hubs (value = hub IDs)
-  const hubSel = Array.from(hubFilter.selectedOptions).map(o=>o.value);
-  let hubOK = true;
-  if (hubSel.length){
-    const r = Number(radius.value) || DEFAULT_RADIUS;
-    const hubsNow = [...premiumConfirmed, ...premiumPending, ...acostaHubs];
-    const selHubs = hubsNow.filter(h => hubSel.includes(h.id));
-    hubOK = selHubs.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+    // Hubs (value = hub IDs)
+    const hubSel = Array.from(hubFilter.selectedOptions).map(o=>o.value);
+    let hubOK = true;
+    if (hubSel.length){
+      const r = Number(radius.value) || DEFAULT_RADIUS;
+      const hubsNow = [...premiumConfirmed, ...premiumPending, ...acostaHubs];
+      const selHubs = hubsNow.filter(h => hubSel.includes(h.id));
+      hubOK = selHubs.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+    }
+
+    // “Within hubs” toggle
+    let withinOK = true;
+    if (tgWithin.checked){
+      const r = Number(radius.value) || DEFAULT_RADIUS;
+      withinOK = visibleHubs().some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+    }
+
+    return covOK && rmOK && amOK && hubOK && withinOK;
   }
-
-  // “Within hubs” toggle
-  let withinOK = true;
-  if (tgWithin.checked){
-    const r = Number(radius.value) || DEFAULT_RADIUS;
-    withinOK = visibleHubs().some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
-  }
-
-  return covOK && rmOK && amOK && hubOK && withinOK;
-}
-
 
   function runFilter(){
     markerByStore.clear();
@@ -1102,31 +1053,29 @@ function storeFilter(s){
 
     updateCounts();
     rebuildRMOptionsWithCounts();
-rebuildAMOptionsWithCounts();
-buildHubFilterOptions();
+    rebuildAMOptionsWithCounts();
+    buildHubFilterOptions();
 
     updateInViewCount();
     if (id('tgHeat').checked) updateHeat();
     if (id('tgRings').checked) updateRings();
   }
 
-function updateCounts(){
-  const total = filteredStores.length;
-  const by = { 'Premium + Acosta':0, 'Premium Only':0, 'Acosta Only':0, 'Uncovered':0 };
-  filteredStores.forEach(s => { by[s.coverageType] = (by[s.coverageType] || 0) + 1; });
-  const pct = (n) => total ? Math.round(n * 100 / total) + '%' : '0%';
+  function updateCounts(){
+    const total = filteredStores.length;
+    const by = { 'Premium + Acosta':0, 'Premium Only':0, 'Acosta Only':0, 'Uncovered':0 };
+    filteredStores.forEach(s => { by[s.coverageType] = (by[s.coverageType] || 0) + 1; });
+    const pct = (n) => total ? Math.round(n * 100 / total) + '%' : '0%';
 
-  // counts + percentages
-  k.pa.textContent = `${by['Premium + Acosta']||0} (${pct(by['Premium + Acosta']||0)})`;
-  k.p.textContent  = `${by['Premium Only']||0} (${pct(by['Premium Only']||0)})`;
-  k.a.textContent  = `${by['Acosta Only']||0} (${pct(by['Acosta Only']||0)})`;
-  // Uncovered = truly not near Premium or Acosta (kept separate from Acosta Only)
-  k.u.textContent  = `${by['Uncovered']||0} (${pct(by['Uncovered']||0)})`;
+    k.pa.textContent = `${by['Premium + Acosta']||0} (${pct(by['Premium + Acosta']||0)})`;
+    k.p.textContent  = `${by['Premium Only']||0} (${pct(by['Premium Only']||0)})`;
+    k.a.textContent  = `${by['Acosta Only']||0} (${pct(by['Acosta Only']||0)})`;
+    k.u.textContent  = `${by['Uncovered']||0} (${pct(by['Uncovered']||0)})`;
 
-  k.total.textContent    = total;
-  k.confirmed.textContent = premiumConfirmed.length;
-  k.pending.textContent   = premiumPending.length;
-}
+    k.total.textContent    = total;
+    k.confirmed.textContent = premiumConfirmed.length;
+    k.pending.textContent   = premiumPending.length;
+  }
 
   function updateInViewCount(){
     const b=map.getBounds();
@@ -1153,43 +1102,41 @@ function updateCounts(){
     if (showAcosta.checked)    out.push(...acostaHubs);
     return out;
   }
-function hubDisplay(h){ return h.label || h.fullName || h.name; }
+  function hubDisplay(h){ return h.label || h.fullName || h.name; }
 
   function copyHubLink(){
-  if(!spHub) return;
-  saveState(); // persist current filters/toggles/radius
-  const st = JSON.parse(localStorage.getItem(LS_STATE) || '{}');
-  st.openHubId     = spHub.id;
-  st.pinnedHubIds  = pinnedHubs.map(h => h.id);
-  const hash = btoa(unescape(encodeURIComponent(JSON.stringify(st))));
-  const url  = `${location.origin}${location.pathname}#${hash}`;
-  navigator.clipboard?.writeText(url);
-  alert('Hub link copied to clipboard.');
-}
-spLink.onclick = copyHubLink;
+    if(!spHub) return;
+    saveState(); // persist current filters/toggles/radius
+    const st = JSON.parse(localStorage.getItem(LS_STATE) || '{}');
+    st.openHubId     = spHub.id;
+    st.pinnedHubIds  = pinnedHubs.map(h => h.id);
+    const hash = btoa(unescape(encodeURIComponent(JSON.stringify(st))));
+    const url  = `${location.origin}${location.pathname}#${hash}`;
+    navigator.clipboard?.writeText(url);
+    alert('Hub link copied to clipboard.');
+  }
+  spLink.onclick = copyHubLink;
 
-
-function renderHubs(){
-  hubLayer.clearLayers();
-  const vis = visibleHubs();
-  vis.forEach(h=>{
-    const cls =
-      h.status === 'confirmed' ? 'confirmed' :
-      h.status === 'pending'   ? 'pending'   : 'acosta';
-    const icon = L.divIcon({
-      className: '',
-      html: `<div class="hub ${cls}"></div>`,
-      iconSize: [20,20],
-      iconAnchor: [10,10]
+  function renderHubs(){
+    hubLayer.clearLayers();
+    const vis = visibleHubs();
+    vis.forEach(h=>{
+      const cls =
+        h.status === 'confirmed' ? 'confirmed' :
+        h.status === 'pending'   ? 'pending'   : 'acosta';
+      const icon = L.divIcon({
+        className: '',
+        html: `<div class="hub ${cls}"></div>`,
+        iconSize: [20,20],
+        iconAnchor: [10,10]
+      });
+      const m = L.marker(h.coords, { icon, title: hubDisplay(h), pane: 'hubPane' }).addTo(hubLayer);
+      m.hub = h;
+      m.on('click', ()=> compareMode ? togglePin(h) : openSidepanel(h));
+      m.on('mouseover', ()=> m.bindTooltip(hubDisplay(h), {direction:'top', offset:[0,-8]}).openTooltip());
+      m.on('mouseout',  ()=> m.closeTooltip());
     });
-    const m = L.marker(h.coords, { icon, title: hubDisplay(h), pane: 'hubPane' }).addTo(hubLayer);
-    m.hub = h;
-    m.on('click', ()=> compareMode ? togglePin(h) : openSidepanel(h));
-    m.on('mouseover', ()=> m.bindTooltip(hubDisplay(h), {direction:'top', offset:[0,-8]}).openTooltip());
-    m.on('mouseout',  ()=> m.closeTooltip());
-  });
-}
-
+  }
 
   function updateRings(){
     ringLayer.clearLayers();
@@ -1206,7 +1153,7 @@ function renderHubs(){
     const vis = visibleHubs();
     filteredStores.forEach(s=>{
       let cnt = 0;
-      vis.forEach(h => { if (distMiles(s.lat,s.lng,h.coords[0],h.coords[1]) <= r) cnt++; });
+      vis.forEach(h => { if (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r) cnt++; });
       if (cnt >= 2){
         highlightLayer.addLayer(L.circleMarker([s.lat,s.lng],{radius:7,color:'#111',weight:2,fillOpacity:0.2}));
       }
@@ -1224,71 +1171,66 @@ function renderHubs(){
   }
 
   // ---------- Coverage ----------
-// Replace the whole function with this:
-// Coverage is computed with a fixed 75-mi rule (independent of the UI slider)
-// Categories: 'Premium + Acosta', 'Premium Only', 'Acosta Only', 'Uncovered'
-function recomputeCoverage(){
-  const RULE_RADIUS = 75; // miles
-  const prem = [...premiumConfirmed, ...premiumPending];
-  const ac   = [...acostaHubs];
+  // Fixed 75-mi rule categories: 'Premium + Acosta', 'Premium Only', 'Acosta Only', 'Uncovered'
+  function recomputeCoverage(){
+    const RULE_RADIUS = 75; // miles
+    const prem = [...premiumConfirmed, ...premiumPending];
+    const ac   = [...acostaHubs];
 
-  allStores.forEach(s=>{
-    const nearPrem = prem.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= RULE_RADIUS);
-    const nearAco  = ac.some(  h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= RULE_RADIUS);
+    allStores.forEach(s=>{
+      const nearPrem = prem.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= RULE_RADIUS);
+      const nearAco  = ac.some(  h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= RULE_RADIUS);
 
-    if (nearPrem && nearAco)      s.coverageType = 'Premium + Acosta';
-    else if (nearPrem)            s.coverageType = 'Premium Only';
-    else if (nearAco)             s.coverageType = 'Acosta Only'; // still "not Premium-covered"
-    else                          s.coverageType = 'Uncovered';    // truly uncovered
-  });
-}
-
+      if (nearPrem && nearAco)      s.coverageType = 'Premium + Acosta';
+      else if (nearPrem)            s.coverageType = 'Premium Only';
+      else if (nearAco)             s.coverageType = 'Acosta Only';
+      else                          s.coverageType = 'Uncovered';
+    });
+  }
 
   // ---------- Sidepanel ----------
-function openSidepanel(h){
-  spHub = h;
-  sidepanel.classList.add('show');
-  spTitle.textContent = hubDisplay(h);
-  renderSidepanelMeta();
-  renderSidepanelList(true);
-  const padRight = 420;
-  map.panInside(h.coords, { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] });
-  spPinBtn.textContent = pinnedHubs.some(x=>x.id===h.id) ? 'Unpin' : 'Pin';
-}
+  function openSidepanel(h){
+    spHub = h;
+    sidepanel.classList.add('show');
+    spTitle.textContent = hubDisplay(h);
+    renderSidepanelMeta();
+    renderSidepanelList(true);
+    const padRight = 420;
+    map.panInside(h.coords, { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] });
+    spPinBtn.textContent = pinnedHubs.some(x=>x.id===h.id) ? 'Unpin' : 'Pin';
+  }
 
   function hideSidepanel(){ sidepanel.classList.remove('show'); spHub=null; spRows=[]; spRowsEl.innerHTML=''; }
-function renderSidepanelMeta(){
-  if(!spHub) return;
-  const r = Number(radius.value)||DEFAULT_RADIUS;
-  const stores = storesWithin(spHub.coords, r);
-  const [hlat, hlng] = spHub.coords;
-const gHub = `https://www.google.com/maps?q=${encodeURIComponent(hlat+','+hlng)}`;
-const aHub = `http://maps.apple.com/?ll=${encodeURIComponent(hlat+','+hlng)}`;
+  function renderSidepanelMeta(){
+    if(!spHub) return;
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const stores = storesWithin(spHub.coords, r);
+    const [hlat, hlng] = spHub.coords;
+    const gHub = `https://www.google.com/maps?q=${encodeURIComponent(hlat+','+hlng)}`;
+    const aHub = `http://maps.apple.com/?ll=${encodeURIComponent(hlat+','+hlng)}`;
 
-  const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
-  stores.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0) + 1; });
+    const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
+    stores.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0) + 1; });
 
-  const statusChip = spHub.statusLabel
-    ? `<span class="sp-chip"><b>Status:</b> ${escape(spHub.statusLabel)}</span>`
-    : '';
+    const statusChip = spHub.statusLabel
+      ? `<span class="sp-chip"><b>Status:</b> ${escape(spHub.statusLabel)}</span>`
+      : '';
 
-  spMeta.innerHTML = `
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      ${statusChip}
-      <span class="sp-chip"><b>Maps:</b> <a target="_blank" rel="noopener" href="${gHub}">Google</a> • <a target="_blank" rel="noopener" href="${aHub}">Apple</a></span>
-
-      <span class="sp-chip"><b>Radius:</b> ${r} mi</span>
-    </div>
-    <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
-      <span class="sp-chip">Total: <b>${stores.length}</b></span>
-    </div>
-  `;
-}
-
+    spMeta.innerHTML = `
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        ${statusChip}
+        <span class="sp-chip"><b>Maps:</b> <a target="_blank" rel="noopener" href="${gHub}">Google</a> • <a target="_blank" rel="noopener" href="${aHub}">Apple</a></span>
+        <span class="sp-chip"><b>Radius:</b> ${r} mi</span>
+      </div>
+      <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
+        <span class="sp-chip">Total: <b>${stores.length}</b></span>
+      </div>
+    `;
+  }
 
   function renderSidepanelList(rebuild=false){
     if(!spHub) return;
@@ -1322,7 +1264,7 @@ const aHub = `http://maps.apple.com/?ll=${encodeURIComponent(hlat+','+hlng)}`;
         <div class="num">#${htmlEscape(s.storeNumberStr)}</div>
         <div class="text">
           <div class="title">${htmlEscape(s.storeName||'')}</div>
-          <div class="addr">${htmlEscape(s.address||'')} · ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</div>
+          <div class="addr">${htmlEscape(s.address||'')}, ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</div>
         </div>
         <div class="kind">${htmlEscape(s.coverageType||'')}</div>
         <div style="margin-left:auto; min-width:64px; text-align:right; color:var(--muted)">${s.__d.toFixed(1)} mi</div>
@@ -1371,38 +1313,40 @@ const aHub = `http://maps.apple.com/?ll=${encodeURIComponent(hlat+','+hlng)}`;
     downloadCsv(rows, `${slug(spHub.name)}_${r}mi_${Date.now()}.csv`);
   }
   function downloadCsv(rows, filename){
-  const csv = rows
-    .map(r => r.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(','))
-    .join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(a.href);
-}
-const REV_KEY='prt_dataset_revs_v1';
-function getRevs(){ try{return JSON.parse(localStorage.getItem(REV_KEY)||'{}')}catch{ return {}; } }
-function setRevs(x){ localStorage.setItem(REV_KEY, JSON.stringify(x)); }
-function bumpRevision(name, fingerprint){
-  const r = getRevs();
-  const cur = r[name] || { rev:0, fp:'' };
-  if (cur.fp !== fingerprint){ cur.rev = (cur.rev||0)+1; cur.fp = fingerprint; }
-  r[name] = cur; setRevs(r); return cur.rev;
-}
-function updateDatasetBadge(storesFp, premiumFp, acostaFp){
-  const badge = id('datasetBadge');
-  if (!badge) return;
-  const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
-  const pRev = bumpRevision('premium', premiumFp);
-  const aRev = bumpRevision('acosta',  acostaFp);
-  badge.innerHTML =
-    `<span class="chip">Stores v${today}</span>`+
-    ` <span class="chip">Premium v${pRev}</span>`+
-    ` <span class="chip">Acosta v${aRev}</span>`;
-}
+    const csv = rows
+      .map(r => r.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }
+
+  // Dataset badge rev helpers
+  const REV_KEY='prt_dataset_revs_v1';
+  function getRevs(){ try{return JSON.parse(localStorage.getItem(REV_KEY)||'{}')}catch{ return {}; } }
+  function setRevs(x){ localStorage.setItem(REV_KEY, JSON.stringify(x)); }
+  function bumpRevision(name, fingerprint){
+    const r = getRevs();
+    const cur = r[name] || { rev:0, fp:'' };
+    if (cur.fp !== fingerprint){ cur.rev = (cur.rev||0)+1; cur.fp = fingerprint; }
+    r[name] = cur; setRevs(r); return cur.rev;
+  }
+  function updateDatasetBadge(storesFp, premiumFp, acostaFp){
+    const badge = id('datasetBadge');
+    if (!badge) return;
+    const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+    const pRev = bumpRevision('premium', premiumFp);
+    const aRev = bumpRevision('acosta',  acostaFp);
+    badge.innerHTML =
+      `<span class="chip">Stores v${today}</span>`+
+      ` <span class="chip">Premium v${pRev}</span>`+
+      ` <span class="chip">Acosta v${aRev}</span>`;
+  }
 
   function printSidepanelList(){
     if(!spHub){ alert('Open a hub panel first.'); return; }
@@ -1453,12 +1397,217 @@ function updateDatasetBadge(storesFp, premiumFp, acostaFp){
     win.document.close();
   }
 
+  // ---------- Validation & Audit UI helpers ----------
+  function auditRenderList(title, arr, color='#b42318'){
+    const head = `<div style="font-weight:800;margin:6px 0;color:${color}">${title} (${arr.length})</div>`;
+    if (!arr.length) return head + `<div style="color:var(--muted)">None</div>`;
+    return head + '<ul style="margin:6px 0 12px 18px">' +
+      arr.slice(0,500).map(x=>`<li>${escape(x.msg)}<span style="color:var(--muted)"> — ${escape(x.where||'')}</span></li>`).join('') +
+      (arr.length>500?`<li>… +${arr.length-500} more</li>`:'') + '</ul>';
+  }
+
+  function renderDataPanel(report){
+    const el = id('dataIssuesWrap');
+    const html =
+      auditRenderList('Errors', report.errors, '#b42318') +
+      auditRenderList('Warnings', report.warnings, '#92400e') +
+      auditRenderList('Info', report.info, '#0f766e') +
+      auditRenderList('Near-duplicates (≤ 5mi)', report.nearDupPairs.map(p=>({
+        msg:`${p.a.label||p.a.name} ↔ ${p.b.label||p.b.name} — ${p.d.toFixed(2)}mi`,
+        where:`${p.a.id} / ${p.b.id}`
+      })), '#6b21a8') +
+      auditRenderList('Hub changes since last load', report.hubChanges.summary, '#374151');
+    el.innerHTML = html;
+
+    id('downloadIssuesJson').onclick = ()=>{
+      const blob = new Blob([JSON.stringify(report, null, 2)], {type:'application/json'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = `data_issues_${Date.now()}.json`; document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(a.href);
+    };
+    id('downloadDiffCsv').onclick = ()=>{
+      const rows = [['Change','hubId','Name','City','State','Status','Lat','Lng','PrevStatus','PrevLat','PrevLng']];
+      report.hubChanges.rows.forEach(r=>{
+        rows.push([r.kind,r.id,r.name||'',r.city||'',r.state||'',r.status||'',r.lat||'',r.lng||'',r.prevStatus||'',r.prevLat||'',r.prevLng||'']);
+      });
+      downloadCsv(rows, `hub_changes_${Date.now()}.csv`);
+    };
+  }
+
+  // ---------- Build audit (duplicates, change detection, coord sanity) ----------
+  function buildDataAudit({ stores, premiumConfirmed, premiumPending, acosta }){
+    const errors = [], warnings = [], info = [];
+
+    // Basic store checks
+    stores.forEach((s)=>{
+      const where = `store#${s.storeNumberStr||'?'} (${s.city||''}, ${s.state||''})`;
+      if (!Number.isFinite(s.lat) || !Number.isFinite(s.lng))
+        errors.push({ where, msg:'Missing or invalid lat/lng'});
+      if (!s.state) warnings.push({ where, msg:'Missing state'});
+      if (!s.storeNumberStr) warnings.push({ where, msg:'Missing storeNumber'});
+      if (Math.abs(s.lat)>90 || Math.abs(s.lng)>180)
+        errors.push({ where, msg:'Coordinates out of range'});
+      if (s.lat===0 && s.lng===0) warnings.push({ where, msg:'Zero coordinates'});
+    });
+
+    // Hubs list
+    const hubsAll = [
+      ...premiumConfirmed.map(h=>({ ...h, source:'premium' })),
+      ...premiumPending  .map(h=>({ ...h, source:'premium' })),
+      ...acosta          .map(h=>({ ...h, source:'acosta' }))
+    ];
+
+    // Hub sanity
+    hubsAll.forEach(h=>{
+      const where = `hub:${h.id} (${h.city||''}, ${h.state||''})`;
+      if (!Number.isFinite(h.coords?.[0]) || !Number.isFinite(h.coords?.[1]))
+        errors.push({ where, msg:'Hub missing coords'});
+      if (!h.id) errors.push({ where, msg:'Missing hubId'});
+    });
+
+    // State envelopes from stores (strict bounding box guard)
+    const envByState = {};
+    stores.forEach(s=>{
+      const st = (s.state||'').toUpperCase(); if(!st) return;
+      const e = envByState[st] ||= { minLat:  90, maxLat: -90, minLng:  180, maxLng: -180 };
+      e.minLat = Math.min(e.minLat, s.lat); e.maxLat = Math.max(e.maxLat, s.lat);
+      e.minLng = Math.min(e.minLng, s.lng); e.maxLng = Math.max(e.maxLng, s.lng);
+    });
+    // Allow small margin to account for sparse states/territories
+    const MARGIN_DEG = 1.0;
+    hubsAll.forEach(h=>{
+      const st = (h.state||'').toUpperCase(); if(!st || !envByState[st]) return;
+      const e = envByState[st];
+      const inLat = (h.coords[0] >= e.minLat - MARGIN_DEG) && (h.coords[0] <= e.maxLat + MARGIN_DEG);
+      const inLng = (h.coords[1] >= e.minLng - MARGIN_DEG) && (h.coords[1] <= e.maxLng + MARGIN_DEG);
+      if (!inLat || !inLng){
+        errors.push({ where:`hub:${h.id}`, msg:`Hub outside ${st} bounding box — lat/lng not plausible for declared state`});
+      }
+    });
+
+    // Median-by-state distance sanity (so Alaska/HI or wonky states get a secondary signal)
+    const byState = {};
+    stores.forEach(s=>{
+      const st = (s.state||'').toUpperCase();
+      if (!st) return;
+      (byState[st] ||= []).push([s.lat, s.lng]);
+    });
+    function median(arr){ const a=[...arr].sort((x,y)=>x-y); const m=Math.floor(a.length/2); return a.length%2?a[m]:(a[m-1]+a[m])/2; }
+    const stateCenter = {};
+    Object.entries(byState).forEach(([st, pts])=>{
+      stateCenter[st] = { lat: median(pts.map(p=>p[0])), lng: median(pts.map(p=>p[1])) };
+    });
+    hubsAll.forEach(h=>{
+      const st = (h.state||'').toUpperCase();
+      if (!st || !stateCenter[st]) return;
+      const d = distMiles(h.coords[0], h.coords[1], stateCenter[st].lat, stateCenter[st].lng);
+      if (d > 500) warnings.push({ where:`hub:${h.id}`, msg:`Coords far from ${st} median (${d.toFixed(0)} mi)`});
+    });
+
+    // Duplicate/proximity guard (≤5mi) across & within sources
+    const NEAR_MI = 5;
+    const nearDupPairs = [];
+    for (let i=0;i<hubsAll.length;i++){
+      for (let j=i+1;j<hubsAll.length;j++){
+        const a=hubsAll[i], b=hubsAll[j];
+        const d = distMiles(a.coords[0],a.coords[1],b.coords[0],b.coords[1]);
+        if (d <= NEAR_MI){
+          nearDupPairs.push({ a,b,d });
+          warnings.push({ where:`${a.id} ↔ ${b.id}`, msg:`Hubs within ${d.toFixed(2)} mi (${a.source} vs ${b.source})`});
+        }
+      }
+    }
+
+    // Change detection snapshot
+    const hubSnapKey = 'prt_hub_snapshot_v2';
+    const prev = (()=>{ try{return JSON.parse(localStorage.getItem(hubSnapKey)||'[]')}catch{return [];} })();
+    const cur = hubsAll.map(h=>({
+      id: h.id, name: h.name||'', city:h.city||'', state:h.state||'',
+      status: h.status||'', statusSub: h.statusSub||'',
+      lat: Number(h.coords[0]), lng: Number(h.coords[1])
+    }));
+    const byIdPrev = new Map(prev.map(x=>[x.id,x]));
+    const byIdCur  = new Map(cur .map(x=>[x.id,x]));
+
+    const added=[], removed=[], changed=[];
+    cur.forEach(x=>{
+      const p = byIdPrev.get(x.id);
+      if (!p){ added.push(x); return; }
+      const diffs = {};
+      ['name','city','state','status','statusSub','lat','lng'].forEach(k=>{
+        if ((p[k]??'') !== (x[k]??'')) diffs[k] = { from:p[k], to:x[k] };
+      });
+      if (Object.keys(diffs).length){
+        changed.push({ id:x.id, ...x, prevStatus:p.status, prevLat:p.lat, prevLng:p.lng, diffs });
+      }
+    });
+    prev.forEach(p=>{ if (!byIdCur.has(p.id)) removed.push(p); });
+
+    const hubChanges = {
+      summary: [
+        { where:'', msg:`${added.length} added` },
+        { where:'', msg:`${removed.length} removed` },
+        { where:'', msg:`${changed.length} changed` },
+      ],
+      rows: [
+        ...added.map(x=>({ kind:'added', ...x })),
+        ...removed.map(x=>({ kind:'removed', ...x })),
+        ...changed.map(x=>({ kind:'changed', ...x }))
+      ]
+    };
+
+    localStorage.setItem(hubSnapKey, JSON.stringify(cur));
+
+    return { errors, warnings, info, nearDupPairs, hubChanges };
+  }
+
+  // Optional JSON Schema validation (friendly aggregation)
+  function runJsonSchemaValidation(storesRaw, acostaRaw, premiumRaw){
+    if (!window.ajv) return { errors:[], warnings:[] };
+    const ajv = new window.ajv({ allErrors:true, allowUnionTypes:true });
+
+    const storeSchema = {
+      type:'object',
+      required:['lat','lng','city','state'],
+      properties:{
+        storeNumberStr:{ type:['string','number'] },
+        city:{ type:'string' }, state:{ type:'string', minLength:2, maxLength:2 },
+        lat:{ type:'number', minimum:-90, maximum:90 },
+        lng:{ type:'number', minimum:-180, maximum:180 }
+      }
+    };
+    const hubSchema = {
+      type:'object',
+      properties:{
+        hubId:{ type:'string' },
+        City:{ type:'string' }, State:{ type:'string' },
+        Latitude:{ type:'number', minimum:-90, maximum:90 },
+        Longitude:{ type:'number', minimum:-180, maximum:180 }
+      },
+      additionalProperties:true
+    };
+
+    const vStore = ajv.compile(storeSchema);
+    const vHub   = ajv.compile(hubSchema);
+
+    const errs=[];
+    (Array.isArray(storesRaw)?storesRaw:[]).forEach((row,i)=>{
+      if (!vStore(row)) vStore.errors.forEach(e=> errs.push({where:`store[${i}]`, msg:`${e.instancePath||'/'} ${e.message}`}));
+    });
+    (Array.isArray(acostaRaw)?acostaRaw:[]).forEach((row,i)=>{
+      if (!vHub(row)) vHub.errors.forEach(e=> errs.push({where:`acosta[${i}]`, msg:`${e.instancePath||'/'} ${e.message}`}));
+    });
+    (Array.isArray(premiumRaw)?premiumRaw:[]).forEach((row,i)=>{
+      if (!vHub(row)) vHub.errors.forEach(e=> errs.push({where:`premium[${i}]`, msg:`${e.instancePath||'/'} ${e.message}`}));
+    });
+    return { errors: errs, warnings: [] };
+  }
+
   // ---------- Helpers ----------
   function id(x){ return document.getElementById(x); }
   function on(ev,el,fn,capture){ el.addEventListener(ev,fn,capture||false); }
   function showBusy(v){ if (busy) busy.hidden = !v; }
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
-  function num(v){ return Number.isFinite(Number(v)); }
   function escape(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
   function htmlEscape(s){ return (s ?? "").toString().replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
   function distMiles(lat1,lng1,lat2,lng2){ const R=3958.8; const toRad=d=>d*Math.PI/180; const dLat=toRad(lat2-lat1); const dLon=toRad(lng2-lng1); const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2; return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); }
@@ -1466,45 +1615,45 @@ function updateDatasetBadge(storesFp, premiumFp, acostaFp){
   function toggleDropdown(menu){ menu.style.display=menu.style.display==='block'?'none':'block'; }
   function setMulti(sel,arr){ Array.from(sel.options).forEach(o=>{o.selected=arr.includes(o.value);}); }
   function rebuildRMOptionsWithCounts(){
-  const prev = new Set(Array.from(rmFilter.selectedOptions).map(o=>o.value));
-  const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
-  const inCov = s => covSel.has('All') || covSel.has(s.coverageType || '');
-  const base = allStores.filter(inCov);
+    const prev = new Set(Array.from(rmFilter.selectedOptions).map(o=>o.value));
+    const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
+    const inCov = s => covSel.has('All') || covSel.has(s.coverageType || '');
+    const base = allStores.filter(inCov);
 
-  const by = {};
-  base.forEach(s => { const k = s.regionalManager || ''; if(k) by[k]=(by[k]||0)+1; });
-  const names = Object.keys(by).sort((a,b)=>a.localeCompare(b));
+    const by = {};
+    base.forEach(s => { const k = s.regionalManager || ''; if(k) by[k]=(by[k]||0)+1; });
+    const names = Object.keys(by).sort((a,b)=>a.localeCompare(b));
 
-  rmFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
-    `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
-  )].join('');
+    rmFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
+      `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
+    )].join('');
 
-  const sel = names.filter(n=>prev.has(n));
-  setMulti(rmFilter, sel.length ? sel : ['All']);
-  filterSelect(rmFilter, rmSearch.value);
-}
+    const sel = names.filter(n=>prev.has(n));
+    setMulti(rmFilter, sel.length ? sel : ['All']);
+    filterSelect(rmFilter, rmSearch.value);
+  }
 
-function rebuildAMOptionsWithCounts(){
-  const prev = new Set(Array.from(amFilter.selectedOptions).map(o=>o.value));
-  const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
-  const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o => o.value));
+  function rebuildAMOptionsWithCounts(){
+    const prev = new Set(Array.from(amFilter.selectedOptions).map(o=>o.value));
+    const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
+    const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o => o.value));
 
-  const inCov = s => covSel.has('All') || covSel.has(s.coverageType || '');
-  const inRM  = s => rmSel.has('All')  || rmSel.has(s.regionalManager || '');
-  const base  = allStores.filter(s => inCov(s) && inRM(s));
+    const inCov = s => covSel.has('All') || covSel.has(s.coverageType || '');
+    const inRM  = s => rmSel.has('All')  || rmSel.has(s.regionalManager || '');
+    const base  = allStores.filter(s => inCov(s) && inRM(s));
 
-  const by = {};
-  base.forEach(s => { const k = s.areaManager || ''; if(k) by[k]=(by[k]||0)+1; });
-  const names = Object.keys(by).sort((a,b)=>a.localeCompare(b));
+    const by = {};
+    base.forEach(s => { const k = s.areaManager || ''; if(k) by[k]=(by[k]||0)+1; });
+    const names = Object.keys(by).sort((a,b)=>a.localeCompare(b));
 
-  amFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
-    `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
-  )].join('');
+    amFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
+      `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
+    )].join('');
 
-  const sel = names.filter(n=>prev.has(n));
-  setMulti(amFilter, sel.length ? sel : ['All']);
-  filterSelect(amFilter, amSearch.value);
-}
+    const sel = names.filter(n=>prev.has(n));
+    setMulti(amFilter, sel.length ? sel : ['All']);
+    filterSelect(amFilter, amSearch.value);
+  }
 
   function filterSelect(selectEl, q){
     const query = (q||'').toLowerCase();
@@ -1533,57 +1682,45 @@ function rebuildAMOptionsWithCounts(){
     const src = filteredStores.length ? filteredStores : allStores;
     return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
   }
-function buildHubFilterOptions(){
-  // Premium hubs only (respect the top toggles); Acosta is excluded
-  let hubsAll = [];
-  if (showConfirmed.checked) hubsAll = hubsAll.concat(premiumConfirmed);
-  if (showPending.checked)   hubsAll = hubsAll.concat(premiumPending);
+  function buildHubFilterOptions(){
+    let hubsAll = [];
+    if (showConfirmed.checked) hubsAll = hubsAll.concat(premiumConfirmed);
+    if (showPending.checked)   hubsAll = hubsAll.concat(premiumPending);
+    // Acosta intentionally excluded from this picker to avoid noise
 
-  // De-dupe by id
-  const seen = new Set();
-  hubsAll = hubsAll.filter(h => h && !seen.has(h.id) && seen.add(h.id));
+    const seen = new Set();
+    hubsAll = hubsAll.filter(h => h && !seen.has(h.id) && seen.add(h.id));
 
-  const r = Number(radius.value) || DEFAULT_RADIUS;
+    const r = Number(radius.value) || DEFAULT_RADIUS;
 
-  // Cascade by current store filters (coverage, RM, AM)
-  const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
-  const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o => o.value));
-  const amSel  = new Set(Array.from(amFilter.selectedOptions).map(o => o.value));
-  const covOK = s => covSel.has('All') || covSel.has(s.coverageType || '');
-  const rmOK  = s => rmSel.has('All')  || rmSel.has(s.regionalManager || '');
-  const amOK  = s => amSel.has('All')  || amSel.has(s.areaManager || '');
-  const subset = allStores.filter(s => covOK(s) && rmOK(s) && amOK(s));
+    const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
+    const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o => o.value));
+    const amSel  = new Set(Array.from(amFilter.selectedOptions).map(o => o.value));
+    const covOK = s => covSel.has('All') || covSel.has(s.coverageType || '');
+    const rmOK  = s => rmSel.has('All')  || rmSel.has(s.regionalManager || '');
+    const amOK  = s => amSel.has('All')  || amSel.has(s.areaManager || '');
+    const subset = allStores.filter(s => covOK(s) && rmOK(s) && amOK(s));
 
-  // Count stores within r for each hub against the subset above
-  const counted = hubsAll.map(h => ({
-    hub: h,
-    n: subset.reduce((acc,s)=>{
-      return acc + (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r ? 1 : 0);
-    }, 0)
-  }));
+    const counted = hubsAll.map(h => ({
+      hub: h,
+      n: subset.reduce((acc,s)=>{
+        return acc + (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r ? 1 : 0);
+      }, 0)
+    }));
 
-  // Remember previous selections by ID
-  const prevSel = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
+    const prevSel = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
 
-  hubFilter.innerHTML = counted
-    .sort((a,b)=> (hubDisplay(a.hub)||'').localeCompare(hubDisplay(b.hub)||''))
-    .map(({hub:nHub, n}) =>
-    `<option value="${escape(nHub.id)}">${escape(hubDisplay(nHub))} — ${n} stores in radius</option>`
+    hubFilter.innerHTML = counted
+      .sort((a,b)=> (hubDisplay(a.hub)||'').localeCompare(hubDisplay(b.hub)||''))
+      .map(({hub:nHub, n}) =>
+        `<option value="${escape(nHub.id)}">${escape(hubDisplay(nHub))} — ${n}</option>`
+      ).join('');
 
-    ).join('');
+    const keep = counted.map(x => x.hub.id).filter(id => prevSel.has(id));
+    if (keep.length) setMulti(hubFilter, keep);
 
-  // Re-select any that still exist
-  const keep = counted.map(x => x.hub.id).filter(id => prevSel.has(id));
-  if (keep.length) setMulti(hubFilter, keep);
-
-  // Apply current search text
-  filterSelect(hubFilter, hubSearch.value);
-}
-
-
-
-
-
+    filterSelect(hubFilter, hubSearch.value);
+  }
 
   function uniqSorted(arr){
     const set = new Set();
@@ -1609,43 +1746,41 @@ function buildHubFilterOptions(){
   }
 
   // ---------- Coverage-aware popup ----------
-function storePopupHTML(s){
-  const nearestOf = (hubs) => {
-    let best=null, dmin=Infinity;
-    hubs.forEach(h=>{
-      const d = distMiles(s.lat, s.lng, h.coords[0], h.coords[1]);
-      if (d < dmin){ dmin = d; best = h; }
-    });
-    return best ? { hub: best, d: dmin } : null;
-  };
+  function storePopupHTML(s){
+    const nearestOf = (hubs) => {
+      let best=null, dmin=Infinity;
+      hubs.forEach(h=>{
+        const d = distMiles(s.lat, s.lng, h.coords[0], h.coords[1]);
+        if (d < dmin){ dmin = d; best = h; }
+      });
+      return best ? { hub: best, d: dmin } : null;
+    };
 
-  const np = nearestOf([...premiumConfirmed, ...premiumPending]);
-  const na = nearestOf(acostaHubs);
+    const np = nearestOf([...premiumConfirmed, ...premiumPending]);
+    const na = nearestOf(acostaHubs);
 
-  const badge = `<span style="padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:${COLORS[s.coverageType]||'#eee'}22">${escape(s.coverageType||'')}</span>`;
+    const badge = `<span style="padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:${COLORS[s.coverageType]||'#eee'}22">${escape(s.coverageType||'')}</span>`;
 
-  return `
-    <div style="font-size:13px;line-height:1.35;min-width:240px">
-      <div style="font-weight:800;margin-bottom:4px">Store ${escape(s.storeNumberStr)} — ${escape(s.storeName||'')}</div>
-      <div>${escape(s.address||'')}</div>
-      <div>${escape(s.city||'')}, ${escape(s.state||'')}</div>
-      <div style="margin:6px 0">${badge}</div>
-      <div><b>Trainer City:</b> ${escape(s.trainerCity||'')}</div>
-      <div><b>Area Manager:</b> ${escape(s.areaManager||'')}</div>
-      <div><b>Regional Manager:</b> ${escape(s.regionalManager||'')}</div>
-      ${np ? `<div style="margin-top:6px"><b>Nearest Premium:</b> ${escape(hubDisplay(np.hub))} • ${np.d.toFixed(1)} mi</div>` : ''}
-      ${na ? `<div><b>Nearest Acosta:</b> ${escape(na.hub.label || na.hub.fullName || na.hub.name)} • ${na.d.toFixed(1)} mi</div>` : ''}
-      <div style="color:var(--muted);margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
-            <div style="margin-top:6px">
-        <b>Maps:</b>
-        <a target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(s.lat+','+s.lng)}">Google</a>
-        •
-        <a target="_blank" rel="noopener" href="http://maps.apple.com/?ll=${encodeURIComponent(s.lat+','+s.lng)}">Apple</a>
-      </div>
-
-    </div>`;
-}
-
+    return `
+      <div style="font-size:13px;line-height:1.35;min-width:240px">
+        <div style="font-weight:800;margin-bottom:4px">Store ${escape(s.storeNumberStr)} — ${escape(s.storeName||'')}</div>
+        <div>${escape(s.address||'')}</div>
+        <div>${escape(s.city||'')}, ${escape(s.state||'')}</div>
+        <div style="margin:6px 0">${badge}</div>
+        <div><b>Trainer City:</b> ${escape(s.trainerCity||'')}</div>
+        <div><b>Area Manager:</b> ${escape(s.areaManager||'')}</div>
+        <div><b>Regional Manager:</b> ${escape(s.regionalManager||'')}</div>
+        ${np ? `<div style="margin-top:6px"><b>Nearest Premium:</b> ${escape(hubDisplay(np.hub))} • ${np.d.toFixed(1)} mi</div>` : ''}
+        ${na ? `<div><b>Nearest Acosta:</b> ${escape(na.hub.label || na.hub.fullName || na.hub.name)} • ${na.d.toFixed(1)} mi</div>` : ''}
+        <div style="color:var(--muted);margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
+        <div style="margin-top:6px">
+          <b>Maps:</b>
+          <a target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(s.lat+','+s.lng)}">Google</a>
+          •
+          <a target="_blank" rel="noopener" href="http://maps.apple.com/?ll=${encodeURIComponent(s.lat+','+s.lng)}">Apple</a>
+        </div>
+      </div>`;
+  }
 
   function ensureMarkerForStore(store){
     let m = markerByStore.get(store.storeNumberStr);
@@ -1744,6 +1879,7 @@ function storePopupHTML(s){
   }
   function rebuildViewsMenu(){
     const views = JSON.parse(localStorage.getItem(LS_VIEWS) || '[]');
+    const viewList = id('viewList');
     viewList.innerHTML = views.map(v=>`
       <div style="display:flex;align-items:center;gap:8px;justify-content:space-between;padding:4px 0">
         <button class="btn" data-id="${v.id}" style="flex:1;text-align:left">${escape(v.name)}</button>
@@ -1762,11 +1898,6 @@ function storePopupHTML(s){
         recomputeCoverage();
         runFilter(); renderChips(); renderHubs(); updateRings(); fitToResults();
       });
-      // simple fingerprints
-const storesFp  = `stores:${allStores.length}`;
-const premiumFp = `premium:${premiumConfirmed.length + premiumPending.length}`;
-const acostaFp  = `acosta:${acostaHubs.length}`;
-updateDatasetBadge(storesFp, premiumFp, acostaFp);
     });
     Array.from(viewList.querySelectorAll('button.del')).forEach(b=>{
       b.addEventListener('click', ()=>{
@@ -1821,7 +1952,7 @@ updateDatasetBadge(storesFp, premiumFp, acostaFp);
   function handleHubVisibilityChange(){
     renderHubs();
     updateRings();
-      if (tgOverlap.checked) drawOverlap();
+    if (tgOverlap.checked) drawOverlap();
     if (tgWithin.checked){ runFilter(); fitToResults(); } else { runFilter(); }
     if (spHub && !visibleHubs().some(h => h.id === spHub.id)) hideSidepanel();
     saveState();
@@ -1859,12 +1990,10 @@ updateDatasetBadge(storesFp, premiumFp, acostaFp);
     const c = map.getCenter();
     placeSandbox([c.lat, c.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
 
-  // before: addEventListener('input', () => { ... }, { once:true });
-id('sandboxR').addEventListener('input', ()=>{
-  id('sandboxRlbl').textContent = id('sandboxR').value;
-  refreshSandbox();
-});
-
+    id('sandboxR').addEventListener('input', ()=>{
+      id('sandboxRlbl').textContent = id('sandboxR').value;
+      refreshSandbox();
+    });
 
     id('sandboxGeocode').addEventListener('click', ()=>{
       const s = id('sandboxAddr').value.trim();
@@ -1872,15 +2001,12 @@ id('sandboxR').addEventListener('input', ()=>{
       const m = s.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
       if (!m){ out.textContent='Enter coordinates like "33.52,-86.80".'; return; }
       const lat = parseFloat(m[1]), lng = parseFloat(m[2]);
-      if (lat<-90||lat>90||lng<-180||lng>180){ out.textContent='Out of range.'
-                                                      ; return; }
-        out.textContent='';
-        placeSandbox([lat, lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
-        map.panInside([lat, lng], { paddingTopLeft:[20,20], paddingBottomRight:[20,20] });
-      });
-    
+      if (lat<-90||lat>90||lng<-180||lng>180){ out.textContent='Out of range.'; return; }
+      out.textContent='';
+      placeSandbox([lat, lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+      map.panInside([lat, lng], { paddingTopLeft:[20,20], paddingBottomRight:[20,20] });
+    });
 
-    // click-to-move while sandbox is open
     map.on('click', (e)=>{
       if (!sandboxOpen) return;
       placeSandbox([e.latlng.lat, e.latlng.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
@@ -1888,10 +2014,8 @@ id('sandboxR').addEventListener('input', ()=>{
   });
 
   function placeSandbox(center, r){
-    // ring
     if (sandboxCircle){ ringLayer.removeLayer(sandboxCircle); sandboxCircle=null; }
     sandboxCircle = L.circle(center, { radius: r*1609, color: getCSS('--blue'), weight: 2, fill:false, opacity:.6 }).addTo(ringLayer);
-    // marker
     if (sandboxMarker){ highlightLayer.removeLayer(sandboxMarker); sandboxMarker=null; }
     const icon = L.divIcon({className:'', html:'<div style="width:18px;height:18px;border-radius:50%;background:'+getCSS('--blue')+';border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>', iconSize:[18,18], iconAnchor:[9,9]});
     sandboxMarker = L.marker(center, { icon }).addTo(highlightLayer);
@@ -1903,12 +2027,10 @@ id('sandboxR').addEventListener('input', ()=>{
     const r = Number(id('sandboxR')?.value)||DEFAULT_RADIUS;
     const c = sandboxMarker?.getLatLng?.();
     if (!c) return;
-    // update ring geometry
     if (sandboxCircle){ sandboxCircle.setLatLng(c); sandboxCircle.setRadius(r*1609); }
-    // compute stats
     const list = storesWithin([c.lat,c.lng], r);
     const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
-    list.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0)+1; });
+    list.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0) + 1; });
     id('sandboxStats').innerHTML = `
       <div><b>${list.length}</b> stores within <b>${r} mi</b></div>
       <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
@@ -1917,9 +2039,7 @@ id('sandboxR').addEventListener('input', ()=>{
         <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
         <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
       </div>`;
-    // wire "View stores" button
     id('sandboxListBtn').onclick = ()=>{
-      // open a temporary print-style window with the list
       const rows = list
         .map(s => ({...s, __d: distMiles(c.lat,c.lng,s.lat,s.lng)}))
         .sort((a,b)=>a.__d-b.__d)
@@ -1999,7 +2119,6 @@ id('sandboxR').addEventListener('input', ()=>{
     const arr = Array.from(ams).sort((a,b)=>a.localeCompare(b));
     const prevSel = new Set(Array.from(amFilter.selectedOptions).map(o=>o.value));
     amFilter.innerHTML = ['<option value="All">All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
-    // try to re-select previous choices if still present; otherwise select All
     const toSelect = arr.filter(v=>prevSel.has(v));
     if (toSelect.length){
       setMulti(amFilter, toSelect);
@@ -2009,18 +2128,16 @@ id('sandboxR').addEventListener('input', ()=>{
     filterSelect(amFilter, amSearch.value);
   }
 
-  // ---------- Fit to results (stores or hubs) ----------
+  // ---------- Fit to results ----------
   function fitToResults(){
     const r = Number(radius.value)||DEFAULT_RADIUS;
     const b = L.latLngBounds();
     let added = false;
 
-    // If filtering "Within hubs", include visible hub rings in bounds
     if (tgWithin.checked){
       visibleHubs().forEach(h=>{
-        // approximate ring by extending bounds around center by r mi
         const lat = h.coords[0], lng = h.coords[1];
-        const dLat = (r/69); // ~miles per degree latitude
+        const dLat = (r/69);
         const dLng = (r/(Math.cos(lat*Math.PI/180)*69));
         b.extend([lat-dLat, lng-dLng]);
         b.extend([lat+dLat, lng+dLng]);
@@ -2028,10 +2145,8 @@ id('sandboxR').addEventListener('input', ()=>{
       });
     }
 
-    // include filtered stores
     filteredStores.forEach(s=>{ b.extend([s.lat,s.lng]); added = true; });
 
-    // if nothing, fallback to visible hubs only
     if (!added){
       visibleHubs().forEach(h=> b.extend(h.coords));
     }
@@ -2044,27 +2159,24 @@ id('sandboxR').addEventListener('input', ()=>{
   }
 
   // ---------- Snapshot loader ----------
-function tryLoadSnapshot(){
-  if (!location.hash || location.hash.length < 2) return false;
-  try{
-    const raw = decodeURIComponent(window.escape(atob(location.hash.slice(1))));
-    const st = JSON.parse(raw);
-    if (st.openHubId)    PENDING_OPEN_HUB_ID = st.openHubId;
-    if (Array.isArray(st.pinnedHubIds)) PENDING_PIN_IDS = st.pinnedHubIds.slice();
-    localStorage.setItem(LS_STATE, JSON.stringify(st));
-    tryLoadLocal(); // apply state
-    history.replaceState(null, '', location.pathname + location.search);
-    return true;
-  }catch(e){
-    console.warn('Bad snapshot in hash', e);
-    return false;
+  function tryLoadSnapshot(){
+    if (!location.hash || location.hash.length < 2) return false;
+    try{
+      const raw = decodeURIComponent(window.escape(atob(location.hash.slice(1))));
+      const st = JSON.parse(raw);
+      if (st.openHubId)    PENDING_OPEN_HUB_ID = st.openHubId;
+      if (Array.isArray(st.pinnedHubIds)) PENDING_PIN_IDS = st.pinnedHubIds.slice();
+      localStorage.setItem(LS_STATE, JSON.stringify(st));
+      tryLoadLocal();
+      history.replaceState(null, '', location.pathname + location.search);
+      return true;
+    }catch(e){
+      console.warn('Bad snapshot in hash', e);
+      return false;
+    }
   }
-}
-
 
   // ---------- First-search popup reliability tweak ----------
-  // Ensure first search selection opens popup even if cluster hasn't rendered yet
-  // (guard is already in openStorePopup, but we force a tiny defer to be safe)
   const originalOpenStorePopup = openStorePopup;
   openStorePopup = function(store){
     requestAnimationFrame(()=> originalOpenStorePopup(store));
