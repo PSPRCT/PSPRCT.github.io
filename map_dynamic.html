@@ -707,8 +707,7 @@ try {
     const amOK = amSel.includes('All') || amSel.includes(s.areaManager || '');
 
     const hubSel = Array.from(hubFilter.selectedOptions).map(o=>o.value);
-    const hubSel = Array.from(hubFilter.selectedOptions).map(o=>o.value);
-let hubOK = true;
+    let hubOK = true;
 if (hubSel.length){
   const r = Number(radius.value) || DEFAULT_RADIUS;
   const hubsNow = [...premiumConfirmed, ...premiumPending, ...acostaHubs];
