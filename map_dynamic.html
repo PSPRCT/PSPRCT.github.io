@@ -563,7 +563,8 @@ try {
   // finer buckets inside "pending"
   const isOffer      = s => /(offer|accepted)/i.test(s);
   const isProposed   = s => /(propos|plan|target)/i.test(s);
-  const isRecruiting = s => /(recruit|source|pipeline|tbd|open|no cand|search)/i.test(s);
+  const isRecruiting = s => /(recruit|source|pipeline|tbd|open|no cand|no appl|no\s*applicants|search)/i.test(s);
+
 
   // NOTE: use your global getName defined earlier
   const getCity = r => String(
@@ -605,13 +606,13 @@ try {
 
   // Hand-entered proposed locations -> only used if a proposed row has no City
   const PROPOSED_CITY_OVERRIDES = {
-    AL: ['Mobile'],
+  
     AZ: ['Casa Grande'],
     CA: ['Colton'],
     CO: ['Centennial'],
-    FL: ['Coral Springs'],
+  
     IL: ['Lincoln'],
-    IN: ['Fort Wayne', 'Plainfield'],
+    
     MI: ['White Lake'],
     NE: ['Blair'],
     NJ: ['Secaucus'],
@@ -619,7 +620,7 @@ try {
     OH: ['Wilmington'],
     OK: ['Muskogee'],
     OR: ['Salem'],
-    PA: ['Belle Vernon', 'Parkesburg'],
+    
     TX: ['Houston'],
     UT: ['Centerville'],
     VA: ['Williamsburg'],
@@ -634,12 +635,29 @@ const CITY_COORD_FIXES = {
 
   // For states with multiple proposed cities, choose the nearest by coords
 const GEO_CITY_CANDIDATES = {
+  // keep your existing PA and IN, etc...
   PA: [
     { city: 'Belle Vernon', lat: 40.1251, lng: -79.8692 },
     { city: 'Parkesburg',   lat: 39.9587, lng: -75.9191 },
   ],
-  // You can add more states with multiple proposed cities here if needed
+  IN: [
+    { city: 'Fort Wayne', lat: 41.0793, lng: -85.1394 },
+    { city: 'Plainfield', lat: 39.7042, lng: -86.3994 },
+  ],
+
+  // NEW: Florida has Coral Springs & Lakeland
+  FL: [
+    { city: 'Coral Springs', lat: 26.2712, lng: -80.2706 },
+    { city: 'Lakeland',      lat: 28.0395, lng: -81.9498 },
+  ],
+
+  // NEW: Alabama has Mobile & Oneonta
+  AL: [
+    { city: 'Mobile',  lat: 30.6954,  lng: -88.0399 },
+    { city: 'Oneonta', lat: 33.94815, lng: -86.47276 },
+  ],
 };
+
 
 
   const classify = r => {
