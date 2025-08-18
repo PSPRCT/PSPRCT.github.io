@@ -54,7 +54,7 @@
   .muted{color:var(--muted);margin-left:auto}
 
   .mapwrap{position:relative;flex:1;min-height:460px;display:flex;overflow:hidden}
-  #map{flex:1} /* height is inherited via flex */
+  #map{flex:1}
 
   .sidepanel{width:380px;max-width:90vw;flex:0 0 380px;background:var(--panel);border-left:1px solid var(--border);box-shadow:-4px 0 18px rgba(0,0,0,.12);display:none;flex-direction:column;z-index:6}
   .sidepanel.show{display:flex}
@@ -96,7 +96,7 @@
   .hub{width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
   .hub.staffed{background:var(--violet)}
   .hub.open{background:#9ea3a8}
-  .hub.acosta{ background: var(--a); } /* uses existing --a (Acosta) */
+  .hub.acosta{ background: var(--a); }
   .hl{width:22px;height:22px;border-radius:50%;border:2px solid #111;background:rgba(0,0,0,.05);box-shadow:0 0 0 1px rgba(0,0,0,.25)}
 
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:5000}
@@ -126,7 +126,6 @@
   <label class="toggle" title="Show staffed hubs"><input id="showStaffed" type="checkbox" checked />Staffed hubs</label>
   <label class="toggle" title="Show open hubs"><input id="showOpen" type="checkbox" checked />Open hubs</label>
   <label class="toggle" title="Show Acosta trainers"><input id="showAcosta" type="checkbox" checked />Acosta</label>
-
 
   <div class="range" title="Hub radius used for lists, rings, overlap">
     <span>Radius</span>
@@ -273,7 +272,7 @@
         <label class="toggle" title="Show only uncovered stores in this panel"><input id="spOnlyUncov" type="checkbox" />Uncovered only</label>
       </div>
       <div class="sp-quick" title="Change hub radius quickly">
-        Radius: 
+        Radius:
         <button class="btn" type="button" data-r="50">50</button>
         <button class="btn" type="button" data-r="75">75</button>
         <button class="btn" type="button" data-r="100">100</button><small> mi</small>
@@ -326,14 +325,17 @@
 <script>
 (async function(){
   // ---------- CONFIG ----------
-  const DATA_URL = './store_data.json?v=' + Date.now();  // put your file next to this HTML
+  const DATA_URL   = './store_data.json?v=' + Date.now();     // place next to this HTML
   const ACOSTA_URL = './acosta_geocoded.json?v=' + Date.now();
 
-  // tiny test dataset (shown only if fetch fails)
+  // Coverage classification uses a fixed business rule radius (does NOT follow the slider)
+  const COVERAGE_RADIUS = 75; // miles
+
+  // tiny test dataset (used only if fetch fails)
   const FALLBACK_STORES = [
     { storeNumberStr:"1234", storeName:"Walmart", address:"701 W 51st St", city:"Austin", state:"TX", coverageType:"Uncovered", areaManager:"", regionalManager:"", trainerCity:"", lat:30.309, lng:-97.742 },
-    { storeNumberStr:"5678", storeName:"Walmart", address:"10 S Riverside", city:"Chicago", state:"IL", coverageType:"Premium + Acosta", areaManager:"", regionalManager:"", trainerCity:"", lat:41.882, lng:-87.639 },
-    { storeNumberStr:"9012", storeName:"Walmart", address:"100 Market St", city:"San Francisco", state:"CA", coverageType:"Acosta Only", areaManager:"", regionalManager:"", trainerCity:"", lat:37.793, lng:-122.396 }
+    { storeNumberStr:"5678", storeName:"Walmart", address:"10 S Riverside", city:"Chicago", state:"IL", coverageType:"Uncovered", areaManager:"", regionalManager:"", trainerCity:"", lat:41.882, lng:-87.639 },
+    { storeNumberStr:"9012", storeName:"Walmart", address:"100 Market St", city:"San Francisco", state:"CA", coverageType:"Uncovered", areaManager:"", regionalManager:"", trainerCity:"", lat:37.793, lng:-122.396 }
   ];
 
   const COLORS = {
@@ -343,12 +345,13 @@
     "Uncovered":        getCSS('--u')
   };
   const DEFAULT_RADIUS = 75;
-  const LS_STATE = 'prt_state_v7';
+  const LS_STATE = 'prt_state_v8';
   const LS_VIEWS = 'prt_views_v1';
   const LS_LAST_QUERY = 'prt_last_query';
   const HOME_VIEW = { center:[39.5,-98.35], zoom:5 };
   const AUTO_RESET = ()=> id('autoReset')?.checked;
 
+  // Premium hubs (accepted + open)
   const hubs = [
     { id:"belle_vernon_pa", name:"Belle Vernon, PA (Open)", coords:[40.12507,-79.8664], status:"open", person:null },
     { id:"centennial_co",   name:"Centennial, CO (Open)",   coords:[39.62732,-104.779], status:"open", person:null },
@@ -361,55 +364,50 @@
     { id:"olive_branch_ms_brown",   name:"Olive Branch, MS — Annette Brown", coords:[34.926688,-89.894859], status:"accepted", person:"Annette Brown" },
     { id:"riverview_fl_santos",     name:"Riverview, FL — Richard Santos", coords:[27.8661,-82.3265], status:"accepted", person:"Richard Santos" }
   ];
-let acostaHubs = []; // filled after fetch
+  let acostaHubs = []; // filled after fetch
 
-const showAcosta = id('showAcosta');
-showAcosta.onchange = handleHubVisibilityChange;
+  // ---------- App state ----------
+  let allStores = [];
+  let filteredStores = [];
+  const markerByStore = new Map();
 
- let allStores = [];
-let filteredStores = [];
-const markerByStore = new Map();
+  const targetLayer     = L.layerGroup();
+  const ringLayer       = L.layerGroup();
+  const highlightLayer  = L.layerGroup();
+  const hubLayer        = L.layerGroup();
+  const heatLayerHolder = { layer: null };
 
-const targetLayer    = L.layerGroup();
-const ringLayer      = L.layerGroup();
-const highlightLayer = L.layerGroup();
-const hubLayer       = L.layerGroup();   // define once
-const heatLayerHolder = { layer: null };
+  let compareMode = false;
+  let pinnedHubs = [];
+  let targetPin = null;
+  let searchIdx = [];
+  let resIndex = -1;
 
-let compareMode = false;
-let pinnedHubs = [];
-let targetPin = null;
-let searchIdx = [];
-let resIndex = -1;
+  let spHub = null; let spRows = []; let spFilter = ''; let spOnlyUncov = false;
 
-let spHub = null; let spRows = []; let spFilter = ''; let spOnlyUncov = false;
+  const debouncedRun = (() => { let t; return () => { clearTimeout(t); t = setTimeout(runFilter, 90); }; })();
 
-const debouncedRun = (() => { let t; return () => { clearTimeout(t); t = setTimeout(runFilter, 90); }; })();
+  // ---------- Map ----------
+  const map = L.map('map', { zoomControl: true, inertia: true }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
 
-const map = L.map('map', { zoomControl: true, inertia: true }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
+  const markers = L.markerClusterGroup({
+    disableClusteringAtZoom: 12,
+    spiderfyOnMaxZoom: false,
+    maxClusterRadius: z => z >= 9 ? 50 : 70,
+    iconCreateFunction: clusterIconByDominantCoverage,
+    chunkedLoading: true,
+    chunkInterval: 50,
+    chunkDelay: 25
+  });
+  const plainMarkers = L.layerGroup();
 
-const markers = L.markerClusterGroup({
-  disableClusteringAtZoom: 12,
-  spiderfyOnMaxZoom: false,
-  maxClusterRadius: z => z >= 9 ? 50 : 70,
-  iconCreateFunction: clusterIconByDominantCoverage,
-  chunkedLoading: true,
-  chunkInterval: 50,
-  chunkDelay: 25
-});
-const plainMarkers = L.layerGroup();
+  map.addLayer(markers);
+  targetLayer.addTo(map);
+  ringLayer.addTo(map);
+  highlightLayer.addTo(map);
+  hubLayer.addTo(map);
 
-// add layers to map exactly once
-map.addLayer(markers);
-targetLayer.addTo(map);
-ringLayer.addTo(map);
-highlightLayer.addTo(map);
-hubLayer.addTo(map);
-
-
-
-  // keep map sized correctly even after fonts/layout ready
   setTimeout(()=> map.invalidateSize(), 120);
 
   markers.on('clustermouseover', (e)=>{
@@ -453,6 +451,7 @@ hubLayer.addTo(map);
 
   const showStaffed = id('showStaffed');
   const showOpen    = id('showOpen');
+  const showAcosta  = id('showAcosta');
   const radius      = id('radius');  const radiusLbl   = id('radiusLbl');
   const tgHeat = id('tgHeat'), tgRings=id('tgRings'), tgOverlap=id('tgOverlap'), tgCompare=id('tgCompare'), tgWithin=id('tgWithin'), tgCluster=id('tgCluster');
 
@@ -465,40 +464,34 @@ hubLayer.addTo(map);
   const activeChips = id('activeChips');
 
   showStaffed.onchange = handleHubVisibilityChange;
-showOpen.onchange    = handleHubVisibilityChange;
+  showOpen.onchange    = handleHubVisibilityChange;
+  showAcosta.onchange  = handleHubVisibilityChange;
 
-function handleHubVisibilityChange(){
-  renderHubs();
-  updateRings();
+  function handleHubVisibilityChange(){
+    renderHubs();
+    updateRings();
+    if (tgOverlap.checked) drawOverlap();
 
-  // coverage changes whenever visible hubs change
-  recomputeCoverage();               // ⬅️ add
+    if (tgWithin.checked){
+      runFilter();
+      fitToResults();
+    } else {
+      runFilter();
+    }
 
-  if (tgOverlap.checked) drawOverlap();
-
-  if (tgWithin.checked){
-    runFilter();
-    fitToResults();
-  } else {
-    runFilter();
+    if (spHub && !visibleHubs().some(h => h.id === spHub.id)) hideSidepanel();
+    saveState();
   }
 
-  if (spHub && !visibleHubs().some(h => h.id === spHub.id)) hideSidepanel();
-  saveState();
-}
-
-
   on('input', radius, ()=>{ 
-  radiusLbl.textContent = radius.value;
-  recomputeCoverage();              // ⬅️ add
-  debouncedRun();
-  updateRings();
-  if (tgOverlap.checked) drawOverlap();
-  if (sandboxMarker) refreshSandbox();
-  saveState();
-  if (spHub) openSidepanel(spHub);
-});
-
+    radiusLbl.textContent = radius.value;
+    debouncedRun();
+    updateRings();
+    if (tgOverlap.checked) drawOverlap();
+    if (sandboxMarker) refreshSandbox();
+    saveState();
+    if (spHub) openSidepanel(spHub);
+  });
 
   on('input', covSearch, ()=> filterSelect(covFilter, covSearch.value));
   on('input', rmSearch,  ()=> filterSelect(rmFilter,  rmSearch.value));
@@ -506,15 +499,7 @@ function handleHubVisibilityChange(){
   on('input', hubSearch, ()=> filterSelect(hubFilter, hubSearch.value));
 
   on('change', covFilter, ()=>{ runFilter(); saveState(); renderChips(); });
- on('change', rmFilter, ()=>{ 
-  cascadeAM(); 
-  cascadeHubs(); 
-  runFilter(); 
-  fitToResults(); 
-  saveState(); 
-  renderChips(); 
-});
-
+  on('change', rmFilter,  ()=>{ cascadeAM(); cascadeHubs(); runFilter(); fitToResults(); saveState(); renderChips(); });
   on('change', amFilter,  ()=>{ cascadeHubs(); runFilter(); fitToResults(); saveState(); renderChips(); });
   on('change', hubFilter, ()=>{ runFilter(); fitToResults(); saveState(); renderChips(); });
 
@@ -548,8 +533,8 @@ function handleHubVisibilityChange(){
 
   const k = { pa:id('k_pa'), p:id('k_p'), a:id('k_a'), u:id('k_u'), total:id('k_total'), staffed:id('k_staffed'), open:id('k_open'), inView:id('inView') };
 
-  tgHeat.onchange = ()=>{ if (tgHeat.checked) updateHeat(); else clearHeat(); saveState(); };
-  tgRings.onchange= ()=>{ updateRings(); saveState(); };
+  tgHeat.onchange   = ()=>{ if (tgHeat.checked) updateHeat(); else clearHeat(); saveState(); };
+  tgRings.onchange  = ()=>{ updateRings(); saveState(); };
   tgOverlap.onchange= ()=>{ if (tgOverlap.checked) drawOverlap(); else highlightLayer.clearLayers(); saveState(); };
   tgCompare.onchange= ()=>{ compareMode = tgCompare.checked; pinnedHubs=[]; highlightLayer.clearLayers(); alert(compareMode ? 'Compare mode on: click hub markers to pin them.' : 'Compare mode off.'); saveState(); };
   tgWithin.onchange = ()=>{ runFilter(); fitToResults(); saveState(); };
@@ -609,44 +594,40 @@ function handleHubVisibilityChange(){
     STATUS.textContent += `  |  ${allStores.length.toLocaleString()} stores ready`;
 
     populateRM(allStores); populateAM(allStores); cascadeAM(); cascadeHubs();
- 
-// --- load Acosta trainers as hub points ---
-try{
-  const aResp = await fetch(ACOSTA_URL, { cache:'no-store' });
-  const aJson = await aResp.json();
-  // Expecting fields like RepName, Latitude, Longitude, Address/City/State
-  acostaHubs = (Array.isArray(aJson) ? aJson : []).filter(r =>
-    Number.isFinite(r.Latitude) && Number.isFinite(r.Longitude)
-  ).map(r => ({
-    id: 'ac_' + slug(r.RepName || (r.Address || '') + '_' + (r.City || '')),
-    name: `${r.RepName || 'Acosta Rep'}`,        // short name in tooltip
-    fullName: `${r.RepName || 'Acosta Rep'} — ${r.City || ''}, ${r.State || ''}`, // handy for lists
-    coords: [Number(r.Latitude), Number(r.Longitude)],
-    status: 'acosta',
-    person: r.RepName || ''
-  }));
 
-  
-}catch(e){
-  console.warn('Acosta file not found/invalid, continuing without Acosta trainers', e);
-}
+    // --- load Acosta trainers as hub points ---
+    try{
+      const aResp = await fetch(ACOSTA_URL, { cache:'no-store' });
+      const aJson = await aResp.json();
+      acostaHubs = (Array.isArray(aJson) ? aJson : []).filter(r =>
+        Number.isFinite(r.Latitude) && Number.isFinite(r.Longitude)
+      ).map(r => ({
+        id: 'ac_' + slug(r.RepName || (r.Address || '') + '_' + (r.City || '')),
+        name: `${r.RepName || 'Acosta Rep'}`,
+        fullName: `${r.RepName || 'Acosta Rep'} — ${r.City || ''}, ${r.State || ''}`,
+        coords: [Number(r.Latitude), Number(r.Longitude)],
+        status: 'acosta',
+        person: r.RepName || ''
+      }));
+    }catch(e){
+      console.warn('Acosta file not found/invalid, continuing without Acosta trainers', e);
+    }
 
     buildSearchIndex();
 
-if (!tryLoadSnapshot()){ tryLoadLocal(); }
+    if (!tryLoadSnapshot()){ tryLoadLocal(); }
 
-const lastQ = localStorage.getItem(LS_LAST_QUERY) || '';
-if (lastQ) { searchBox.value = lastQ; handleSearchInput(); }
+    const lastQ = localStorage.getItem(LS_LAST_QUERY) || '';
+    if (lastQ) { searchBox.value = lastQ; handleSearchInput(); }
 
-// Make sure coverageType is computed **before** we build markers
-recomputeCoverage();
+    // Compute coverage (fixed 75-mi business rule) BEFORE rendering markers
+    recomputeCoverage();
 
-runFilter(); renderChips(); renderHubs(); updateRings();
+    runFilter(); renderChips(); renderHubs(); updateRings();
   } catch(err){
     STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Init error:</span> ${escape(err?.message || String(err))}`;
     console.error(err);
   } finally { clearTimeout(spinnerFailSafe); showBusy(false); }
-
 
   // ---------- Search ----------
   function buildSearchIndex(){
@@ -660,25 +641,30 @@ runFilter(); renderChips(); renderHubs(); updateRings();
   const hoverIcon  = L.divIcon({className:'', html:'<div class="hl"></div>', iconSize:[22,22], iconAnchor:[11,11]});
   let hoverMarker=null;
   function showHover(lat,lng){ if(hoverMarker) highlightLayer.removeLayer(hoverMarker); hoverMarker=L.marker([lat,lng],{icon:hoverIcon}).addTo(highlightLayer); }
-  function hideHover(){ if(hoverMarker){ highlightLayer.removeLayer(hoverMarker); hoverMarker=null; } }
+  function hideHover(){ if(hoverMarker){ highlightLayer.removeLayer(hoverMarker); highlightLayer.removeLayer(hoverMarker); hoverMarker=null; } }
 
   function storePopupHTML(s){
-    const r = Number(radius.value)||DEFAULT_RADIUS;
-   const visH = visibleHubs();  // includes Acosta when toggled on
-
+    // nearest among currently visible hubs (for context)
+    const visH = visibleHubs();
     let nearest = null, best = 1e9;
     visH.forEach(h=>{ const d = distMiles(s.lat,s.lng,h.coords[0],h.coords[1]); if(d<best){best=d;nearest=h;} });
+
     const badge = `<span style="padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:${COLORS[s.coverageType]||'#eee'}22">${escape(s.coverageType||'')}</span>`;
+    const acNames = (s.coveredByAcosta||[]).slice(0,3).join(', ');
+    const prNames = (s.coveredByPremium||[]).slice(0,3).join(', ');
+
     return `
-      <div style="font-size:13px;line-height:1.35;min-width:220px">
+      <div style="font-size:13px;line-height:1.35;min-width:230px">
         <div style="font-weight:800;margin-bottom:4px">Store ${escape(s.storeNumberStr)} — ${escape(s.storeName||'')}</div>
         <div>${escape(s.address||'')}</div>
         <div>${escape(s.city||'')}, ${escape(s.state||'')}</div>
         <div style="margin:6px 0">${badge}</div>
+        ${acNames ? `<div><b>Acosta trainer(s):</b> ${escape(acNames)}${s.nearestAcosta ? ` — nearest ${s.nearestAcosta.dist.toFixed(1)} mi` : ''}</div>` : ''}
+        ${prNames ? `<div><b>Premium hub(s):</b> ${escape(prNames)}${s.nearestPremium ? ` — nearest ${s.nearestPremium.dist.toFixed(1)} mi` : ''}</div>` : ''}
         <div><b>Trainer City:</b> ${escape(s.trainerCity||'')}</div>
         <div><b>Area Manager:</b> ${escape(s.areaManager||'')}</div>
         <div><b>Regional Manager:</b> ${escape(s.regionalManager||'')}</div>
-        ${nearest?`<div style="margin-top:6px"><b>Nearest hub:</b> ${escape(nearest.name)} • ${best.toFixed(1)} mi</div>`:''}
+        ${nearest?`<div style="margin-top:6px"><b>Nearest visible hub:</b> ${escape(nearest.fullName || nearest.name)} • ${best.toFixed(1)} mi</div>`:''}
         <div style="color:var(--muted);margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
       </div>`;
   }
@@ -748,9 +734,10 @@ runFilter(); renderChips(); renderHubs(); updateRings();
     if (e.key === 'Escape'){ hideResults(); }
   });
 
+  // Hide results if you click outside the searchbox
   document.addEventListener('click', (e)=>{
-  if (!searchWrap.contains(e.target)) hideResults();
-});
+    if (!searchWrap.contains(e.target)) hideResults();
+  });
 
   function highlightResult(){
     Array.from(searchResults.querySelectorAll('.res')).forEach((el,i)=>{
@@ -881,11 +868,7 @@ runFilter(); renderChips(); renderHubs(); updateRings();
   function on(ev,el,fn,capture){ el.addEventListener(ev,fn,capture||false); }
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
   function escape(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
-  function htmlEscape(s){
-  return (s ?? "").toString().replace(/[&<>"']/g, m => (
-    { "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]
-  ));
-  }
+  function htmlEscape(s){ return (s ?? "").toString().replace(/[&<>"']/g, m => ( { "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m] )); }
 
   function distMiles(lat1,lng1,lat2,lng2){ const R=3958.8; const toRad=d=>d*Math.PI/180; const dLat=toRad(lat2-lat1); const dLon=toRad(lng2-lng1); const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2; return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); }
   function coverageCounts(markersArr){ const out={}; markersArr.forEach(m=>{ const s=m?.store; if(!s) return; out[s.coverageType]=(out[s.coverageType]||0)+1; }); return out; }
@@ -914,13 +897,12 @@ runFilter(); renderChips(); renderHubs(); updateRings();
   }
 
   function visibleHubs(){
-  const out = [];
-  if (showStaffed.checked) out.push(...hubs.filter(h => h.status === 'accepted'));
-  if (showOpen.checked)    out.push(...hubs.filter(h => h.status === 'open'));
-  if (showAcosta.checked)  out.push(...acostaHubs); // include Acosta points
-  return out;
-}
-
+    const out = [];
+    if (showStaffed.checked) out.push(...hubs.filter(h => h.status === 'accepted'));
+    if (showOpen.checked)    out.push(...hubs.filter(h => h.status === 'open'));
+    if (showAcosta.checked)  out.push(...acostaHubs);
+    return out;
+  }
 
   function ensureMarkerForStore(store){
     let m = markerByStore.get(store.storeNumberStr);
@@ -941,126 +923,114 @@ runFilter(); renderChips(); renderHubs(); updateRings();
     }
     return m;
   }
-// ---------- Missing helpers you reference ----------
-function uniqSorted(arr){
-  const set = new Set();
-  arr.forEach(v => { const s = (v ?? '').toString().trim(); if (s) set.add(s); });
-  return Array.from(set).sort((a,b)=> a.localeCompare(b));
-}
 
-function populateRM(stores){
-  const opts = ['All', ...uniqSorted(stores.map(s => s.regionalManager))];
-  rmFilter.innerHTML = opts.map(v =>
-    `<option value="${escape(v)}"${v==='All'?' selected':''}>${escape(v)}</option>`
-  ).join('');
-}
-
-function populateAM(stores){
-  const opts = ['All', ...uniqSorted(stores.map(s => s.areaManager))];
-  amFilter.innerHTML = opts.map(v =>
-    `<option value="${escape(v)}"${v==='All'?' selected':''}>${escape(v)}</option>`
-  ).join('');
-}
-
-function cascadeAM(){
-  const rmSel = Array.from(rmFilter.selectedOptions).map(o => o.value);
-  const src = (rmSel.includes('All') || rmSel.length === 0)
-    ? allStores
-    : allStores.filter(s => rmSel.includes(s.regionalManager || ''));
-  populateAM(src);
-}
-
-function cascadeHubs(){
-  // Current RM/AM selections
-  const rmSel = Array.from(rmFilter.selectedOptions).map(o=>o.value);
-  const amSel = Array.from(amFilter.selectedOptions).map(o=>o.value);
-
-  // Start from all stores, then narrow by RM/AM (ignore "All")
-  let src = allStores.slice();
-  if (!rmSel.includes('All')) src = src.filter(s => rmSel.includes((s.regionalManager||'').trim()));
-  if (!amSel.includes('All')) src = src.filter(s => amSel.includes((s.areaManager||'').trim()));
-
-  // Build hub options from trainerCity values present in this narrowed set
-  const opts = uniqSorted(
-    src.map(s => (s.trainerCity||'').trim()).filter(Boolean)
-  );
-
-  // Remember current selections to preserve when possible
-  const prev = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
-
-  // Rebuild options
-  hubFilter.innerHTML = opts.map(v => `<option value="${escape(v)}">${escape(v)}</option>`).join('');
-
-  // Restore any still-valid selections
-  Array.from(hubFilter.options).forEach(o => { o.selected = prev.has(o.value); });
-
-  // Respect the hub search box if user typed there
-  filterSelect(hubFilter, hubSearch.value);
-}
-
-function refreshLayerMode(){
-  if (tgCluster.checked){
-    if (map.hasLayer(plainMarkers)) map.removeLayer(plainMarkers);
-    if (!map.hasLayer(markers)) map.addLayer(markers);
-  } else {
-    if (map.hasLayer(markers)) map.removeLayer(markers);
-    if (!map.hasLayer(plainMarkers)) map.addLayer(plainMarkers);
+  function uniqSorted(arr){
+    const set = new Set();
+    arr.forEach(v => { const s = (v ?? '').toString().trim(); if (s) set.add(s); });
+    return Array.from(set).sort((a,b)=> a.localeCompare(b));
   }
-  runFilter();
-}
 
-function storesWithin(center, r){
-  const [lat, lng] = Array.isArray(center) ? center : [center.lat, center.lng];
-  const src = filteredStores.length ? filteredStores : allStores;
-  return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
-}
-
-function fitToResults(){
-  const pad = { padding:[20,20] };
-  if (tgCluster.checked){
-    if (!markers.getLayers().length) return;
-    map.fitBounds(markers.getBounds(), pad);
-  } else {
-    const g = plainMarkers.getLayers()[0];
-    const arr = g?.getLayers?.() || [];
-    if (!arr.length) return;
-    const b = L.latLngBounds(arr.map(m => m.getLatLng()));
-    map.fitBounds(b, pad);
+  function populateRM(stores){
+    const opts = ['All', ...uniqSorted(stores.map(s => s.regionalManager))];
+    rmFilter.innerHTML = opts.map(v =>
+      `<option value="${escape(v)}"${v==='All'?' selected':''}>${escape(v)}</option>`
+    ).join('');
   }
-}
 
-function exportStoresCsv(){
-  const rows = [
-    ['Store #','Name','Address','City','State','Coverage','Area Manager','Regional Manager','Lat','Lng'],
-    ...filteredStores.map(s => [
-      s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'',
-      s.coverageType||'', s.areaManager||'', s.regionalManager||'', s.lat, s.lng
-    ])
-  ];
-  downloadCsv(rows, `filtered_stores_${Date.now()}.csv`);
-}
+  function populateAM(stores){
+    const opts = ['All', ...uniqSorted(stores.map(s => s.areaManager))];
+    amFilter.innerHTML = opts.map(v =>
+      `<option value="${escape(v)}"${v==='All'?' selected':''}>${escape(v)}</option>`
+    ).join('');
+  }
 
+  function cascadeAM(){
+    const rmSel = Array.from(rmFilter.selectedOptions).map(o => o.value);
+    const src = (rmSel.includes('All') || rmSel.length === 0)
+      ? allStores
+      : allStores.filter(s => rmSel.includes(s.regionalManager || ''));
+    populateAM(src);
+  }
 
-// ---------- Hubs (render icons & interactions) ----------
-function renderHubs(){
-  hubLayer.clearLayers();
-  visibleHubs().forEach(h=>{
-    const el = document.createElement('div');
-    // add class by type
-    el.className = 'hub ' + (
-      h.status === 'accepted' ? 'staffed' :
-      h.status === 'open'     ? 'open'    :
-      h.status === 'acosta'   ? 'acosta'  : ''
-    );
-    const icon = L.divIcon({ className:'', html: el, iconSize:[20,20], iconAnchor:[10,10] });
-    const m = L.marker(h.coords, { icon, title: (h.fullName || h.name) }).addTo(hubLayer);
-    m.hub = h;
-    m.on('click', ()=> compareMode ? togglePin(h) : openSidepanel(h));
-    m.on('mouseover', ()=> m.bindTooltip(h.fullName || h.name, {direction:'top', offset:[0,-8]}).openTooltip());
-    m.on('mouseout',  ()=> m.closeTooltip());
-  });
-}
+  function cascadeHubs(){
+    const rmSel = Array.from(rmFilter.selectedOptions).map(o=>o.value);
+    const amSel = Array.from(amFilter.selectedOptions).map(o=>o.value);
 
+    let src = allStores.slice();
+    if (!rmSel.includes('All')) src = src.filter(s => rmSel.includes((s.regionalManager||'').trim()));
+    if (!amSel.includes('All')) src = src.filter(s => amSel.includes((s.areaManager||'').trim()));
+
+    const opts = uniqSorted(src.map(s => (s.trainerCity||'').trim()).filter(Boolean));
+    const prev = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
+
+    hubFilter.innerHTML = opts.map(v => `<option value="${escape(v)}">${escape(v)}</option>`).join('');
+    Array.from(hubFilter.options).forEach(o => { o.selected = prev.has(o.value); });
+    filterSelect(hubFilter, hubSearch.value);
+  }
+
+  function refreshLayerMode(){
+    if (tgCluster.checked){
+      if (map.hasLayer(plainMarkers)) map.removeLayer(plainMarkers);
+      if (!map.hasLayer(markers)) map.addLayer(markers);
+    } else {
+      if (map.hasLayer(markers)) map.removeLayer(markers);
+      if (!map.hasLayer(plainMarkers)) map.addLayer(plainMarkers);
+    }
+    runFilter();
+  }
+
+  function storesWithin(center, r){
+    const [lat, lng] = Array.isArray(center) ? center : [center.lat, center.lng];
+    const src = filteredStores.length ? filteredStores : allStores;
+    return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
+  }
+
+  function fitToResults(){
+    const pad = { padding:[20,20] };
+    if (tgCluster.checked){
+      if (!markers.getLayers().length) return;
+      map.fitBounds(markers.getBounds(), pad);
+    } else {
+      const g = plainMarkers.getLayers()[0];
+      const arr = g?.getLayers?.() || [];
+      if (!arr.length) return;
+      const b = L.latLngBounds(arr.map(m => m.getLatLng()));
+      map.fitBounds(b, pad);
+    }
+  }
+
+  function exportStoresCsv(){
+    const rows = [
+      ['Store #','Name','Address','City','State','Coverage','Covered by (Acosta)','Covered by (Premium)','Area Manager','Regional Manager','Lat','Lng'],
+      ...filteredStores.map(s => [
+        s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'',
+        s.coverageType||'',
+        (s.coveredByAcosta||[]).join('; '),
+        (s.coveredByPremium||[]).join('; '),
+        s.areaManager||'', s.regionalManager||'', s.lat, s.lng
+      ])
+    ];
+    downloadCsv(rows, `filtered_stores_${Date.now()}.csv`);
+  }
+
+  // ---------- Hubs (render icons & interactions) ----------
+  function renderHubs(){
+    hubLayer.clearLayers();
+    visibleHubs().forEach(h=>{
+      const el = document.createElement('div');
+      el.className = 'hub ' + (
+        h.status === 'accepted' ? 'staffed' :
+        h.status === 'open'     ? 'open'    :
+        h.status === 'acosta'   ? 'acosta'  : ''
+      );
+      const icon = L.divIcon({ className:'', html: el, iconSize:[20,20], iconAnchor:[10,10] });
+      const m = L.marker(h.coords, { icon, title: (h.fullName || h.name) }).addTo(hubLayer);
+      m.hub = h;
+      m.on('click', ()=> compareMode ? togglePin(h) : openSidepanel(h));
+      m.on('mouseover', ()=> m.bindTooltip(h.fullName || h.name, {direction:'top', offset:[0,-8]}).openTooltip());
+      m.on('mouseout',  ()=> m.closeTooltip());
+    });
+  }
 
   function updateRings(){
     ringLayer.clearLayers();
@@ -1091,187 +1061,174 @@ function renderHubs(){
     drawOverlap();
   }
   function togglePinFromPanel(){
-  if (!spHub) return;
-  togglePin(spHub);
-  const isPinned = pinnedHubs.some(x => x.id === spHub.id);
-  spPinBtn.textContent = isPinned ? 'Unpin' : 'Pin';
-  alert(isPinned ? 'Pinned for compare' : 'Unpinned');
-}
-
-
-  // ---------- Sidepanel ----------
-
-// ---------- Sidepanel ----------
-function openSidepanel(h){
-  spHub = h;
-  sidepanel.classList.add('show');
-  spTitle.textContent = h.name;
-  renderSidepanelMeta();
-  renderSidepanelList(true);
-  const padRight = 420;
-  map.panInside(h.coords, { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] });
-  spPinBtn.textContent = pinnedHubs.some(x=>x.id===h.id) ? 'Unpin' : 'Pin';
-}
-
-function hideSidepanel(){
-  sidepanel.classList.remove('show');
-  spHub = null;
-  spRows = [];
-  spRowsEl.innerHTML = '';
-}
-
-function renderSidepanelMeta(){
-  if(!spHub) return;
-  const r = Number(radius.value)||DEFAULT_RADIUS;
-  const stores = storesWithin(spHub.coords, r);
-  const totals = {
-    'Premium + Acosta': 0, 'Premium Only': 0, 'Acosta Only': 0, 'Uncovered': 0
-  };
-  stores.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0) + 1; });
-  spMeta.innerHTML = `
-    <div><b>Radius:</b> ${r} mi</div>
-    <div style="margin-top:4px;display:flex;gap:8px;flex-wrap:wrap">
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
-      <span class="sp-chip">Total: <b>${stores.length}</b></span>
-    </div>
-  `;
-}
-
-function renderSidepanelList(rebuild=false){
-  if(!spHub) return;
-  const r = Number(radius.value)||DEFAULT_RADIUS;
-  const [clat, clng] = spHub.coords;
-
-  // base list within radius + attach distance
-  let list = storesWithin(spHub.coords, r)
-    .map(s => ({ ...s, __d: distMiles(clat, clng, s.lat, s.lng) }));
-
-  // “Uncovered only” toggle
-  if (spOnlyUncov) list = list.filter(s=> (s.coverageType||'')==='Uncovered');
-
-  // remember full (pre-search) for export/print
-  spRows = list.slice();
-
-  // in-panel search
-  const q = (spFilter||'').toLowerCase();
-  if (q){
-    list = list.filter(s =>
-      (s.storeNumberStr||'').toLowerCase().includes(q) ||
-      (s.address||'').toLowerCase().includes(q) ||
-      (s.city||'').toLowerCase().includes(q) ||
-      (s.state||'').toLowerCase().includes(q) ||
-      (s.coverageType||'').toLowerCase().includes(q)
-    );
+    if (!spHub) return;
+    togglePin(spHub);
+    const isPinned = pinnedHubs.some(x => x.id === spHub.id);
+    spPinBtn.textContent = isPinned ? 'Unpin' : 'Pin';
+    alert(isPinned ? 'Pinned for compare' : 'Unpinned');
   }
 
-  // sort by distance
-  list.sort((a,b)=> a.__d - b.__d);
+  // ---------- Sidepanel ----------
+  function openSidepanel(h){
+    spHub = h;
+    sidepanel.classList.add('show');
+    spTitle.textContent = h.fullName || h.name;
+    renderSidepanelMeta();
+    renderSidepanelList(true);
+    const padRight = 420;
+    map.panInside(h.coords, { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] });
+    spPinBtn.textContent = pinnedHubs.some(x=>x.id===h.id) ? 'Unpin' : 'Pin';
+  }
 
-  // counts
-  spCounts.innerHTML = `
-    <span class="sp-chip">In list: <b>${list.length}</b></span>
-    ${spOnlyUncov?'<span class="sp-chip">Uncovered only</span>':''}
-  `;
+  function hideSidepanel(){
+    sidepanel.classList.remove('show');
+    spHub = null;
+    spRows = [];
+    spRowsEl.innerHTML = '';
+  }
 
-  // rows (show distance at right)
-  spRowsEl.innerHTML = list.map(s => `
-    <div class="row" data-id="${htmlEscape(s.storeNumberStr)}" title="Zoom to store">
-      <div class="num">#${htmlEscape(s.storeNumberStr)}</div>
-      <div class="text">
-        <div class="title">${htmlEscape(s.storeName||'')}</div>
-        <div class="addr">${htmlEscape(s.address||'')} · ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</div>
+  function renderSidepanelMeta(){
+    if(!spHub) return;
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const stores = storesWithin(spHub.coords, r);
+    const totals = {
+      'Premium + Acosta': 0, 'Premium Only': 0, 'Acosta Only': 0, 'Uncovered': 0
+    };
+    stores.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0) + 1; });
+    spMeta.innerHTML = `
+      <div><b>Radius:</b> ${r} mi</div>
+      <div style="margin-top:4px;display:flex;gap:8px;flex-wrap:wrap">
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
+        <span class="sp-chip">Total: <b>${stores.length}</b></span>
       </div>
-      <div class="kind">${htmlEscape(s.coverageType||'')}</div>
-      <div style="margin-left:auto; min-width:64px; text-align:right; color:var(--muted)">${s.__d.toFixed(1)} mi</div>
-    </div>
-  `).join('');
+    `;
+  }
 
-  // click handlers (use the currently rendered list so distance is correct)
-  Array.from(spRowsEl.querySelectorAll('.row')).forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const idd = el.getAttribute('data-id');
-      const s = list.find(x => x.storeNumberStr === idd);
-      if (s) openStorePopup(s);
-      Array.from(spRowsEl.querySelectorAll('.row')).forEach(e=>e.classList.remove('active'));
-      el.classList.add('active');
-    });
-  });
+  function renderSidepanelList(rebuild=false){
+    if(!spHub) return;
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const [clat, clng] = spHub.coords;
 
-  if (rebuild) renderSidepanelMeta();
-}
+    let list = storesWithin(spHub.coords, r)
+      .map(s => ({ ...s, __d: distMiles(clat, clng, s.lat, s.lng) }));
 
-function exportSidepanelCsv(){
-  if(!spHub){ alert('Open a hub panel first.'); return; }
-  const r = Number(radius.value)||DEFAULT_RADIUS;
-  const [clat, clng] = spHub.coords;
+    if (spOnlyUncov) list = list.filter(s=> (s.coverageType||'')==='Uncovered');
 
-  const rows = [
-    ['Hub','Radius(mi)','Distance(mi)','Store #','Name','Address','City','State','Coverage','Area Manager','Regional Manager','Lat','Lng'],
-    ...spRows.map(s=>{
-      const d = (typeof s.__d === 'number') ? s.__d : distMiles(clat, clng, s.lat, s.lng);
-      return [
-        spHub.name, r, d.toFixed(1),
-        s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'',
-        s.coverageType||'', s.areaManager||'', s.regionalManager||'', s.lat, s.lng
-      ];
-    })
-  ];
-  downloadCsv(rows, `${slug(spHub.name)}_${r}mi_${Date.now()}.csv`);
-}
+    spRows = list.slice();
 
-function printSidepanelList(){
-  if(!spHub){ alert('Open a hub panel first.'); return; }
-  const r = Number(radius.value)||DEFAULT_RADIUS;
-  const [clat, clng] = spHub.coords;
+    const q = (spFilter||'').toLowerCase();
+    if (q){
+      list = list.filter(s =>
+        (s.storeNumberStr||'').toLowerCase().includes(q) ||
+        (s.address||'').toLowerCase().includes(q) ||
+        (s.city||'').toLowerCase().includes(q) ||
+        (s.state||'').toLowerCase().includes(q) ||
+        (s.coverageType||'').toLowerCase().includes(q)
+      );
+    }
 
-  const rows = spRows
-    .slice()
-    .map(s => ({...s, __d: (typeof s.__d === 'number') ? s.__d : distMiles(clat, clng, s.lat, s.lng)}))
-    .sort((a,b)=> a.__d - b.__d)
-    .map(s=>`
-      <tr>
-        <td>#${htmlEscape(s.storeNumberStr)}</td>
-        <td>${htmlEscape(s.storeName||'')}</td>
-        <td>${htmlEscape(s.address||'')}, ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</td>
-        <td>${htmlEscape(s.coverageType||'')}</td>
-        <td style="text-align:right">${s.__d.toFixed(1)}</td>
-        <td>${htmlEscape(s.areaManager||'')}</td>
-        <td>${htmlEscape(s.regionalManager||'')}</td>
-      </tr>
+    list.sort((a,b)=> a.__d - b.__d);
+
+    spCounts.innerHTML = `
+      <span class="sp-chip">In list: <b>${list.length}</b></span>
+      ${spOnlyUncov?'<span class="sp-chip">Uncovered only</span>':''}
+    `;
+
+    spRowsEl.innerHTML = list.map(s => `
+      <div class="row" data-id="${htmlEscape(s.storeNumberStr)}" title="Zoom to store">
+        <div class="num">#${htmlEscape(s.storeNumberStr)}</div>
+        <div class="text">
+          <div class="title">${htmlEscape(s.storeName||'')}</div>
+          <div class="addr">${htmlEscape(s.address||'')} · ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</div>
+        </div>
+        <div class="kind">${htmlEscape(s.coverageType||'')}</div>
+        <div style="margin-left:auto; min-width:64px; text-align:right; color:var(--muted)">${s.__d.toFixed(1)} mi</div>
+      </div>
     `).join('');
 
-  const win = window.open('', '_blank');
-  win.document.write(`
-    <html><head><title>${htmlEscape(spHub.name)} — ${r}mi</title>
-    <style>
-      body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px}
-      table{border-collapse:collapse;width:100%}
-      th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
-      th{background:#f3f4f6;text-align:left}
-      td:nth-child(5){text-align:right}
-      h2{margin:0 0 8px}
-      .meta{color:#555;margin-bottom:10px}
-    </style></head><body>
-      <h2>${htmlEscape(spHub.name)}</h2>
-      <div class="meta">Radius: <b>${r} mi</b> • Stores: <b>${spRows.length}</b></div>
-      <table>
-        <thead>
-          <tr>
-            <th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>Distance (mi)</th><th>AM</th><th>RM</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <script>window.print()<\\/script>
-    </body></html>
-  `);
-  win.document.close();
-}
-// ---------- /Sidepanel ----------
+    Array.from(spRowsEl.querySelectorAll('.row')).forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const idd = el.getAttribute('data-id');
+        const s = list.find(x => x.storeNumberStr === idd);
+        if (s) openStorePopup(s);
+        Array.from(spRowsEl.querySelectorAll('.row')).forEach(e=>e.classList.remove('active'));
+        el.classList.add('active');
+      });
+    });
 
+    if (rebuild) renderSidepanelMeta();
+  }
+
+  function exportSidepanelCsv(){
+    if(!spHub){ alert('Open a hub panel first.'); return; }
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const [clat, clng] = spHub.coords;
+
+    const rows = [
+      ['Hub','Radius(mi)','Distance(mi)','Store #','Name','Address','City','State','Coverage','Area Manager','Regional Manager','Lat','Lng'],
+      ...spRows.map(s=>{
+        const d = (typeof s.__d === 'number') ? s.__d : distMiles(clat, clng, s.lat, s.lng);
+        return [
+          spHub.fullName || spHub.name, r, d.toFixed(1),
+          s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'',
+          s.coverageType||'', s.areaManager||'', s.regionalManager||'', s.lat, s.lng
+        ];
+      })
+    ];
+    downloadCsv(rows, `${slug(spHub.name)}_${r}mi_${Date.now()}.csv`);
+  }
+
+  function printSidepanelList(){
+    if(!spHub){ alert('Open a hub panel first.'); return; }
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const [clat, clng] = spHub.coords;
+
+    const rows = spRows
+      .slice()
+      .map(s => ({...s, __d: (typeof s.__d === 'number') ? s.__d : distMiles(clat, clng, s.lat, s.lng)}))
+      .sort((a,b)=> a.__d - b.__d)
+      .map(s=>`
+        <tr>
+          <td>#${htmlEscape(s.storeNumberStr)}</td>
+          <td>${htmlEscape(s.storeName||'')}</td>
+          <td>${htmlEscape(s.address||'')}, ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</td>
+          <td>${htmlEscape(s.coverageType||'')}</td>
+          <td style="text-align:right">${s.__d.toFixed(1)}</td>
+          <td>${htmlEscape(s.areaManager||'')}</td>
+          <td>${htmlEscape(s.regionalManager||'')}</td>
+        </tr>
+      `).join('');
+
+    const win = window.open('', '_blank');
+    win.document.write(`
+      <html><head><title>${htmlEscape(spHub.name)} — ${r}mi</title>
+      <style>
+        body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px}
+        table{border-collapse:collapse;width:100%}
+        th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
+        th{background:#f3f4f6;text-align:left}
+        td:nth-child(5){text-align:right}
+        h2{margin:0 0 8px}
+        .meta{color:#555;margin-bottom:10px}
+      </style></head><body>
+        <h2>${htmlEscape(spHub.fullName || spHub.name)}</h2>
+        <div class="meta">Radius: <b>${r} mi</b> • Stores: <b>${spRows.length}</b></div>
+        <table>
+          <thead>
+            <tr>
+              <th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>Distance (mi)</th><th>AM</th><th>RM</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <script>window.print()<\\/script>
+      </body></html>
+    `);
+    win.document.close();
+  }
 
   function downloadCsv(rows, fname){
     const csv = rows.map(r=>r.map(v=>csvCell(v)).join(',')).join('\n');
@@ -1308,7 +1265,6 @@ function printSidepanelList(){
       showStaffed: showStaffed.checked,
       showOpen: showOpen.checked,
       showAcosta: showAcosta.checked
-
     };
     localStorage.setItem(LS_STATE, JSON.stringify(state));
   }
@@ -1338,8 +1294,7 @@ function printSidepanelList(){
       if (st.radius){ radius.value = st.radius; radiusLbl.textContent = st.radius; }
       if ('showStaffed' in st) showStaffed.checked = !!st.showStaffed;
       if ('showOpen'    in st) showOpen.checked    = !!st.showOpen;
-      if ('showAcosta' in st) showAcosta.checked = !!st.showAcosta;
-
+      if ('showAcosta'  in st) showAcosta.checked  = !!st.showAcosta;
       return true;
     }catch(e){ console.warn('Bad saved state', e); return false; }
   }
@@ -1425,7 +1380,7 @@ function printSidepanelList(){
     tgCompare.checked = false; compareMode=false; pinnedHubs=[];
     tgWithin.checked = false;
     tgCluster.checked = true;
-    showStaffed.checked = true; showOpen.checked = true;
+    showStaffed.checked = true; showOpen.checked = true; showAcosta.checked = true;
     radius.value = DEFAULT_RADIUS; radiusLbl.textContent = DEFAULT_RADIUS;
     setMulti(covFilter, ['All']);
     setMulti(rmFilter, ['All']); cascadeAM();
@@ -1435,33 +1390,62 @@ function printSidepanelList(){
     map.setView(HOME_VIEW.center, HOME_VIEW.zoom);
   }
 
+  // ---------- Coverage computation (fixed 75 mi) ----------
   function recomputeCoverage(){
-  const r = Number(radius.value) || DEFAULT_RADIUS;
+    const r = COVERAGE_RADIUS; // fixed business rule
 
-  const premiumAccepted = hubs.filter(h => h.status === 'accepted');
-  const premiumPlanned  = hubs.filter(h => h.status === 'open');
-  const acosta          = acostaHubs;
+    const premiumAccepted = hubs.filter(h => h.status === 'accepted');
+    const premiumPlanned  = hubs.filter(h => h.status === 'open');
+    const acosta          = acostaHubs;
 
-  // If you want planned hubs to count toward "Premium" coverage, keep this true.
-  // Set to false if you want "planned" NOT to count yet.
-  const plannedCountsAsPremium = true;
+    const plannedCountsAsPremium = true;
+    const premiumSet = plannedCountsAsPremium
+      ? [...premiumAccepted, ...premiumPlanned]
+      : premiumAccepted;
 
-  allStores.forEach(s=>{
-    const inAcosta  = acosta.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
-    const inPremAcc = premiumAccepted.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
-    const inPremPln = premiumPlanned.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+    allStores.forEach(s=>{
+      // Acosta within r
+      const acostaWithin = [];
+      let nearestA = null, bestA = Infinity;
+      for (const h of acosta){
+        const d = distMiles(s.lat, s.lng, h.coords[0], h.coords[1]);
+        if (d <= r){
+          const rec = { id:h.id, name:h.person || h.name || 'Acosta Rep', dist:d };
+          acostaWithin.push(rec);
+          if (d < bestA){ bestA = d; nearestA = rec; }
+        }
+      }
 
-    const inPremium = inPremAcc || (plannedCountsAsPremium && inPremPln);
+      // Premium within r
+      const premWithin = [];
+      let nearestP = null, bestP = Infinity;
+      for (const h of premiumSet){
+        const d = distMiles(s.lat, s.lng, h.coords[0], h.coords[1]);
+        if (d <= r){
+          const rec = { id:h.id, name:h.person || h.name, dist:d, status:h.status };
+          premWithin.push(rec);
+          if (d < bestP){ bestP = d; nearestP = rec; }
+        }
+      }
 
-    s.coverageType =
-      (inPremium && inAcosta) ? 'Premium + Acosta' :
-      (inPremium)             ? 'Premium Only'     :
-      (inAcosta)              ? 'Acosta Only'      :
-                                'Uncovered';
-  });
-}
+      // attach details
+      s.coveredByAcosta  = acostaWithin.map(x => x.name);
+      s.coveredByPremium = premWithin.map(x => x.name);
+      s.nearestAcosta    = nearestA || null;
+      s.nearestPremium   = nearestP || null;
 
-  // ---------- Sandbox (what-if ring) ----------
+      const inAcosta  = acostaWithin.length > 0;
+      const inPremium = premWithin.length > 0;
+
+      s.coverageType =
+        (inPremium && inAcosta) ? 'Premium + Acosta' :
+        (inPremium)             ? 'Premium Only'     :
+        (inAcosta)              ? 'Acosta Only'      :
+                                  'Uncovered';
+    });
+  }
+
+  // ---------- Sandbox ----------
   let sandboxOpen = false;
   let sandboxCircle = null;
   let sandboxMarker = null;
@@ -1477,7 +1461,6 @@ function printSidepanelList(){
       id('sandboxGeoMsg').textContent = '';
       return;
     }
-    // initialize at map center
     const c = map.getCenter();
     placeSandbox([c.lat, c.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
   });
@@ -1507,7 +1490,6 @@ function printSidepanelList(){
 
   id('sandboxListBtn').addEventListener('click', ()=>{
     if (!sandboxMarker) { alert('Place the sandbox ring first (click the map or enter lat,lng).'); return; }
-    // mimic sidepanel for sandbox
     const fakeHub = { name: 'Sandbox Hub', coords: sandboxMarker.getLatLng() };
     openSidepanel(fakeHub);
   });
@@ -1558,7 +1540,7 @@ function printSidepanelList(){
       s.address    = o.address ?? o.Address ?? '';
       s.city       = o.city ?? o.City ?? '';
       s.state      = o.state ?? o.State ?? '';
-      s.coverageType = o.coverageType ?? o.Coverage_Type ?? o.Covered_By ?? 'Uncovered';
+      s.coverageType = 'Uncovered'; // will be overwritten by recomputeCoverage()
       s.areaManager   = o.areaManager ?? o.AreaMgr ?? o['Area Mgr'] ?? o['Area Manager'] ?? '';
       s.regionalManager = o.regionalManager ?? o.RegMgr ?? o['Regional Manager'] ?? '';
       s.trainerCity  = o.trainerCity ?? o.Assigned_Premium ?? o['Trainer City'] ?? '';
@@ -1571,22 +1553,9 @@ function printSidepanelList(){
   // ---------- Search badge logic ----------
   searchBox.addEventListener('focus', ()=> searchBadge.classList.add('show'));
   searchBox.addEventListener('blur', ()=>{
-  searchBadge.classList.remove('show');
-  setTimeout(hideResults, 120); // let result clicks fire first
-});
-
-
-  // ensure first search opens popup (worked around clustering timing)
-  function openStorePopupFirstSafe(store){
-    const m = ensureMarkerForStore(store);
-    if (tgCluster.checked) {
-      markers.zoomToShowLayer(m, () => {
-        setTimeout(()=>{ openStorePopup(store); }, 0);
-      });
-    } else {
-      openStorePopup(store);
-    }
-  }
+    searchBadge.classList.remove('show');
+    setTimeout(hideResults, 120); // let result clicks fire first
+  });
 
   // ---------- Busy ----------
   function showBusy(v){ busy.hidden = !v; }
