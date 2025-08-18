@@ -687,41 +687,38 @@ map.on('popupopen', (e)=>{
     }
   }
 
-  function openStorePopup(store){
-    const ll = L.latLng(store.lat, store.lng);
-    const padRight = sidepanel.classList.contains('show') ? 420 : 20;
-    const panOpts = { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] };
+function openStorePopup(store){
+  const ll = L.latLng(store.lat, store.lng);
+  const padRight = sidepanel.classList.contains('show') ? 420 : 20;
+  const panOpts = { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] };
 
-    const m = markerByStore.get(store.storeNumberStr);
+  // ✅ make sure a marker exists even if it wasn't in the filtered render
+  const m = ensureMarkerForStore(store);
 
-    const panThenOpen = (latlng, marker) => {
-      let opened = false;
-      const doOpen = () => {
-        if (opened) return;
-        opened = true;
-        if (marker) {
-          if (!marker.getPopup()) marker.bindPopup(storePopupHTML(store));
-          marker.openPopup();
-        } else {
-          showPinPopup(latlng, storePopupHTML(store));
-        }
-        map.off('moveend', doOpen);
-      };
-      map.once('moveend', doOpen);
-      map.panInside(latlng, panOpts);   // pan first, then open
-    };
-
-    if (m) {
-      if (!m.getPopup()) m.bindPopup(storePopupHTML(store));
-      if (tgCluster.checked) {
-        markers.zoomToShowLayer(m, () => panThenOpen(m.getLatLng(), m));
+  const panThenOpen = (latlng, marker) => {
+    let opened = false;
+    const doOpen = () => {
+      if (opened) return;
+      opened = true;
+      if (marker) {
+        if (!marker.getPopup()) marker.bindPopup(storePopupHTML(store));
+        marker.openPopup();
       } else {
-        panThenOpen(m.getLatLng(), m);
+        showPinPopup(latlng, storePopupHTML(store));
       }
-    } else {
-      panThenOpen(ll, null);
-    }
+      map.off('moveend', doOpen);
+    };
+    map.once('moveend', doOpen);
+    map.panInside(latlng, panOpts);
+  };
+
+  if (tgCluster.checked) {
+    markers.zoomToShowLayer(m, () => panThenOpen(m.getLatLng(), m));
+  } else {
+    panThenOpen(m.getLatLng(), m);
   }
+}
+
 
   function showPinPopup(latlng, html){
     if(!targetPin){ targetPin = L.marker(latlng,{icon:targetIcon}).addTo(targetLayer); }
@@ -1021,6 +1018,27 @@ spRows = rows;
     });
   });
 }
+  function ensureMarkerForStore(store){
+  let m = markerByStore.get(store.storeNumberStr);
+  if (!m){
+    m = L.circleMarker([store.lat, store.lng], {
+      radius: 5, weight: 1, fillOpacity: .9, color: '#fff',
+      fillColor: COLORS[store.coverageType] || '#999'
+    });
+    m.store = store;
+    m.bindPopup(storePopupHTML(store));
+    markerByStore.set(store.storeNumberStr, m);
+    if (tgCluster.checked) { markers.addLayer(m); }
+    else { 
+      // ensure a group exists in plainMarkers
+      let g = plainMarkers.getLayers()[0];
+      if (!g){ g = L.layerGroup().addTo(plainMarkers); }
+      g.addLayer(m);
+    }
+  }
+  return m;
+}
+
 
 
  
