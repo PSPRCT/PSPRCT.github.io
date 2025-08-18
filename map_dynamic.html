@@ -470,6 +470,8 @@
     saveState();
   });
 
+  
+
   // ---------- Load data ----------
   showBusy(true); let spinnerFailSafe = setTimeout(()=>showBusy(false), 7000);
   try {
@@ -539,7 +541,7 @@
   } finally { clearTimeout(spinnerFailSafe); showBusy(false); }
 
   // ---------- Search ----------
-  let searchIdx = []; let resIndex = -1; let targetPin=null; const targetIcon = L.divIcon({className:'', html:'<div style="background:#2f71ff;border:2px solid #fff;border-radius:50%;width:18px;height:18px;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>', iconSize:[18,18], iconAnchor:[9,9]});
+  var searchIdx = []; let resIndex = -1; let targetPin=null; const targetIcon = L.divIcon({className:'', html:'<div style="background:#2f71ff;border:2px solid #fff;border-radius:50%;width:18px;height:18px;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>', iconSize:[18,18], iconAnchor:[9,9]});
   const hoverIcon  = L.divIcon({className:'', html:'<div class="hl"></div>', iconSize:[22,22], iconAnchor:[11,11]});
   let hoverMarker=null;
 
@@ -788,7 +790,7 @@
     if (showPending.checked)   premiumSets.push(...premiumPending);
 
     // Acosta coverage set:
-    const acostaSet = showAcosta.checked ? acostaHubs : acostaHubs; // keep Acosta coverage independent if you prefer
+    const acostaSet = showAcosta.checked ? acostaHubs : [];// keep Acosta coverage independent if you prefer
 
     allStores.forEach(s=>{
       const inAcosta  = acostaSet.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
