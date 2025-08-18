@@ -96,6 +96,7 @@
   .hub{width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
   .hub.staffed{background:var(--violet)}
   .hub.open{background:#9ea3a8}
+  .hub.acosta{ background: var(--a); } /* uses existing --a (Acosta) */
   .hl{width:22px;height:22px;border-radius:50%;border:2px solid #111;background:rgba(0,0,0,.05);box-shadow:0 0 0 1px rgba(0,0,0,.25)}
 
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:5000}
@@ -124,6 +125,8 @@
 
   <label class="toggle" title="Show staffed hubs"><input id="showStaffed" type="checkbox" checked />Staffed hubs</label>
   <label class="toggle" title="Show open hubs"><input id="showOpen" type="checkbox" checked />Open hubs</label>
+  <label class="toggle" title="Show Acosta trainers"><input id="showAcosta" type="checkbox" checked />Acosta</label>
+
 
   <div class="range" title="Hub radius used for lists, rings, overlap">
     <span>Radius</span>
@@ -324,6 +327,8 @@
 (async function(){
   // ---------- CONFIG ----------
   const DATA_URL = './store_data.json?v=' + Date.now();  // put your file next to this HTML
+  const ACOSTA_URL = './acosta_geocoded.json?v=' + Date.now();
+
   // tiny test dataset (shown only if fetch fails)
   const FALLBACK_STORES = [
     { storeNumberStr:"1234", storeName:"Walmart", address:"701 W 51st St", city:"Austin", state:"TX", coverageType:"Uncovered", areaManager:"", regionalManager:"", trainerCity:"", lat:30.309, lng:-97.742 },
@@ -356,6 +361,10 @@
     { id:"olive_branch_ms_brown",   name:"Olive Branch, MS — Annette Brown", coords:[34.926688,-89.894859], status:"accepted", person:"Annette Brown" },
     { id:"riverview_fl_santos",     name:"Riverview, FL — Richard Santos", coords:[27.8661,-82.3265], status:"accepted", person:"Richard Santos" }
   ];
+let acostaHubs = []; // filled after fetch
+
+const showAcosta = id('showAcosta');
+showAcosta.onchange = handleHubVisibilityChange;
 
  let allStores = [];
 let filteredStores = [];
@@ -459,20 +468,37 @@ hubLayer.addTo(map);
 showOpen.onchange    = handleHubVisibilityChange;
 
 function handleHubVisibilityChange(){
-  renderHubs();          // redraw hub markers
-  updateRings();         // redraw hub circles
-  if (tgOverlap.checked) drawOverlap();  // recompute overlap highlights
-  if (tgWithin.checked){ // “Within hubs” depends on visible hubs
+  renderHubs();
+  updateRings();
+
+  // coverage changes whenever visible hubs change
+  recomputeCoverage();               // ⬅️ add
+
+  if (tgOverlap.checked) drawOverlap();
+
+  if (tgWithin.checked){
     runFilter();
     fitToResults();
+  } else {
+    runFilter();
   }
-  // close the side panel if its hub is now hidden
-  if (spHub && !visibleHubs().some(h => h.id === spHub.id)) hideSidepanel();
 
+  if (spHub && !visibleHubs().some(h => h.id === spHub.id)) hideSidepanel();
   saveState();
 }
 
-  on('input', radius,   ()=>{ radiusLbl.textContent = radius.value; debouncedRun(); updateRings(); if (tgOverlap.checked) drawOverlap(); if (sandboxMarker) refreshSandbox(); saveState(); if (spHub) openSidepanel(spHub); });
+
+  on('input', radius, ()=>{ 
+  radiusLbl.textContent = radius.value;
+  recomputeCoverage();              // ⬅️ add
+  debouncedRun();
+  updateRings();
+  if (tgOverlap.checked) drawOverlap();
+  if (sandboxMarker) refreshSandbox();
+  saveState();
+  if (spHub) openSidepanel(spHub);
+});
+
 
   on('input', covSearch, ()=> filterSelect(covFilter, covSearch.value));
   on('input', rmSearch,  ()=> filterSelect(rmFilter,  rmSearch.value));
@@ -584,19 +610,43 @@ function handleHubVisibilityChange(){
 
     populateRM(allStores); populateAM(allStores); cascadeAM(); cascadeHubs();
  
+// --- load Acosta trainers as hub points ---
+try{
+  const aResp = await fetch(ACOSTA_URL, { cache:'no-store' });
+  const aJson = await aResp.json();
+  // Expecting fields like RepName, Latitude, Longitude, Address/City/State
+  acostaHubs = (Array.isArray(aJson) ? aJson : []).filter(r =>
+    Number.isFinite(r.Latitude) && Number.isFinite(r.Longitude)
+  ).map(r => ({
+    id: 'ac_' + slug(r.RepName || (r.Address || '') + '_' + (r.City || '')),
+    name: `${r.RepName || 'Acosta Rep'}`,        // short name in tooltip
+    fullName: `${r.RepName || 'Acosta Rep'} — ${r.City || ''}, ${r.State || ''}`, // handy for lists
+    coords: [Number(r.Latitude), Number(r.Longitude)],
+    status: 'acosta',
+    person: r.RepName || ''
+  }));
+
+  
+}catch(e){
+  console.warn('Acosta file not found/invalid, continuing without Acosta trainers', e);
+}
 
     buildSearchIndex();
 
-    if (!tryLoadSnapshot()){ tryLoadLocal(); }
+if (!tryLoadSnapshot()){ tryLoadLocal(); }
 
-    const lastQ = localStorage.getItem(LS_LAST_QUERY) || '';
-    if (lastQ) { searchBox.value = lastQ; handleSearchInput(); }
+const lastQ = localStorage.getItem(LS_LAST_QUERY) || '';
+if (lastQ) { searchBox.value = lastQ; handleSearchInput(); }
 
-    runFilter(); renderChips(); renderHubs(); updateRings();
+// Make sure coverageType is computed **before** we build markers
+recomputeCoverage();
+
+runFilter(); renderChips(); renderHubs(); updateRings();
   } catch(err){
     STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Init error:</span> ${escape(err?.message || String(err))}`;
     console.error(err);
   } finally { clearTimeout(spinnerFailSafe); showBusy(false); }
+
 
   // ---------- Search ----------
   function buildSearchIndex(){
@@ -614,7 +664,8 @@ function handleHubVisibilityChange(){
 
   function storePopupHTML(s){
     const r = Number(radius.value)||DEFAULT_RADIUS;
-    const visH = hubs.filter(h => (h.status==='accepted'?showStaffed.checked:showOpen.checked));
+   const visH = visibleHubs();  // includes Acosta when toggled on
+
     let nearest = null, best = 1e9;
     visH.forEach(h=>{ const d = distMiles(s.lat,s.lng,h.coords[0],h.coords[1]); if(d<best){best=d;nearest=h;} });
     const badge = `<span style="padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:${COLORS[s.coverageType]||'#eee'}22">${escape(s.coverageType||'')}</span>`;
@@ -863,11 +914,13 @@ function handleHubVisibilityChange(){
   }
 
   function visibleHubs(){
-    return hubs.filter(h =>
-      (h.status === 'accepted' && showStaffed.checked) ||
-      (h.status === 'open'     && showOpen.checked)
-    );
-  }
+  const out = [];
+  if (showStaffed.checked) out.push(...hubs.filter(h => h.status === 'accepted'));
+  if (showOpen.checked)    out.push(...hubs.filter(h => h.status === 'open'));
+  if (showAcosta.checked)  out.push(...acostaHubs); // include Acosta points
+  return out;
+}
+
 
   function ensureMarkerForStore(store){
     let m = markerByStore.get(store.storeNumberStr);
@@ -993,15 +1046,21 @@ function renderHubs(){
   hubLayer.clearLayers();
   visibleHubs().forEach(h=>{
     const el = document.createElement('div');
-    el.className = `hub ${h.status==='accepted' ? 'staffed' : 'open'}`;
+    // add class by type
+    el.className = 'hub ' + (
+      h.status === 'accepted' ? 'staffed' :
+      h.status === 'open'     ? 'open'    :
+      h.status === 'acosta'   ? 'acosta'  : ''
+    );
     const icon = L.divIcon({ className:'', html: el, iconSize:[20,20], iconAnchor:[10,10] });
-    const m = L.marker(h.coords, { icon, title:h.name }).addTo(hubLayer);
+    const m = L.marker(h.coords, { icon, title: (h.fullName || h.name) }).addTo(hubLayer);
     m.hub = h;
     m.on('click', ()=> compareMode ? togglePin(h) : openSidepanel(h));
-    m.on('mouseover', ()=> m.bindTooltip(h.name, {direction:'top', offset:[0,-8]}).openTooltip());
+    m.on('mouseover', ()=> m.bindTooltip(h.fullName || h.name, {direction:'top', offset:[0,-8]}).openTooltip());
     m.on('mouseout',  ()=> m.closeTooltip());
   });
 }
+
 
   function updateRings(){
     ringLayer.clearLayers();
@@ -1248,6 +1307,8 @@ function printSidepanelList(){
       radius: Number(radius.value)||DEFAULT_RADIUS,
       showStaffed: showStaffed.checked,
       showOpen: showOpen.checked
+      showAcosta: showAcosta.checked
+
     };
     localStorage.setItem(LS_STATE, JSON.stringify(state));
   }
@@ -1277,6 +1338,8 @@ function printSidepanelList(){
       if (st.radius){ radius.value = st.radius; radiusLbl.textContent = st.radius; }
       if ('showStaffed' in st) showStaffed.checked = !!st.showStaffed;
       if ('showOpen'    in st) showOpen.checked    = !!st.showOpen;
+      if ('showAcosta' in st) showAcosta.checked = !!st.showAcosta;
+
       return true;
     }catch(e){ console.warn('Bad saved state', e); return false; }
   }
@@ -1371,6 +1434,32 @@ function printSidepanelList(){
     searchBox.value=''; localStorage.removeItem(LS_LAST_QUERY); hideResults(); clearTarget();
     map.setView(HOME_VIEW.center, HOME_VIEW.zoom);
   }
+
+  function recomputeCoverage(){
+  const r = Number(radius.value) || DEFAULT_RADIUS;
+
+  const premiumAccepted = hubs.filter(h => h.status === 'accepted');
+  const premiumPlanned  = hubs.filter(h => h.status === 'open');
+  const acosta          = acostaHubs;
+
+  // If you want planned hubs to count toward "Premium" coverage, keep this true.
+  // Set to false if you want "planned" NOT to count yet.
+  const plannedCountsAsPremium = true;
+
+  allStores.forEach(s=>{
+    const inAcosta  = acosta.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+    const inPremAcc = premiumAccepted.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+    const inPremPln = premiumPlanned.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+
+    const inPremium = inPremAcc || (plannedCountsAsPremium && inPremPln);
+
+    s.coverageType =
+      (inPremium && inAcosta) ? 'Premium + Acosta' :
+      (inPremium)             ? 'Premium Only'     :
+      (inAcosta)              ? 'Acosta Only'      :
+                                'Uncovered';
+  });
+}
 
   // ---------- Sandbox (what-if ring) ----------
   let sandboxOpen = false;
