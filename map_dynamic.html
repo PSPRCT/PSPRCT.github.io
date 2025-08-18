@@ -96,7 +96,7 @@
   .hub{width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
   .hub.staffed{background:var(--violet)}
   .hub.open{background:#9ea3a8}
-  .hub.acosta{ background: var(--a); }
+  .hub.acosta{ background: var(--a); } /* orange */
   .hl{width:22px;height:22px;border-radius:50%;border:2px solid #111;background:rgba(0,0,0,.05);box-shadow:0 0 0 1px rgba(0,0,0,.25)}
 
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:5000}
@@ -320,8 +320,6 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-<script src="https://unpkg.com/kdbush@3.0.0/kdbush.min.js"></script>
-<script src="https://unpkg.com/geokdbush@3.0.0/geokdbush.umd.js"></script>
 <script>
 (async function(){
   // ---------- CONFIG ----------
@@ -345,7 +343,7 @@
     "Uncovered":        getCSS('--u')
   };
   const DEFAULT_RADIUS = 75;
-  const LS_STATE = 'prt_state_v8';
+  const LS_STATE = 'prt_state_v9';
   const LS_VIEWS = 'prt_views_v1';
   const LS_LAST_QUERY = 'prt_last_query';
   const HOME_VIEW = { center:[39.5,-98.35], zoom:5 };
@@ -429,7 +427,7 @@
 
   map.on('moveend zoomend', ()=>{
     updateInViewCount();
-    if (id('tgHeat').checked) requestIdleCallback?.(updateHeat) ?? updateHeat();
+    if (id('tgHeat').checked) (window.requestIdleCallback?.(updateHeat) ?? updateHeat());
     saveState();
   });
 
@@ -442,7 +440,6 @@
   });
 
   const STATUS = id('dataStatus'); const busy = id('busy');
-  const legend = id('legend'); id('legendClose').onclick = ()=> legend.style.display='none';
 
   const searchBox = id('searchBox'), searchBadge = id('searchBadge'), searchResults = id('searchResults');
   const searchWrap = document.querySelector('.searchbox');
@@ -471,14 +468,7 @@
     renderHubs();
     updateRings();
     if (tgOverlap.checked) drawOverlap();
-
-    if (tgWithin.checked){
-      runFilter();
-      fitToResults();
-    } else {
-      runFilter();
-    }
-
+    if (tgWithin.checked){ runFilter(); fitToResults(); } else { runFilter(); }
     if (spHub && !visibleHubs().some(h => h.id === spHub.id)) hideSidepanel();
     saveState();
   }
@@ -540,10 +530,8 @@
   tgWithin.onchange = ()=>{ runFilter(); fitToResults(); saveState(); };
   tgCluster.onchange= ()=>{ refreshLayerMode(); };
 
-  id('snapBtn').onclick = saveSnapshot;
   id('helpBtn').onclick = ()=> id('helpModal').classList.add('show');
   id('helpClose').onclick = ()=> id('helpModal').classList.remove('show');
-  id('helpModal').addEventListener('click', (e)=>{ if(e.target.id==='helpModal') e.currentTarget.classList.remove('show'); });
 
   // Keyboard
   window.addEventListener('keydown',(e)=>{
@@ -581,8 +569,7 @@
     try{
       const resp = await fetch(DATA_URL, { cache:'no-store' });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const text = await resp.text();
-      raw = JSON.parse(text.replace(/^\uFEFF/,''));
+      raw = await resp.json();
       if (!Array.isArray(raw)) throw new Error('store_data.json must be a JSON array');
     }catch(fetchErr){
       console.warn('Data fetch failed, using fallback stores:', fetchErr);
@@ -593,30 +580,28 @@
     allStores = normalizeStores(raw);
     STATUS.textContent += `  |  ${allStores.length.toLocaleString()} stores ready`;
 
-    populateRM(allStores); populateAM(allStores); cascadeAM(); cascadeHubs();
-
-    // --- load Acosta trainers as hub points ---
+    // --- load Acosta trainers (robust field mapping) ---
+    let acCount = 0;
     try{
       const aResp = await fetch(ACOSTA_URL, { cache:'no-store' });
       const aJson = await aResp.json();
-      acostaHubs = (Array.isArray(aJson) ? aJson : []).filter(r =>
-        Number.isFinite(r.Latitude) && Number.isFinite(r.Longitude)
-      ).map(r => ({
-        id: 'ac_' + slug(r.RepName || (r.Address || '') + '_' + (r.City || '')),
-        name: `${r.RepName || 'Acosta Rep'}`,
-        fullName: `${r.RepName || 'Acosta Rep'} — ${r.City || ''}, ${r.State || ''}`,
-        coords: [Number(r.Latitude), Number(r.Longitude)],
-        status: 'acosta',
-        person: r.RepName || ''
-      }));
+      acostaHubs = toAcostaHubs(aJson);
+      acCount = acostaHubs.length;
+      if (acCount){
+        console.log('Loaded Acosta trainers:', acostaHubs.length, acostaHubs[0]);
+      } else {
+        console.warn('No Acosta trainers produced from file. Check field names/values in acosta_geocoded.json.');
+      }
     }catch(e){
       console.warn('Acosta file not found/invalid, continuing without Acosta trainers', e);
     }
 
+    // UI dropdown sources
+    populateRM(allStores); populateAM(allStores); cascadeAM(); cascadeHubs();
     buildSearchIndex();
 
+    // State / snapshot
     if (!tryLoadSnapshot()){ tryLoadLocal(); }
-
     const lastQ = localStorage.getItem(LS_LAST_QUERY) || '';
     if (lastQ) { searchBox.value = lastQ; handleSearchInput(); }
 
@@ -624,6 +609,9 @@
     recomputeCoverage();
 
     runFilter(); renderChips(); renderHubs(); updateRings();
+
+    // Status line w/ Acosta count
+    STATUS.textContent += `  |  Acosta trainers: ${acCount}`;
   } catch(err){
     STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Init error:</span> ${escape(err?.message || String(err))}`;
     console.error(err);
@@ -641,10 +629,9 @@
   const hoverIcon  = L.divIcon({className:'', html:'<div class="hl"></div>', iconSize:[22,22], iconAnchor:[11,11]});
   let hoverMarker=null;
   function showHover(lat,lng){ if(hoverMarker) highlightLayer.removeLayer(hoverMarker); hoverMarker=L.marker([lat,lng],{icon:hoverIcon}).addTo(highlightLayer); }
-  function hideHover(){ if(hoverMarker){ highlightLayer.removeLayer(hoverMarker); highlightLayer.removeLayer(hoverMarker); hoverMarker=null; } }
+  function hideHover(){ if(hoverMarker){ highlightLayer.removeLayer(hoverMarker); hoverMarker=null; } }
 
   function storePopupHTML(s){
-    // nearest among currently visible hubs (for context)
     const visH = visibleHubs();
     let nearest = null, best = 1e9;
     visH.forEach(h=>{ const d = distMiles(s.lat,s.lng,h.coords[0],h.coords[1]); if(d<best){best=d;nearest=h;} });
@@ -733,11 +720,7 @@
     }
     if (e.key === 'Escape'){ hideResults(); }
   });
-
-  // Hide results if you click outside the searchbox
-  document.addEventListener('click', (e)=>{
-    if (!searchWrap.contains(e.target)) hideResults();
-  });
+  document.addEventListener('click', (e)=>{ if (!searchWrap.contains(e.target)) hideResults(); });
 
   function highlightResult(){
     Array.from(searchResults.querySelectorAll('.res')).forEach((el,i)=>{
@@ -1396,18 +1379,14 @@
 
     const premiumAccepted = hubs.filter(h => h.status === 'accepted');
     const premiumPlanned  = hubs.filter(h => h.status === 'open');
-    const acosta          = acostaHubs;
-
     const plannedCountsAsPremium = true;
-    const premiumSet = plannedCountsAsPremium
-      ? [...premiumAccepted, ...premiumPlanned]
-      : premiumAccepted;
+    const premiumSet = plannedCountsAsPremium ? [...premiumAccepted, ...premiumPlanned] : premiumAccepted;
 
     allStores.forEach(s=>{
       // Acosta within r
       const acostaWithin = [];
       let nearestA = null, bestA = Infinity;
-      for (const h of acosta){
+      for (const h of acostaHubs){
         const d = distMiles(s.lat, s.lng, h.coords[0], h.coords[1]);
         if (d <= r){
           const rec = { id:h.id, name:h.person || h.name || 'Acosta Rep', dist:d };
@@ -1428,7 +1407,6 @@
         }
       }
 
-      // attach details
       s.coveredByAcosta  = acostaWithin.map(x => x.name);
       s.coveredByPremium = premWithin.map(x => x.name);
       s.nearestAcosta    = nearestA || null;
@@ -1540,25 +1518,61 @@
       s.address    = o.address ?? o.Address ?? '';
       s.city       = o.city ?? o.City ?? '';
       s.state      = o.state ?? o.State ?? '';
-      s.coverageType = 'Uncovered'; // will be overwritten by recomputeCoverage()
+      s.coverageType = 'Uncovered'; // overwritten by recomputeCoverage()
       s.areaManager   = o.areaManager ?? o.AreaMgr ?? o['Area Mgr'] ?? o['Area Manager'] ?? '';
       s.regionalManager = o.regionalManager ?? o.RegMgr ?? o['Regional Manager'] ?? '';
       s.trainerCity  = o.trainerCity ?? o.Assigned_Premium ?? o['Trainer City'] ?? '';
-      s.lat = Number(o.lat ?? o.Lat ?? o.latitude ?? o.Latitude);
-      s.lng = Number(o.lng ?? o.Lon ?? o.Lng ?? o.longitude ?? o.Longitude);
+      s.lat = parseFloat(o.lat ?? o.Lat ?? o.latitude ?? o.Latitude);
+      s.lng = parseFloat(o.lng ?? o.Lon ?? o.Lng ?? o.longitude ?? o.Longitude);
       return s;
     }).filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
   }
 
-  // ---------- Search badge logic ----------
-  searchBox.addEventListener('focus', ()=> searchBadge.classList.add('show'));
-  searchBox.addEventListener('blur', ()=>{
-    searchBadge.classList.remove('show');
-    setTimeout(hideResults, 120); // let result clicks fire first
-  });
+  // ---------- Robust Acosta loader ----------
+  function toAcostaHubs(json){
+    if (!Array.isArray(json)) return [];
+    const pick = (obj, keys) => {
+      for (const k of keys){ if (obj[k] !== undefined && obj[k] !== null && obj[k] !== '') return obj[k]; }
+      return null;
+    };
+    const hubs = [];
+    for (const r of json){
+      // Latitude candidates (ArcGIS often uses Y), longitude candidates (ArcGIS often uses X)
+      const latRaw = pick(r, ['Latitude','latitude','Lat','lat','Y','y']);
+      const lngRaw = pick(r, ['Longitude','longitude','Lon','lon','Lng','lng','X','x']);
+      const lat = parseFloat(latRaw);
+      const lng = parseFloat(lngRaw);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
+      // Name candidates (fall back to First + Last)
+      let name = pick(r, ['RepName','Name','FullName','Full Name','Trainer','Rep','Rep_Name','Rep Name']) || '';
+      const first = pick(r, ['FirstName','First Name','First']);
+      const last  = pick(r,  ['LastName','Last Name','Last']);
+      if (!name && (first || last)) name = [first,last].filter(Boolean).join(' ');
+      if (!name) name = 'Acosta Rep';
+
+      // City/State (optional, used for tooltip)
+      const city  = pick(r, ['City','RepCity','TrainerCity','AddressCity','CityName']);
+      const state = pick(r, ['State','ST','StateAbbr','StateCode']);
+
+      hubs.push({
+        id: 'ac_' + slug(name + '_' + (city||'') + '_' + (state||'')) + '_' + lat.toFixed(4) + '_' + lng.toFixed(4),
+        name: name,
+        fullName: city || state ? `${name} — ${city||''}${city&&state?', ':''}${state||''}` : name,
+        coords: [lat, lng],
+        status: 'acosta',
+        person: name
+      });
+    }
+    return hubs;
+  }
 
   // ---------- Busy ----------
   function showBusy(v){ busy.hidden = !v; }
+
+  // ---------- Little helpers ----------
+  function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function slug(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
 
   // ---------- Final kickers ----------
   renderHubs();
