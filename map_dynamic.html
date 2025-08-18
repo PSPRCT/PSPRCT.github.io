@@ -61,7 +61,7 @@
   .range{display:flex;align-items:center;gap:8px;white-space:nowrap}
   .range small{color:var(--muted)}
 
-  /* Chips / presets */
+  /* Chips (kept only Uncovered preset per request) */
   .pillbar{display:flex;gap:6px;flex-wrap:wrap;padding:6px 10px}
   .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid #d0d7de;border-radius:999px;padding:6px 10px;background:var(--panel);color:var(--fg)}
   body.dark .pill{border-color:var(--ring)}
@@ -118,21 +118,18 @@
   .sandbox h4{margin:0 0 6px 0;font-size:13px}
   .sandbox small{color:var(--muted)}
 
-  /* Export menu */
   .dropdown-menu{
     position:absolute;right:0;top:calc(100% + 4px);
     background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:6px;z-index:5;
     max-height:70vh;overflow:auto;box-sizing:border-box;display:none
   }
 
-  /* Busy mask */
   .busy{position:fixed;inset:0;background:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;z-index:9999}
   body.dark .busy{background:rgba(0,0,0,.35)}
   .busy[hidden]{display:none}
   .spin{width:36px;height:36px;border-radius:50%;border:4px solid rgba(0,0,0,.15);border-top-color:var(--blue);animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
 
-  /* Clusters & hubs */
   .marker-cluster.marker-pa div{background:var(--pa);border:2px solid #fff}
   .marker-cluster.marker-p  div{background:var(--p); border:2px solid #fff}
   .marker-cluster.marker-a  div{background:var(--a); border:2px solid #fff}
@@ -142,7 +139,6 @@
   .hub.open{background:#9ea3a8}
   .hl{width:22px;height:22px;border-radius:50%;border:2px solid #111;background:rgba(0,0,0,.05);box-shadow:0 0 0 1px rgba(0,0,0,.25)}
 
-  /* Responsive filters */
   @media (max-width: 1100px){ .filters{grid-template-columns:repeat(2,minmax(220px,1fr));} }
   @media (max-width: 640px){ .filters{grid-template-columns:1fr;} }
 </style>
@@ -176,9 +172,9 @@
   <button id="locateBtn" class="btn" type="button" title="Locate me">Locate me</button>
 
   <div class="dropdown" id="exportDrop" style="position:relative">
-    <button class="btn" type="button" title="Exports respect 'Only stores in view' toggle">Export ▾</button>
+    <button class="btn" type="button">Export ▾</button>
     <div class="dropdown-menu">
-      <button id="exportStores" class="btn" type="button" style="display:block;width:100%;margin:4px 0">Export stores (CSV)</button>
+      <button id="exportStores" class="btn" type="button" style="display:block;width:100%;margin:4px 0">Export filtered stores (CSV)</button>
       <button id="exportHubs" class="btn" type="button" style="display:block;width:100%;margin:4px 0">Export visible hubs (CSV)</button>
       <button id="exportKpis" class="btn" type="button" style="display:block;width:100%;margin:4px 0">Export KPIs summary (CSV)</button>
       <button id="exportOverlap" class="btn" type="button" style="display:block;width:100%;margin:4px 0">Export overlap stores (CSV)</button>
@@ -186,19 +182,10 @@
   </div>
 </div>
 
-<!-- Chips / presets -->
+<!-- Chips (only Uncovered preset kept) -->
 <div class="pillbar">
-  <button id="chipUncovered" class="pill" type="button" title="Toggle uncovered-only">
-    <span class="dot" style="background:var(--u)"></span> Uncovered only
-  </button>
-  <label class="pill" title="Only stores currently visible on the map">
-    <input id="onlyInView" type="checkbox" /> Only stores in view
-  </label>
-  <button id="presetUncov" class="pill" type="button" title="Uncovered + In-view + Rings + Heatmap">
-    🎯 Preset: Uncovered focus
-  </button>
-  <button id="presetHubs" class="pill" type="button" title="All coverage + Rings on + show both hubs + no in-view limit">
-    🧭 Preset: Hubs focus
+  <button id="presetUncov" class="pill" type="button" title="Uncovered + Rings + Heatmap">
+    <span class="dot" style="background:var(--u)"></span> Preset: Uncovered focus
   </button>
 </div>
 
@@ -284,7 +271,7 @@
     <div class="sp-body">
       <div id="spMeta" class="sp-meta" style="font-size:13px"></div>
       <div class="sp-actions">
-        <button id="spZoom" class="btn" type="button">Zoom to radius</button>
+        <button id="spZoom" class="btn" type="button" title="Fit map to this hub's radius">Zoom to radius</button>
         <button id="spExport" class="btn" type="button">Export list (CSV)</button>
       </div>
       <div id="spCounts" class="sp-counts"></div>
@@ -313,7 +300,7 @@
   };
   const DEFAULT_RADIUS = 75;
   const POPUP_PAD = [30, 30];
-  const LS_KEY = 'prt_state_v3';
+  const LS_KEY = 'prt_state_v4';
 
   const hubs = [
     { id:"belle_vernon_pa", name:"Belle Vernon, PA (Open)", coords:[40.12507,-79.8664], status:"open", person:null },
@@ -330,8 +317,7 @@
 
   // ---------- State ----------
   let allStores = [];
-  let filteredStores = [];   // filters only
-  let displayedStores = [];  // respects "Only in view"
+  let filteredStores = [];
   let lastHubsShown = [];
   const markerByStore = new Map();
   const targetLayer = L.layerGroup();
@@ -346,20 +332,26 @@
   let geoMarker=null, geoCircle=null;
 
   // side panel state
-  let spHub = null;          // {hub}
-  let spRows = [];           // [{store,dist}]
-  let spFilter = '';         // search filter in panel
+  let spHub = null;
+  let spRows = [];
+  let spFilter = '';
 
-  const debouncedRun = (()=>{ let t; return ()=>{ clearTimeout(t); t=setTimeout(runFilter,120); }; })();
+  // tighter debounce
+  const debouncedRun = (()=>{ let t; return ()=>{ clearTimeout(t); t=setTimeout(runFilter,90); }; })();
 
   // ---------- Map ----------
   const map = L.map('map', { zoomControl:true, inertia:true }).setView([39.5,-98.35],5);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
+
+  // chunked loading for speed
   const markers = L.markerClusterGroup({
     disableClusteringAtZoom: 12,
     spiderfyOnMaxZoom:false,
     maxClusterRadius: z => z >= 9 ? 50 : 70,
-    iconCreateFunction: clusterIconByDominantCoverage
+    iconCreateFunction: clusterIconByDominantCoverage,
+    chunkedLoading: true,
+    chunkInterval: 50,
+    chunkDelay: 25
   });
   map.addLayer(markers);
   targetLayer.addTo(map);
@@ -368,8 +360,7 @@
 
   map.on('moveend zoomend', ()=>{
     updateInViewCount();
-    maybeReapplyInView();
-    if (id('tgHeat').checked) updateHeat();
+    if (id('tgHeat').checked) requestIdleCallback?.(updateHeat) ?? updateHeat();
     saveState();
   });
 
@@ -391,13 +382,8 @@
   const amFilter  = id('amFilter');  const amSearch  = id('amSearch');
   const hubFilter = id('hubFilter'); const hubSearch = id('hubSearch');
 
-  const chipUncovered = id('chipUncovered');
-  const onlyInView = id('onlyInView');
   const presetUncov = id('presetUncov');
-  const presetHubs  = id('presetHubs');
-
-  const darkBtn = id('darkBtn');
-  const locateBtn = id('locateBtn');
+  const darkBtn = id('darkBtn'); const locateBtn = id('locateBtn');
 
   on('input', radius,   ()=>{ radiusLbl.textContent = radius.value; debouncedRun(); updateRings(); if (tgOverlap.checked) drawOverlap(); if (sandboxMarker) refreshSandbox(); saveState(); });
   on('change', showStaffed, ()=>{ debouncedRun(); saveState(); });
@@ -413,34 +399,11 @@
   on('change', amFilter,  ()=>{ cascadeHubs(); debouncedRun(); saveState(); });
   on('change', hubFilter, ()=>{ debouncedRun(); saveState(); });
 
-  chipUncovered.addEventListener('click', ()=>{
-    const active = chipUncovered.classList.toggle('active');
-    setMulti(covFilter, active ? ['Uncovered'] : ['All']);
-    runFilter(); saveState();
-  });
-  onlyInView.addEventListener('change', ()=>{ maybeReapplyInView(); updateInViewCount(); if (tgHeat.checked) updateHeat(); saveState(); });
-
   presetUncov.addEventListener('click', ()=>{
-    chipUncovered.classList.add('active');
     setMulti(covFilter, ['Uncovered']);
-    onlyInView.checked = true;
     id('tgRings').checked = true;
     id('tgHeat').checked  = true;
-    runFilter();
-    updateRings(); updateHeat();
-    fitToResults();
-    saveState();
-  });
-  presetHubs.addEventListener('click', ()=>{
-    chipUncovered.classList.remove('active');
-    setMulti(covFilter, ['All']);
-    showOpen.checked = true; showStaffed.checked = true;
-    onlyInView.checked = false;
-    id('tgRings').checked = true;
-    id('tgHeat').checked  = false;
-    runFilter();
-    updateRings(); clearHeat();
-    fitToResults(); saveState();
+    runFilter(); updateRings(); updateHeat(); fitToResults(); saveState();
   });
 
   id('fitBtn').onclick = ()=>{ fitToResults(); saveState(); };
@@ -458,10 +421,10 @@
     }
   };
   on('click', document.body, (e)=>{ if (!exportDrop.contains(e.target)) menu.style.display='none'; }, true);
-  id('exportStores').onclick       = ()=> exportStoresCsv();
-  id('exportHubs').onclick         = exportHubsCsv;
-  id('exportKpis').onclick         = exportKpisCsv;
-  id('exportOverlap').onclick      = exportOverlapCsv;
+  id('exportStores').onclick  = ()=> exportStoresCsv();
+  id('exportHubs').onclick    = exportHubsCsv;
+  id('exportKpis').onclick    = exportKpisCsv;
+  id('exportOverlap').onclick = exportOverlapCsv;
 
   const k = { pa:id('k_pa'), p:id('k_p'), a:id('k_a'), u:id('k_u'), total:id('k_total'), staffed:id('k_staffed'), open:id('k_open'), inView:id('inView') };
 
@@ -501,11 +464,11 @@
   spClose.onclick = ()=> hideSidepanel();
   spSearch.addEventListener('input', ()=>{ spFilter = spSearch.value.trim().toLowerCase(); renderSidepanelList(); });
   spExport.onclick = ()=> exportSidepanelCsv();
-  spZoom.onclick = ()=> zoomHubRadius();
+  spZoom.onclick = ()=> zoomHubRadius();       // fixed: now always fits to the ring bounds
   spPinBtn.onclick = ()=> togglePinFromPanel();
 
   // ---------- Load data ----------
-  showBusy(true); let spinnerFailSafe = setTimeout(()=>showBusy(false), 8000);
+  showBusy(true); let spinnerFailSafe = setTimeout(()=>showBusy(false), 7000);
   try {
     const url = './store_data.json?v=' + Date.now();
     STATUS.textContent = `Loading ${url} …`;
@@ -690,60 +653,55 @@
     const selAM  = selected(amFilter);
     const selHubNames = selected(hubFilter, true);
 
+    // filter stores
     filteredStores = allStores.filter(s=>{
       if (!(selCov.includes('All') || selCov.includes(s.coverageType))) return false;
       if (!(selRM.includes('All') || selRM.includes(s.regionalManager))) return false;
       if (!(selAM.includes('All') || selAM.includes(s.areaManager))) return false;
+
       if (selHubNames.length){
         const includeStaffed = showStaffed.checked;
         const includeOpen    = showOpen.checked;
         const r = Number(radius.value)||DEFAULT_RADIUS;
-        let near = false;
         for (const h of hubs){
           const visible = (h.status==='accepted' ? includeStaffed : includeOpen);
           if (!visible) continue;
           if (!selHubNames.includes(h.name)) continue;
-          if (distMiles(s.lat,s.lng,h.coords[0],h.coords[1]) <= r){ near=true; break; }
+          if (distMiles(s.lat,s.lng,h.coords[0],h.coords[1]) <= r){ return true; }
         }
-        if (!near) return false;
+        return false;
       }
       return true;
     });
 
-    applyDisplaySet();
+    renderStores(filteredStores);
     refreshHubs();
     updateKpis();
-    if (tgHeat.checked) updateHeat(); else clearHeat();
+    if (tgHeat.checked) requestIdleCallback?.(updateHeat) ?? updateHeat(); else clearHeat();
     updateRings();
     if (tgOverlap.checked) drawOverlap(); else highlightLayer.clearLayers();
 
-    // if a hub panel is open, refresh it to reflect filters/radius changes
+    // keep panel in sync
     if (spHub) openSidepanel(spHub);
   }
-
-  function applyDisplaySet(){
-    if (onlyInView.checked){
-      const b = map.getBounds();
-      displayedStores = filteredStores.filter(s => b.contains([s.lat,s.lng]));
-    } else {
-      displayedStores = filteredStores.slice();
-    }
-    renderStores(displayedStores);
-  }
-
-  function maybeReapplyInView(){ if (onlyInView.checked) applyDisplaySet(); }
 
   function renderStores(list){
     markers.clearLayers();
     markerByStore.clear();
+
+    // add in a single chunked batch for speed; lazy popup creation
     list.forEach(s=>{
       const color = COLORS[s.coverageType] || '#888';
       const m = L.circleMarker([s.lat,s.lng],{radius:6,color,fillColor:color,fillOpacity:.9,weight:1});
-      m.bindPopup(storePopupHTML(s), { autoPan:true, autoPanPadding: POPUP_PAD });
       m.coverageType = s.coverageType;
+      m.on('click', function(){
+        // build popup lazily
+        this.bindPopup(storePopupHTML(s), { autoPan:true, autoPanPadding: POPUP_PAD }).openPopup();
+      });
       markers.addLayer(m);
       markerByStore.set(s.storeNumberStr, m);
     });
+
     updateInViewCount();
   }
 
@@ -758,7 +716,7 @@
     hubs.forEach(h=>{
       const vis = (h.status==='accepted' ? includeStaffed : includeOpen);
       if (!vis) return;
-      const covered = displayedStores.filter(s => distMiles(s.lat,s.lng,h.coords[0],h.coords[1]) <= r);
+      const covered = filteredStores.filter(s => distMiles(s.lat,s.lng,h.coords[0],h.coords[1]) <= r);
 
       const marker = L.marker(h.coords,{icon:hubIcon(h), title:h.name}).addTo(map);
       marker.bindTooltip(h.name, { direction:'top', offset:[0,-12], opacity:0.9 });
@@ -779,9 +737,8 @@
   function openSidepanel(hub){
     spHub = hub;
     const r = Number(radius.value)||DEFAULT_RADIUS;
-    const src = filteredStores; // respect filters, not "in-view" limitation so you see full coverage for that hub
     const rows = [];
-    src.forEach(s=>{
+    filteredStores.forEach(s=>{
       const d = distMiles(s.lat,s.lng,hub.coords[0],hub.coords[1]);
       if (d<=r) rows.push({ store:s, dist:d });
     });
@@ -790,14 +747,12 @@
     spFilter = '';
     spSearch.value = '';
 
-    // header
     spTitle.textContent = hub.name;
     const statusHTML = hub.status==='accepted'
       ? `<span style="color:${getCSS('--violet')};font-weight:700">STAFFED</span>`
       : `<span style="color:${getCSS('--gray')};font-weight:700">OPEN</span>`;
     spMeta.innerHTML = `${statusHTML} • Radius <b>${r}</b> mi • <b>${rows.length}</b> stores`;
 
-    // counts
     const c = { "Premium + Acosta":0,"Premium Only":0,"Acosta Only":0,"Uncovered":0 };
     rows.forEach(x => c[x.store.coverageType] = (c[x.store.coverageType]||0)+1);
     spCounts.innerHTML = `
@@ -807,13 +762,11 @@
       <div class="sp-chip"><span class="dot" style="background:${COLORS["Uncovered"]}"></span> Uncovered: <b>${c["Uncovered"]||0}</b></div>
     `;
 
-    // pin button label
     spPinBtn.textContent = pinnedHubs.includes(hub) ? 'Unpin' : 'Pin';
 
     renderSidepanelList();
     sidepanel.classList.add('show');
 
-    // also drop a faint ring on map for context (using ringLayer via updateRings)
     if (!id('tgRings').checked){ id('tgRings').checked = true; updateRings(); }
   }
 
@@ -851,9 +804,10 @@
   }
   function zoomHubRadius(){
     if (!spHub) return;
-    const r = (Number(radius.value)||DEFAULT_RADIUS) * 1609.34;
-    const circle = L.circle(spHub.coords, { radius:r });
-    map.fitBounds(circle.getBounds().pad(0.15));
+    const rMeters = (Number(radius.value)||DEFAULT_RADIUS) * 1609.34;
+    const circle = L.circle(spHub.coords, { radius:rMeters });
+    const b = circle.getBounds();
+    map.fitBounds(b.pad(0.15), { animate:true });   // <-- FIX: reliably fits to the computed circle bounds
   }
   function togglePinFromPanel(){
     if (!spHub) return;
@@ -866,7 +820,7 @@
   // ---------- Heat / rings / overlap / compare ----------
   function updateHeat(){
     clearHeat();
-    const points = displayedStores.map(s => [s.lat, s.lng, s.coverageType==='Uncovered'?1.5:0.8]);
+    const points = filteredStores.map(s => [s.lat, s.lng, s.coverageType==='Uncovered'?1.5:0.8]);
     if (!points.length) return;
     heatLayerHolder.layer = L.heatLayer(points, { radius:20, blur:18, maxZoom:11 }).addTo(map);
   }
@@ -881,10 +835,10 @@
 
   function drawOverlap(){
     highlightLayer.clearLayers();
-    if (!displayedStores.length) return;
+    if (!filteredStores.length) return;
     const r = Number(radius.value)||DEFAULT_RADIUS;
     const visH = lastHubsShown; if (!visH.length) return;
-    displayedStores.forEach(s=>{
+    filteredStores.forEach(s=>{
       let count=0;
       visH.forEach(h=>{ if (distMiles(s.lat,s.lng,h.coords[0],h.coords[1])<=r) count++; });
       if (count>=2){
@@ -899,7 +853,7 @@
     if (!pinnedHubs.length) return;
     const r = Number(radius.value)||DEFAULT_RADIUS;
     const byStore = new Map();
-    displayedStores.forEach(s=>{
+    filteredStores.forEach(s=>{
       let count=0;
       pinnedHubs.forEach(h=>{ if (distMiles(s.lat,s.lng,h.coords[0],h.coords[1])<=r) count++; });
       if (count>0) byStore.set(s,count);
@@ -912,31 +866,28 @@
   // ---------- KPIs / totals ----------
   function updateKpis(){
     const counts = { "Premium + Acosta":0,"Premium Only":0,"Acosta Only":0,"Uncovered":0 };
-    displayedStores.forEach(s => counts[s.coverageType] = (counts[s.coverageType]||0)+1);
+    filteredStores.forEach(s => counts[s.coverageType] = (counts[s.coverageType]||0)+1);
     k.pa.textContent = counts["Premium + Acosta"]||0;
     k.p.textContent  = counts["Premium Only"]||0;
     k.a.textContent  = counts["Acosta Only"]||0;
     k.u.textContent  = counts["Uncovered"]||0;
-    k.total.textContent = displayedStores.length;
+    k.total.textContent = filteredStores.length;
     const staffed = lastHubsShown.filter(h => h.status==='accepted').length;
     const open    = lastHubsShown.filter(h => h.status==='open').length;
     k.staffed.textContent = staffed; k.open.textContent = open;
-    updateInViewCount();
-  }
-  function updateInViewCount(){
-    const b = map.getBounds();
-    let n=0; filteredStores.forEach(s => { if (b.contains([s.lat,s.lng])) n++; });
+
+    // “In view” = stores intersecting current map viewport (info only)
+    const b = map.getBounds(); let n=0;
+    filteredStores.forEach(s => { if (b.contains([s.lat,s.lng])) n++; });
     k.inView.textContent = `In view: ${n}`;
   }
 
   // ---------- Fit / Reset ----------
-  function fitToResults(){ if (!displayedStores.length) return; const bounds = L.latLngBounds(displayedStores.map(s => [s.lat,s.lng])); map.fitBounds(bounds.pad(0.1)); }
+  function fitToResults(){ if (!filteredStores.length) return; const bounds = L.latLngBounds(filteredStores.map(s => [s.lat,s.lng])); map.fitBounds(bounds.pad(0.1)); }
   function resetAll(){
     showStaffed.checked = true; showOpen.checked = true;
     radius.value = DEFAULT_RADIUS; radiusLbl.textContent = DEFAULT_RADIUS;
     setAll(covFilter); setAll(rmFilter); setAll(amFilter);
-    chipUncovered.classList.remove('active');
-    onlyInView.checked = false;
     cascadeAM(); cascadeHubs();
     hubFilter.innerHTML = hubs.map(h=>`<option>${escape(h.name)}</option>`).join('');
     searchBox.value=''; searchBadge.classList.remove('show'); hideResults(); clearTarget();
@@ -944,18 +895,16 @@
     pinnedHubs=[]; tgCompare.checked=false; compareMode=false; tgOverlap.checked=false; tgRings.checked=false; tgHeat.checked=false;
     hideSidepanel();
     map.setView([39.5,-98.35],5);
-    applyDisplaySet();
   }
 
   // ---------- Exports ----------
   function exportStoresCsv(){
-    const useInView = onlyInView.checked;
-    const list = useInView ? displayedStores : filteredStores;
+    const list = filteredStores;
     if (!list.length){ alert('No stores to export.'); return; }
     const headers = ['Store Number','Store Name','Address','City','State','Coverage Type','Trainer City','Area Manager','Regional Manager','Lat','Lng'];
     const lines = [headers.join(',')];
     list.forEach(s=> lines.push(csv([s.storeNumberStr,s.storeName,s.address,s.city,s.state,s.coverageType,s.trainerCity,s.areaManager,s.regionalManager,s.lat,s.lng])));
-    download((useInView?'stores_in_view':'filtered_stores')+'.csv', "\uFEFF"+lines.join('\n'));
+    download('filtered_stores.csv', "\uFEFF"+lines.join('\n'));
   }
   function exportHubsCsv(){
     if (!lastHubsShown.length){ alert('No visible hubs.'); return; }
@@ -976,7 +925,7 @@
     const r = Number(radius.value)||DEFAULT_RADIUS;
     const visH = lastHubsShown; if (!visH.length){ alert('No hubs in view.'); return; }
     const rows = [['Store Number','Store Name','City','State','Coverage','Overlap Count']];
-    displayedStores.forEach(s=>{
+    filteredStores.forEach(s=>{
       let count=0; visH.forEach(h=>{ if (distMiles(s.lat,s.lng,h.coords[0],h.coords[1])<=r) count++; });
       if (count>=2) rows.push([s.storeNumberStr,s.storeName,s.city,s.state,s.coverageType,count]);
     });
@@ -1002,7 +951,7 @@
     return {
       radius: radius.value, showStaffed: showStaffed.checked, showOpen: showOpen.checked,
       cov: selected(covFilter), rm:selected(rmFilter), am:selected(amFilter), hubs:selected(hubFilter,true),
-      onlyInView: onlyInView.checked, heat: tgHeat.checked, rings: tgRings.checked, overlap: tgOverlap.checked, compare: tgCompare.checked,
+      heat: tgHeat.checked, rings: tgRings.checked, overlap: tgOverlap.checked, compare: tgCompare.checked,
       center: map.getCenter(), zoom: map.getZoom(), dark: document.body.classList.contains('dark')
     };
   }
@@ -1013,7 +962,6 @@
     setMulti(rmFilter, s.rm||['All']); cascadeAM();
     setMulti(amFilter, s.am||['All']); cascadeHubs();
     setMulti(hubFilter, s.hubs||[]);
-    onlyInView.checked=!!s.onlyInView;
     tgHeat.checked=!!s.heat; tgRings.checked=!!s.rings; tgOverlap.checked=!!s.overlap; tgCompare.checked=!!s.compare; compareMode=tgCompare.checked;
     map.setView(s.center||{lat:39.5,lng:-98.35}, s.zoom||5);
     document.body.classList.toggle('dark', !!s.dark);
@@ -1050,7 +998,7 @@
     const rmi = Number(id('sandboxR').value)||75;
     sandboxCircle.setLatLng(sandboxMarker.getLatLng()); sandboxCircle.setRadius(rmi*1609.34);
     const lat=sandboxMarker.getLatLng().lat, lng=sandboxMarker.getLatLng().lng;
-    const inRange = displayedStores.filter(s=>distMiles(lat,lng,s.lat,s.lng)<=rmi);
+    const inRange = filteredStores.filter(s=>distMiles(lat,lng,s.lat,s.lng)<=rmi);
     const p = { "Premium + Acosta":0,"Premium Only":0,"Acosta Only":0,"Uncovered":0 };
     inRange.forEach(s=>p[s.coverageType]=(p[s.coverageType]||0)+1);
     id('sandboxStats').innerHTML = `
