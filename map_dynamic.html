@@ -68,13 +68,16 @@
   .sp-list{flex:1;min-height:160px;border:1px solid var(--border);border-radius:8px;padding:0;display:flex;flex-direction:column;overflow:auto; box-shadow: inset 0 0 0 2px rgba(0,0,0,.02)}
   .sp-list input{margin:8px;border:1px solid var(--border);border-radius:8px;padding:6px 8px}
   .sp-rows{position:relative;height:0} /* height set dynamically */
-  .row{position:absolute;left:0;right:0;height:96px;display:flex;gap:8px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--border);cursor:pointer;background:var(--panel)}
-  .row:hover{background:#f6f8fa}
-  .row .num{min-width:62px;font-variant-numeric:tabular-nums;color:var(--muted)}
-  .row .cov{width:8px;height:8px;border-radius:50%}
-  .row .title{font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .row .addr{color:var(--muted);font-size:12px;line-height:1.25;white-space:normal;overflow:visible;text-overflow:clip}
-  .row.active{ background:#eef6ff; }
+/* Rows are a bit taller to allow 2 lines of address */
+.row{ position:absolute; left:0; right:0; height:78px; display:flex; gap:8px;
+      align-items:center; padding:8px 10px; border-bottom:1px solid var(--border);
+      cursor:pointer; background:var(--panel) }
+.row.active{ background:#eef6ff }
+.row .title{ font-weight:700; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.row .addr{ color:var(--muted); font-size:12px; line-height:1.2;
+           display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+           overflow:hidden; white-space:normal; }
+
 
 
   .floating{position:absolute;left:10px;top:10px;z-index:402;display:flex;gap:8px;flex-wrap:wrap}
@@ -357,7 +360,7 @@
   let resIndex = -1;
 
   let spHub = null; let spRows = []; let spFilter = ''; let spOnlyUncov=false;
-  const rowH = 64; // (A) taller row height for two-line clamp
+  const rowH = 78; // (A) taller row height for two-line clamp
 
   const debouncedRun = (()=>{ let t; return ()=>{ clearTimeout(t); t=setTimeout(runFilter,90); }; })();
 
@@ -1051,35 +1054,53 @@
     const start = Math.max(0, Math.floor(scrollTop / rowH) - 10);
     const end = Math.min(spRows.length, Math.ceil((scrollTop + viewH) / rowH) + 10);
     const frag = document.createDocumentFragment();
-    for(let i=start;i<end;i++){
-      const s = spRows[i];
-      const y = i * rowH;
-      const el = document.createElement('div');
-      el.className = 'row';
-      el.style.transform = `translateY(${y}px)`;
-      el.innerHTML = `
-        <div class="num">#${escape(s.storeNumberStr)}</div>
-        <div class="cov" style="background:${COLORS[s.coverageType]||'#999'}"></div>
-        <div style="flex:1;min-width:0">
-          <div class="title">${escape(s.storeName||'')}</div>
-          <div class="addr">${escape(s.address||'')}, ${escape(s.city||'')}, ${escape(s.state||'')}</div>
-        </div>
-        <div style="min-width:70px;text-align:right">${s._dist?.toFixed(1)??''} mi</div>
+    for (let i = start; i < end; i++){
+  const s = visStores[i];
+  const el = document.createElement('div');
+  el.className = 'row';
+  el.style.top = (i*rowH)+'px';
+
+  // NEW: build full address + tooltip
+  const fullAddr = `${s.address||''}, ${s.city||''}, ${s.state||''}`.replace(/\s+/g,' ').trim();
+  el.title = `#${s.storeNumberStr} — ${s.storeName||''}\n${fullAddr}`;
+
+  // NEW: replace your old innerHTML with this
+  el.innerHTML = `
+    <div class="num">#${escape(s.storeNumberStr)}</div>
+    <div class="cov" style="background:${COLORS[s.coverageType]||'#999'}"></div>
+    <div style="flex:1;min-width:0">
+      <div class="title">${escape(s.storeName||'')}</div>
+      <div class="addr">${escape(fullAddr)}</div>
+    </div>
+    <div style="min-width:70px;text-align:right">${s._dist?.toFixed(1)??''} mi</div>
+  `;
+
       `;
       el.title = `#${s.storeNumberStr} • ${s.storeName || ''}\n${(s.address||'')}, ${s.city||''}, ${s.state||''} • ${s._dist?.toFixed(1)??''} mi`;
 
       // click = zoom + popup
       // click = highlight row + zoom + popup
+// click = highlight row + zoom + popup
 el.addEventListener('click', ()=>{
-  // 1) clear highlight from any previously visible row elements
   Array.from(spRowsEl.children).forEach(c => c.classList.remove('active'));
-  // 2) mark this one active
   el.classList.add('active');
 
-  // 3) center the map and open the store popup
-  map.setView([s.lat,s.lng], 12, {animate:true, padding:POPUP_PAD});
-  openStorePopup(s);
+  map.setView([s.lat,s.lng], 12, { animate:true, padding:POPUP_PAD });
+
+  // ensure we open the *marker’s* popup when available
+  const m = markerByStore.get(s.storeNumberStr);
+  if (m) {
+    if (tgCluster.checked) {
+      markers.zoomToShowLayer(m, ()=> m.openPopup());
+    } else {
+      m.openPopup();
+    }
+  } else {
+    // fallback pin/popup if marker is temporarily not in the layer
+    showPinPopup([s.lat, s.lng], storePopupHTML(s));
+  }
 });
+
 
 // hover = highlight on map
 el.addEventListener('mouseenter', ()=> showHover(s.lat,s.lng));
@@ -1090,12 +1111,19 @@ spRowsEl.innerHTML = '';
 spRowsEl.appendChild(frag);
 
   }
-  function zoomHubRadius(){
-    if(!spHub) return;
-    const r=Number(radius.value)||DEFAULT_RADIUS;
-    const c = L.circle(spHub.coords,{radius:r*1609});
-    map.fitBounds(c.getBounds().pad(0.1));
-  }
+function zoomHubRadius(){
+  if(!spHub) return;
+  const rMi = Number(radius.value)||DEFAULT_RADIUS;
+  const bounds = L.circle(spHub.coords, { radius:rMi*1609 }).getBounds();
+  map.flyToBounds(bounds, {
+    paddingTopLeft: [ sidepanel.classList.contains('show') ? 380 : 10, 10 ], // avoid hiding under panel
+    paddingBottomRight: [10,10],
+    animate: true,
+    duration: 0.6,
+    maxZoom: 13      // prevents over-zoom when the radius is tiny
+  });
+}
+
   function togglePinFromPanel(){ if(spHub) pinHub(spHub); }
   function pinHub(h){
     if(!compareMode) return alert('Enable Compare to pin hubs.');
