@@ -562,8 +562,24 @@ try {
     r.Premium_Trainer ?? r.PremiumTrainer ?? r.name ?? r.Name ?? ''
   ).trim();
 
-  const getCity  = r => String(r.City  ?? r.city  ?? r.Hub_City  ?? '').trim();
-  const getState = r => String(r.State ?? r.state ?? r.Hub_State ?? '').trim();
+const getCity = r => String(
+  r.City ?? r.city ??
+  r.Hub_City ?? r['Hub City'] ??
+  r.ProposedCity ?? r['Proposed City'] ??
+  r.TargetCity ?? r['Target City'] ??
+  r.CandidateCity ?? r['Candidate City'] ??
+  r.HubCity ?? ''
+).trim();
+
+const getState = r => String(
+  r.State ?? r.state ??
+  r.Hub_State ?? r['Hub State'] ??
+  r.ProposedState ?? r['Proposed State'] ??
+  r.TargetState ?? r['Target State'] ??
+  r.CandidateState ?? r['Candidate State'] ??
+  r.HubState ?? ''
+).trim();
+
 
   const getCoords = r => {
     const lat = Number(r.Latitude  ?? r.latitude  ?? r.lat ?? r.Lat ?? r.lat_dd ?? r.Latitude__c);
@@ -591,30 +607,39 @@ try {
     proposed:           'Proposed',
     open:               'Open'
   }[sub] || 'Pending');
+const toHub = r => {
+  const coords = getCoords(r);
+  if (!coords) return null;
+  const [lat, lng] = coords;
 
-  const toHub = r => {
-    const coords = getCoords(r);
-    if (!coords) return null;
-    const [lat, lng] = coords;
-    const city = getCity(r), state = getState(r);
-    const nm   = getName(r);
+  const city  = getCity(r);
+  const state = getState(r);
+  const nm    = getName(r);
 
-    const { status, statusSub } = classify(r);
-    const statusLabel = pretty(statusSub);
-    const trainerBit = nm ? ` — ${nm}` : '';
-    const label = `${city}${state ? `, ${state}` : ''} (${statusLabel}${trainerBit})`;
+  const { status, statusSub } = classify(r);
+  const statusLabel = pretty(statusSub);
+  const trainerBit  = nm ? ` — ${nm}` : '';
 
-    return {
-      id: `${status[0]}_${slug(`${city}-${state}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
-      name: nm || 'Proposed',
-      label,
-      fullName: label,
-      coords: [lat, lng],
-      status,
-      statusSub,
-      statusLabel
-    };
+  // prefer "City, ST", else whichever we have (city OR state)
+  const place = city && state ? `${city}, ${state}` : (city || state || '');
+
+  // use `place` so proposed hubs show the city when available
+  const label = `${place} (${statusLabel}${trainerBit})`;
+
+  return {
+    id: `${status[0]}_${slug(`${city||''}-${state||''}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
+    name: nm || 'Proposed',
+    label,
+    fullName: label,
+    coords: [lat, lng],
+    status,
+    statusSub,
+    statusLabel,
+    city,
+    state
   };
+};
+
 
   const hubs = rows.map(toHub).filter(Boolean);
 
