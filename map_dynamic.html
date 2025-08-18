@@ -765,6 +765,35 @@
 
     function toggleDropdown(menu){ menu.style.display=menu.style.display==='block'?'none':'block'; }
     function setMulti(sel,arr){ Array.from(sel.options).forEach(o=>{o.selected=arr.includes(o.value);}); }
+// Filter the <select multiple> options by a small search box above it
+function filterSelect(selectEl, q){
+  const query = (q||'').toLowerCase();
+  Array.from(selectEl.options).forEach(opt=>{
+    if (opt.value === 'All') { opt.hidden = false; return; }
+    const txt = (opt.textContent||'').toLowerCase();
+    opt.hidden = query && !txt.includes(query);
+  });
+}
+
+// MarkerCluster icon showing dominant coverage color and child count
+function clusterIconByDominantCoverage(cluster){
+  const children = cluster.getAllChildMarkers();
+  const counts = { 'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0 };
+  children.forEach(m=>{
+    const s = m.store || (m._popup? m._popup._source.store : null);
+    if(!s) return;
+    counts[s.coverageType] = (counts[s.coverageType]||0) + 1;
+  });
+  // pick the key with max count
+  let dom = 'Uncovered', max = -1;
+  for(const k in counts){ if(counts[k] > max){ max = counts[k]; dom = k; } }
+  const cls =
+    dom === 'Premium + Acosta' ? 'marker-pa' :
+    dom === 'Premium Only'     ? 'marker-p'  :
+    dom === 'Acosta Only'      ? 'marker-a'  : 'marker-u';
+  const html = `<div><span>${children.length}</span></div>`;
+  return L.divIcon({ html, className:`marker-cluster ${cls}`, iconSize:[40,40] });
+}
 
         // ---------- Data normalization ----------
     function normalizeStores(raw){
@@ -1009,37 +1038,38 @@
 
     // ---------- Printing ----------
     function printSidepanelList(){
-      if(!spHub){ alert('Open a hub first.'); return; }
-      const list = getStoresForHub(spHub);
-      const win = window.open('', '_blank');
-      const rows = list.map(s=>`
-        <tr>
-          <td>${escape(s.storeNumberStr)}</td>
-          <td>${escape(s.storeName||'')}</td>
-          <td>${escape(s.address||'')}</td>
-          <td>${escape(s.city||'')}</td>
-          <td>${escape(s.state||'')}</td>
-          <td>${escape(s.coverageType||'')}</td>
-          <td style="text-align:right">${s._dist?.toFixed(1)??''}</td>
-        </tr>`).join('');
-      win.document.write(`
-        <html><head><title>${escape(spHub.name)} — Store List</title>
-        <style>
-          body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:16px}
-          table{border-collapse:collapse;width:100%}
-          th,td{border:1px solid #ccc;padding:6px 8px;font-size:12px}
-          th{background:#f6f8fa;text-align:left}
-        </style>
-        </head><body>
-        <h2>${escape(spHub.name)} — Stores within ${Number(radius.value)||DEFAULT_RADIUS} mi</h2>
-        <table>
-          <thead><tr><th>#</th><th>Name</th><th>Address</th><th>City</th><th>State</th><th>Coverage</th><th>Mi</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-        <script>window.print()</script>
-        </body></html>`);
-      win.document.close();
-    }
+  if(!spHub){ alert('Open a hub first.'); return; }
+  const list = getStoresForHub(spHub);
+  const win = window.open('', '_blank');
+  const rows = list.map(s=>`
+    <tr>
+      <td>${escape(s.storeNumberStr)}</td>
+      <td>${escape(s.storeName||'')}</td>
+      <td>${escape(s.address||'')}</td>
+      <td>${escape(s.city||'')}</td>
+      <td>${escape(s.state||'')}</td>
+      <td>${escape(s.coverageType||'')}</td>
+      <td style="text-align:right">${s._dist?.toFixed(1)??''}</td>
+    </tr>`).join('');
+  win.document.write(`
+    <html><head><title>${escape(spHub.name)} — Store List</title>
+    <style>
+      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:16px}
+      table{border-collapse:collapse;width:100%}
+      th,td{border:1px solid #ccc;padding:6px 8px;font-size:12px}
+      th{background:#f6f8fa;text-align:left}
+    </style>
+    </head><body>
+    <h2>${escape(spHub.name)} — Stores within ${Number(radius.value)||DEFAULT_RADIUS} mi</h2>
+    <table>
+      <thead><tr><th>#</th><th>Name</th><th>Address</th><th>City</th><th>State</th><th>Coverage</th><th>Mi</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <script>window.print()<\/script>
+    </body></html>`);
+  win.document.close();
+}
+
 
     // ---------- Views (save/restore) ----------
     function saveCurrentView(){
