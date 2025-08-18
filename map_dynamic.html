@@ -692,7 +692,7 @@ function openStorePopup(store){
   const padRight = sidepanel.classList.contains('show') ? 420 : 20;
   const panOpts = { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] };
 
-  // ✅ make sure a marker exists even if it wasn't in the filtered render
+  // ✅ make sure the marker exists & is in the active layer
   const m = ensureMarkerForStore(store);
 
   const panThenOpen = (latlng, marker) => {
@@ -700,12 +700,8 @@ function openStorePopup(store){
     const doOpen = () => {
       if (opened) return;
       opened = true;
-      if (marker) {
-        if (!marker.getPopup()) marker.bindPopup(storePopupHTML(store));
-        marker.openPopup();
-      } else {
-        showPinPopup(latlng, storePopupHTML(store));
-      }
+      if (!marker.getPopup()) marker.bindPopup(storePopupHTML(store));
+      marker.openPopup();
       map.off('moveend', doOpen);
     };
     map.once('moveend', doOpen);
@@ -713,11 +709,13 @@ function openStorePopup(store){
   };
 
   if (tgCluster.checked) {
+    // If clustered, let the plugin expand to reveal it
     markers.zoomToShowLayer(m, () => panThenOpen(m.getLatLng(), m));
   } else {
     panThenOpen(m.getLatLng(), m);
   }
 }
+
 
 
   function showPinPopup(latlng, html){
@@ -992,6 +990,29 @@ spRows = rows;
       r.storeNumberStr.includes(q)
     );
   }
+    // Ensure a marker exists for a given store and add it to the correct layer.
+function ensureMarkerForStore(store){
+  let m = markerByStore.get(store.storeNumberStr);
+  if (!m){
+    m = L.circleMarker([store.lat, store.lng], {
+      radius: 5, weight: 1, fillOpacity: .9, color: '#fff',
+      fillColor: COLORS[store.coverageType] || '#999'
+    });
+    m.store = store;
+    m.bindPopup(storePopupHTML(store));
+    markerByStore.set(store.storeNumberStr, m);
+
+    if (tgCluster.checked) {
+      // cluster mode
+      markers.addLayer(m);
+    } else {
+      // plain mode
+      plainMarkers.addLayer(m);
+    }
+  }
+  return m;
+}
+
 
   spRowsEl.innerHTML = rows.map(r => `
     <div class="row" data-id="${r.storeNumberStr}">
