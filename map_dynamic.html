@@ -688,33 +688,28 @@ map.on('popupopen', (e)=>{
   }
 
 function openStorePopup(store){
-  const ll = L.latLng(store.lat, store.lng);
-  const padRight = sidepanel.classList.contains('show') ? 420 : 20;
-  const panOpts = { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] };
-
-  // ✅ make sure the marker exists & is in the active layer
   const m = ensureMarkerForStore(store);
-
-  const panThenOpen = (latlng, marker) => {
-    let opened = false;
-    const doOpen = () => {
-      if (opened) return;
-      opened = true;
-      if (!marker.getPopup()) marker.bindPopup(storePopupHTML(store));
-      marker.openPopup();
-      map.off('moveend', doOpen);
-    };
-    map.once('moveend', doOpen);
-    map.panInside(latlng, panOpts);
+  const padRight = sidepanel.classList.contains('show') ? 420 : 20;
+  const pan = () => map.panInside(m.getLatLng(), {
+    paddingTopLeft:[20,20], paddingBottomRight:[padRight,20]
+  });
+  const open = () => {
+    if (!m.getPopup()) m.bindPopup(storePopupHTML(store));
+    m.openPopup();
   };
 
   if (tgCluster.checked) {
-    // If clustered, let the plugin expand to reveal it
-    markers.zoomToShowLayer(m, () => panThenOpen(m.getLatLng(), m));
+    // Wait for the cluster to expand, then pan, then open on the next frame.
+    markers.zoomToShowLayer(m, () => {
+      pan();
+      requestAnimationFrame(() => requestAnimationFrame(open));
+    });
   } else {
-    panThenOpen(m.getLatLng(), m);
+    pan();
+    requestAnimationFrame(open);
   }
 }
+
 
 
 
@@ -725,19 +720,10 @@ function openStorePopup(store){
     p.openOn(map);
   }
 
-function computeCoveredByForAll(){
-  const r = Number(radius.value) || DEFAULT_RADIUS;
-  const staffed = hubs.filter(h => h.status === 'accepted');
-  const open    = hubs.filter(h => h.status === 'open');
-  allStores.forEach(s=>{
-    const inStaffed = staffed.some(h => distMiles(s.lat,s.lng,h.coords[0],h.coords[1]) <= r);
-    const inOpen    = open.some(h => distMiles(s.lat,s.lng,h.coords[0],h.coords[1]) <= r);
-    s.coveredBy = inStaffed && inOpen ? 'both' : inStaffed ? 'staffed' : inOpen ? 'open' : 'none';
-  });
-}
+
 
 function runFilter(){
-  computeCoveredByForAll();
+
   markerByStore.clear();
   if(tgCluster.checked){ markers.clearLayers(); } else { plainMarkers.clearLayers(); }
 
@@ -763,39 +749,7 @@ function runFilter(){
 }
 
 
-  function storeFilter(s){
-  // Respect Staffed/Open visibility for *stores*.
-  const allowed = new Set();
-  if (showStaffed.checked) allowed.add('staffed');
-  if (showOpen.checked)    allowed.add('open');
-
-  if (s.coveredBy === 'staffed' && !allowed.has('staffed')) return false;
-  if (s.coveredBy === 'open'    && !allowed.has('open'))    return false;
-  if (s.coveredBy === 'both'    && allowed.size === 0)      return false;
-
-  // Standard filters
-  const covVals = Array.from(covFilter.selectedOptions).map(o=>o.value);
-  if(!covVals.includes('All') && !covVals.includes(s.coverageType)) return false;
-  const rmVals = Array.from(rmFilter.selectedOptions).map(o=>o.value);
-  if(!rmVals.includes('All') && !rmVals.includes(s.regionalManager)) return false;
-  const amVals = Array.from(amFilter.selectedOptions).map(o=>o.value);
-  if(!amVals.includes('All') && !amVals.includes(s.areaManager)) return false;
-  const hubVals= Array.from(hubFilter.selectedOptions).map(o=>o.value);
-  if(hubVals.length && !hubVals.includes(s.trainerCity||'')) return false;
-
-  // "Within hubs" uses only currently visible hubs
-  if(tgWithin.checked){
-    const r = Number(radius.value) || DEFAULT_RADIUS;
-    let inside = false;
-    hubs.forEach(h=>{
-      if((h.status==='accepted'?showStaffed.checked:showOpen.checked)){
-        if(distMiles(s.lat,s.lng,h.coords[0],h.coords[1])<=r) inside=true;
-      }
-    });
-    if(!inside) return false;
-  }
-  return true;
-}
+  computeCoveredByForAll()
 
 
   function updateCounts(){
@@ -885,6 +839,22 @@ function runFilter(){
     const html = `<div><span>${total}</span></div>`;
     return L.divIcon({ html, className: `marker-cluster ${cls}`, iconSize: L.point(40, 40) });
   }
+  function ensureMarkerForStore(store){
+  let m = markerByStore.get(store.storeNumberStr);
+  if (!m){
+    m = L.circleMarker([store.lat, store.lng], {
+      radius: 5, weight: 1, fillOpacity: .9, color: '#fff',
+      fillColor: COLORS[store.coverageType] || '#999'
+    });
+    m.store = store;
+    m.bindPopup(storePopupHTML(store));
+    markerByStore.set(store.storeNumberStr, m);
+    if (tgCluster.checked) markers.addLayer(m);
+    else plainMarkers.addLayer(m);
+  }
+  return m;
+}
+
 
   // ---------- Hubs (render icons & interactions) ----------
   const hubLayer = L.layerGroup().addTo(map);
