@@ -530,38 +530,73 @@ try {
   const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
   const pJson = await pResp.json();
 
-  // Flatten possible shapes: array OR {confirmed, pending, open}
+  // Accept either a flat array or an object with buckets
   const rows = Array.isArray(pJson)
     ? pJson
-    : [...(pJson.confirmed || []), ...(pJson.pending || []), ...(pJson.open || [])];
+    : [
+        ...(pJson.confirmed || []),
+        ...(pJson.pending || []),
+        ...(pJson.open || []),
+        ...(pJson.recruit || []),
+        ...(pJson.cities || []),
+      ];
 
-  const statusOf = r => String(r.Status ?? r.status ?? '').toLowerCase();
-  const hasName  = r => String(r.RepName ?? r.name ?? '').trim().length > 0;
+  const statusText = r =>
+    [
+      r.Status, r.status, r.HubStatus, r.Hub_Status,
+      r.TrainerStatus, r.Trainer_Status,
+    ]
+      .map(x => String(x || '').toLowerCase())
+      .find(s => s) || '';
 
-  // Confirmed hubs = named Premium trainers
-  const confirmedRows = rows.filter(r => statusOf(r).includes('confirm') && hasName(r));
+  const getName = r =>
+    (String(
+      r.RepName ??
+      r.repName ??
+      r.TrainerName ??
+      r['Trainer Name'] ??
+      r.Premium_Trainer ??
+      r.PremiumTrainer ??
+      r.name ??
+      r.Name ??
+      ''
+    ).trim());
 
-  // Proposed city hubs = pending / open / recruiting (candidate or no candidate)
-  const pendingRows   = rows.filter(r => /(pend|open|recruit)/.test(statusOf(r)));
+  const getCity  = r => String(r.City  ?? r.city  ?? r.Hub_City  ?? '').trim();
+  const getState = r => String(r.State ?? r.state ?? r.Hub_State ?? '').trim();
+
+  const getCoords = r => {
+    const lat = Number(r.Latitude  ?? r.latitude  ?? r.lat ?? r.Lat ?? r.Latitude__c ?? r.lat_dd);
+    const lng = Number(r.Longitude ?? r.longitude ?? r.lng ?? r.Lon ?? r.Longitude__c ?? r.lng_dd);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null;
+  };
+
+  // What counts as confirmed vs proposed (pending/open/recruiting)
+  const CONFIRM_RE = /(confirm|active|live|assigned|hired|onboard|approved|current)/;
+  const PENDING_RE = /(pend|open|recruit|sourc|offer|interview|pipeline|candidate|tbd|propos|plan)/;
 
   const toHub = (r, status) => {
-    const lat = Number(r.Latitude ?? r.latitude ?? r.lat);
-    const lng = Number(r.Longitude ?? r.longitude ?? r.lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-    const name  = (String(r.RepName ?? r.name ?? '').trim()) || 'Trainer';
-    const city  = String(r.City ?? '').trim();
-    const state = String(r.State ?? '').trim();
+    const coords = getCoords(r);
+    if (!coords) return null;
+    const [lat, lng] = coords;
+    const nm = getName(r) || (status === 'pending' ? 'Proposed City' : 'Trainer');
+    const city = getCity(r), state = getState(r);
     return {
-      id: status[0] + '_' + slug(`${name}-${city}-${state}`),
-      name,
-      fullName: `${name} — ${city}, ${state}`,
+      id: `${status[0]}_${slug(`${nm}-${city}-${state}-${lat.toFixed(3)}-${lng.toFixed(3)}`)}`,
+      name: nm,
+      fullName: `${nm} — ${city}${state ? `, ${state}` : ''}`,
       coords: [lat, lng],
-      status, // 'confirmed' or 'pending'
+      status, // 'confirmed' | 'pending'
     };
   };
 
+  const confirmedRows = rows.filter(r => CONFIRM_RE.test(statusText(r)) && getName(r));
+  const pendingRows   = rows.filter(r => PENDING_RE.test(statusText(r)));
+
   premiumConfirmed = confirmedRows.map(r => toHub(r, 'confirmed')).filter(Boolean);
   premiumPending   = pendingRows.map(r   => toHub(r, 'pending')).filter(Boolean);
+
+  console.log('Premium hubs parsed:', { confirmed: premiumConfirmed.length, pending: premiumPending.length });
 } catch (e) {
   console.warn('Premium file missing/invalid', e);
   premiumConfirmed = [];
