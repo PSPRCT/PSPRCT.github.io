@@ -453,6 +453,23 @@ hubLayer.addTo(map);
   const presetUncov = id('presetUncov'); const presetHubs = id('presetHubs');
   const activeChips = id('activeChips');
 
+  showStaffed.onchange = handleHubVisibilityChange;
+showOpen.onchange    = handleHubVisibilityChange;
+
+function handleHubVisibilityChange(){
+  renderHubs();          // redraw hub markers
+  updateRings();         // redraw hub circles
+  if (tgOverlap.checked) drawOverlap();  // recompute overlap highlights
+  if (tgWithin.checked){ // “Within hubs” depends on visible hubs
+    runFilter();
+    fitToResults();
+  }
+  // close the side panel if its hub is now hidden
+  if (spHub && !visibleHubs().some(h => h.id === spHub.id)) hideSidepanel();
+
+  saveState();
+}
+
   on('input', radius,   ()=>{ radiusLbl.textContent = radius.value; debouncedRun(); updateRings(); if (tgOverlap.checked) drawOverlap(); if (sandboxMarker) refreshSandbox(); saveState(); if (spHub) openSidepanel(spHub); });
 
   on('input', covSearch, ()=> filterSelect(covFilter, covSearch.value));
@@ -1008,39 +1025,7 @@ function renderHubs(){
 }
 
 
-    // sort by store #
-    list.sort((a,b)=> (a.storeNumberStr||'').localeCompare(b.storeNumberStr||''));
-
-    // counts
-    spCounts.innerHTML = `
-      <span class="sp-chip">In list: <b>${list.length}</b></span>
-      ${spOnlyUncov?'<span class="sp-chip">Uncovered only</span>':''}
-    `;
-
-    // rows
-    spRowsEl.innerHTML = list.map(s => `
-      <div class="row" data-id="${escape(s.storeNumberStr)}" title="Zoom to store">
-        <div class="num">#${escape(s.storeNumberStr)}</div>
-        <div class="text">
-          <div class="title">${escape(s.storeName||'')}</div>
-          <div class="addr">${escape(s.address||'')} · ${escape(s.city||'')}, ${escape(s.state||'')}</div>
-        </div>
-        <div class="kind">${escape(s.coverageType||'')}</div>
-      </div>
-    `).join('');
-
-    // attach handlers
-    Array.from(spRowsEl.querySelectorAll('.row')).forEach(el=>{
-      el.addEventListener('click', ()=>{
-        const idd = el.getAttribute('data-id');
-        const s = spRows.find(x => x.storeNumberStr === idd);
-        if (s) openStorePopup(s);
-        Array.from(spRowsEl.querySelectorAll('.row')).forEach(e=>e.classList.remove('active'));
-        el.classList.add('active');
-      });
-    });
-
-    if (rebuild) renderSidepanelMeta();
+    
   }
 
   function storesWithin(center, rmi){
