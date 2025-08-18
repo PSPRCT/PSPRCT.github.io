@@ -358,39 +358,46 @@
   ];
 
   let allStores = [];
-  let filteredStores = [];
-  const markerByStore = new Map();
-  const targetLayer = L.layerGroup();
-  const ringLayer   = L.layerGroup();
-  const highlightLayer = L.layerGroup();
-  const heatLayerHolder = { layer:null };
-  let compareMode = false;
-  let pinnedHubs = [];
-  let targetPin = null;
-  let searchIdx = [];
-  let resIndex = -1;
+let filteredStores = [];
+const markerByStore = new Map();
 
-  let spHub = null; let spRows = []; let spFilter = ''; let spOnlyUncov=false;
+const targetLayer    = L.layerGroup();
+const ringLayer      = L.layerGroup();
+const highlightLayer = L.layerGroup();
+const hubLayer       = L.layerGroup();   // <-- create early so it's initialized
+const heatLayerHolder = { layer: null };
 
-  const debouncedRun = (()=>{ let t; return ()=>{ clearTimeout(t); t=setTimeout(runFilter,90); }; })();
+let compareMode = false;
+let pinnedHubs = [];
+let targetPin = null;
+let searchIdx = [];
+let resIndex = -1;
 
-  const map = L.map('map', { zoomControl:true, inertia:true }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
+let spHub = null; let spRows = []; let spFilter = ''; let spOnlyUncov = false;
 
-  const markers = L.markerClusterGroup({
-    disableClusteringAtZoom: 12,
-    spiderfyOnMaxZoom:false,
-    maxClusterRadius: z => z >= 9 ? 50 : 70,
-    iconCreateFunction: clusterIconByDominantCoverage,
-    chunkedLoading: true,
-    chunkInterval: 50,
-    chunkDelay: 25
-  });
-  const plainMarkers = L.layerGroup();
-  map.addLayer(markers);
-  targetLayer.addTo(map);
-  ringLayer.addTo(map);
-  highlightLayer.addTo(map);
+const debouncedRun = (() => { let t; return () => { clearTimeout(t); t = setTimeout(runFilter, 90); }; })();
+
+const map = L.map('map', { zoomControl: true, inertia: true }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
+
+const markers = L.markerClusterGroup({
+  disableClusteringAtZoom: 12,
+  spiderfyOnMaxZoom: false,
+  maxClusterRadius: z => z >= 9 ? 50 : 70,
+  iconCreateFunction: clusterIconByDominantCoverage,
+  chunkedLoading: true,
+  chunkInterval: 50,
+  chunkDelay: 25
+});
+const plainMarkers = L.layerGroup();
+
+// add all layers up front
+map.addLayer(markers);
+targetLayer.addTo(map);
+ringLayer.addTo(map);
+highlightLayer.addTo(map);
+hubLayer.addTo(map);                 // <-- add to map now
+
 
   // keep map sized correctly even after fonts/layout ready
   setTimeout(()=> map.invalidateSize(), 120);
