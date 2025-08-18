@@ -657,10 +657,34 @@ const CITY_ALIAS_OVERRIDES = {
   };
   // Hard coordinate fixes when the source row has the wrong lat/lng
 const CITY_COORD_FIXES = {
+  // IN (you already had these)
   'fort wayne|in': [41.0793, -85.1394],
-  // (optional) keep other IN cities handy:
   'plainfield|in': [39.7042, -86.3994],
+
+  // Confirmed hubs you listed
+  'dandridge|tn':      [36.0159, -83.4143],
+  'acworth|ga':        [34.0659, -84.6769],
+  'king george|va':    [38.2668, -77.1847],
+  'minden|la':         [32.6154, -93.2729],
+  'olive branch|ms':   [34.9618, -89.8295],
+  'clarksville|tn':    [36.5298, -87.3595],
+  'darlington|sc':     [34.2999, -79.8762],
+  'orange park|fl':    [30.1660, -81.7060],
+  'fort myers|fl':     [26.6406, -81.8723],
+  'sparta|mo':         [36.9959, -93.0816],
+  'granite falls|nc':  [35.7960, -81.4300],
+  'seguin|tx':         [29.5688, -97.9647],
+  "o'fallon|mo":       [38.8106, -90.6998],
+  'louisville|ky':     [38.2527, -85.7585],
+  'kenly|nc':          [35.5950, -78.1250],
+  'folsom|ca':         [38.6779, -121.1761],
+  'navassa|nc':        [34.2491, -78.0250],
+  'willimantic|ct':    [41.7107, -72.2081],
+
+  // spelling variant just in case
+  'sequin|tx':         [29.5688, -97.9647],
 };
+
 
   // For states with multiple proposed cities, choose the nearest by coords
 // Add MO choices (KC area)
@@ -741,43 +765,64 @@ function chooseCityForMissing(lat, lng, state){
     open:               'Open'
   }[sub] || 'Pending');
 
-  const toHub = (r) => {
-  let coords = getCoords(r);
-  if (!coords) return null;
-  let [lat, lng] = coords;
+  function coordsFromCityState(city, state){
+  if (!city || !state) return null;
 
-  let city  = getCity(r);
-  let state = getState(r);   // ← was const; make it let
-  let nm    = getName(r);
+  // 1) explicit fix table
+  const fix = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
+  if (fix) return fix;
 
-  // If City|State match a known fix, use those coordinates instead
-  if (city && state) {
-    const fix = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
-    if (fix) { [lat, lng] = fix; coords = [lat, lng]; }
+  // 2) centroid of all stores in same city/state
+  const rows = allStores.filter(s =>
+    (s.city||'').toLowerCase() === city.toLowerCase() &&
+    (s.state||'').toUpperCase() === state.toUpperCase()
+  );
+  if (rows.length){
+    const lat = rows.reduce((a,b)=>a+b.lat,0)/rows.length;
+    const lng = rows.reduce((a,b)=>a+b.lng,0)/rows.length;
+    return [lat, lng];
   }
 
-  // Fallback name by city/state if file didn't include it
+  return null; // no fallback found
+}
+
+
+  const toHub = (r) => {
+  let coords = getCoords(r);
+  let city   = getCity(r);
+  let state  = getState(r);
+  let nm     = getName(r);
+
+  // If coords are missing, try city/state fallbacks
+  if (!coords && city && state) coords = coordsFromCityState(city, state);
+  if (!coords) return null; // still nothing -> skip
+  let [lat, lng] = coords;
+
+  // If City|State match a known fix, prefer that exact point
+  if (city && state) {
+    const fixed = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
+    if (fixed) { [lat, lng] = fixed; coords = fixed; }
+  }
+
+  // Fallback name override if file row lacks it
   if (!nm && city && state) {
     nm = NAME_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`] || '';
   }
 
   const { status, statusSub } = classify(r);
 
-  // If the row isn't confirmed and the city is missing, choose a sensible city
+  // If missing city but we have coords/state, pick a sensible city label
   if (!city && state && status !== 'confirmed') {
     city = chooseCityForMissing(lat, lng, state);
   }
 
-  // Apply city alias AFTER we know city/state
+  // Apply any city alias after we have city/state
   if (city && state) {
     const alias = CITY_ALIAS_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`];
     if (alias) {
-      city = alias.city || city;
+      city  = alias.city  || city;
       state = alias.state || state;
-      if (Array.isArray(alias.coords)) {
-        [lat, lng] = alias.coords;
-        coords = [lat, lng];
-      }
+      if (Array.isArray(alias.coords)) { [lat, lng] = alias.coords; coords = alias.coords; }
     }
   }
 
@@ -789,16 +834,13 @@ function chooseCityForMissing(lat, lng, state){
   return {
     id: `${status[0]}_${slug(`${city||''}-${state||''}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
     name: nm || 'Proposed',
-    label,
-    fullName: label,
+    label, fullName: label,
     coords: [lat, lng],
-    status,
-    statusSub,
-    statusLabel,
-    city,
-    state
+    status, statusSub, statusLabel,
+    city, state
   };
 };
+
 
 
 
