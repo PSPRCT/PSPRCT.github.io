@@ -67,14 +67,16 @@
   .sp-quick{display:flex;gap:6px;flex-wrap:wrap}
   .sp-list{flex:1;min-height:160px;border:1px solid var(--border);border-radius:8px;padding:0;display:flex;flex-direction:column;overflow:auto; box-shadow: inset 0 0 0 2px rgba(0,0,0,.02)}
   .sp-list input{margin:8px;border:1px solid var(--border);border-radius:8px;padding:6px 8px}
-  .sp-rows{position:relative;height:0}
-  .row{ position:absolute; left:0; right:0; height:78px; display:flex; gap:8px;
-        align-items:center; padding:8px 10px; border-bottom:1px solid var(--border);
-        cursor:pointer; background:var(--panel) }
-  .row .title{ font-weight:700; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-  .row .addr{ color:var(--muted); font-size:12px; line-height:1.2;
-             display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
-             overflow:hidden; white-space:normal; }
+.sp-rows{position:static;height:auto}
+.row{
+  position:relative; left:auto; right:auto;
+  display:flex; gap:8px; align-items:flex-start;
+  padding:10px; border-bottom:1px solid var(--border);
+  background:var(--panel); cursor:pointer; min-height:56px;
+}
+.row .title{ font-weight:800; line-height:1.25; white-space:normal; overflow:visible }
+.row .addr{ color:var(--muted); font-size:12px; line-height:1.25; white-space:normal; overflow:visible }
+
   .row .num{ min-width:62px; font-variant-numeric:tabular-nums; color:var(--muted) }
   .row.active{ background:#e7f0ff }
 
@@ -403,31 +405,16 @@
   });
 
   // Sync sidepanel row highlight when a store popup opens
-  map.on('popupopen', (e)=>{
-    const s = e?.popup?._source?.store;
-    if (!s || !spHub) return;
-    const i = spRows.findIndex(x => x.storeNumberStr === s.storeNumberStr);
-    if (i < 0) return;
+map.on('popupopen', (e)=>{
+  const s = e?.popup?._source?.store;
+  if (!s || !spHub) return;
+  Array.from(spRowsEl.querySelectorAll('.row')).forEach(el => el.classList.remove('active'));
+  const rel = spRowsEl.querySelector(`.row[data-id="${s.storeNumberStr}"]`);
+  if (rel){ rel.classList.add('active'); rel.scrollIntoView({block:'nearest'}); }
+});
 
-    const rowTop    = i * rowH;
-    const rowBottom = rowTop + rowH;
-    const viewTop   = spWrap.scrollTop;
-    const viewBot   = viewTop + spWrap.clientHeight;
-    const preload = 2 * rowH;
-    const outside = (rowTop < viewTop - preload) || (rowBottom > viewBot + preload);
 
-    if (outside) {
-      const targetTop = Math.max(0, rowTop - (spWrap.clientHeight/2 - rowH));
-      spWrap.scrollTo({ top: targetTop, behavior: 'smooth' });
-    }
 
-    requestAnimationFrame(()=>{
-      renderVirtualSlice();
-      Array.from(spRowsEl.querySelectorAll('.row')).forEach(el => el.classList.remove('active'));
-      const rel = spRowsEl.querySelector(`.row[data-i="${i}"]`);
-      if (rel) rel.classList.add('active');
-    });
-  });
 
   const STATUS = id('dataStatus'); const busy = id('busy');
   const legend = id('legend'); id('legendClose').onclick = ()=> legend.style.display='none';
@@ -523,7 +510,6 @@
   spExport.onclick = ()=>{ exportSidepanelCsv(); if(AUTO_RESET()){ resetAll(); runFilter(); renderChips(); } };
   spPrint.onclick  = ()=>{ printSidepanelList(); if(AUTO_RESET()){ resetAll(); runFilter(); renderChips(); } };
   spPinBtn.onclick = ()=> togglePinFromPanel();
-  spWrap.addEventListener('scroll', ()=>{ requestAnimationFrame(renderVirtualSlice); });
   spOnlyUncovEl.onchange = ()=>{ spOnlyUncov = spOnlyUncovEl.checked; renderSidepanelList(); };
 
   // radius preset chips
@@ -580,7 +566,8 @@
   const hoverIcon  = L.divIcon({className:'', html:'<div class="hl"></div>', iconSize:[22,22], iconAnchor:[11,11]});
   let hoverMarker=null;
   function showHover(lat,lng){ if(hoverMarker) highlightLayer.removeLayer(hoverMarker); hoverMarker=L.marker([lat,lng],{icon:hoverIcon}).addTo(highlightLayer); }
-  function hideHover(){ if(hoverMarker){ highlightLayer.removeLayer(hoverMarker); highlightLayer.clearLayers(); hoverMarker=null; } }
+ function hideHover(){ if(hoverMarker){ highlightLayer.removeLayer(hoverMarker); hoverMarker=null; } }
+
 
   function storePopupHTML(s){
     const r = Number(radius.value)||DEFAULT_RADIUS;
@@ -743,54 +730,78 @@
     p.openOn(map);
   }
 
-  // ---------- Filtering + Rendering ----------
-  function runFilter(){
-    markerByStore.clear();
-    if(tgCluster.checked){
-      markers.clearLayers();
-    }else{
-      plainMarkers.clearLayers();
-    }
-    filteredStores = allStores.filter(storeFilter);
-    const ms = filteredStores.map(s=>{
-      const m=L.circleMarker([s.lat,s.lng],{
-        radius:5,weight:1,fillOpacity:.9,
-        color:'#fff', fillColor:COLORS[s.coverageType]||'#999'
-      });
-      m.store = s;
-      m.bindPopup(storePopupHTML(s));
-      markerByStore.set(s.storeNumberStr,m);
-      return m;
+function computeCoveredByForAll(){
+  const r = Number(radius.value) || DEFAULT_RADIUS;
+  const staffed = hubs.filter(h => h.status === 'accepted');
+  const open    = hubs.filter(h => h.status === 'open');
+  allStores.forEach(s=>{
+    const inStaffed = staffed.some(h => distMiles(s.lat,s.lng,h.coords[0],h.coords[1]) <= r);
+    const inOpen    = open.some(h => distMiles(s.lat,s.lng,h.coords[0],h.coords[1]) <= r);
+    s.coveredBy = inStaffed && inOpen ? 'both' : inStaffed ? 'staffed' : inOpen ? 'open' : 'none';
+  });
+}
+
+function runFilter(){
+  computeCoveredByForAll();
+  markerByStore.clear();
+  if(tgCluster.checked){ markers.clearLayers(); } else { plainMarkers.clearLayers(); }
+
+  filteredStores = allStores.filter(storeFilter);
+
+  const ms = filteredStores.map(s=>{
+    const m = L.circleMarker([s.lat,s.lng], {
+      radius:5, weight:1, fillOpacity:.9, color:'#fff',
+      fillColor: COLORS[s.coverageType] || '#999'
     });
-    if(tgCluster.checked){ markers.addLayers(ms); } else { plainMarkers.addLayer(L.layerGroup(ms)); }
-    updateCounts();
-    updateInViewCount();
-    if (id('tgHeat').checked) updateHeat();
-  }
+    m.store = s;
+    m.bindPopup(storePopupHTML(s));
+    markerByStore.set(s.storeNumberStr, m);
+    return m;
+  });
+
+  if (tgCluster.checked){ markers.addLayers(ms); }
+  else { plainMarkers.addLayer(L.layerGroup(ms)); }
+
+  updateCounts();
+  updateInViewCount();
+  if (id('tgHeat').checked) updateHeat();
+}
+
 
   function storeFilter(s){
-    if(!showStaffed.checked && s.coveredBy==='staffed') return false;
-    if(!showOpen.checked    && s.coveredBy==='open') return false;
-    const covVals = Array.from(covFilter.selectedOptions).map(o=>o.value);
-    if(!covVals.includes('All') && !covVals.includes(s.coverageType)) return false;
-    const rmVals = Array.from(rmFilter.selectedOptions).map(o=>o.value);
-    if(!rmVals.includes('All') && !rmVals.includes(s.regionalManager)) return false;
-    const amVals = Array.from(amFilter.selectedOptions).map(o=>o.value);
-    if(!amVals.includes('All') && !amVals.includes(s.areaManager)) return false;
-    const hubVals= Array.from(hubFilter.selectedOptions).map(o=>o.value);
-    if(hubVals.length && !hubVals.includes(s.trainerCity||'')) return false;
-    if(tgWithin.checked){
-      const r=Number(radius.value)||DEFAULT_RADIUS;
-      let inside=false;
-      hubs.forEach(h=>{
-        if((h.status==='accepted'?showStaffed.checked:showOpen.checked)){
-          if(distMiles(s.lat,s.lng,h.coords[0],h.coords[1])<=r) inside=true;
-        }
-      });
-      if(!inside) return false;
-    }
-    return true;
+  // Respect Staffed/Open visibility for *stores*.
+  const allowed = new Set();
+  if (showStaffed.checked) allowed.add('staffed');
+  if (showOpen.checked)    allowed.add('open');
+
+  if (s.coveredBy === 'staffed' && !allowed.has('staffed')) return false;
+  if (s.coveredBy === 'open'    && !allowed.has('open'))    return false;
+  if (s.coveredBy === 'both'    && allowed.size === 0)      return false;
+
+  // Standard filters
+  const covVals = Array.from(covFilter.selectedOptions).map(o=>o.value);
+  if(!covVals.includes('All') && !covVals.includes(s.coverageType)) return false;
+  const rmVals = Array.from(rmFilter.selectedOptions).map(o=>o.value);
+  if(!rmVals.includes('All') && !rmVals.includes(s.regionalManager)) return false;
+  const amVals = Array.from(amFilter.selectedOptions).map(o=>o.value);
+  if(!amVals.includes('All') && !amVals.includes(s.areaManager)) return false;
+  const hubVals= Array.from(hubFilter.selectedOptions).map(o=>o.value);
+  if(hubVals.length && !hubVals.includes(s.trainerCity||'')) return false;
+
+  // "Within hubs" uses only currently visible hubs
+  if(tgWithin.checked){
+    const r = Number(radius.value) || DEFAULT_RADIUS;
+    let inside = false;
+    hubs.forEach(h=>{
+      if((h.status==='accepted'?showStaffed.checked:showOpen.checked)){
+        if(distMiles(s.lat,s.lng,h.coords[0],h.coords[1])<=r) inside=true;
+      }
+    });
+    if(!inside) return false;
   }
+  return true;
+}
+
 
   function updateCounts(){
     const cts=coverageCounts((tgCluster.checked? markers.getLayers() : plainMarkers.getLayers()[0]?.getLayers?.() || []).map(m=>m));
@@ -965,64 +976,40 @@
   }
 
   function renderSidepanelList(){
-    const wrap = spWrap;
-    const el   = spRowsEl;
-
-    let rows = spRows;
-    if (spFilter){
-      const q = spFilter.toLowerCase();
-      rows = rows.filter(r =>
-        r.title.toLowerCase().includes(q) ||
-        r.addr.toLowerCase().includes(q) ||
-        r.coverageType.toLowerCase().includes(q) ||
-        r.areaManager.toLowerCase().includes(q) ||
-        r.regionalManager.toLowerCase().includes(q));
-    }
-
-    // Store the filtered list for virtual slice rendering
-    el._filtered = rows;
-
-    // Virtual container height
-    el.style.height = (rows.length * rowH) + 'px';
-    renderVirtualSlice();
+  let rows = spRows;
+  if (spFilter){
+    const q = spFilter.toLowerCase();
+    rows = rows.filter(r =>
+      r.title.toLowerCase().includes(q) ||
+      r.addr.toLowerCase().includes(q) ||
+      r.coverageType.toLowerCase().includes(q) ||
+      r.areaManager.toLowerCase().includes(q) ||
+      r.regionalManager.toLowerCase().includes(q));
   }
 
-  function renderVirtualSlice(){
-    const el = spRowsEl;
-    const rows = el._filtered || [];
-    const scrollTop = spWrap.scrollTop;
-    const height = spWrap.clientHeight;
+  spRowsEl.innerHTML = rows.map(r => `
+    <div class="row" data-id="${r.storeNumberStr}">
+      <div class="num">${r.storeNumberStr}</div>
+      <div style="flex:1;min-width:0">
+        <div class="title">${escape(r.title)}</div>
+        <div class="addr">${escape(r.addr)}</div>
+        <div class="meta" style="color:var(--muted);font-size:12px;margin-top:2px">
+          AM: ${escape(r.areaManager)} · RM: ${escape(r.regionalManager)} · Trainer City: ${escape(r.trainerCity)}
+        </div>
+      </div>
+      <div class="chip">${escape(r.coverageType)}</div>
+    </div>
+  `).join('');
 
-    const start = Math.max(0, Math.floor(scrollTop / rowH) - 10);
-    const end   = Math.min(rows.length, Math.ceil((scrollTop + height) / rowH) + 10);
-
-    // Rebuild visible slice
-    let html = '';
-    for (let i = start; i < end; i++){
-      const r = rows[i];
-      const top = i * rowH;
-      html += `
-        <div class="row" data-i="${i}" style="top:${top}px">
-          <div class="num">${r.storeNumberStr}</div>
-          <div style="flex:1;min-width:0">
-            <div class="title">${escape(r.title)}</div>
-            <div class="addr">${escape(r.addr)}</div>
-          </div>
-          <div class="chip">${escape(r.coverageType)}</div>
-        </div>`;
-    }
-    el.innerHTML = html;
-
-    // Row interactions: click to open
-    Array.from(el.querySelectorAll('.row')).forEach(div=>{
-      div.addEventListener('click', ()=>{
-        const r = (el._filtered || [])[Number(div.dataset.i)];
-        if (!r) return;
-        const store = allStores.find(s => s.storeNumberStr === r.storeNumberStr);
-        if (store) openStorePopup(store);
-      });
+  Array.from(spRowsEl.querySelectorAll('.row')).forEach(div=>{
+    div.addEventListener('click', ()=>{
+      const id = div.getAttribute('data-id');
+      const store = allStores.find(s => s.storeNumberStr === id);
+      if (store) openStorePopup(store);
     });
-  }
+  });
+}
+
 
   // ---------- Views (save/restore) ----------
   function saveCurrentView(){
