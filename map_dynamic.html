@@ -438,6 +438,8 @@ hubLayer.addTo(map);
   const legend = id('legend'); id('legendClose').onclick = ()=> legend.style.display='none';
 
   const searchBox = id('searchBox'), searchBadge = id('searchBadge'), searchResults = id('searchResults');
+  const searchWrap = document.querySelector('.searchbox');
+
   id('searchClear').onclick = ()=>{ searchBox.value=''; localStorage.removeItem(LS_LAST_QUERY); searchBadge.classList.remove('show'); hideResults(); clearTarget(); runFilter(); };
 
   const showStaffed = id('showStaffed');
@@ -478,10 +480,15 @@ function handleHubVisibilityChange(){
   on('input', hubSearch, ()=> filterSelect(hubFilter, hubSearch.value));
 
   on('change', covFilter, ()=>{ runFilter(); saveState(); renderChips(); });
-  on('change', rmFilter,  ()=>{ +  cascadeAM(); 
-+  cascadeHubs(); 
-+  runFilter(); fitToResults(); saveState(); renderChips(); 
+ on('change', rmFilter, ()=>{ 
+  cascadeAM(); 
+  cascadeHubs(); 
+  runFilter(); 
+  fitToResults(); 
+  saveState(); 
+  renderChips(); 
 });
+
   on('change', amFilter,  ()=>{ cascadeHubs(); runFilter(); fitToResults(); saveState(); renderChips(); });
   on('change', hubFilter, ()=>{ runFilter(); fitToResults(); saveState(); renderChips(); });
 
@@ -689,6 +696,11 @@ function handleHubVisibilityChange(){
     }
     if (e.key === 'Escape'){ hideResults(); }
   });
+
+  document.addEventListener('click', (e)=>{
+  if (!searchWrap.contains(e.target)) hideResults();
+});
+
   function highlightResult(){
     Array.from(searchResults.querySelectorAll('.res')).forEach((el,i)=>{
       el.classList.toggle('active', i===resIndex);
@@ -822,7 +834,7 @@ function handleHubVisibilityChange(){
   return (s ?? "").toString().replace(/[&<>"']/g, m => (
     { "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]
   ));
-
+  }
 
   function distMiles(lat1,lng1,lat2,lng2){ const R=3958.8; const toRad=d=>d*Math.PI/180; const dLat=toRad(lat2-lat1); const dLon=toRad(lng2-lng1); const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2; return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); }
   function coverageCounts(markersArr){ const out={}; markersArr.forEach(m=>{ const s=m?.store; if(!s) return; out[s.coverageType]=(out[s.coverageType]||0)+1; }); return out; }
@@ -1469,7 +1481,11 @@ function printSidepanelList(){
 
   // ---------- Search badge logic ----------
   searchBox.addEventListener('focus', ()=> searchBadge.classList.add('show'));
-  searchBox.addEventListener('blur',  ()=> searchBadge.classList.remove('show'));
+  searchBox.addEventListener('blur', ()=>{
+  searchBadge.classList.remove('show');
+  setTimeout(hideResults, 120); // let result clicks fire first
+});
+
 
   // ensure first search opens popup (worked around clustering timing)
   function openStorePopupFirstSafe(store){
