@@ -525,41 +525,45 @@ try {
   acostaHubs = [];
 }
 
-// PREMIUM (confirmed + pending)
+// PREMIUM (confirmed + pending/open/recruit)
 try {
   const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
-  if (!pResp.ok) throw new Error(`HTTP ${pResp.status} for ${PREMIUM_URL}`);
   const pJson = await pResp.json();
 
-  let confirmedRows = [];
-  let pendingRows = [];
+  // Flatten possible shapes: array OR {confirmed, pending, open}
+  const rows = Array.isArray(pJson)
+    ? pJson
+    : [...(pJson.confirmed || []), ...(pJson.pending || []), ...(pJson.open || [])];
 
-  if (Array.isArray(pJson)) {
-    confirmedRows = pJson.filter(r => /confirm/i.test(String(r.Status ?? '')));
-    pendingRows   = pJson.filter(r => /pend/i.test(String(r.Status ?? '')));
-  } else {
-    confirmedRows = Array.isArray(pJson.confirmed) ? pJson.confirmed : [];
-    pendingRows   = Array.isArray(pJson.pending)   ? pJson.pending   : [];
-  }
+  const statusOf = r => String(r.Status ?? r.status ?? '').toLowerCase();
+  const hasName  = r => String(r.RepName ?? r.name ?? '').trim().length > 0;
+
+  // Confirmed hubs = named Premium trainers
+  const confirmedRows = rows.filter(r => statusOf(r).includes('confirm') && hasName(r));
+
+  // Proposed city hubs = pending / open / recruiting (candidate or no candidate)
+  const pendingRows   = rows.filter(r => /(pend|open|recruit)/.test(statusOf(r)));
 
   const toHub = (r, status) => {
     const lat = Number(r.Latitude ?? r.latitude ?? r.lat);
     const lng = Number(r.Longitude ?? r.longitude ?? r.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-    const name  = String(r.RepName ?? r.name ?? 'Trainer');
-    const city  = String(r.City ?? ''), state = String(r.State ?? '');
-    return { id: status[0] + '_' + slug(`${name}-${city}-${state}`),
-             name, fullName: `${name} — ${city}, ${state}`,
-             coords: [lat, lng], status };
+    const name  = (String(r.RepName ?? r.name ?? '').trim()) || 'Trainer';
+    const city  = String(r.City ?? '').trim();
+    const state = String(r.State ?? '').trim();
+    return {
+      id: status[0] + '_' + slug(`${name}-${city}-${state}`),
+      name,
+      fullName: `${name} — ${city}, ${state}`,
+      coords: [lat, lng],
+      status, // 'confirmed' or 'pending'
+    };
   };
 
   premiumConfirmed = confirmedRows.map(r => toHub(r, 'confirmed')).filter(Boolean);
-  premiumPending   = pendingRows.map(r => toHub(r, 'pending')).filter(Boolean);
-
-  STATUS.textContent += `  |  Premium hubs: ${premiumConfirmed.length} confirmed, ${premiumPending.length} pending`;
+  premiumPending   = pendingRows.map(r   => toHub(r, 'pending')).filter(Boolean);
 } catch (e) {
-  STATUS.innerHTML += `  |  <span style="color:#b42318">Premium failed</span>`;
-  console.error('Premium load error:', e);
+  console.warn('Premium file missing/invalid', e);
   premiumConfirmed = [];
   premiumPending   = [];
 }
@@ -749,16 +753,22 @@ if (hubSel.length){
     if (id('tgRings').checked) updateRings();
   }
 
-  function updateCounts(){
-    const cts=coverageCounts((tgCluster.checked? markers.getLayers() : plainMarkers.getLayers()[0]?.getLayers?.() || []).map(m=>m));
-    k.pa.textContent=cts["Premium + Acosta"]||0;
-    k.p.textContent =cts["Premium Only"]||0;
-    k.a.textContent =cts["Acosta Only"]||0;
-    k.u.textContent =cts["Uncovered"]||0;
-    k.total.textContent=filteredStores.length;
-    k.confirmed.textContent=premiumConfirmed.length;
-    k.pending.textContent  =premiumPending.length;
-  }
+function updateCounts(){
+  const layerMarkers = tgCluster.checked
+    ? markers.getLayers()
+    : (plainMarkers.getLayers()[0]?.getLayers?.() || []);
+  const cts = coverageCounts(layerMarkers.map(m => m));
+
+  k.pa.textContent = cts["Premium + Acosta"] || 0;
+  k.p.textContent  = cts["Premium Only"]      || 0;
+  k.a.textContent  = cts["Acosta Only"]       || 0;
+  // Uncovered is ONLY truly uncovered (no Premium & no Acosta)
+  k.u.textContent  = cts["Uncovered"]         || 0;
+
+  k.total.textContent    = filteredStores.length;
+  k.confirmed.textContent = premiumConfirmed.length;
+  k.pending.textContent   = premiumPending.length;
+}
   function updateInViewCount(){
     const b=map.getBounds();
     const inV=filteredStores.filter(s=>b.contains([s.lat,s.lng])).length;
@@ -839,10 +849,24 @@ function renderHubs(){
 
   // ---------- Coverage ----------
 // Replace the whole function with this:
+// Coverage is computed with a fixed 75-mi rule (independent of the UI slider)
+// Categories: 'Premium + Acosta', 'Premium Only', 'Acosta Only', 'Uncovered'
 function recomputeCoverage(){
-  // Intentionally blank: keep s.coverageType as provided by store_data.json.
-  // (Hubs are still used elsewhere: rings, Within hubs filter, overlap, sandbox.)
+  const RULE_RADIUS = 75; // miles
+  const prem = [...premiumConfirmed, ...premiumPending];
+  const ac   = [...acostaHubs];
+
+  allStores.forEach(s=>{
+    const nearPrem = prem.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= RULE_RADIUS);
+    const nearAco  = ac.some(  h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= RULE_RADIUS);
+
+    if (nearPrem && nearAco)      s.coverageType = 'Premium + Acosta';
+    else if (nearPrem)            s.coverageType = 'Premium Only';
+    else if (nearAco)             s.coverageType = 'Acosta Only'; // still "not Premium-covered"
+    else                          s.coverageType = 'Uncovered';    // truly uncovered
+  });
 }
+
 
   // ---------- Sidepanel ----------
   function openSidepanel(h){
@@ -1055,12 +1079,14 @@ function recomputeCoverage(){
     const src = filteredStores.length ? filteredStores : allStores;
     return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
   }
-  function buildHubFilterOptions(){
-  const hubsNow = [...premiumConfirmed, ...premiumPending, ...acostaHubs];
+function buildHubFilterOptions(){
+  // Only Premium hubs (confirmed + pending/open) in the hub filter
+  const hubsNow = [...premiumConfirmed, ...premiumPending];
   const opts = uniqSorted(hubsNow.map(h => h.fullName || h.name));
   hubFilter.innerHTML = opts.map(v => `<option value="${escape(v)}">${escape(v)}</option>`).join('');
   filterSelect(hubFilter, hubSearch.value);
 }
+
 
   function uniqSorted(arr){
     const set = new Set();
@@ -1086,24 +1112,36 @@ function recomputeCoverage(){
   }
 
   // ---------- Coverage-aware popup ----------
-  function storePopupHTML(s){
-    const visH = visibleHubs();
-    let nearest = null, best = 1e9;
-    visH.forEach(h=>{ const d = distMiles(s.lat,s.lng,h.coords[0],h.coords[1]); if(d<best){best=d;nearest=h;} });
-    const badge = `<span style="padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:${COLORS[s.coverageType]||'#eee'}22">${escape(s.coverageType||'')}</span>`;
-    return `
-      <div style="font-size:13px;line-height:1.35;min-width:220px">
-        <div style="font-weight:800;margin-bottom:4px">Store ${escape(s.storeNumberStr)} — ${escape(s.storeName||'')}</div>
-        <div>${escape(s.address||'')}</div>
-        <div>${escape(s.city||'')}, ${escape(s.state||'')}</div>
-        <div style="margin:6px 0">${badge}</div>
-        <div><b>Trainer City:</b> ${escape(s.trainerCity||'')}</div>
-        <div><b>Area Manager:</b> ${escape(s.areaManager||'')}</div>
-        <div><b>Regional Manager:</b> ${escape(s.regionalManager||'')}</div>
-        ${nearest?`<div style="margin-top:6px"><b>Nearest hub:</b> ${escape(nearest.fullName||nearest.name)} • ${best.toFixed(1)} mi</div>`:''}
-        <div style="color:var(--muted);margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
-      </div>`;
-  }
+function storePopupHTML(s){
+  const nearestOf = (hubs) => {
+    let best=null, dmin=Infinity;
+    hubs.forEach(h=>{
+      const d = distMiles(s.lat, s.lng, h.coords[0], h.coords[1]);
+      if (d < dmin){ dmin = d; best = h; }
+    });
+    return best ? { hub: best, d: dmin } : null;
+  };
+
+  const np = nearestOf([...premiumConfirmed, ...premiumPending]);
+  const na = nearestOf(acostaHubs);
+
+  const badge = `<span style="padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:${COLORS[s.coverageType]||'#eee'}22">${escape(s.coverageType||'')}</span>`;
+
+  return `
+    <div style="font-size:13px;line-height:1.35;min-width:240px">
+      <div style="font-weight:800;margin-bottom:4px">Store ${escape(s.storeNumberStr)} — ${escape(s.storeName||'')}</div>
+      <div>${escape(s.address||'')}</div>
+      <div>${escape(s.city||'')}, ${escape(s.state||'')}</div>
+      <div style="margin:6px 0">${badge}</div>
+      <div><b>Trainer City:</b> ${escape(s.trainerCity||'')}</div>
+      <div><b>Area Manager:</b> ${escape(s.areaManager||'')}</div>
+      <div><b>Regional Manager:</b> ${escape(s.regionalManager||'')}</div>
+      ${np ? `<div style="margin-top:6px"><b>Nearest Premium:</b> ${escape(np.hub.fullName||np.hub.name)} • ${np.d.toFixed(1)} mi</div>` : ''}
+      ${na ? `<div><b>Nearest Acosta:</b> ${escape(na.hub.fullName||na.hub.name)} • ${na.d.toFixed(1)} mi</div>` : ''}
+      <div style="color:var(--muted);margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
+    </div>`;
+}
+
   function ensureMarkerForStore(store){
     let m = markerByStore.get(store.storeNumberStr);
     if (!m){
