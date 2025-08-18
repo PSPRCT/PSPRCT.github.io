@@ -955,6 +955,20 @@ function recomputeCoverage(){
     ];
     downloadCsv(rows, `${slug(spHub.name)}_${r}mi_${Date.now()}.csv`);
   }
+  function downloadCsv(rows, filename){
+  const csv = rows
+    .map(r => r.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
   function printSidepanelList(){
     if(!spHub){ alert('Open a hub panel first.'); return; }
     const r = Number(radius.value)||DEFAULT_RADIUS;
