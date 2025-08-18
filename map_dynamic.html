@@ -478,7 +478,10 @@ function handleHubVisibilityChange(){
   on('input', hubSearch, ()=> filterSelect(hubFilter, hubSearch.value));
 
   on('change', covFilter, ()=>{ runFilter(); saveState(); renderChips(); });
-  on('change', rmFilter,  ()=>{ cascadeAM(); runFilter(); fitToResults(); saveState(); renderChips(); });
+  on('change', rmFilter,  ()=>{ +  cascadeAM(); 
++  cascadeHubs(); 
++  runFilter(); fitToResults(); saveState(); renderChips(); 
+});
   on('change', amFilter,  ()=>{ cascadeHubs(); runFilter(); fitToResults(); saveState(); renderChips(); });
   on('change', hubFilter, ()=>{ runFilter(); fitToResults(); saveState(); renderChips(); });
 
@@ -573,7 +576,7 @@ function handleHubVisibilityChange(){
     STATUS.textContent += `  |  ${allStores.length.toLocaleString()} stores ready`;
 
     populateRM(allStores); populateAM(allStores); cascadeAM(); cascadeHubs();
-    id('hubFilter').innerHTML = hubs.map(h=>`<option>${escape(h.name)}</option>`).join('');
+ 
 
     buildSearchIndex();
 
@@ -749,7 +752,7 @@ function handleHubVisibilityChange(){
     const amOK = amSel.includes('All') || amSel.includes(s.areaManager || '');
 
     const hubSel = Array.from(hubFilter.selectedOptions).map(o=>o.value);
-    const hubOK = hubSel.length === 0 || hubSel.includes(s.trainerCity || '');
+    const hubOK = hubSel.length === 0 || hubSel.includes((s.trainerCity || '').trim());
 
     let withinOK = true;
     if (tgWithin.checked){
@@ -819,7 +822,7 @@ function handleHubVisibilityChange(){
   return (s ?? "").toString().replace(/[&<>"']/g, m => (
     { "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]
   ));
-}
+
 
   function distMiles(lat1,lng1,lat2,lng2){ const R=3958.8; const toRad=d=>d*Math.PI/180; const dLat=toRad(lat2-lat1); const dLon=toRad(lng2-lng1); const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2; return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); }
   function coverageCounts(markersArr){ const out={}; markersArr.forEach(m=>{ const s=m?.store; if(!s) return; out[s.coverageType]=(out[s.coverageType]||0)+1; }); return out; }
@@ -903,8 +906,31 @@ function cascadeAM(){
 }
 
 function cascadeHubs(){
-  // Keeping the static hubs list you already set earlier.
-  // (If you ever want this to depend on AM/RM, build options from stores here.)
+  // Current RM/AM selections
+  const rmSel = Array.from(rmFilter.selectedOptions).map(o=>o.value);
+  const amSel = Array.from(amFilter.selectedOptions).map(o=>o.value);
+
+  // Start from all stores, then narrow by RM/AM (ignore "All")
+  let src = allStores.slice();
+  if (!rmSel.includes('All')) src = src.filter(s => rmSel.includes((s.regionalManager||'').trim()));
+  if (!amSel.includes('All')) src = src.filter(s => amSel.includes((s.areaManager||'').trim()));
+
+  // Build hub options from trainerCity values present in this narrowed set
+  const opts = uniqSorted(
+    src.map(s => (s.trainerCity||'').trim()).filter(Boolean)
+  );
+
+  // Remember current selections to preserve when possible
+  const prev = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
+
+  // Rebuild options
+  hubFilter.innerHTML = opts.map(v => `<option value="${escape(v)}">${escape(v)}</option>`).join('');
+
+  // Restore any still-valid selections
+  Array.from(hubFilter.options).forEach(o => { o.selected = prev.has(o.value); });
+
+  // Respect the hub search box if user typed there
+  filterSelect(hubFilter, hubSearch.value);
 }
 
 function refreshLayerMode(){
