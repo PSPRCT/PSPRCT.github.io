@@ -13,57 +13,77 @@
   :root{
     --blue:#2f71ff; --violet:#6a1b9a; --gray:#9ea3a8; --ring:#d0d7de;
     --pa:#6c5ce7; --p:#2ecc71; --a:#f39c12; --u:#e74c3c;
+    --bg:#fff; --fg:#111; --muted:#6b7280; --border:#e5e7eb; --panel:#fff;
   }
-  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#fff}
+  body.dark{
+    --bg:#0b1020; --fg:#ecf0f1; --muted:#aab1bb; --border:#20283a; --panel:#0f1730;
+    --ring:#28314a;
+  }
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg)}
   body{display:flex;flex-direction:column;min-width:320px}
 
-  /* Top: search + quick toggles + sliders + actions */
+  /* Top: search + toggles + sliders + actions */
   .topbar{
-    position:sticky; top:0; background:#fff;
+    position:sticky; top:0; background:var(--panel);
     display:flex;flex-wrap:wrap;gap:10px;align-items:center;
     padding:8px 10px;border-bottom:1px solid #eef0f3;z-index:10
   }
+  body.dark .topbar{border-color:var(--border)}
   .search-wrap{display:flex;gap:8px;align-items:center;min-width:280px;flex:1}
   .searchbox{position:relative;flex:1}
-  .searchbox input{width:100%;border:1px solid #d0d7de;border-radius:10px;padding:10px 12px 10px 64px;font-size:14px}
+  .searchbox input{width:100%;border:1px solid #d0d7de;border-radius:10px;padding:10px 12px 10px 64px;font-size:14px;background:var(--bg);color:var(--fg)}
+  body.dark .searchbox input{border-color:var(--ring)}
   .badge-left{
     position:absolute;left:8px;top:50%;transform:translateY(-50%);
     font-size:12px;font-weight:800;letter-spacing:.3px;background:#eef6ff;color:#0b5bd3;border:1px solid #cfe6ff;border-radius:999px;padding:3px 8px;display:none
   }
+  body.dark .badge-left{background:#112143;color:#8db6ff;border-color:#1f3b74}
   .badge-left.show{display:inline-block}
   .results{
     position:absolute;left:0;right:0;top:calc(100% + 6px);
-    background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 10px 24px rgba(0,0,0,.12);
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 24px rgba(0,0,0,.18);
     display:none;z-index:20;max-height:360px;overflow:auto
   }
   .results.show{display:block}
   .res{display:flex;gap:10px;padding:10px;cursor:pointer;align-items:flex-start}
   .res:hover{background:#f6f8fa}
-  #searchResults .res.active{ background:#e7f0ff; }
-  .res .kind{flex:0 0 auto;font-size:11px;font-weight:800;padding:4px 8px;border-radius:999px;border:1px solid #e5e7eb;color:#374151;background:#fff}
-  .res .text .sub{color:#6b7280;font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  body.dark .res:hover{background:#101a33}
+  #searchResults .res.active{ background:#e7f0ff }
+  body.dark #searchResults .res.active{ background:#0f254f }
+  .res .kind{flex:0 0 auto;font-size:11px;font-weight:800;padding:4px 8px;border-radius:999px;border:1px solid var(--border);color:#374151;background:var(--panel)}
+  body.dark .res .kind{color:#cfd6df}
+  .res .text .sub{color:var(--muted);font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-  .btn{border:1px solid #d0d7de;background:#fff;border-radius:8px;padding:8px 10px;font-weight:600;cursor:pointer}
-  .toggle{display:inline-flex;align-items:center;gap:8px;border:1px solid #e5e7eb;border-radius:999px;padding:6px 10px;background:#fff;white-space:nowrap}
-  .toggle input{width:16px;height:16px}
+  .btn{border:1px solid #d0d7de;background:var(--panel);border-radius:8px;padding:8px 10px;font-weight:600;cursor:pointer;color:var(--fg)}
+  body.dark .btn{border-color:var(--ring)}
+  .toggle{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:999px;padding:6px 10px;background:var(--panel);white-space:nowrap}
+  .toggle input{width:16px;height:16px;accent-color:var(--blue)}
   .range{display:flex;align-items:center;gap:8px;white-space:nowrap}
-  .range small{color:#6b7280}
+  .range small{color:var(--muted)}
 
-  /* Filters */
+  /* Quick chips / actions row */
   .pillbar{display:flex;gap:6px;flex-wrap:wrap;padding:6px 10px}
-  .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid #d0d7de;border-radius:999px;padding:6px 10px;background:#fff}
+  .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid #d0d7de;border-radius:999px;padding:6px 10px;background:var(--panel);color:var(--fg)}
+  body.dark .pill{border-color:var(--ring)}
   .pill .dot{width:10px;height:10px;border-radius:50%}
   .pill.active{background:#eef6ff;border-color:#cfe6ff}
-  .filters{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:10px;padding:8px 10px;border-top:1px solid #eef0f3;border-bottom:1px solid #eef0f3}
+  body.dark .pill.active{background:#122b59;border-color:#204b9e}
+
+  /* Filters */
+  .filters{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:10px;padding:8px 10px;border-top:1px solid #eef0f3;border-bottom:1px solid #eef0f3;background:var(--panel)}
+  body.dark .filters{border-color:var(--border)}
   .picker{display:flex;flex-direction:column;gap:6px}
-  .picker input{padding:6px 8px;font-size:13px;border:1px solid #d0d7de;border-radius:8px}
-  select[multiple]{height:110px;border:1px solid #d0d7de;border-radius:8px;padding:6px 8px}
+  .picker input{padding:6px 8px;font-size:13px;border:1px solid #d0d7de;border-radius:8px;background:var(--bg);color:var(--fg)}
+  body.dark .picker input{border-color:var(--ring)}
+  select[multiple]{height:110px;border:1px solid #d0d7de;border-radius:8px;padding:6px 8px;background:var(--bg);color:var(--fg)}
+  body.dark select[multiple]{border-color:var(--ring)}
 
   /* Summary */
-  .summary{display:flex;gap:10px;align-items:center;padding:6px 10px;border-bottom:1px solid #eef0f3}
-  .chip{display:inline-flex;align-items:center;gap:8px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:999px;background:#fff}
+  .summary{display:flex;gap:10px;align-items:center;padding:6px 10px;border-bottom:1px solid #eef0f3;background:var(--panel)}
+  body.dark .summary{border-color:var(--border)}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:var(--panel)}
   .dot{width:10px;height:10px;border-radius:50%}
-  .muted{color:#6b7280;margin-left:auto}
+  .muted{color:var(--muted);margin-left:auto}
 
   /* Map container with internal overlays pinned to it */
   .mapbox{position:relative;flex:1;min-height:420px}
@@ -72,16 +92,24 @@
   .floating{position:absolute;left:10px;top:10px;z-index:402;display:flex;gap:8px;flex-wrap:wrap}
   .floating .btn,.floating .toggle{padding:6px 8px;font-size:12px}
 
-  .legend{position:absolute;top:10px;right:10px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px;box-shadow:0 6px 18px rgba(0,0,0,.12);z-index:401}
+  .legend{position:absolute;top:10px;right:10px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:8px 10px;box-shadow:0 6px 18px rgba(0,0,0,.12);z-index:401}
   .legend h4{margin:0 0 6px 0;font-size:12px}
   .legend .row{display:flex;align-items:center;gap:8px;font-size:12px;margin:4px 0}
 
-  .sandbox{position:absolute;left:10px;bottom:10px;z-index:402;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;display:none}
+  .sandbox{position:absolute;left:10px;bottom:10px;z-index:402;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:none}
   .sandbox h4{margin:0 0 6px 0;font-size:13px}
-  .sandbox small{color:#6b7280}
+  .sandbox small{color:var(--muted)}
+
+  /* Export menu (scroll-safe) */
+  .dropdown-menu{
+    position:absolute;right:0;top:calc(100% + 4px);
+    background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:6px;z-index:5;
+    max-height:70vh;overflow:auto;box-sizing:border-box;display:none
+  }
 
   /* Busy */
   .busy{position:fixed;inset:0;background:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;z-index:9999}
+  body.dark .busy{background:rgba(0,0,0,.35)}
   .busy[hidden]{display:none}
   .spin{width:36px;height:36px;border-radius:50%;border:4px solid rgba(0,0,0,.15);border-top-color:var(--blue);animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
@@ -125,20 +153,17 @@
     <b id="radiusLbl">75</b><small>mi</small>
   </div>
 
-  <div class="range">
-    <span>Min stores / hub</span>
-    <input id="minPerHub" type="range" min="0" max="150" step="5" value="0" />
-    <b id="minPerHubLbl">0</b>
-  </div>
-
   <button id="fitBtn" class="btn" type="button">Fit to Results</button>
   <button id="resetBtn" class="btn" type="button">Reset</button>
 
+  <!-- Actions on the right -->
+  <button id="darkBtn" class="btn" type="button" title="Toggle dark mode">🌙</button>
+  <button id="locateBtn" class="btn" type="button" title="Locate me">Locate me</button>
+
   <div class="dropdown" id="exportDrop" style="position:relative">
-    <button class="btn" type="button">Export ▾</button>
-    <div class="dropdown-menu" style="position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:1px solid #e5e7eb;border-radius:8px;display:none;padding:6px;z-index:5">
-      <button id="exportStores" class="btn" type="button" style="display:block;width:100%;margin:4px 0">Export filtered stores (CSV)</button>
-      <button id="exportStoresInView" class="btn" type="button" style="display:block;width:100%;margin:4px 0">Export stores in view (CSV)</button>
+    <button class="btn" type="button" title="Exports respect 'Only stores in view' toggle">Export ▾</button>
+    <div class="dropdown-menu">
+      <button id="exportStores" class="btn" type="button" style="display:block;width:100%;margin:4px 0">Export stores (CSV)</button>
       <button id="exportHubs" class="btn" type="button" style="display:block;width:100%;margin:4px 0">Export visible hubs (CSV)</button>
       <button id="exportKpis" class="btn" type="button" style="display:block;width:100%;margin:4px 0">Export KPIs summary (CSV)</button>
       <button id="exportOverlap" class="btn" type="button" style="display:block;width:100%;margin:4px 0">Export overlap stores (CSV)</button>
@@ -146,7 +171,7 @@
   </div>
 </div>
 
-<!-- Quick chips -->
+<!-- Quick chips / preset -->
 <div class="pillbar">
   <button id="chipUncovered" class="pill" type="button" title="Toggle uncovered-only">
     <span class="dot" style="background:var(--u)"></span> Uncovered only
@@ -154,6 +179,9 @@
   <label class="pill" title="Only stores currently visible on the map">
     <input id="onlyInView" type="checkbox" /> Only stores in view
   </label>
+  <button id="presetUncov" class="pill" type="button" title="Uncovered + In-view + Rings + Heatmap">
+    🎯 Preset: Uncovered focus
+  </button>
 </div>
 
 <!-- Filters row -->
@@ -183,7 +211,7 @@
 </div>
 
 <!-- Status line -->
-<div id="dataStatus" style="padding:6px 10px;color:#444;font-size:12px"></div>
+<div id="dataStatus" style="padding:6px 10px;color:var(--fg);font-size:12px"></div>
 
 <!-- Summary strip -->
 <div class="summary" id="summary">
@@ -245,6 +273,7 @@
   };
   const DEFAULT_RADIUS = 75;
   const POPUP_PAD = [30, 30];
+  const LS_KEY = 'prt_state_v2';
 
   // Hubs (sample/open + staffed)
   const hubs = [
@@ -275,6 +304,7 @@
   let pinnedHubs = [];
   let searchIdx = []; // built AFTER data load
   let resIndex = -1;  // keyboard focus for search list
+  let geoMarker=null, geoCircle=null;
 
   const debouncedRun = (()=>{ let t; return ()=>{ clearTimeout(t); t=setTimeout(runFilter,120); }; })();
 
@@ -296,21 +326,21 @@
     updateInViewCount();
     maybeReapplyInView();
     if (id('tgHeat').checked) updateHeat();
+    saveState(); // autosave on map interactions
   });
 
   // ---------- DOM ----------
   const STATUS = id('dataStatus'); const busy = id('busy');
   const legend = id('legend'); id('legendClose').onclick = ()=> legend.style.display='none';
 
-  // Search elements
+  // Search
   const searchBox = id('searchBox'), searchBadge = id('searchBadge'), searchResults = id('searchResults');
   id('searchClear').onclick = ()=>{ searchBox.value=''; searchBadge.classList.remove('show'); hideResults(); clearTarget(); runFilter(); };
 
   // Toggles / sliders
   const showStaffed = id('showStaffed');
   const showOpen    = id('showOpen');
-  const radius      = id('radius');    const radiusLbl   = id('radiusLbl');
-  const minPerHub   = id('minPerHub'); const minPerHubLbl= id('minPerHubLbl');
+  const radius      = id('radius');  const radiusLbl   = id('radiusLbl');
 
   const tgHeat = id('tgHeat'), tgRings=id('tgRings'), tgOverlap=id('tgOverlap'), tgCompare=id('tgCompare');
 
@@ -321,21 +351,25 @@
 
   const chipUncovered = id('chipUncovered');
   const onlyInView = id('onlyInView');
+  const presetUncov = id('presetUncov');
 
-  on('input', radius,   ()=>{ radiusLbl.textContent = radius.value; debouncedRun(); updateRings(); if (tgOverlap.checked) drawOverlap(); if (sandboxMarker) refreshSandbox(); });
-  on('input', minPerHub,()=>{ minPerHubLbl.textContent = minPerHub.value; debouncedRun(); });
-  on('change', showStaffed, debouncedRun);
-  on('change', showOpen,    debouncedRun);
+  const darkBtn = id('darkBtn');
+  const locateBtn = id('locateBtn');
+
+  on('input', radius,   ()=>{ radiusLbl.textContent = radius.value; debouncedRun(); updateRings(); if (tgOverlap.checked) drawOverlap(); if (sandboxMarker) refreshSandbox(); saveState(); });
+
+  on('change', showStaffed, ()=>{ debouncedRun(); saveState(); });
+  on('change', showOpen,    ()=>{ debouncedRun(); saveState(); });
 
   on('input', covSearch, ()=> filterSelect(covFilter, covSearch.value));
   on('input', rmSearch,  ()=> filterSelect(rmFilter,  rmSearch.value));
   on('input', amSearch,  ()=> filterSelect(amFilter,  amSearch.value));
   on('input', hubSearch, ()=> filterSelect(hubFilter, hubSearch.value));
 
-  on('change', covFilter, debouncedRun);
-  on('change', rmFilter,  ()=>{ cascadeAM(); debouncedRun(); autoFitForRM(); });
-  on('change', amFilter,  ()=>{ cascadeHubs(); debouncedRun(); });
-  on('change', hubFilter, debouncedRun);
+  on('change', covFilter, ()=>{ debouncedRun(); saveState(); });
+  on('change', rmFilter,  ()=>{ cascadeAM(); debouncedRun(); autoFitForRM(); saveState(); });
+  on('change', amFilter,  ()=>{ cascadeHubs(); debouncedRun(); saveState(); });
+  on('change', hubFilter, ()=>{ debouncedRun(); saveState(); });
 
   chipUncovered.addEventListener('click', ()=>{
     const active = chipUncovered.classList.toggle('active');
@@ -344,19 +378,39 @@
     } else {
       setMulti(covFilter, ['All']);
     }
-    runFilter();
+    runFilter(); saveState();
   });
-  onlyInView.addEventListener('change', ()=>{ maybeReapplyInView(); updateInViewCount(); if (tgHeat.checked) updateHeat(); });
+  onlyInView.addEventListener('change', ()=>{ maybeReapplyInView(); updateInViewCount(); if (tgHeat.checked) updateHeat(); saveState(); });
 
-  id('fitBtn').onclick = fitToResults;
-  id('resetBtn').onclick = ()=>{ resetAll(); runFilter(); };
+  presetUncov.addEventListener('click', ()=>{
+    chipUncovered.classList.add('active');
+    setMulti(covFilter, ['Uncovered']);
+    onlyInView.checked = true;
+    id('tgRings').checked = true;
+    id('tgHeat').checked  = true;
+    runFilter();
+    updateRings(); updateHeat();
+    fitToResults();
+    saveState();
+  });
 
+  id('fitBtn').onclick = ()=>{ fitToResults(); saveState(); };
+  id('resetBtn').onclick = ()=>{ resetAll(); runFilter(); saveState(); };
+
+  // Export menu
   const exportDrop = id('exportDrop');
   const menu = exportDrop.querySelector('.dropdown-menu');
-  exportDrop.querySelector('button').onclick = ()=> menu.style.display = (menu.style.display==='block'?'none':'block');
+  exportDrop.querySelector('button').onclick = ()=>{
+    const show = menu.style.display !== 'block';
+    menu.style.display = show ? 'block' : 'none';
+    if (show){
+      const rect = menu.getBoundingClientRect();
+      const roomBelow = window.innerHeight - rect.top - 16;
+      menu.style.maxHeight = Math.max(160, roomBelow) + 'px';
+    }
+  };
   on('click', document.body, (e)=>{ if (!exportDrop.contains(e.target)) menu.style.display='none'; }, true);
-  id('exportStores').onclick       = ()=> exportStoresCsv(false);
-  id('exportStoresInView').onclick = ()=> exportStoresCsv(true);
+  id('exportStores').onclick       = ()=> exportStoresCsv();
   id('exportHubs').onclick         = exportHubsCsv;
   id('exportKpis').onclick         = exportKpisCsv;
   id('exportOverlap').onclick      = exportOverlapCsv;
@@ -364,12 +418,33 @@
   const k = { pa:id('k_pa'), p:id('k_p'), a:id('k_a'), u:id('k_u'), total:id('k_total'), staffed:id('k_staffed'), open:id('k_open'), inView:id('inView') };
 
   // floating UI
-  tgHeat.onchange = ()=>{ if (tgHeat.checked) updateHeat(); else clearHeat(); };
-  tgRings.onchange= ()=> updateRings();
-  tgOverlap.onchange= ()=>{ if (tgOverlap.checked) drawOverlap(); else highlightLayer.clearLayers(); };
-  tgCompare.onchange= ()=>{ compareMode = tgCompare.checked; pinnedHubs=[]; highlightLayer.clearLayers(); alert(compareMode ? 'Compare mode on: click hub markers to pin them.' : 'Compare mode off.'); };
+  tgHeat.onchange = ()=>{ if (tgHeat.checked) updateHeat(); else clearHeat(); saveState(); };
+  tgRings.onchange= ()=>{ updateRings(); saveState(); };
+  tgOverlap.onchange= ()=>{ if (tgOverlap.checked) drawOverlap(); else highlightLayer.clearLayers(); saveState(); };
+  tgCompare.onchange= ()=>{ compareMode = tgCompare.checked; pinnedHubs=[]; highlightLayer.clearLayers(); alert(compareMode ? 'Compare mode on: click hub markers to pin them.' : 'Compare mode off.'); saveState(); };
   id('snapBtn').onclick = saveSnapshot;
   id('sandboxBtn').onclick = toggleSandbox;
+
+  // Dark mode
+  darkBtn.onclick = ()=>{
+    document.body.classList.toggle('dark');
+    darkBtn.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
+    saveState();
+  };
+
+  // Geolocate
+  locateBtn.onclick = ()=>{
+    if (!navigator.geolocation){ alert('Geolocation not supported'); return; }
+    navigator.geolocation.getCurrentPosition(({coords})=>{
+      const { latitude, longitude, accuracy } = coords;
+      const latlng = [latitude, longitude];
+      map.setView(latlng, 11);
+      if (geoMarker) map.removeLayer(geoMarker);
+      if (geoCircle) map.removeLayer(geoCircle);
+      geoMarker = L.circleMarker(latlng, { radius:6, color:'#2563eb', fillColor:'#2563eb', fillOpacity:0.9, weight:1 }).addTo(map);
+      geoCircle = L.circle(latlng, { radius: accuracy||800, color:'#2563eb', weight:1, fillOpacity:0.06 }).addTo(map);
+    }, ()=>alert('Could not get your location'), { enableHighAccuracy:true, timeout:8000 });
+  };
 
   // ---------- Load data ----------
   showBusy(true); let spinnerFailSafe = setTimeout(()=>showBusy(false), 8000);
@@ -391,14 +466,19 @@
     hubFilter.innerHTML = hubs.map(h=>`<option>${escape(h.name)}</option>`).join('');
 
     buildSearchIndex(); // after stores exist
+
+    // Restore from snapshot or localStorage
+    if (!tryLoadSnapshot()){
+      tryLoadLocal();
+    }
+
     runFilter();
-    tryLoadSnapshot();
   } catch(err){
     STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Data load error:</span> ${escape(err?.message || String(err))}`;
     console.error(err);
   } finally { clearTimeout(spinnerFailSafe); showBusy(false); }
 
-  // ---------- Search (live; arrows + Enter; no Enter required to show) ----------
+  // ---------- Search (live; arrows + Enter) ----------
   function buildSearchIndex(){
     searchIdx = allStores.map(s => ({
       kind:'STORE', store:s, lat:s.lat, lng:s.lng,
@@ -417,7 +497,7 @@
     const visH = hubs.filter(h => (h.status==='accepted'?showStaffed.checked:showOpen.checked));
     let nearest = null, best = 1e9;
     visH.forEach(h=>{ const d = distMiles(s.lat,s.lng,h.coords[0],h.coords[1]); if(d<best){best=d;nearest=h;} });
-    const badge = `<span style="padding:2px 6px;border-radius:999px;border:1px solid #e5e7eb;background:${COLORS[s.coverageType]||'#eee'}22">${escape(s.coverageType||'')}</span>`;
+    const badge = `<span style="padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:${COLORS[s.coverageType]||'#eee'}22">${escape(s.coverageType||'')}</span>`;
     const around = countAround(s.lat,s.lng,r);
     return `
       <div style="font-size:13px;line-height:1.35;min-width:220px">
@@ -439,7 +519,7 @@
             </div>`
           )).join('')}
         </div>
-        <div style="color:#6b7280;margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
+        <div style="color:var(--muted);margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
       </div>`;
   }
   function countAround(lat,lng,r){
@@ -621,7 +701,6 @@
     const includeStaffed = showStaffed.checked;
     const includeOpen    = showOpen.checked;
     const r = Number(radius.value)||DEFAULT_RADIUS;
-    const minN = Number(minPerHub.value)||0;
 
     lastHubsShown.forEach(o => map.removeLayer(o.marker));
     lastHubsShown = [];
@@ -630,7 +709,6 @@
       const vis = (h.status==='accepted' ? includeStaffed : includeOpen);
       if (!vis) return;
       const covered = displayedStores.filter(s => distMiles(s.lat,s.lng,h.coords[0],h.coords[1]) <= r);
-      if (covered.length < minN) return;
 
       const marker = L.marker(h.coords,{icon:hubIcon(h), title:h.name}).addTo(map);
       marker.bindTooltip(h.name, { direction:'top', offset:[0,-12], opacity:0.9 });
@@ -711,7 +789,6 @@
   function resetAll(){
     showStaffed.checked = true; showOpen.checked = true;
     radius.value = DEFAULT_RADIUS; radiusLbl.textContent = DEFAULT_RADIUS;
-    minPerHub.value = 0; minPerHubLbl.textContent = '0';
     setAll(covFilter); setAll(rmFilter); setAll(amFilter);
     chipUncovered.classList.remove('active');
     onlyInView.checked = false;
@@ -725,9 +802,8 @@
   }
 
   // ---------- Exports ----------
-  function exportStoresCsv(forceInView){
-    // Use either explicit "in view" or the toggle
-    const useInView = forceInView || onlyInView.checked;
+  function exportStoresCsv(){
+    const useInView = onlyInView.checked;
     const list = useInView ? displayedStores : filteredStores;
     if (!list.length){ alert('No stores to export.'); return; }
     const headers = ['Store Number','Store Name','Address','City','State','Coverage Type','Trainer City','Area Manager','Regional Manager','Lat','Lng'];
@@ -764,33 +840,47 @@
 
   // ---------- Snapshot ----------
   function saveSnapshot(){
-    const state = {
-      radius: radius.value, minPerHub: minPerHub.value, showStaffed: showStaffed.checked, showOpen: showOpen.checked,
-      cov: selected(covFilter), rm:selected(rmFilter), am:selected(amFilter), hubs:selected(hubFilter,true),
-      onlyInView: onlyInView.checked,
-      center: map.getCenter(), zoom: map.getZoom()
-    };
+    const state = collectState();
     const enc = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
     const url = location.origin+location.pathname+'#S='+enc;
     navigator.clipboard?.writeText(url).then(()=>alert('Snapshot link copied to clipboard!')).catch(()=>{ prompt('Copy this link:', url); });
   }
   function tryLoadSnapshot(){
-    if (!location.hash.startsWith('#S=')) return;
+    if (!location.hash.startsWith('#S=')) return false;
     try{
       const json = decodeURIComponent(escape(atob(location.hash.slice(3))));
       const s = JSON.parse(json);
-      radius.value=s.radius||DEFAULT_RADIUS; radiusLbl.textContent=radius.value;
-      minPerHub.value=s.minPerHub||0; minPerHubLbl.textContent=minPerHub.value;
-      showStaffed.checked=!!s.showStaffed; showOpen.checked=!!s.showOpen;
-      setMulti(covFilter, s.cov||['All']);
-      setMulti(rmFilter, s.rm||['All']); cascadeAM();
-      setMulti(amFilter, s.am||['All']); cascadeHubs();
-      setMulti(hubFilter, s.hubs||[]);
-      onlyInView.checked=!!s.onlyInView;
-      map.setView(s.center||{lat:39.5,lng:-98.35}, s.zoom||5);
-      runFilter();
-    }catch(e){ console.warn('Bad snapshot hash'); }
+      applyState(s);
+      return true;
+    }catch(e){ console.warn('Bad snapshot hash'); return false; }
   }
+
+  // ---------- LocalStorage autosave ----------
+  function collectState(){
+    return {
+      radius: radius.value, showStaffed: showStaffed.checked, showOpen: showOpen.checked,
+      cov: selected(covFilter), rm:selected(rmFilter), am:selected(amFilter), hubs:selected(hubFilter,true),
+      onlyInView: onlyInView.checked,
+      heat: tgHeat.checked, rings: tgRings.checked, overlap: tgOverlap.checked, compare: tgCompare.checked,
+      center: map.getCenter(), zoom: map.getZoom(),
+      dark: document.body.classList.contains('dark')
+    };
+  }
+  function applyState(s){
+    radius.value=s.radius||DEFAULT_RADIUS; radiusLbl.textContent=radius.value;
+    showStaffed.checked=!!s.showStaffed; showOpen.checked=!!s.showOpen;
+    setMulti(covFilter, s.cov||['All']);
+    setMulti(rmFilter, s.rm||['All']); cascadeAM();
+    setMulti(amFilter, s.am||['All']); cascadeHubs();
+    setMulti(hubFilter, s.hubs||[]);
+    onlyInView.checked=!!s.onlyInView;
+    tgHeat.checked=!!s.heat; tgRings.checked=!!s.rings; tgOverlap.checked=!!s.overlap; tgCompare.checked=!!s.compare; compareMode=tgCompare.checked;
+    map.setView(s.center||{lat:39.5,lng:-98.35}, s.zoom||5);
+    document.body.classList.toggle('dark', !!s.dark);
+    darkBtn.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
+  }
+  function saveState(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(collectState())); }catch{} }
+  function tryLoadLocal(){ try{ const t = localStorage.getItem(LS_KEY); if (!t) return; applyState(JSON.parse(t)); }catch{} }
 
   // ---------- Sandbox ----------
   let sandboxMarker=null, sandboxCircle=null;
