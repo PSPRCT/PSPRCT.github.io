@@ -68,12 +68,12 @@
   .sp-list{flex:1;min-height:160px;border:1px solid var(--border);border-radius:8px;padding:0;display:flex;flex-direction:column;overflow:auto; box-shadow: inset 0 0 0 2px rgba(0,0,0,.02)}
   .sp-list input{margin:8px;border:1px solid var(--border);border-radius:8px;padding:6px 8px}
   .sp-rows{position:relative;height:0} /* height set dynamically */
-  .row{position:absolute;left:0;right:0;height:64px;display:flex;gap:8px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);cursor:pointer;background:var(--panel)}
+  .row{position:absolute;left:0;right:0;height:96px;display:flex;gap:8px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--border);cursor:pointer;background:var(--panel)}
   .row:hover{background:#f6f8fa}
   .row .num{min-width:62px;font-variant-numeric:tabular-nums;color:var(--muted)}
   .row .cov{width:8px;height:8px;border-radius:50%}
   .row .title{font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .row .addr{color:var(--muted);font-size:12px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .addr{color:var(--muted);font-size:12px;line-height:1.25;white-space:normal;overflow:visible;text-overflow:clip}
 
   .floating{position:absolute;left:10px;top:10px;z-index:402;display:flex;gap:8px;flex-wrap:wrap}
   .floating .btn,.floating .toggle{padding:6px 8px;font-size:12px}
@@ -677,11 +677,33 @@
       return;
     }
   }
-  function openStorePopup(store){
-    const m = markerByStore.get(store.storeNumberStr);
-    if (m){ markers.zoomToShowLayer(m, ()=> m.openPopup()); }
-    else { showPinPopup([store.lat, store.lng], storePopupHTML(store)); }
+ function openStorePopup(store){
+  const ll = L.latLng(store.lat, store.lng);
+  const padRight = sidepanel.classList.contains('show') ? 420 : 20; // keep popup visible when panel is open
+  const panOpts = { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] };
+
+  const m = markerByStore.get(store.storeNumberStr);
+
+  // Helper: open popup and pan inside view
+  const doOpen = (marker) => {
+    marker.openPopup();
+    map.panInside(marker.getLatLng(), panOpts);
+  };
+
+  // Clustered marker? ensure it is visible, then open.
+  if (m) {
+    if (tgCluster.checked) {
+      markers.zoomToShowLayer(m, () => doOpen(m));
+    } else {
+      doOpen(m);
+    }
+  } else {
+    // Fallback pin (should be rare)
+    showPinPopup(ll, storePopupHTML(store));
+    map.panInside(ll, panOpts);
   }
+}
+
   function showPinPopup(latlng, html){
     if(!targetPin){ targetPin = L.marker(latlng,{icon:targetIcon}).addTo(targetLayer); }
     else { targetPin.setLatLng(latlng); }
