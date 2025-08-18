@@ -402,7 +402,7 @@ hubPane.style.pointerEvents = 'auto';
   on('change', rmFilter,  ()=>{ cascadeAM(); runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
 on('change', amFilter,  ()=>{ runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
 on('change', covFilter, ()=>{ runFilter(); saveState(); renderChips(); buildHubFilterOptions(); });
-on('input',  radius,    ()=>{ /* existing stuff… */ buildHubFilterOptions(); });
+
 
   on('change', hubFilter, ()=>{ runFilter(); fitToResults(); saveState(); renderChips(); });
 
@@ -527,7 +527,6 @@ try {
   console.error('Acosta load error:', e);
   acostaHubs = [];
 }
-
 // PREMIUM (confirmed + pending/open/proposed) with rich status + display label
 try {
   const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
@@ -554,9 +553,9 @@ try {
   };
 
   // finer buckets inside "pending"
-  const isOffer      = s => /(offer|accepted)/.test(s);
-  const isProposed   = s => /(propos|plan|target)/.test(s);
-  const isRecruiting = s => /(recruit|source|pipeline|tbd|open|no cand|search)/.test(s);
+  const isOffer      = s => /(offer|accepted)/i.test(s);
+  const isProposed   = s => /(propos|plan|target)/i.test(s);
+  const isRecruiting = s => /(recruit|source|pipeline|tbd|open|no cand|search)/i.test(s);
 
   const getName  = r => String(
     r.RepName ?? r.repName ?? r.TrainerName ?? r['Trainer Name'] ??
@@ -572,17 +571,16 @@ try {
     return (Number.isFinite(lat) && Number.isFinite(lng)) ? [lat, lng] : null;
   };
 
-  // status classifier
+  // classify status
   const classify = r => {
     const s = statusText(r);
     const hasName = !!getName(r);
-    if (hasName && !isOffer(s) && !isProposed(s) && !isRecruiting(s) && !/pend/.test(s)) {
+    if (hasName && !isOffer(s) && !isProposed(s) && !isRecruiting(s) && !/pend/i.test(s)) {
       return { status: 'confirmed', statusSub: 'confirmed' };
     }
     if (isOffer(s))      return { status: 'pending', statusSub: 'pending_offer' };
     if (isProposed(s))   return { status: 'pending', statusSub: 'proposed' };
     if (isRecruiting(s)) return { status: 'pending', statusSub: 'open' };
-    // generic pending (candidate or not)
     return { status: 'pending', statusSub: hasName ? 'pending_candidate' : 'proposed' };
   };
 
@@ -603,24 +601,18 @@ try {
 
     const { status, statusSub } = classify(r);
     const statusLabel = pretty(statusSub);
-
-    // City-first label; include status and trainer when meaningful
-    // Examples:
-    // "Austin, TX (Proposed)"
-    // "Belvidere, IL (Pending Offer — Justin Vargas Salgado)"
-    // "Mabelvale, AR (Confirmed — Angela Eslick)"
     const trainerBit = nm ? ` — ${nm}` : '';
     const label = `${city}${state ? `, ${state}` : ''} (${statusLabel}${trainerBit})`;
 
     return {
       id: `${status[0]}_${slug(`${city}-${state}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
       name: nm || 'Proposed',
-      label,                 // <-- use this everywhere in UI
-      fullName: label,       // backwards-compat for any old references
+      label,
+      fullName: label,
       coords: [lat, lng],
-      status,                // 'confirmed' | 'pending'
-      statusSub,             // 'confirmed' | 'pending_offer' | 'proposed' | 'open' | 'pending_candidate'
-      statusLabel            // pretty text used in UI
+      status,
+      statusSub,
+      statusLabel
     };
   };
 
@@ -629,7 +621,7 @@ try {
   premiumConfirmed = hubs.filter(h => h.status === 'confirmed');
   premiumPending   = hubs.filter(h => h.status === 'pending');
 
-  // de-dupe
+  // de-dupe within each bucket
   const dedupe = list => {
     const seen = new Set(), out = [];
     for (const h of list) {
@@ -648,22 +640,6 @@ try {
 }
 
 
-  // de-dupe any accidental repeats
-  const dedupe = list => {
-    const seen = new Set(); const out = [];
-    for (const h of list) {
-      const key = `${h.fullName}|${h.coords[0].toFixed(4)},${h.coords[1].toFixed(4)}`;
-      if (!seen.has(key)) { seen.add(key); out.push(h); }
-    }
-    return out;
-  };
-  premiumConfirmed = dedupe(premiumConfirmed);
-  premiumPending   = dedupe(premiumPending);
-} catch (e) {
-  console.warn('Premium file missing/invalid', e);
-  premiumConfirmed = [];
-  premiumPending   = [];
-}
 
 
     // Build initial UI state
@@ -1505,10 +1481,12 @@ function storePopupHTML(s){
     const c = map.getCenter();
     placeSandbox([c.lat, c.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
 
-    id('sandboxR').addEventListener('input', ()=>{
-      id('sandboxRlbl').textContent = id('sandboxR').value;
-      refreshSandbox();
-    }, { once:true });
+  // before: addEventListener('input', () => { ... }, { once:true });
+id('sandboxR').addEventListener('input', ()=>{
+  id('sandboxRlbl').textContent = id('sandboxR').value;
+  refreshSandbox();
+});
+
 
     id('sandboxGeocode').addEventListener('click', ()=>{
       const s = id('sandboxAddr').value.trim();
