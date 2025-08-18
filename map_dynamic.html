@@ -1176,36 +1176,37 @@
   }
 
   function printSidepanelList(){
-    if (!spRows?.length){ alert('No list to print.'); return; }
-    const rows = spRows.map(r => `
-      <tr>
-        <td>${escape(r.storeNumberStr)}</td>
-        <td>${escape(r.title)}</td>
-        <td>${escape(r.addr)}</td>
-        <td>${escape(r.coverageType)}</td>
-      </tr>
-    `).join('');
-    const html = `
-      <html><head><title>${escape(spHub?.name || 'List')}</title>
-      <style>
-        body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
-        table{border-collapse:collapse;width:100%}
-        th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
-        th{background:#f6f8fa;text-align:left}
-      </style></head>
-      <body>
-        <h3>${escape(spHub?.name || 'Hub')}</h3>
-        <p>${spRows.length} stores</p>
-        <table>
-          <thead><tr><th>#</th><th>Store</th><th>Address</th><th>Coverage</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-        <script>window.onload=()=>window.print()</script>
-      </body></html>`;
-    const w = window.open('', '_blank');
-    w.document.write(html);
-    w.document.close();
-  }
+  if (!spRows?.length){ alert('No list to print.'); return; }
+  const rows = spRows.map(r => `
+    <tr>
+      <td>${escape(r.storeNumberStr)}</td>
+      <td>${escape(r.title)}</td>
+      <td>${escape(r.addr)}</td>
+      <td>${escape(r.coverageType)}</td>
+    </tr>
+  `).join('');
+  const html = `
+    <html><head><title>${escape(spHub?.name || 'List')}</title>
+    <style>
+      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+      table{border-collapse:collapse;width:100%}
+      th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
+      th{background:#f6f8fa;text-align:left}
+    </style></head>
+    <body>
+      <h3>${escape(spHub?.name || 'Hub')}</h3>
+      <p>${spRows.length} stores</p>
+      <table>
+        <thead><tr><th>#</th><th>Store</th><th>Address</th><th>Coverage</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <scr` + `ipt>window.onload=()=>window.print()</scr` + `ipt>
+    </body></html>`;
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+}
+
 
   // ---------- Chips ----------
   function renderChips(){
