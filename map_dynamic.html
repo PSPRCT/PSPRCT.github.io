@@ -68,6 +68,19 @@
   .sp-quick{display:flex;gap:6px;flex-wrap:wrap}
   .sp-list{flex:1;min-height:160px;border:1px solid var(--border);border-radius:8px;padding:0;display:flex;flex-direction:column;overflow:auto; box-shadow: inset 0 0 0 2px rgba(0,0,0,.02)}
   .sp-list input{margin:8px;border:1px solid var(--border);border-radius:8px;padding:6px 8px}
+  /* keep the panel's search bar visible while the store list scrolls */
+.sp-list input{
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--panel);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  box-shadow: 0 4px 6px rgba(0,0,0,.04);
+}
+/* optional: keep the quick radius chips pinned at the very top of panel */
+.sp-quick{ position: sticky; top: 0; z-index: 3; background: var(--panel); }
+
   .sp-rows{position:static;height:auto}
   .row{position:relative;display:flex;gap:8px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--border);background:var(--panel);cursor:pointer;min-height:56px}
   .row .title{font-weight:800;line-height:1.25}
@@ -211,7 +224,7 @@
   <span class="chip">Hubs — <b id="k_confirmed">0</b> confirmed / <b id="k_pending">0</b> pending</span>
   <span class="muted" id="inView">In view: 0</span>
 </div>
-
+<div class="summary" id="datasetBadge"></div>
 <div class="mapwrap">
   <div id="map" role="region" aria-label="Coverage Map"></div>
 
@@ -230,6 +243,8 @@
       <h3 id="spTitle">Hub</h3>
       <button id="spCollapse" class="btn" type="button" title="Collapse panel">⟨</button>
       <button id="spPinBtn" class="btn" type="button" title="Pin for compare">Pin</button>
+      <button id="spLink" class="btn" type="button" title="Copy link to this hub">Link</button>
+
       <button id="spClose" class="btn" type="button" title="Close panel">Close</button>
     </div>
     <div class="sp-body">
@@ -324,6 +339,10 @@
   let filteredStores = [];
   const markerByStore = new Map();
 
+  let PENDING_OPEN_HUB_ID = null;
+let PENDING_PIN_IDS = [];
+
+
   // Map/layers
   const map = L.map('map', { zoomControl: true, inertia: true }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
@@ -366,6 +385,8 @@ hubPane.style.pointerEvents = 'auto';
   const sidepanel = id('sidepanel');
   const spTitle = id('spTitle'); const spMeta = id('spMeta'); const spCounts = id('spCounts');
   const spRowsEl = id('spRows'); const spSearch = id('spSearch');
+  const spLink = id('spLink');
+
   const spClose = id('spClose'); const spExport = id('spExport'); const spPinBtn = id('spPinBtn'); const spPrint = id('spPrint'); const spOnlyUncovEl = id('spOnlyUncov'); const spCollapse = id('spCollapse');
   let spHub = null; let spRows = []; let spFilter = ''; let spOnlyUncov = false;
 
@@ -394,6 +415,8 @@ const getName = r => String(
     recomputeCoverage();
     debouncedRun();
     updateRings();
+    buildHubFilterOptions();
+
     if (tgOverlap.checked) drawOverlap();
     if (sandboxMarker) refreshSandbox();
     saveState();
@@ -407,6 +430,8 @@ const getName = r => String(
 
 
   on('change', rmFilter,  ()=>{ cascadeAM(); runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
+  rebuildAMOptionsWithCounts();
+
 on('change', amFilter,  ()=>{ runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
 on('change', covFilter, ()=>{ runFilter(); saveState(); renderChips(); buildHubFilterOptions(); });
 
@@ -901,6 +926,16 @@ premiumPending   = merged.filter(h => h.status === 'pending');
     console.error(err);
   } finally { clearTimeout(spinnerFailSafe); showBusy(false); }
 
+  if (PENDING_PIN_IDS.length){
+  pinnedHubs = visibleHubs().filter(h => PENDING_PIN_IDS.includes(h.id));
+  if (tgOverlap.checked) drawOverlap();
+}
+if (PENDING_OPEN_HUB_ID){
+  const h = visibleHubs().find(x => x.id === PENDING_OPEN_HUB_ID);
+  if (h) openSidepanel(h);
+  PENDING_OPEN_HUB_ID = null;
+}
+
   // ---------- Search ----------
   var searchIdx = []; let resIndex = -1; let targetPin=null; const targetIcon = L.divIcon({className:'', html:'<div style="background:#2f71ff;border:2px solid #fff;border-radius:50%;width:18px;height:18px;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>', iconSize:[18,18], iconAnchor:[9,9]});
   const hoverIcon  = L.divIcon({className:'', html:'<div class="hl"></div>', iconSize:[22,22], iconAnchor:[11,11]});
@@ -1066,6 +1101,10 @@ function storeFilter(s){
     else { plainMarkers.addLayer(L.layerGroup(ms)); }
 
     updateCounts();
+    rebuildRMOptionsWithCounts();
+rebuildAMOptionsWithCounts();
+buildHubFilterOptions();
+
     updateInViewCount();
     if (id('tgHeat').checked) updateHeat();
     if (id('tgRings').checked) updateRings();
@@ -1115,6 +1154,20 @@ function updateCounts(){
     return out;
   }
 function hubDisplay(h){ return h.label || h.fullName || h.name; }
+
+  function copyHubLink(){
+  if(!spHub) return;
+  saveState(); // persist current filters/toggles/radius
+  const st = JSON.parse(localStorage.getItem(LS_STATE) || '{}');
+  st.openHubId     = spHub.id;
+  st.pinnedHubIds  = pinnedHubs.map(h => h.id);
+  const hash = btoa(unescape(encodeURIComponent(JSON.stringify(st))));
+  const url  = `${location.origin}${location.pathname}#${hash}`;
+  navigator.clipboard?.writeText(url);
+  alert('Hub link copied to clipboard.');
+}
+spLink.onclick = copyHubLink;
+
 
 function renderHubs(){
   hubLayer.clearLayers();
@@ -1208,6 +1261,10 @@ function renderSidepanelMeta(){
   if(!spHub) return;
   const r = Number(radius.value)||DEFAULT_RADIUS;
   const stores = storesWithin(spHub.coords, r);
+  const [hlat, hlng] = spHub.coords;
+const gHub = `https://www.google.com/maps?q=${encodeURIComponent(hlat+','+hlng)}`;
+const aHub = `http://maps.apple.com/?ll=${encodeURIComponent(hlat+','+hlng)}`;
+
   const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
   stores.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0) + 1; });
 
@@ -1218,6 +1275,8 @@ function renderSidepanelMeta(){
   spMeta.innerHTML = `
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       ${statusChip}
+      <span class="sp-chip"><b>Maps:</b> <a target="_blank" rel="noopener" href="${gHub}">Google</a> • <a target="_blank" rel="noopener" href="${aHub}">Apple</a></span>
+
       <span class="sp-chip"><b>Radius:</b> ${r} mi</span>
     </div>
     <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
@@ -1324,6 +1383,26 @@ function renderSidepanelMeta(){
   document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
 }
+const REV_KEY='prt_dataset_revs_v1';
+function getRevs(){ try{return JSON.parse(localStorage.getItem(REV_KEY)||'{}')}catch{ return {}; } }
+function setRevs(x){ localStorage.setItem(REV_KEY, JSON.stringify(x)); }
+function bumpRevision(name, fingerprint){
+  const r = getRevs();
+  const cur = r[name] || { rev:0, fp:'' };
+  if (cur.fp !== fingerprint){ cur.rev = (cur.rev||0)+1; cur.fp = fingerprint; }
+  r[name] = cur; setRevs(r); return cur.rev;
+}
+function updateDatasetBadge(storesFp, premiumFp, acostaFp){
+  const badge = id('datasetBadge');
+  if (!badge) return;
+  const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+  const pRev = bumpRevision('premium', premiumFp);
+  const aRev = bumpRevision('acosta',  acostaFp);
+  badge.innerHTML =
+    `<span class="chip">Stores v${today}</span>`+
+    ` <span class="chip">Premium v${pRev}</span>`+
+    ` <span class="chip">Acosta v${aRev}</span>`;
+}
 
   function printSidepanelList(){
     if(!spHub){ alert('Open a hub panel first.'); return; }
@@ -1386,6 +1465,47 @@ function renderSidepanelMeta(){
   function coverageCounts(markersArr){ const out={}; markersArr.forEach(m=>{ const s=m?.store; if(!s) return; out[s.coverageType]=(out[s.coverageType]||0)+1; }); return out; }
   function toggleDropdown(menu){ menu.style.display=menu.style.display==='block'?'none':'block'; }
   function setMulti(sel,arr){ Array.from(sel.options).forEach(o=>{o.selected=arr.includes(o.value);}); }
+  function rebuildRMOptionsWithCounts(){
+  const prev = new Set(Array.from(rmFilter.selectedOptions).map(o=>o.value));
+  const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
+  const inCov = s => covSel.has('All') || covSel.has(s.coverageType || '');
+  const base = allStores.filter(inCov);
+
+  const by = {};
+  base.forEach(s => { const k = s.regionalManager || ''; if(k) by[k]=(by[k]||0)+1; });
+  const names = Object.keys(by).sort((a,b)=>a.localeCompare(b));
+
+  rmFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
+    `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
+  )].join('');
+
+  const sel = names.filter(n=>prev.has(n));
+  setMulti(rmFilter, sel.length ? sel : ['All']);
+  filterSelect(rmFilter, rmSearch.value);
+}
+
+function rebuildAMOptionsWithCounts(){
+  const prev = new Set(Array.from(amFilter.selectedOptions).map(o=>o.value));
+  const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
+  const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o => o.value));
+
+  const inCov = s => covSel.has('All') || covSel.has(s.coverageType || '');
+  const inRM  = s => rmSel.has('All')  || rmSel.has(s.regionalManager || '');
+  const base  = allStores.filter(s => inCov(s) && inRM(s));
+
+  const by = {};
+  base.forEach(s => { const k = s.areaManager || ''; if(k) by[k]=(by[k]||0)+1; });
+  const names = Object.keys(by).sort((a,b)=>a.localeCompare(b));
+
+  amFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
+    `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
+  )].join('');
+
+  const sel = names.filter(n=>prev.has(n));
+  setMulti(amFilter, sel.length ? sel : ['All']);
+  filterSelect(amFilter, amSearch.value);
+}
+
   function filterSelect(selectEl, q){
     const query = (q||'').toLowerCase();
     Array.from(selectEl.options).forEach(opt=>{
@@ -1429,34 +1549,36 @@ function buildHubFilterOptions(){
   const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
   const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o => o.value));
   const amSel  = new Set(Array.from(amFilter.selectedOptions).map(o => o.value));
-
   const covOK = s => covSel.has('All') || covSel.has(s.coverageType || '');
   const rmOK  = s => rmSel.has('All')  || rmSel.has(s.regionalManager || '');
   const amOK  = s => amSel.has('All')  || amSel.has(s.areaManager || '');
-
   const subset = allStores.filter(s => covOK(s) && rmOK(s) && amOK(s));
 
-  // If a subset exists, only show hubs that cover at least one of those stores (within radius)
-  const cascaded = subset.length
-    ? hubsAll.filter(h => subset.some(s => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r))
-    : hubsAll.slice();
+  // Count stores within r for each hub against the subset above
+  const counted = hubsAll.map(h => ({
+    hub: h,
+    n: subset.reduce((acc,s)=>{
+      return acc + (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r ? 1 : 0);
+    }, 0)
+  }));
 
   // Remember previous selections by ID
   const prevSel = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
 
-  // Build options (value=id, text=city/status label)
-  hubFilter.innerHTML = cascaded
-    .sort((a,b)=> (hubDisplay(a)||'').localeCompare(hubDisplay(b)||''))
-    .map(h => `<option value="${escape(h.id)}">${escape(hubDisplay(h))}</option>`)
-    .join('');
+  hubFilter.innerHTML = counted
+    .sort((a,b)=> (hubDisplay(a.hub)||'').localeCompare(hubDisplay(b.hub)||''))
+    .map(({hub:nHub, n}) =>
+      `<option value="${escape(nHub.id)}">${escape(hubDisplay(nHub))} — ${n}</option>`
+    ).join('');
 
   // Re-select any that still exist
-  const keep = cascaded.map(h => h.id).filter(id => prevSel.has(id));
+  const keep = counted.map(x => x.hub.id).filter(id => prevSel.has(id));
   if (keep.length) setMulti(hubFilter, keep);
 
-  // Apply the hub search box text
+  // Apply current search text
   filterSelect(hubFilter, hubSearch.value);
 }
+
 
 
 
@@ -1513,6 +1635,13 @@ function storePopupHTML(s){
       ${np ? `<div style="margin-top:6px"><b>Nearest Premium:</b> ${escape(hubDisplay(np.hub))} • ${np.d.toFixed(1)} mi</div>` : ''}
       ${na ? `<div><b>Nearest Acosta:</b> ${escape(na.hub.label || na.hub.fullName || na.hub.name)} • ${na.d.toFixed(1)} mi</div>` : ''}
       <div style="color:var(--muted);margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
+            <div style="margin-top:6px">
+        <b>Maps:</b>
+        <a target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(s.lat+','+s.lng)}">Google</a>
+        •
+        <a target="_blank" rel="noopener" href="http://maps.apple.com/?ll=${encodeURIComponent(s.lat+','+s.lng)}">Apple</a>
+      </div>
+
     </div>`;
 }
 
@@ -1632,6 +1761,11 @@ function storePopupHTML(s){
         recomputeCoverage();
         runFilter(); renderChips(); renderHubs(); updateRings(); fitToResults();
       });
+      // simple fingerprints
+const storesFp  = `stores:${allStores.length}`;
+const premiumFp = `premium:${premiumConfirmed.length + premiumPending.length}`;
+const acostaFp  = `acosta:${acostaHubs.length}`;
+updateDatasetBadge(storesFp, premiumFp, acostaFp);
     });
     Array.from(viewList.querySelectorAll('button.del')).forEach(b=>{
       b.addEventListener('click', ()=>{
@@ -1909,25 +2043,23 @@ id('sandboxR').addEventListener('input', ()=>{
   }
 
   // ---------- Snapshot loader ----------
-  function tryLoadSnapshot(){
-    if (!location.hash || location.hash.length < 2) return false;
-    try{
-      const raw = decodeURIComponent(window.escape(atob(location.hash.slice(1))));
-
-      const st = JSON.parse(raw);
-      localStorage.setItem(LS_STATE, JSON.stringify(st));
-      // restore last query if present for search badge behavior
-      const lastQ = localStorage.getItem(LS_LAST_QUERY)||'';
-      if (lastQ){ id('searchBadge').classList.add('show'); }
-      tryLoadLocal(); // apply state
-      // clear hash so future loads don't keep reapplying
-      history.replaceState(null, '', location.pathname + location.search);
-      return true;
-    }catch(e){
-      console.warn('Bad snapshot in hash', e);
-      return false;
-    }
+function tryLoadSnapshot(){
+  if (!location.hash || location.hash.length < 2) return false;
+  try{
+    const raw = decodeURIComponent(window.escape(atob(location.hash.slice(1))));
+    const st = JSON.parse(raw);
+    if (st.openHubId)    PENDING_OPEN_HUB_ID = st.openHubId;
+    if (Array.isArray(st.pinnedHubIds)) PENDING_PIN_IDS = st.pinnedHubIds.slice();
+    localStorage.setItem(LS_STATE, JSON.stringify(st));
+    tryLoadLocal(); // apply state
+    history.replaceState(null, '', location.pathname + location.search);
+    return true;
+  }catch(e){
+    console.warn('Bad snapshot in hash', e);
+    return false;
   }
+}
+
 
   // ---------- First-search popup reliability tweak ----------
   // Ensure first search selection opens popup even if cluster hasn't rendered yet
