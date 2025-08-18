@@ -1568,7 +1568,8 @@ function buildHubFilterOptions(){
   hubFilter.innerHTML = counted
     .sort((a,b)=> (hubDisplay(a.hub)||'').localeCompare(hubDisplay(b.hub)||''))
     .map(({hub:nHub, n}) =>
-      `<option value="${escape(nHub.id)}">${escape(hubDisplay(nHub))} — ${n}</option>`
+    `<option value="${escape(nHub.id)}">${escape(hubDisplay(nHub))} — ${n} stores in radius</option>`
+
     ).join('');
 
   // Re-select any that still exist
