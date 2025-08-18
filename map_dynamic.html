@@ -873,6 +873,81 @@ function handleHubVisibilityChange(){
     }
     return m;
   }
+// ---------- Missing helpers you reference ----------
+function uniqSorted(arr){
+  const set = new Set();
+  arr.forEach(v => { const s = (v ?? '').toString().trim(); if (s) set.add(s); });
+  return Array.from(set).sort((a,b)=> a.localeCompare(b));
+}
+
+function populateRM(stores){
+  const opts = ['All', ...uniqSorted(stores.map(s => s.regionalManager))];
+  rmFilter.innerHTML = opts.map(v =>
+    `<option value="${escape(v)}"${v==='All'?' selected':''}>${escape(v)}</option>`
+  ).join('');
+}
+
+function populateAM(stores){
+  const opts = ['All', ...uniqSorted(stores.map(s => s.areaManager))];
+  amFilter.innerHTML = opts.map(v =>
+    `<option value="${escape(v)}"${v==='All'?' selected':''}>${escape(v)}</option>`
+  ).join('');
+}
+
+function cascadeAM(){
+  const rmSel = Array.from(rmFilter.selectedOptions).map(o => o.value);
+  const src = (rmSel.includes('All') || rmSel.length === 0)
+    ? allStores
+    : allStores.filter(s => rmSel.includes(s.regionalManager || ''));
+  populateAM(src);
+}
+
+function cascadeHubs(){
+  // Keeping the static hubs list you already set earlier.
+  // (If you ever want this to depend on AM/RM, build options from stores here.)
+}
+
+function refreshLayerMode(){
+  if (tgCluster.checked){
+    if (map.hasLayer(plainMarkers)) map.removeLayer(plainMarkers);
+    if (!map.hasLayer(markers)) map.addLayer(markers);
+  } else {
+    if (map.hasLayer(markers)) map.removeLayer(markers);
+    if (!map.hasLayer(plainMarkers)) map.addLayer(plainMarkers);
+  }
+  runFilter();
+}
+
+function storesWithin(center, r){
+  const [lat, lng] = Array.isArray(center) ? center : [center.lat, center.lng];
+  const src = filteredStores.length ? filteredStores : allStores;
+  return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
+}
+
+function fitToResults(){
+  const pad = { padding:[20,20] };
+  if (tgCluster.checked){
+    if (!markers.getLayers().length) return;
+    map.fitBounds(markers.getBounds(), pad);
+  } else {
+    const g = plainMarkers.getLayers()[0];
+    const arr = g?.getLayers?.() || [];
+    if (!arr.length) return;
+    const b = L.latLngBounds(arr.map(m => m.getLatLng()));
+    map.fitBounds(b, pad);
+  }
+}
+
+function exportStoresCsv(){
+  const rows = [
+    ['Store #','Name','Address','City','State','Coverage','Area Manager','Regional Manager','Lat','Lng'],
+    ...filteredStores.map(s => [
+      s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'',
+      s.coverageType||'', s.areaManager||'', s.regionalManager||'', s.lat, s.lng
+    ])
+  ];
+  downloadCsv(rows, `filtered_stores_${Date.now()}.csv`);
+}
 
 
 // ---------- Hubs (render icons & interactions) ----------
