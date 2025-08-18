@@ -125,6 +125,9 @@
 
   /* Empty state overlay */
   .empty-state{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:401;pointer-events:none}
+  /* allow the hidden attribute to actually hide the overlay */
+.empty-state[hidden]{ display:none !important; }
+
   .empty-card{pointer-events:auto;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 28px rgba(0,0,0,.12);padding:14px 16px;max-width:520px}
   .empty-card h4{margin:0 0 6px 0}
   .empty-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
@@ -349,6 +352,8 @@
   const LS_LAST_QUERY = 'prt_last_query';
   const HOME_VIEW = { center:[39.5,-98.35], zoom:5 };
   const AUTO_RESET = ()=> id('autoReset')?.checked;
+  const REV_KEY = 'prt_dataset_revs_v1';
+
 
   // Hub sets
   let premiumConfirmed = [];
@@ -1359,7 +1364,7 @@
     if(!spHub){ alert('Open a hub panel first.'); return; }
     const r = Number(radius.value)||DEFAULT_RADIUS;
     const [clat, clng] = spHub.coords;
-     const REV_KEY='prt_dataset_revs_v1';
+  
 
     const rows = spRows
       .slice()
