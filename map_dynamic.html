@@ -525,42 +525,41 @@ try {
   acostaHubs = [];
 }
 
-// PREMIUM (confirmed + pending/open/recruit)
+// PREMIUM (confirmed + pending/open/proposed)
 try {
   const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
   const pJson = await pResp.json();
 
-  // Accept either a flat array or an object with buckets
+  // Accept flat array or bucketed object
   const rows = Array.isArray(pJson)
     ? pJson
     : [
         ...(pJson.confirmed || []),
-        ...(pJson.pending || []),
-        ...(pJson.open || []),
-        ...(pJson.recruit || []),
-        ...(pJson.cities || []),
+        ...(pJson.pending  || []),
+        ...(pJson.open     || []),
+        ...(pJson.recruit  || []),
+        ...(pJson.cities   || []),
       ];
 
   const statusText = r =>
     [
       r.Status, r.status, r.HubStatus, r.Hub_Status,
-      r.TrainerStatus, r.Trainer_Status,
-    ]
-      .map(x => String(x || '').toLowerCase())
-      .find(s => s) || '';
+      r.TrainerStatus, r.Trainer_Status, r.CandidateStatus
+    ].map(x => String(x || '').toLowerCase()).find(Boolean) || '';
 
-  const getName = r =>
-    (String(
-      r.RepName ??
-      r.repName ??
-      r.TrainerName ??
-      r['Trainer Name'] ??
-      r.Premium_Trainer ??
-      r.PremiumTrainer ??
-      r.name ??
-      r.Name ??
-      ''
-    ).trim());
+  // treat flags like IsOpen/NeedsHire/etc as pending too
+  const flagPending = r => {
+    const v = (k) => (r[k] === true) || String(r[k] || '').toLowerCase() === 'true';
+    return ['IsOpen','Open','NeedsHire','Open_Flag','OpenFlag'].some(k => v(k));
+  };
+
+  const CONFIRM_RE = /(confirm|active|live|assigned|hired|onboard|approved|current)/;
+  const PENDING_RE = /(pend|open|recruit|sourc|offer|interview|pipeline|candidate|tbd|propos|plan)/;
+
+  const getName = r => String(
+    r.RepName ?? r.repName ?? r.TrainerName ?? r['Trainer Name'] ??
+    r.Premium_Trainer ?? r.PremiumTrainer ?? r.name ?? r.Name ?? ''
+  ).trim();
 
   const getCity  = r => String(r.City  ?? r.city  ?? r.Hub_City  ?? '').trim();
   const getState = r => String(r.State ?? r.state ?? r.Hub_State ?? '').trim();
@@ -571,16 +570,12 @@ try {
     return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null;
   };
 
-  // What counts as confirmed vs proposed (pending/open/recruiting)
-  const CONFIRM_RE = /(confirm|active|live|assigned|hired|onboard|approved|current)/;
-  const PENDING_RE = /(pend|open|recruit|sourc|offer|interview|pipeline|candidate|tbd|propos|plan)/;
-
   const toHub = (r, status) => {
     const coords = getCoords(r);
     if (!coords) return null;
     const [lat, lng] = coords;
-    const nm = getName(r) || (status === 'pending' ? 'Proposed City' : 'Trainer');
     const city = getCity(r), state = getState(r);
+    const nm   = getName(r) || (status === 'pending' ? `Proposed City` : 'Trainer');
     return {
       id: `${status[0]}_${slug(`${nm}-${city}-${state}-${lat.toFixed(3)}-${lng.toFixed(3)}`)}`,
       name: nm,
@@ -591,17 +586,16 @@ try {
   };
 
   const confirmedRows = rows.filter(r => CONFIRM_RE.test(statusText(r)) && getName(r));
-  const pendingRows   = rows.filter(r => PENDING_RE.test(statusText(r)));
+  const pendingRows   = rows.filter(r => PENDING_RE.test(statusText(r)) || flagPending(r));
 
   premiumConfirmed = confirmedRows.map(r => toHub(r, 'confirmed')).filter(Boolean);
   premiumPending   = pendingRows.map(r   => toHub(r, 'pending')).filter(Boolean);
-
-  console.log('Premium hubs parsed:', { confirmed: premiumConfirmed.length, pending: premiumPending.length });
 } catch (e) {
   console.warn('Premium file missing/invalid', e);
   premiumConfirmed = [];
   premiumPending   = [];
 }
+
 
 
     // Build initial UI state
@@ -789,21 +783,23 @@ if (hubSel.length){
   }
 
 function updateCounts(){
-  const layerMarkers = tgCluster.checked
-    ? markers.getLayers()
-    : (plainMarkers.getLayers()[0]?.getLayers?.() || []);
-  const cts = coverageCounts(layerMarkers.map(m => m));
+  const total = filteredStores.length;
+  const by = { 'Premium + Acosta':0, 'Premium Only':0, 'Acosta Only':0, 'Uncovered':0 };
+  filteredStores.forEach(s => { by[s.coverageType] = (by[s.coverageType] || 0) + 1; });
+  const pct = (n) => total ? Math.round(n * 100 / total) + '%' : '0%';
 
-  k.pa.textContent = cts["Premium + Acosta"] || 0;
-  k.p.textContent  = cts["Premium Only"]      || 0;
-  k.a.textContent  = cts["Acosta Only"]       || 0;
-  // Uncovered is ONLY truly uncovered (no Premium & no Acosta)
-  k.u.textContent  = cts["Uncovered"]         || 0;
+  // counts + percentages
+  k.pa.textContent = `${by['Premium + Acosta']||0} (${pct(by['Premium + Acosta']||0)})`;
+  k.p.textContent  = `${by['Premium Only']||0} (${pct(by['Premium Only']||0)})`;
+  k.a.textContent  = `${by['Acosta Only']||0} (${pct(by['Acosta Only']||0)})`;
+  // Uncovered = truly not near Premium or Acosta (kept separate from Acosta Only)
+  k.u.textContent  = `${by['Uncovered']||0} (${pct(by['Uncovered']||0)})`;
 
-  k.total.textContent    = filteredStores.length;
+  k.total.textContent    = total;
   k.confirmed.textContent = premiumConfirmed.length;
   k.pending.textContent   = premiumPending.length;
 }
+
   function updateInViewCount(){
     const b=map.getBounds();
     const inV=filteredStores.filter(s=>b.contains([s.lat,s.lng])).length;
@@ -916,22 +912,25 @@ function recomputeCoverage(){
   }
   function hideSidepanel(){ sidepanel.classList.remove('show'); spHub=null; spRows=[]; spRowsEl.innerHTML=''; }
   function renderSidepanelMeta(){
-    if(!spHub) return;
-    const r = Number(radius.value)||DEFAULT_RADIUS;
-    const stores = storesWithin(spHub.coords, r);
-    const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
-    stores.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0) + 1; });
-    spMeta.innerHTML = `
-      <div><b>Radius:</b> ${r} mi</div>
-      <div style="margin-top:4px;display:flex;gap:8px;flex-wrap:wrap">
-        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
-        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
-        <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
-        <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
-        <span class="sp-chip">Total: <b>${stores.length}</b></span>
-      </div>
-    `;
-  }
+  if(!spHub) return;
+  const r = Number(radius.value)||DEFAULT_RADIUS;
+  const stores = storesWithin(spHub.coords, r);
+  const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
+  stores.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0) + 1; });
+  const pct = n => stores.length ? Math.round(n*100/stores.length) + '%' : '0%';
+
+  spMeta.innerHTML = `
+    <div><b>Radius:</b> ${r} mi</div>
+    <div style="margin-top:4px;display:flex;gap:8px;flex-wrap:wrap">
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b> (${pct(totals['Premium + Acosta']||0)})</span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b> (${pct(totals['Premium Only']||0)})</span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b> (${pct(totals['Acosta Only']||0)})</span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b> (${pct(totals['Uncovered']||0)})</span>
+      <span class="sp-chip">Total: <b>${stores.length}</b></span>
+    </div>
+  `;
+}
+
   function renderSidepanelList(rebuild=false){
     if(!spHub) return;
     const r = Number(radius.value)||DEFAULT_RADIUS;
@@ -1115,12 +1114,12 @@ function recomputeCoverage(){
     return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
   }
 function buildHubFilterOptions(){
-  // Only Premium hubs (confirmed + pending/open) in the hub filter
-  const hubsNow = [...premiumConfirmed, ...premiumPending];
+  const hubsNow = [...premiumConfirmed, ...premiumPending]; // Premium only
   const opts = uniqSorted(hubsNow.map(h => h.fullName || h.name));
   hubFilter.innerHTML = opts.map(v => `<option value="${escape(v)}">${escape(v)}</option>`).join('');
   filterSelect(hubFilter, hubSearch.value);
 }
+
 
 
   function uniqSorted(arr){
