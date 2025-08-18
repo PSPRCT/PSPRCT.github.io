@@ -1092,40 +1092,41 @@
     downloadCsv(rows, `${slug(spHub.name)}_${r}mi_${Date.now()}.csv`);
   }
 
-  function printSidepanelList(){
-    if(!spHub){ alert('Open a hub panel first.'); return; }
-    const r = Number(radius.value)||DEFAULT_RADIUS;
-    const win = window.open('', '_blank');
-    const rows = spRows.map(s=>`
-      <tr>
-        <td>#${escape(s.storeNumberStr)}</td>
-        <td>${escape(s.storeName||'')}</td>
-        <td>${escape(s.address||'')}, ${escape(s.city||'')}, ${escape(s.state||'')}</td>
-        <td>${escape(s.coverageType||'')}</td>
-        <td>${escape(s.areaManager||'')}</td>
-        <td>${escape(s.regionalManager||'')}</td>
-      </tr>
-    `).join('');
-    win.document.write(`
-      <html><head><title>${escape(spHub.name)} — ${r}mi</title>
-      <style>
-        body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px}
-        table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
-        th{background:#f3f4f6;text-align:left}
-        h2{margin:0 0 8px}
-        .meta{color:#555;margin-bottom:10px}
-      </style></head><body>
-        <h2>${escape(spHub.name)}</h2>
-        <div class="meta">Radius: <b>${r} mi</b> • Stores: <b>${spRows.length}</b></div>
-        <table>
-          <thead><tr><th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>AM</th><th>RM</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-        <script>window.print()</script>
-      </body></html>
-    `);
-    win.document.close();
-  }
+function printSidepanelList(){
+  if(!spHub){ alert('Open a hub panel first.'); return; }
+  const r = Number(radius.value)||DEFAULT_RADIUS;
+  const win = window.open('', '_blank');
+  const rows = spRows.map(s=>`
+    <tr>
+      <td>#${escape(s.storeNumberStr)}</td>
+      <td>${escape(s.storeName||'')}</td>
+      <td>${escape(s.address||'')}, ${escape(s.city||'')}, ${escape(s.state||'')}</td>
+      <td>${escape(s.coverageType||'')}</td>
+      <td>${escape(s.areaManager||'')}</td>
+      <td>${escape(s.regionalManager||'')}</td>
+    </tr>
+  `).join('');
+  win.document.write(`
+    <html><head><title>${escape(spHub.name)} — ${r}mi</title>
+    <style>
+      body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px}
+      table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
+      th{background:#f3f4f6;text-align:left}
+      h2{margin:0 0 8px}
+      .meta{color:#555;margin-bottom:10px}
+    </style></head><body>
+      <h2>${escape(spHub.name)}</h2>
+      <div class="meta">Radius: <b>${r} mi</b> • Stores: <b>${spRows.length}</b></div>
+      <table>
+        <thead><tr><th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>AM</th><th>RM</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <script>window.print()<\\/script>
+    </body></html>
+  `);
+  win.document.close();
+}
+
 
   function downloadCsv(rows, fname){
     const csv = rows.map(r=>r.map(v=>csvCell(v)).join(',')).join('\n');
