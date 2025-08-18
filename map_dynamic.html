@@ -379,7 +379,7 @@ const getName = r => String(
   r.Premium_Trainer ?? r.PremiumTrainer ??
   r.name ?? r.Name ?? ''
 ).trim();
-const isOffer = s => /(offer|accepted)/.test(s);
+
 
   // Keep map sized correctly
   setTimeout(()=> map.invalidateSize(), 120);
@@ -779,11 +779,6 @@ function chooseCityForMissing(lat, lng, state){
 };
 
 
-
-  const hubs = rows.map(toHub).filter(Boolean);
-
-  premiumConfirmed = hubs.filter(h => h.status === 'confirmed');
-  premiumPending   = hubs.filter(h => h.status === 'pending');
 
  // Merge duplicates across statuses by city/state or rounded coords.
 // Keep the higher-priority status (confirmed > pending_offer > pending > open > proposed).
