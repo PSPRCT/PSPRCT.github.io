@@ -647,13 +647,13 @@ try {
   const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
   const pJson = await pResp.json();
 
-  // ✅ Only confirmed + pending from the new master file
-  const rows = Array.isArray(pJson)
-    ? pJson
-    : [
-        ...(pJson.confirmed || []),
-        ...(pJson.pending   || []),
-      ];
+  // Only the new file’s sections
+const rows = Array.isArray(pJson)
+  ? pJson
+  : [
+      ...(pJson.confirmed || []),
+      ...(pJson.pending   || []),
+    ];
 
   const txt = v => String(v ?? '').toLowerCase();
   const statusText = r => {
@@ -689,21 +689,20 @@ try {
   };
 
   const toHub = (r) => {
-    let coords = getCoords(r);
-    let city   = getCity(r);
-    let state  = getState(r);
-    let nm     = String(
+    const coords = getCoords(r);
+    if (!coords) return null;
+
+    const city  = getCity(r);
+    const state = getState(r);
+    const name  = String(
       r.CandidateName ?? r.Candidate ?? r.RepName ?? r.repName ??
       r.TrainerName ?? r['Trainer Name'] ??
       r.Premium_Trainer ?? r.PremiumTrainer ??
       r.name ?? r.Name ?? ''
     ).trim();
 
-    if (!coords) return null;
-    const [lat, lng] = coords;
-
     const s = statusText(r);
-    const status = (nm && !/(offer|propos|recruit|pend)/i.test(s)) ? 'confirmed' : 'pending';
+    const status = (name && !/(offer|propos|recruit|pend)/i.test(s)) ? 'confirmed' : 'pending';
     const statusSub =
       /(offer)/i.test(s) ? 'pending_offer' :
       /(propos|plan|target)/i.test(s) ? 'proposed' :
@@ -715,15 +714,13 @@ try {
       pending:'Pending', proposed:'Proposed', open:'Open'
     }[statusSub]) || 'Pending';
 
-    const trainerBit = nm ? ` — ${nm}` : '';
-    const place = city && state ? `${city}, ${state}` : (city || state || '');
-    const label = `${place} (${statusLabel}${trainerBit})`;
+    const label = `${city && state ? `${city}, ${state}` : (city || state || '')} (${statusLabel}${name ? ` — ${name}` : ''})`;
 
     return {
-      id: `${status[0]}_${slug(`${city||''}-${state||''}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
-      name: nm || 'Proposed',
+      id: `${status[0]}_${slug(`${city||''}-${state||''}-${coords[0].toFixed(3)}-${coords[1].toFixed(3)}-${name||''}`)}`,
+      name: name || 'Proposed',
       fullName: label,
-      coords: [lat, lng],
+      coords,
       status, statusSub, statusLabel,
       city, state
     };
@@ -732,11 +729,13 @@ try {
   const hubs = rows.map(toHub).filter(Boolean);
   premiumConfirmed = hubs.filter(h => h.status === 'confirmed');
   premiumPending   = hubs.filter(h => h.status === 'pending');
+
 } catch (e) {
   console.warn('Premium file missing/invalid', e);
   premiumConfirmed = [];
   premiumPending   = [];
 }
+
     // Build initial UI state
     buildSearchIndex();
     buildHubFilterOptions();
@@ -1071,10 +1070,11 @@ function hubDisplay(h){
   const city = (h.city || h.City || '').trim();
   const st   = (h.state || h.State || '').trim();
   if (city && st) return `${city}, ${st}`;
-  if (city)       return city;
-  if (st)         return st;
+  if (city) return city;
+  if (st)   return st;
   return h.name || h.label || 'Proposed';
 }
+
 
 
 
@@ -1640,61 +1640,56 @@ function hubDisplay(h){
     return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
   }
 function buildHubFilterOptions(){
-  // visible hubs based on the three checkboxes
-  let hubsAll = [];
-  if (showConfirmed.checked) hubsAll = hubsAll.concat(premiumConfirmed);
-  if (showPending.checked)   hubsAll = hubsAll.concat(premiumPending);
-  if (showAcosta.checked)    hubsAll = hubsAll.concat(acostaHubs);
+  // visible hubs only (respect toggles)
+  let hubs = [];
+  if (showConfirmed?.checked) hubs = hubs.concat(premiumConfirmed || []);
+  if (showPending?.checked)   hubs = hubs.concat(premiumPending   || []);
+  if (showAcosta?.checked)    hubs = hubs.concat(acostaHubs       || []);
 
   // dedupe by id
   const seen = new Set();
-  hubsAll = hubsAll.filter(h => h && !seen.has(h.id) && seen.add(h.id));
+  hubs = hubs.filter(h => h && !seen.has(h.id) && seen.add(h.id));
 
-  const r = Number(radius.value) || DEFAULT_RADIUS;
+  const rMi = Number(radius.value) || DEFAULT_RADIUS;
 
-  // upstream filters (treat "All" as no constraint)
-  const covSel = new Set(Array.from(covFilter.selectedOptions).map(o=>o.value));
-  const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o=>o.value));
-  const amSel  = new Set(Array.from(amFilter.selectedOptions).map(o=>o.value));
-  const covActive = !covSel.has('All');
-  const rmActive  = !rmSel.has('All');
-  const amActive  = !amSel.has('All');
-  const withinOnly = !!tgWithin.checked;
+  // upstream store filters
+  const covSel = Array.from(covFilter.selectedOptions).map(o=>o.value);
+  const rmSel  = Array.from(rmFilter.selectedOptions).map(o=>o.value);
+  const amSel  = Array.from(amFilter.selectedOptions).map(o=>o.value);
+  const withinOnly = !!(tgWithin && tgWithin.checked);
 
-  // helper: does a store pass upstream filters?
-  const storeOK = (s) => {
-    if (covActive && !covSel.has(s.coverageType || ''))        return false;
-    if (rmActive  && !rmSel.has(s.regionalManager || ''))      return false;
-    if (amActive  && !amSel.has(s.areaManager || ''))          return false;
-    if (withinOnly){
-      // If "Within hubs" is on, only consider stores that are within r of any visible hub
-      if (!hubsAll.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r)) return false;
-    }
+  const covAll = covSel.includes('All') || covSel.length===0;
+  const rmAll  = rmSel.includes('All')  || rmSel.length===0;
+  const amAll  = amSel.includes('All')  || amSel.length===0;
+
+  const storeOK = (s)=>{
+    if (!covAll && !covSel.includes(s.coverageType||'')) return false;
+    if (!rmAll  && !rmSel.includes(s.regionalManager||'')) return false;
+    if (!amAll  && !amSel.includes(s.areaManager||''))     return false;
     return true;
   };
 
-  // count qualifying stores per hub
-  const rows = hubsAll.map(h=>{
+  // count matching stores per hub, honoring radius/within
+  const rows = hubs.map(h=>{
     let n = 0;
     for (const s of allStores){
       if (!storeOK(s)) continue;
-      if (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r) n++;
+      const d = distMiles(s.lat, s.lng, h.coords[0], h.coords[1]);
+      if (d <= rMi) n++;
     }
-    return { h, value:h.id, label: hubDisplay(h), count:n };
+    return { value: h.id, label: hubDisplay(h), count: n };
   });
 
-  // if any upstream filter is active, hide zero-count hubs
-  const upstreamActive = covActive || rmActive || amActive || withinOnly;
-  const options = upstreamActive ? rows.filter(r=>r.count>0) : rows;
+  const upstreamActive = !(covAll && rmAll && amAll && !withinOnly);
+  const filtered = upstreamActive ? rows.filter(r => r.count > 0) : rows;
 
-  // rebuild select, preserving still-valid selections
-  const prev = new Set(Array.from(hubFilter.selectedOptions).map(o=>o.value));
+  // rebuild select
+  const prev = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
   hubFilter.innerHTML = '';
-  const optAll = document.createElement('option');
-  optAll.value = ''; optAll.textContent = 'All';
+  const optAll = document.createElement('option'); optAll.value = ''; optAll.textContent = 'All';
   hubFilter.appendChild(optAll);
 
-  options
+  filtered
     .sort((a,b)=> a.label.localeCompare(b.label))
     .forEach(({value,label,count})=>{
       const o = document.createElement('option');
@@ -1704,43 +1699,12 @@ function buildHubFilterOptions(){
       hubFilter.appendChild(o);
     });
 
-  // apply the search box to this select
-  if (typeof filterSelect === 'function') filterSelect(hubFilter, hubSearch?.value||'');
+  // reapply search text
+  if (typeof filterSelect === 'function') {
+    filterSelect(hubFilter, hubSearch?.value || '');
+  }
 }
 
-
-
-  // dedupe
-  const seen = new Set();
-  hubsAll = hubsAll.filter(h => h && !seen.has(h.id) && seen.add(h.id));
-
-  const r = Number(radius.value) || DEFAULT_RADIUS;
-
-  // cascade by current store filters (coverage + RM + AM)
-  const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
-  const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o => o.value));
-  const amSel  = new Set(Array.from(amFilter.selectedOptions).map(o => o.value));
-  const covOK = s => covSel.has('All') || covSel.has(s.coverageType || '');
-  const rmOK  = s => rmSel.has('All')  || rmSel.has(s.regionalManager || '');
-  const amOK  = s => amSel.has('All')  || amSel.has(s.areaManager || '');
-  const subset = allStores.filter(s => covOK(s) && rmOK(s) && amOK(s));
-
-  // only hubs that touch at least 1 matching store
-  const counted = hubsAll.map(h => ({
-    hub: h,
-    n: subset.reduce((acc,s)=> acc + (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r ? 1 : 0), 0)
-  })).filter(x=>x.n>0);
-
-  const prevSel = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
-  hubFilter.innerHTML = counted
-    .sort((a,b)=> (hubDisplay(a.hub)||'').localeCompare(hubDisplay(b.hub)||''))
-    .map(({hub:nHub, n}) => `<option value="${escape(nHub.id)}">${escape(hubDisplay(nHub))} — ${n}</option>`)
-    .join('');
-
-  const keep = counted.map(x => x.hub.id).filter(id => prevSel.has(id));
-  if (keep.length) setMulti(hubFilter, keep);
-  filterSelect(hubFilter, hubSearch.value);
-}
 
   function uniqSorted(arr){
     const set = new Set();
