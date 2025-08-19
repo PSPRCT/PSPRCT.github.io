@@ -1092,7 +1092,18 @@
     if (showAcosta.checked)    out.push(...acostaHubs);
     return out;
   }
-  function hubDisplay(h){ return h.label || h.fullName || h.name; }
+  function hubDisplay(h){
+  // Best available: fullName ("City, ST") added in the normalized JSON
+  if (h.fullName && /[A-Za-z]/.test(h.fullName)) return h.fullName;
+  // Else build from City/State if present
+  const city = (h.city || h.City || '').trim();
+  const st   = (h.state || h.State || '').trim();
+  if (city && st) return `${city}, ${st}`;
+  if (city)       return city;
+  if (st)         return st;     // last fallback (state-only)
+  return h.name || h.label || 'Proposed';
+}
+
 
   function copyHubLink(){
     if(!spHub) return;
