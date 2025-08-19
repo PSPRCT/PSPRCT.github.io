@@ -1903,18 +1903,20 @@ function shortUrl(u){
     }
     return parseBody(body, ct);
   }
-  async function parseBody(body, ct){
-    if (/json/i.test(ct)){
-  try { return JSON.parse(body); } catch (e) { throw new Error('Invalid JSON'); }
-    }
-    if (/csv|plain/i.test(ct)){
-      return parseCsv(body);
-    }
-    // try JSON anyway
-    try { return JSON.parse(body); } catch {}
-    // else return text
-    return body;
+async function parseBody(body, ct){
+  if (/json/i.test(ct)) {
+    try { return JSON.parse(body); }
+    catch (e) { throw new Error('Invalid JSON'); }
   }
+  if (/csv|plain/i.test(ct)) {
+    return parseCsv(body);
+  }
+  // try JSON anyway
+  try { return JSON.parse(body); } catch {}
+  // else return text
+  return body;
+}
+
   function parseCsv(text){
     const lines = text.replace(/\r/g,'').split('\n').filter(Boolean);
     const head = lines.shift().split(',').map(h=>h.trim());
