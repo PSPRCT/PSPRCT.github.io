@@ -1631,71 +1631,68 @@
     const src = useFiltered && filteredStores.length ? filteredStores : allStores;
     return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
   }
-// Treat "" (placeholder) or no selection as "All"
-function _vals(selectEl){
-  const vals = Array.from(selectEl.selectedOptions).map(o=>o.value);
-  // If nothing selected OR the only selection is '', treat as "All"
-  if (!vals.length || (vals.length === 1 && vals[0] === '')) return null; // null = no constraint
-  // Filter out '' just in case
-  return vals.filter(v => v !== '');
+// --- helpers for selects: return null = no constraint
+// --- helpers for selects: return null = no constraint
+function _selVals(selectEl){
+  if (!selectEl) return null;
+  const vals = Array.from(selectEl.selectedOptions).map(o => (o.value ?? '').trim());
+  // treat "", "All" (any case) and nothing-picked as 'no constraint'
+  const cleaned = vals.filter(v => v !== '' && v.toLowerCase() !== 'all');
+  return cleaned.length ? cleaned : null;
 }
 
 function buildHubFilterOptions(){
-  // Visible hubs only (respect the Confirmed / Pending / Acosta toggles)
+  // ensure coverage reflects current toggles/radius before we count
+  try{ recomputeCoverage(); }catch(e){}
+
+  // visible hubs only
   let hubs = [];
   if (showConfirmed?.checked) hubs = hubs.concat(premiumConfirmed||[]);
   if (showPending?.checked)   hubs = hubs.concat(premiumPending||[]);
   if (showAcosta?.checked)    hubs = hubs.concat(acostaHubs||[]);
-  // de-dup
   const uniq = new Map(); for (const h of hubs){ if (h) uniq.set(h.id, h); }
   hubs = Array.from(uniq.values());
 
-  const rMi = Number(radius.value) || DEFAULT_RADIUS;
+  const rMi = Number(radius.value)||DEFAULT_RADIUS;
+  const covSel = _selVals(covFilter); // strings like 'Premium Only'
+  const rmSel  = _selVals(rmFilter);  // s.rm values
+  const amSel  = _selVals(amFilter);  // s.am values
+  const withinOnly = !!(tgWithin && tgWithin.checked);
 
-  // Current upstream selections (null = no constraint)
-  const covSel = _vals(covFilter); // values like 'Premium + Acosta', 'Premium Only', ...
-  const rmSel  = _vals(rmFilter);  // RM display names
-  const amSel  = _vals(amFilter);  // AM display names
-
-  // A store passes upstream filters?
   const storeOK = (s)=>{
     if (covSel && !covSel.includes(s.coverageType||'')) return false;
-    if (rmSel  && !rmSel.includes(String(s.rm||'')))   return false;   // field is s.rm in your data
-    if (amSel  && !amSel.includes(String(s.am||'')))   return false;   // field is s.am in your data
+    if (rmSel  && !rmSel.includes(String(s.rm||'')))    return false;
+    if (amSel  && !amSel.includes(String(s.am||'')))    return false;
     return true;
   };
 
-  // Optionally honor "Within hubs" toggle for counts: only count stores if this hub is within r
-  const withinOnly = !!(tgWithin && tgWithin.checked);
-
+  // count per hub
   const rows = hubs.map(h=>{
     let n = 0;
     for (const s of allStores){
       if (!storeOK(s)) continue;
       if (withinOnly){
-        // Use pre-computed coverage list (fast) if available; fallback to distance
-        const near = (s.coverage?.hubs||[]);
-        const hit = near.some(x => x.id === h.id && x.dist <= rMi);
-        if (hit) n++;
+        const near = s.coverage?.hubs || [];
+        if (near.some(x => x.id === h.id && x.dist <= rMi)) n++;
       }else{
-        const d = distMiles(s.lat, s.lng, h.coords[0], h.coords[1]);
-        if (d <= rMi) n++;
+        if (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= rMi) n++;
       }
     }
     const label = h.fullName || h.label || h.name || `${h.city||''}, ${h.state||''}`.trim();
-    return { value:h.id, label, count:n };
-  })
-  // Hide hubs with zero if you prefer; or keep them. Toggle the next line:
-  //.filter(x => x.count > 0)
-  .sort((a,b)=> a.label.localeCompare(b.label));
+    return { value:h.id, label, count:n, h };
+  });
 
-  // Preserve prior selections when possible
-  const prev = new Set(Array.from(hubFilter.selectedOptions).map(o=>o.value));
+  // If any upstream filter is active (cov/rm/am/within), hide the hubs that have 0 matches.
+  const upstreamActive = !!(covSel || rmSel || amSel || withinOnly);
+  const filtered = upstreamActive ? rows.filter(r => r.count > 0) : rows;
+
+  // rebuild options, preserving selections only if still valid
+  const prev = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
   hubFilter.innerHTML = '';
-  const optAll = document.createElement('option'); optAll.value=''; optAll.textContent='All';
+  const optAll = document.createElement('option'); optAll.value = ''; optAll.textContent = 'All';
   hubFilter.appendChild(optAll);
 
-  for (const {value,label,count} of rows){
+  for (const {value,label,count} of filtered.sort((a,b)=> a.label.localeCompare(b.label))){
     const o = document.createElement('option');
     o.value = value;
     o.textContent = `${label} — ${count}`;
@@ -1703,9 +1700,55 @@ function buildHubFilterOptions(){
     hubFilter.appendChild(o);
   }
 
+  // prune any selections that disappeared
+  const now = new Set(Array.from(hubFilter.options).map(o=>o.value));
+  const keep = Array.from(prev).filter(v => now.has(v));
+  for (const opt of hubFilter.options){ opt.selected = keep.includes(opt.value); }
+
   // Respect the hub search box
   if (typeof filterSelect === 'function') filterSelect(hubFilter, hubSearch?.value||'');
 }
+
+
+  }
+
+  // Respect the hub search box
+  if (typeof filterSelect === 'function') filterSelect(hubFilter, hubSearch?.value||'');
+}
+(function robustButtonWiring(){
+  if (window.__wiredToolBtns) return; // run once
+  window.__wiredToolBtns = true;
+
+  function el(id){ return document.getElementById(id); }
+  function onBtn(key, handler){
+    const candidate = el(key) || document.querySelector(`[data-action="${key}"]`);
+    if (!candidate){ console.warn('Button not found:', key); return; }
+    candidate.addEventListener('click', (e)=>{ e.preventDefault(); handler(); }, { once:false });
+  }
+  function showModalBy(id){ const m = el(id); if (m) m.classList.add('show'); else alert(`${id} missing`); }
+  function hideModalBy(id){ const m = el(id); if (m) m.classList.remove('show'); }
+
+  // HELP
+  onBtn('helpBtn',  ()=> showModalBy('helpModal'));
+  onBtn('helpClose',()=> hideModalBy('helpModal'));
+
+  // GAP FINDER
+  onBtn('gapBtn',   ()=> showModalBy('gapModal'));
+  onBtn('gapClose', ()=> hideModalBy('gapModal'));
+  onBtn('gapRun',   ()=> { try{ runGapFinder(); } catch(e){ console.error(e); alert('Gap Finder error (see console)'); }});
+  onBtn('gapExport',()=> { try{ exportGapCsv(); }  catch(e){ console.error(e); alert('Gap Export error (see console)'); }});
+
+  // ROLLUPS
+  onBtn('rollupBtn',   ()=> { showModalBy('rollupModal'); try{ buildRollups(); }catch(e){ console.error(e); }});
+  onBtn('rollupClose', ()=> hideModalBy('rollupModal'));
+  onBtn('rollByRM',    ()=> { try{ buildRollups(); }catch(e){ console.error(e); }});
+  onBtn('rollByAM',    ()=> { try{ buildRollups(); }catch(e){ console.error(e); }});
+  onBtn('rollExport',  ()=> { try{ exportRollupsCsv(); }catch(e){ console.error(e); alert('Rollups export error (see console)'); }});
+})();
+
+// Also run after load just in case the script appears in <head>
+window.addEventListener('DOMContentLoaded', ()=> { try{ robustButtonWiring(); }catch(e){} });
+window.addEventListener('load', ()=> { try{ robustButtonWiring(); }catch(e){} });
 
 
 
