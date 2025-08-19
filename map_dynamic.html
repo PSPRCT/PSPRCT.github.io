@@ -96,6 +96,8 @@
   .marker-cluster.marker-pa div{background:var(--pa);border:2px solid #fff}
   .marker-cluster.marker-p  div{background:var(--p); border:2px solid #fff}
   .marker-cluster.marker-a  div{background:var(--a); border:2px solid #fff}
+  .marker-cluster.marker-u div{ background: var(--u); border:2px solid #fff }
+
 
   .hub{width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
   .hub.confirmed{background:var(--violet)}
@@ -229,7 +231,12 @@
   <span class="chip"><span class="dot" style="background:var(--a)"></span>Acosta: <b id="k_a">0</b></span>
   <span class="chip"><span class="dot" style="background:var(--u)"></span>Uncov: <b id="k_u">0</b></span>
   <span class="chip">Total: <b id="k_total">0</b></span>
-  <span class="chip">Hubs — <b id="k_confirmed">0</b> confirmed / <b id="k_pending">0</b> pending</span>
+  <span class="chip">
+  Hubs — <b id="k_h_conf">0</b> confirmed •
+  <b id="k_h_offer">0</b> pending offer •
+  <b id="k_h_prop">0</b> proposed
+</span>
+
   <span class="muted" id="inView">In view: 0</span>
 </div>
 <div class="summary" id="datasetBadge"></div>
@@ -453,7 +460,13 @@
   const rmFilter  = id('rmFilter');  const rmSearch  = id('rmSearch');
   const amFilter  = id('amFilter');  const amSearch  = id('amSearch');
   const hubFilter = id('hubFilter'); const hubSearch = id('hubSearch');
-  const k = { pa:id('k_pa'), p:id('k_p'), a:id('k_a'), u:id('k_u'), total:id('k_total'), confirmed:id('k_confirmed'), pending:id('k_pending'), inView:id('inView') };
+  const k = {
+  pa:id('k_pa'), p:id('k_p'), a:id('k_a'), u:id('k_u'),
+  total:id('k_total'),
+  h_conf:id('k_h_conf'), h_offer:id('k_h_offer'), h_prop:id('k_h_prop'),
+  inView:id('inView')
+};
+
 
   // Side panel refs
   const sidepanel = id('sidepanel');
@@ -748,12 +761,13 @@ on('change', covFilter, ()=>{ lastFilterChanged='covFilter'; runFilter(); fitToR
       };
 
       const pretty = sub => ({
-        confirmed:          'Confirmed',
-        pending_offer:      'Pending Offer',
-        pending_candidate:  'Pending',
-        proposed:           'Proposed',
-        open:               'Open'
-      }[sub] || 'Pending');
+  confirmed:         'Confirmed',
+  pending_offer:     'Pending Offer',
+  proposed:          'Proposed',
+  open:              'Proposed',
+  pending_candidate: 'Proposed'
+}[sub] || 'Proposed');
+
 
       function coordsFromCityState(city, state){
         if (!city || !state) return null;
@@ -1150,8 +1164,16 @@ on('change', covFilter, ()=>{ lastFilterChanged='covFilter'; runFilter(); fitToR
     k.u.textContent  = `${by['Uncovered']||0} (${pct(by['Uncovered']||0)})`;
 
     k.total.textContent    = total;
-    k.confirmed.textContent = premiumConfirmed.length;
-    k.pending.textContent   = premiumPending.length;
+const hubsAll = [...premiumConfirmed, ...premiumPending];
+const hConf  = premiumConfirmed.length;
+const hOffer = premiumPending.filter(h => h.statusSub === 'pending_offer').length;
+// everything else (proposed/open/pending_candidate) rolls up as Proposed
+const hProp  = premiumPending.filter(h => h.statusSub !== 'pending_offer').length;
+
+k.h_conf.textContent  = hConf;
+k.h_offer.textContent = hOffer;
+k.h_prop.textContent  = hProp;
+
   }
 
   function updateInViewCount(){
@@ -1214,7 +1236,8 @@ on('change', covFilter, ()=>{ lastFilterChanged='covFilter'; runFilter(); fitToR
       m.on('mouseout',  ()=> m.closeTooltip());
     });
   }
-
+renderHubs();
+renderLegend();
   function updateRings(){
     ringLayer.clearLayers();
     if(!tgRings.checked) return;
@@ -1519,7 +1542,26 @@ on('change', covFilter, ()=>{ lastFilterChanged='covFilter'; runFilter(); fitToR
   // Nice-to-have: announce to AT
   document.body.toggleAttribute('aria-busy', !!v);
 }
-
+function renderLegend(){
+  let el = document.getElementById('legend');
+  if (!el){
+    el = document.createElement('div');
+    el.className = 'legend';
+    el.id = 'legend';
+    document.querySelector('.mapwrap').appendChild(el);
+  }
+  el.innerHTML = `
+    <div style="font-weight:700;margin-bottom:6px">Legend</div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 8px;align-items:center;font-size:12px">
+      <div class="dot" style="background:${COLORS['Premium + Acosta']}"></div><div>Stores — Premium + Acosta</div>
+      <div class="dot" style="background:${COLORS['Premium Only']}"></div><div>Stores — Premium Only</div>
+      <div class="dot" style="background:${COLORS['Acosta Only']}"></div><div>Stores — Acosta Only</div>
+      <div class="dot" style="background:${COLORS['Uncovered']}"></div><div>Stores — Uncovered</div>
+      <div class="hub confirmed" style="width:14px;height:14px;border-width:2px"></div><div>Hub — Confirmed</div>
+      <div class="hub pending" style="width:14px;height:14px;border-width:2px"></div><div>Hub — Pending Offer / Proposed</div>
+      <div class="hub acosta" style="width:14px;height:14px;border-width:2px"></div><div>Hub — Acosta</div>
+    </div>`;
+}
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
   function escape(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
   function htmlEscape(s){ return (s ?? "").toString().replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
