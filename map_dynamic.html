@@ -1560,6 +1560,18 @@ map.on('moveend zoomend', () => {
     downloadText(lines.join('\n'), `rollups_${byRM?'rm':'am'}_${Date.now()}.csv`, 'text/csv');
   }
 
+  function downloadText(text, filename, mime='text/plain'){
+  const blob = new Blob([text], {type: mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+
   // ===== EXPORTS =====
   function exportStoresCsv(){
     const head = ['Store #','Name','Address','City','State','Coverage','Area Mgr','Regional Mgr','Lat','Lng'];
@@ -1911,11 +1923,10 @@ async function parseBody(body, ct){
   if (/csv|plain/i.test(ct)) {
     return parseCsv(body);
   }
-  // try JSON anyway
   try { return JSON.parse(body); } catch {}
-  // else return text
   return body;
 }
+
 
   function parseCsv(text){
     const lines = text.replace(/\r/g,'').split('\n').filter(Boolean);
@@ -2070,12 +2081,19 @@ const escape = escapeHtml;
 main().catch(err => {
   const STATUS = document.getElementById('dataStatus');
   const msg = (err && err.message) || String(err);
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => (
+    c === '&' ? '&amp;' :
+    c === '<' ? '&lt;'  :
+    c === '>' ? '&gt;'  :
+    c === '"' ? '&quot;': c
+  ));
   if (STATUS) {
     STATUS.innerHTML =
-      `<span style="color:#b42318;font-weight:600">Init error:</span> ${msg.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}`;
+      `<span style="color:#b42318;font-weight:600">Init error:</span> ${esc(msg)}`;
   }
   console.error(err);
 });
+
 </script>
 </body>
 </html>
