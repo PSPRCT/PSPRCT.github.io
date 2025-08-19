@@ -1959,6 +1959,47 @@
       return `${e.when} — ${e.who||'user'} — ${what} — source:${e.source||'local'}`;
     }).join('\n');
   }
+// --- helpers you were calling but hadn't defined yet ---
+
+// simple slug for ids/filenames
+function slug(s){
+  return String(s||'')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g,'-')
+    .replace(/^-+|-+$/g,'');
+}
+
+// filter the options of a <select multiple> based on a search box
+function filterSelect(selectEl, needle){
+  const q = (needle||'').toLowerCase().trim();
+  Array.from(selectEl.options).forEach(opt=>{
+    if (opt.value === 'All') { opt.hidden = false; return; }
+    const txt = (opt.textContent||opt.value||'').toLowerCase();
+    opt.hidden = q ? !txt.includes(q) : false;
+  });
+}
+
+// group uncovered stores by city/state and return an averaged center
+function clusterByCity(stores){
+  const map = new Map(); // key = "city|state"
+  stores.forEach(s=>{
+    const key = `${(s.city||'').toLowerCase()}|${(s.state||'').toUpperCase()}`;
+    const g = map.get(key) || { city:s.city||'', state:s.state||'', lat:0, lng:0, n:0 };
+    g.lat += s.lat; g.lng += s.lng; g.n += 1;
+    map.set(key, g);
+  });
+  return Array.from(map.values()).map(g=>({ city:g.city, state:g.state, lat:g.lat/g.n, lng:g.lng/g.n, n:g.n }));
+}
+
+// you call updateDatasetBadge(...) once; wire it to the badge already shown by badgeSource()
+function updateDatasetBadge(storesFp, premiumFp, acostaFp, mode){
+  const el = document.getElementById('datasetBadge');
+  const extra = `<span class="chip">Counts: <b>${storesFp}</b> • <b>${premiumFp}</b> • <b>${acostaFp}</b></span>`;
+  el.innerHTML = (el.innerHTML||'') + ' ' + extra;
+}
+
+// make `escape` mean HTML-escape (you used both names)
+const escape = escapeHtml;
 
   // ===== MISC UI =====
   id('clearLastFilter').onclick = ()=>{
