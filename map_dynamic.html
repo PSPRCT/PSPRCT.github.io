@@ -650,12 +650,17 @@ const AUTO_RESET = ()=> !!(id('autoReset') && id('autoReset').checked);
   });
   markers.on('clustermouseout', (e)=>{ e.layer.closeTooltip(); });
   markers.on('clusterclick', (e)=>{ map.fitBounds(e.layer.getBounds()); });
-  map.on('moveend zoomend', ()=>{
-    updateInViewCount();
-    // replace the whole line with:
-if (id('tgHeat').checked) {
-  (window.requestIdleCallback || ((fn)=>setTimeout(fn, 0)))(updateHeat);
-}
+map.on('moveend zoomend', () => {
+  updateInViewCount();
+
+  // update heat lazily so panning doesn't stutter
+  if (id('tgHeat').checked) {
+    (window.requestIdleCallback || ((fn) => setTimeout(fn, 0)))(updateHeat);
+  }
+
+  saveState();
+});
+
 
     saveState();
   });
