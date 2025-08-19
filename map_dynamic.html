@@ -470,6 +470,11 @@ let spHub = null; let spRows = []; let spFilter = '';
   let pinnedHubs = [];
   let lastFilterChanged = null;
   const debouncedRun = (() => { let t; return () => { clearTimeout(t); t = setTimeout(runFilter, 90); }; })();
+  const debouncedFitToResults = (() => {
+  let t; 
+  return () => { clearTimeout(t); t = setTimeout(() => fitToResults(), 300); };
+})();
+
 
   const getName = r => String(
     r.CandidateName ?? r.Candidate ?? r.RepName ?? r.repName ??
@@ -503,6 +508,27 @@ let spHub = null; let spRows = []; let spFilter = '';
   on('input', rmSearch,  ()=> filterSelect(rmFilter,  rmSearch.value));
   on('input', amSearch,  ()=> filterSelect(amFilter,  amSearch.value));
   on('input', hubSearch, ()=> filterSelect(hubFilter, hubSearch.value));
+  on('input', radius,   ()=>{
+  radiusLbl.textContent = radius.value;
+  recomputeCoverage();
+  debouncedRun();              // already there
+  debouncedFitToResults();     // ← NEW: only fit after user pauses
+  updateRings();
+
+  if (tgOverlap.checked) drawOverlap();
+  if (sandboxMarker) refreshSandbox();
+  if (spHub) openSidepanel(spHub);
+  refreshComparePanel();
+  saveState();
+});
+document.querySelectorAll('.sp-quick .btn[data-r]').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    radius.value = b.dataset.r; radiusLbl.textContent=b.dataset.r;
+    recomputeCoverage(); runFilter(); updateRings(); if (spHub) openSidepanel(spHub); refreshComparePanel(); saveState();
+    fitToResults(); // ← add this one for immediate fit on quick-pick
+  });
+});
+
 
   on('change', rmFilter,  ()=>{ lastFilterChanged='rmFilter'; cascadeAM(); runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
   rebuildAMOptionsWithCounts();
@@ -2150,34 +2176,54 @@ on('change', covFilter, ()=>{ lastFilterChanged='covFilter'; runFilter(); fitToR
   id('emptyReset').onclick = ()=>{ resetAll(); runFilter(); renderChips(); saveState(); };
 
   // ---------- Compare / Venn metrics ----------
-  function refreshComparePanel(){
-    const panel = id('comparePanel');
-    if (!compareMode || pinnedHubs.length !== 2){ panel.classList.remove('show'); return; }
-    const [A,B] = pinnedHubs;
-    const r = Number(radius.value)||DEFAULT_RADIUS;
+function refreshComparePanel(){
+  const panel = id('comparePanel');
+  if (!compareMode || pinnedHubs.length !== 2){ panel.classList.remove('show'); return; }
+  const [A,B] = pinnedHubs;
+  const r = Number(radius.value)||DEFAULT_RADIUS;
 
-    const groups = { Aonly:[], Bonly:[], Both:[] };
-    allStores.forEach(s=>{
-      const inA = distMiles(s.lat,s.lng,A.coords[0],A.coords[1]) <= r;
-      const inB = distMiles(s.lat,s.lng,B.coords[0],B.coords[1]) <= r;
-      if (inA && !inB) groups.Aonly.push(s);
-      else if (inB && !inA) groups.Bonly.push(s);
-      else if (inA && inB) groups.Both.push(s);
-    });
-    const total = groups.Aonly.length + groups.Bonly.length + groups.Both.length || 1;
-    const pct = n => Math.round(n*100/total);
+  const groups = { Aonly:[], Bonly:[], Both:[] };
+  allStores.forEach(s=>{
+    const inA = distMiles(s.lat,s.lng,A.coords[0],A.coords[1]) <= r;
+    const inB = distMiles(s.lat,s.lng,B.coords[0],B.coords[1]) <= r;
+    if (inA && !inB) groups.Aonly.push(s);
+    else if (inB && !inA) groups.Bonly.push(s);
+    else if (inA && inB) groups.Both.push(s);
+  });
+  const total = groups.Aonly.length + groups.Bonly.length + groups.Both.length || 1;
+  const pct = n => Math.round(n*100/total);
 
-    id('compareBody').innerHTML = `
-      <div class="compare-grid" title="Union of stores within ${r}mi of either hub">
-        <div><b>${escape(hubDisplay(A))}</b> only</div><div><b>${groups.Aonly.length}</b> (${pct(groups.Aonly.length)}%)</div>
-        <div><b>${escape(hubDisplay(B))}</b> only</div><div><b>${groups.Bonly.length}</b> (${pct(groups.Bonly.length)}%)</div>
-        <div><b>Overlap</b></div><div><b>${groups.Both.length}</b> (${pct(groups.Both.length)}%)</div>
-      </div>
-    `;
-    id('cmpExport').onclick = ()=> exportCompareCsv(A,B,groups,r);
-    id('cmpClear').onclick  = ()=> { pinnedHubs=[]; panel.classList.remove('show'); drawOverlap(); tgCompare.checked=false; compareMode=false; saveState(); };
-    panel.classList.add('show');
-  }
+  id('compareBody').innerHTML = `
+    <div class="compare-grid" title="Union of stores within ${r}mi of either hub">
+      <div><b>${escape(hubDisplay(A))}</b> only</div><div><b>${groups.Aonly.length}</b> (${pct(groups.Aonly.length)}%)</div>
+      <div><b>${escape(hubDisplay(B))}</b> only</div><div><b>${groups.Bonly.length}</b> (${pct(groups.Bonly.length)}%)</div>
+      <div><b>Overlap</b></div><div><b>${groups.Both.length}</b> (${pct(groups.Both.length)}%)</div>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+      <button id="cmpZoomA" class="btn" type="button">Zoom A</button>
+      <button id="cmpZoomB" class="btn" type="button">Zoom B</button>
+      <button id="cmpZoomBoth" class="btn" type="button">Zoom overlap</button>
+    </div>
+  `;
+
+  // existing export/clear wiring (keep)
+  id('cmpExport').onclick = ()=> exportCompareCsv(A,B,groups,r);
+  id('cmpClear').onclick  = ()=> { pinnedHubs=[]; panel.classList.remove('show'); drawOverlap(); tgCompare.checked=false; compareMode=false; saveState(); };
+
+  // NEW: quick-zoom helpers
+  const zoomList = (list, hubs=[])=>{
+    const b = L.latLngBounds(); let added = false;
+    list.forEach(s=>{ b.extend([s.lat,s.lng]); added = true; });
+    hubs.forEach(h=>{ b.extend(h.coords); added = true; });
+    if (added) map.fitBounds(b.pad(0.12), { animate:true });
+  };
+  id('cmpZoomA').onclick     = ()=> zoomList(groups.Aonly, [A]);
+  id('cmpZoomB').onclick     = ()=> zoomList(groups.Bonly, [B]);
+  id('cmpZoomBoth').onclick  = ()=> zoomList(groups.Both, [A,B]);
+
+  panel.classList.add('show');
+}
+
   function exportCompareCsv(A,B,groups,r){
     const rows = [['Group','Hub A','Hub B','Radius(mi)','Store #','Name','Address','City','State','Coverage','Area Manager','Regional Manager','Lat','Lng']];
     const push = (tag,list)=> list.forEach(s=> rows.push([tag, hubDisplay(A), hubDisplay(B), r, s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'', s.coverageType||'', s.areaManager||'', s.regionalManager||'', s.lat, s.lng]));
