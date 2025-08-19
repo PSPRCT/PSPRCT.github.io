@@ -1478,6 +1478,22 @@
     setMulti(amFilter, sel.length ? sel : ['All']);
     filterSelect(amFilter, amSearch.value);
   }
+  function handleHubVisibilityChange(){
+  // Repaint hubs based on toggles
+  renderHubs();
+  // Update rings/overlap layers tied to what’s visible
+  updateRings();
+  if (tgOverlap.checked) drawOverlap();
+  // Rebuild “Hubs” filter to reflect what's currently visible
+  buildHubFilterOptions();
+  // Re-run store filtering and counters since visibility affects “Within hubs”, counts, etc.
+  runFilter();
+  // Keep the compare widget in sync
+  refreshComparePanel();
+  // Persist
+  saveState();
+}
+
   function filterSelect(selectEl, q){
     const query = (q||'').toLowerCase();
     Array.from(selectEl.options).forEach(opt=>{
