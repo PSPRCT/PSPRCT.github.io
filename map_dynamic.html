@@ -577,84 +577,47 @@
     saveState();
   });
 
-  <script>
-  // Place this block ABOVE "// ---------- Load data ----------"
-  function normalizeStores(rows){
-    const out = [];
-    const seen = new Set();
+ // Place this block ABOVE "// ---------- Load data ----------"
+function normalizeStores(rows){
+  const out = [];
+  const seen = new Set();
+  const toStr = v => (v == null ? '' : String(v)).trim();
+  const toNum = v => { const n = Number(v); return Number.isFinite(n) ? n : NaN; };
 
-    const toStr = v => (v == null ? '' : String(v)).trim();
-    const toNum = v => {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : NaN;
-    };
+  for (const r of (Array.isArray(rows) ? rows : [])) {
+    const rawStore =
+      r.storeNumberStr ?? r.storeNumber ?? r.StoreNumber ?? r.StoreNum ??
+      r["Store #"] ?? r["Store"] ?? r["Store Number"] ?? r.store ??
+      r.SiteID ?? r.SiteId ?? r["Site ID"] ?? r.StoreID ?? r.StoreId ?? "";
 
-    for (const r of (Array.isArray(rows) ? rows : [])) {
-      // store number (accept a lot of header variants)
-      const rawStore =
-        r.storeNumberStr ?? r.storeNumber ?? r.StoreNumber ?? r.StoreNum ??
-        r["Store #"] ?? r["Store"] ?? r["Store Number"] ?? r.store ??
-        r.SiteID ?? r.SiteId ?? r["Site ID"] ?? r.StoreID ?? r.StoreId ?? "";
+    const storeNumberStr = toStr(rawStore).replace(/\D+/g, "");
+    const storeName = toStr(r.storeName ?? r["Store Name"] ?? r.Name ?? r.name) || "Walmart";
+    const address   = toStr(r.address ?? r.Address ?? r.addr ?? r["Street Address"]);
+    const city      = toStr(r.city ?? r.City);
+    const state     = toStr(r.state ?? r.State).slice(0,2).toUpperCase();
 
-      // keep digits only for consistency; fall back to blank if none
-      const storeNumberStr = toStr(rawStore).replace(/\D+/g, "");
+    const areaManager = toStr(r.areaManager ?? r["Area Manager"] ?? r.AreaManager ?? r.AM ?? r["Area Mgr"]);
+    const regionalManager = toStr(r.regionalManager ?? r["Regional Manager"] ?? r.RegionalManager ?? r.RM ?? r["Region Mgr"]);
+    const trainerCity = toStr(
+      r.trainerCity ?? r["Trainer City"] ?? r.HubCity ?? r["Hub City"] ??
+      r.Assigned_Premium ?? r["Assigned_Premium"]
+    );
+    const coverageType = toStr(r.coverageType ?? r.Coverage ?? r["Coverage Type"] ?? r.Coverage_Type) || "Uncovered";
 
-      // names/labels
-      const storeName =
-        toStr(r.storeName ?? r["Store Name"] ?? r.Name ?? r.name) || "Walmart";
+    const lat = toNum(r.lat ?? r.latitude ?? r.Latitude ?? r.Lat ?? r.lat_dd ?? r["Latitude__c"]);
+    const lng = toNum(r.lng ?? r.longitude ?? r.Longitude ?? r.Lon ?? r.lng_dd ?? r["Longitude__c"]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
 
-      // address bits
-      const address =
-        toStr(r.address ?? r.Address ?? r.addr ?? r["Street Address"]);
-      const city    = toStr(r.city ?? r.City);
-      const state   = toStr(r.state ?? r.State).slice(0, 2).toUpperCase();
+    const key = storeNumberStr || `${lat.toFixed(6)},${lng.toFixed(6)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
 
-      // people/ownership
-      const areaManager =
-        toStr(r.areaManager ?? r["Area Manager"] ?? r.AreaManager ?? r.AM ?? r["Area Mgr"]);
-      const regionalManager =
-        toStr(r.regionalManager ?? r["Regional Manager"] ?? r.RegionalManager ?? r.RM ?? r["Region Mgr"]);
-
-      // “trainerCity” is what your popup shows; accept hub/assigned fields too
-      const trainerCity =
-        toStr(r.trainerCity ?? r["Trainer City"] ?? r.HubCity ?? r["Hub City"] ??
-              r.Assigned_Premium ?? r["Assigned_Premium"]);
-
-      // coverage (recompute later anyway, but keep if present)
-      const coverageType =
-        toStr(r.coverageType ?? r.Coverage ?? r["Coverage Type"] ?? r.Coverage_Type) || "Uncovered";
-
-      // coordinates (accept many variants)
-      const lat =
-        toNum(r.lat ?? r.latitude ?? r.Latitude ?? r.Lat ?? r.lat_dd ?? r["Latitude__c"]);
-      const lng =
-        toNum(r.lng ?? r.longitude ?? r.Longitude ?? r.Lon ?? r.lng_dd ?? r["Longitude__c"]);
-
-      // skip rows without valid coordinates
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-
-      // de-dup: prefer unique store #, else coord key
-      const key = storeNumberStr || `${lat.toFixed(6)},${lng.toFixed(6)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      out.push({
-        storeNumberStr: storeNumberStr || key,
-        storeName,
-        address,
-        city,
-        state,
-        coverageType,          // will be overwritten by recomputeCoverage()
-        areaManager,
-        regionalManager,
-        trainerCity,
-        lat,
-        lng
-      });
-    }
-    return out;
+    out.push({ storeNumberStr: storeNumberStr || key, storeName, address, city, state,
+               coverageType, areaManager, regionalManager, trainerCity, lat, lng });
   }
-</script>
+  return out;
+}
+
 
 
   // ---------- Load data ----------
