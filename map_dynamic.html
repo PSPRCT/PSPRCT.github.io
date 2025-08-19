@@ -1033,6 +1033,30 @@
   }
 
   // ---------- Hubs ----------
+
+    // Visibility toggle handler (confirmed/pending/Acosta)
+  function handleHubVisibilityChange(){
+    // Rebuild hub markers for what's currently visible
+    renderHubs();
+
+    // Rebuild hub filter list (so only visible hubs appear there)
+    buildHubFilterOptions();
+
+    // Recalculate filtered store markers (affects “Within hubs”, chips, counts)
+    runFilter();
+
+    // Refresh optional visuals
+    if (id('tgRings')?.checked) updateRings();
+    if (id('tgOverlap')?.checked) drawOverlap();
+    refreshComparePanel();
+
+    // Close sidepanel if its hub was hidden
+    if (spHub && !visibleHubs().some(h => h.id === spHub.id)) hideSidepanel();
+
+    // Persist UI state
+    saveState();
+  }
+
   function visibleHubs(){
     const out = [];
     if (showConfirmed.checked) out.push(...premiumConfirmed);
