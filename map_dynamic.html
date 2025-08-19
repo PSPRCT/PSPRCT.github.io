@@ -642,124 +642,101 @@ const PREMIUM_URL = 'premium_trainers_master.json?v=2025-08-19a';
       acostaHubs = [];
     }
 
-    // PREMIUM hubs (confirmed + pending/open/proposed)
-    try {
-    const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
-const pJson = await pResp.json();
+   // PREMIUM hubs (confirmed + pending)
+try {
+  const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
+  const pJson = await pResp.json();
 
-const rows = Array.isArray(pJson)
-  ? pJson
-  : [
-      ...(pJson.confirmed || []),
-      ...(pJson.pending   || []),
+  // ✅ Only confirmed + pending from the new master file
+  const rows = Array.isArray(pJson)
+    ? pJson
+    : [
+        ...(pJson.confirmed || []),
+        ...(pJson.pending   || []),
+      ];
+
+  const txt = v => String(v ?? '').toLowerCase();
+  const statusText = r => {
+    const fields = [
+      r.Status, r.status, r.HubStatus, r.Hub_Status,
+      r.TrainerStatus, r.Trainer_Status, r.CandidateStatus, r.AssignmentStatus
     ];
+    return fields.map(txt).find(Boolean) || '';
+  };
 
-      const txt = v => String(v ?? '').toLowerCase();
+  const getCity = r => String(
+    r.City ?? r.city ??
+    r.Hub_City ?? r['Hub City'] ??
+    r.ProposedCity ?? r['Proposed City'] ??
+    r.TargetCity ?? r['Target City'] ??
+    r.CandidateCity ?? r['Candidate City'] ??
+    r.HubCity ?? ''
+  ).trim();
 
-      const statusText = r => {
-        const fields = [
-          r.Status, r.status, r.HubStatus, r.Hub_Status,
-          r.TrainerStatus, r.Trainer_Status, r.CandidateStatus, r.AssignmentStatus
-        ];
-        return fields.map(txt).find(Boolean) || '';
-      };
+  const getState = r => String(
+    r.State ?? r.state ??
+    r.Hub_State ?? r['Hub State'] ??
+    r.ProposedState ?? r['Proposed State'] ??
+    r.TargetState ?? r['Target State'] ??
+    r.CandidateState ?? r['Candidate State'] ??
+    r.HubState ?? ''
+  ).trim();
 
-      const isOffer      = s => /(offer|accepted)/i.test(s);
-      const isProposed   = s => /(propos|plan|target)/i.test(s);
-      const isRecruiting = s => /(recruit|source|pipeline|tbd|open|no cand|no appl|no\s*applicants|search)/i.test(s);
+  const getCoords = r => {
+    const lat = Number(r.Latitude  ?? r.latitude  ?? r.lat ?? r.Lat ?? r.lat_dd ?? r.Latitude__c);
+    const lng = Number(r.Longitude ?? r.longitude ?? r.lng ?? r.Lon ?? r.lng_dd ?? r.Longitude__c);
+    return (Number.isFinite(lat) && Number.isFinite(lng)) ? [lat, lng] : null;
+  };
 
-      const getCity = r => String(
-        r.City ?? r.city ??
-        r.Hub_City ?? r['Hub City'] ??
-        r.ProposedCity ?? r['Proposed City'] ??
-        r.TargetCity ?? r['Target City'] ??
-        r.CandidateCity ?? r['Candidate City'] ??
-        r.HubCity ?? ''
-      ).trim();
+  const toHub = (r) => {
+    let coords = getCoords(r);
+    let city   = getCity(r);
+    let state  = getState(r);
+    let nm     = String(
+      r.CandidateName ?? r.Candidate ?? r.RepName ?? r.repName ??
+      r.TrainerName ?? r['Trainer Name'] ??
+      r.Premium_Trainer ?? r.PremiumTrainer ??
+      r.name ?? r.Name ?? ''
+    ).trim();
 
-      const getState = r => String(
-        r.State ?? r.state ??
-        r.Hub_State ?? r['Hub State'] ??
-        r.ProposedState ?? r['Proposed State'] ??
-        r.TargetState ?? r['Target State'] ??
-        r.CandidateState ?? r['Candidate State'] ??
-        r.HubState ?? ''
-      ).trim();
+    if (!coords) return null;
+    const [lat, lng] = coords;
 
-      const getCoords = r => {
-        const lat = Number(r.Latitude  ?? r.latitude  ?? r.lat ?? r.Lat ?? r.lat_dd ?? r.Latitude__c);
-        const lng = Number(r.Longitude ?? r.longitude ?? r.lng ?? r.Lon ?? r.lng_dd ?? r.Longitude__c);
-        return (Number.isFinite(lat) && Number.isFinite(lng)) ? [lat, lng] : null;
-      };
+    const s = statusText(r);
+    const status = (nm && !/(offer|propos|recruit|pend)/i.test(s)) ? 'confirmed' : 'pending';
+    const statusSub =
+      /(offer)/i.test(s) ? 'pending_offer' :
+      /(propos|plan|target)/i.test(s) ? 'proposed' :
+      /(recruit|open|tbd|no\s*app)/i.test(s) ? 'open' :
+      (status === 'confirmed' ? 'confirmed' : 'pending');
 
-      // minor overrides used in your workbook
-      const NAME_OVERRIDES = {
-        'dandridge|tn':'Jennifer Matthews','acworth|ga':'John Orr','king george|va':'Amy Faulk','minden|la':'Sami Jo Slater','olive branch|ms':'Annette Brown','clarksville|tn':'Nicholas Salvato','darlington|sc':'Kristen Jones','orange park|fl':'Sabrina Hall','fort myers|fl':'Muriel Curry Whitfield','sparta|mo':'Michelle Rogers','granite falls|nc':'Lisa Walker','seguin|tx':'Christina Winston','sequin|tx':'Christina Winston','louisville|ky':'Heather Lilla',"o'fallon|mo":'Michael McAllister','kenly|nc':'Brooke Gross','folsom|ca':'Gerard White','navassa|nc':'Jennifer Hook','willimantic|ct':'Melissa Bokoff','excelsior springs|mo':'Teresa Estep','arlington|tx':'Michelle Paoli','ingleside|il':'Miguel Gonzalez','ashtabula|oh':'Sherry Hamrick','belvidere|il':'Justin Vargas Salgado','riverview|fl':'Richard Santos','mabelvale|ar':'Angela Eslick','norman|ok':'Teryl Ard','kimberly|al':'Jessica Salvage',
-      };
+    const statusLabel = ({
+      confirmed:'Confirmed', pending_offer:'Pending Offer',
+      pending:'Pending', proposed:'Proposed', open:'Open'
+    }[statusSub]) || 'Pending';
 
-      const CITY_ALIAS_OVERRIDES = {
-        'excelsior springs|mo': { city: 'Kansas City', state: 'MO', coords: [39.0997, -94.5786] },
-      };
+    const trainerBit = nm ? ` — ${nm}` : '';
+    const place = city && state ? `${city}, ${state}` : (city || state || '');
+    const label = `${place} (${statusLabel}${trainerBit})`;
 
-      const CITY_COORD_FIXES = {
-        'fort wayne|in':[41.0793,-85.1394],'plainfield|in':[39.7042,-86.3994],
-        'dandridge|tn':[36.0159,-83.4143],'acworth|ga':[34.0659,-84.6769],'king george|va':[38.2668,-77.1847],'minden|la':[32.6154,-93.2729],'olive branch|ms':[34.9618,-89.8295],'clarksville|tn':[36.5298,-87.3595],'darlington|sc':[34.2999,-79.8762],'orange park|fl':[30.1660,-81.7060],'fort myers|fl':[26.6406,-81.8723],'sparta|mo':[36.9959,-93.0816],'granite falls|nc':[35.7960,-81.4300],'seguin|tx':[29.5688,-97.9647],"o'fallon|mo":[38.8106,-90.6998],'louisville|ky':[38.2527,-85.7585],'kenly|nc':[35.5950,-78.1250],'folsom|ca':[38.6779,-121.1761],'navassa|nc':[34.2491,-78.0250],'willimantic|ct':[41.7107,-72.2081],'sequin|tx':[29.5688,-97.9647],
-      };
+    return {
+      id: `${status[0]}_${slug(`${city||''}-${state||''}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
+      name: nm || 'Proposed',
+      fullName: label,
+      coords: [lat, lng],
+      status, statusSub, statusLabel,
+      city, state
+    };
+  };
 
-      const toHub = (r) => {
-        let coords = getCoords(r);
-        let city   = getCity(r);
-        let state  = getState(r);
-        let nm     = getName(r);
-
-        if (!coords && city && state) {
-          const fix = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
-          if (fix) coords = fix;
-        }
-        if (!coords) return null;
-        let [lat, lng] = coords;
-
-        if (city && state) {
-          const fixed = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
-          if (fixed) { [lat, lng] = fixed; coords = fixed; }
-        }
-        if (!nm && city && state) nm = NAME_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`] || '';
-
-        const s = (statusText(r) || '');
-        const status =
-          (nm && !/(offer|propos|recruit|pend)/i.test(s)) ? 'confirmed' : 'pending';
-        const statusSub =
-          /(offer)/i.test(s) ? 'pending_offer' :
-          /(propos|plan|target)/i.test(s) ? 'proposed' :
-          /(recruit|open|tbd|no\s*app)/i.test(s) ? 'open' :
-          (status === 'confirmed' ? 'confirmed' : 'pending');
-
-        const statusLabel = ({
-          confirmed:'Confirmed', pending_offer:'Pending Offer',
-          pending:'Pending', proposed:'Proposed', open:'Open'
-        }[statusSub]) || 'Pending';
-
-        const trainerBit  = nm ? ` — ${nm}` : '';
-        const place = city && state ? `${city}, ${state}` : (city || state || '');
-        const label = `${place} (${statusLabel}${trainerBit})`;
-
-        return {
-          id: `${status[0]}_${slug(`${city||''}-${state||''}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
-          name: nm || 'Proposed', fullName: label,
-          coords: [lat, lng], status, statusSub, statusLabel, city, state
-        };
-      };
-
-      const hubs = rows.map(toHub).filter(Boolean);
-      premiumConfirmed = hubs.filter(h => h.status === 'confirmed');
-      premiumPending   = hubs.filter(h => h.status === 'pending');
-
-    } catch (e) {
-      console.warn('Premium file missing/invalid', e);
-      premiumConfirmed = [];
-      premiumPending   = [];
-    }
-
+  const hubs = rows.map(toHub).filter(Boolean);
+  premiumConfirmed = hubs.filter(h => h.status === 'confirmed');
+  premiumPending   = hubs.filter(h => h.status === 'pending');
+} catch (e) {
+  console.warn('Premium file missing/invalid', e);
+  premiumConfirmed = [];
+  premiumPending   = [];
+}
     // Build initial UI state
     buildSearchIndex();
     buildHubFilterOptions();
@@ -1098,6 +1075,7 @@ function hubDisplay(h){
   if (st)         return st;
   return h.name || h.label || 'Proposed';
 }
+
 
 
 
