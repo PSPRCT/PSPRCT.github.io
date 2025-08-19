@@ -603,23 +603,12 @@ Promise.resolve()
       source:srcMode
     });
   })
-  .catch(function(err){
-    STATUS.innerHTML = '<span style="color:#b42318;font-weight:600">Init error:</span> '+escapeHtml((err && err.message)||String(err));
+ .catch(function(err){
+    STATUS.innerHTML = '<span style="color:#b42318;font-weight:600">Init error:</span> '
+      + escapeHtml((err && err.message) || String(err));
     console.error(err);
   })
-// build the chain into a variable:
-var init = Promise.resolve()
-  .then(function(){ /* ... first load block ... */ })
-  .then(function(){ /* ... second load block ... */ })
-  .then(function(){ /* ... third load block ... */ })
-  .then(function(){ /* ... post-load work ... */ })
-  .catch(function(err){
-    STATUS.innerHTML = '<span style="color:#b42318;font-weight:600">Init error:</span> '+escapeHtml((err && err.message)||String(err));
-    console.error(err);
-  });
-
-// call done() either way (success or error)
-if (init.finally) { init.finally(done); } else { init.then(done, done); }
+  .then(done, done);   // always hide the spinner
 
 
 function done(){
