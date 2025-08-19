@@ -652,7 +652,11 @@
   markers.on('clusterclick', (e)=>{ map.fitBounds(e.layer.getBounds()); });
   map.on('moveend zoomend', ()=>{
     updateInViewCount();
-    if (id('tgHeat').checked) requestIdleCallback?.(updateHeat) ?? updateHeat();
+    // replace the whole line with:
+if (id('tgHeat').checked) {
+  (window.requestIdleCallback || ((fn)=>setTimeout(fn, 0)))(updateHeat);
+}
+
     saveState();
   });
 
