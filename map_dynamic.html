@@ -607,7 +607,20 @@ Promise.resolve()
     STATUS.innerHTML = '<span style="color:#b42318;font-weight:600">Init error:</span> '+escapeHtml((err && err.message)||String(err));
     console.error(err);
   })
-  .finally ? .finally(done) : done(); // for older browsers
+// build the chain into a variable:
+var init = Promise.resolve()
+  .then(function(){ /* ... first load block ... */ })
+  .then(function(){ /* ... second load block ... */ })
+  .then(function(){ /* ... third load block ... */ })
+  .then(function(){ /* ... post-load work ... */ })
+  .catch(function(err){
+    STATUS.innerHTML = '<span style="color:#b42318;font-weight:600">Init error:</span> '+escapeHtml((err && err.message)||String(err));
+    console.error(err);
+  });
+
+// call done() either way (success or error)
+if (init.finally) { init.finally(done); } else { init.then(done, done); }
+
 
 function done(){
   clearTimeout(spinnerFailSafe); showBusy(false);
@@ -623,7 +636,13 @@ function done(){
   updateInViewCount();
   renderSavedViews();
 }
-
+function handleHubVisibilityChange(){
+  buildHubFilterOptions();
+  runFilter();
+  updateRings();
+  if (tgOverlap.checked) drawOverlap();
+  saveState();
+}
 // ================= SEARCH =================
 var searchIdx=[], resIndex=-1, targetPin=null;
 var targetIcon = L.divIcon({className:'', html:'<div style="background:#2f71ff;border:2px solid #fff;border-radius:50%;width:18px;height:18px;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>', iconSize:[18,18], iconAnchor:[9,9]});
