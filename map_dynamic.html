@@ -103,11 +103,9 @@
   .hub.pending{background:#9ea3a8}
   .hub.acosta{ background: var(--a); }
   .hl{width:22px;height:22px;border-radius:50%;border:2px solid #111;background:rgba(0,0,0,.05);box-shadow:0 0 0 1px rgba(0,0,0,.25)}
-.modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.4); }
-.modal.show { display:block; }
-.modal-content { background:#fff; margin:10% auto; padding:20px; border:1px solid #888; width:50%; border-radius:8px; }
-.close { float:right; font-size:24px; font-weight:bold; cursor:pointer; }
 
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:5000}
+  .modal.show{display:flex}
   .card{background:#fff;border-radius:12px;max-width:900px;width:92vw;box-shadow:0 20px 50px rgba(0,0,0,.25);border:1px solid var(--border)}
   .card header{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
   .card header h3{margin:0;font-size:18px;flex:1}
@@ -158,7 +156,7 @@
 
   <label class="toggle" title="Show Premium confirmed hubs"><input id="showConfirmed" type="checkbox" checked />Premium (confirmed)</label>
   <label class="toggle" title="Show Premium pending offers"><input id="showPending" type="checkbox" checked />Premium (pending)</label>
-  <label class="toggle" title="Show Acosta trainers"><input id="showAcosta" type="checkbox" />Acosta</label>
+  <label class="toggle" title="Show Acosta trainers"><input id="showAcosta" type="checkbox" checked />Acosta</label>
 
   <div class="range" title="Hub radius used for coverage, lists, rings, overlap">
     <span>Radius</span>
@@ -198,7 +196,15 @@
   <button id="helpBtn" class="btn" type="button" title="Quick tips and shortcuts">Help</button>
 </div>
 
-
+<div class="pillbar" id="presetBar">
+  <div id="presetUncov" class="pill" title="Uncovered + Rings + Heatmap">
+    <span class="dot" style="background:var(--u)"></span> Preset: Uncovered focus
+  </div>
+  <div id="presetHubs" class="pill" title="Show only stores within any visible hub radius">
+    🟦 Preset: Hubs coverage
+  </div>
+  <div id="snapBtn" class="pill" title="Copy a shareable URL">🔗 Save snapshot link</div>
+</div>
 
 <div class="pillbar" id="activeChips"></div>
 
@@ -451,15 +457,11 @@ const PREMIUM_URL = 'premium_trainers_master.json?v=2025-08-19a';
   const heatLayerHolder = { layer: null };
   map.addLayer(markers);
 
-
-
   // UI refs
   const STATUS = id('dataStatus'); const busy = id('busy');
   const showConfirmed = id('showConfirmed');
   const showPending   = id('showPending');
   const showAcosta    = id('showAcosta');
-  // default: start with Acosta hidden unless a saved state/snapshot overrides it
-showAcosta.checked = false;
   const radius        = id('radius');  const radiusLbl = id('radiusLbl');
   const tgHeat = id('tgHeat'), tgRings=id('tgRings'), tgOverlap=id('tgOverlap'), tgCompare=id('tgCompare'), tgWithin=id('tgWithin'), tgCluster=id('tgCluster');
   const covFilter = id('covFilter'); const covSearch = id('covSearch');
@@ -613,7 +615,6 @@ showAcosta.checked = false;
     STATUS.textContent += `  |  ${allStores.length.toLocaleString()} stores ready`;
 
     populateRM(allStores); populateAM(allStores);
-
 
     // ACOSTA
     try {
@@ -1471,8 +1472,7 @@ mountVirtual(spRowsEl, list, rowH, (s)=>`
     });
     rows.sort((a,b)=> b.count - a.count);
     lastGap = rows.slice();
-    
-  
+
     const html = `
       <table style="border-collapse:collapse;width:100%">
         <thead>
@@ -2090,7 +2090,7 @@ function buildHubFilterOptions(){
       </div>`;
     id('sandboxListBtn').onclick = ()=>{
       const rows = list
-        .map(s => ({ ...s, __d: distMiles(c.lat, c.lng, s.lat, s.lng) }))
+        .map(s => ({...s, __d: distMiles(c.lat,c.lng,s.lat,s.lng)}))
         .sort((a,b)=>a.__d-b.__d)
         .map(s=>`
           <tr>
@@ -2121,9 +2121,6 @@ function buildHubFilterOptions(){
             <tbody>${rows}</tbody>
           </table>
           <script>window.print()<\\/script>
-
-
-  
         </body></html>`);
       win.document.close();
     };
@@ -2151,19 +2148,13 @@ function buildHubFilterOptions(){
     const set = new Set();
     stores.forEach(s=>{ if (s.regionalManager) set.add(s.regionalManager); });
     const arr = Array.from(set).sort((a,b)=>a.localeCompare(b));
-  rmFilter.innerHTML = [
-  '<option value="All" selected>All</option>',
-  ...arr.map(v => `<option>${escape(v)}</option>`)
-].join('');
+    rmFilter.innerHTML = ['<option value="All" selected>All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
   }
   function populateAM(stores){
     const set = new Set();
     stores.forEach(s=>{ if (s.areaManager) set.add(s.areaManager); });
     const arr = Array.from(set).sort((a,b)=>a.localeCompare(b));
-   amFilter.innerHTML = [
-  '<option value="All" selected>All</option>',
-  ...arr.map(v => `<option>${escape(v)}</option>`)
-].join('');
+    amFilter.innerHTML = ['<option value="All" selected>All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
   }
   function cascadeAM(){
     const selectedRM = Array.from(rmFilter.selectedOptions).map(o=>o.value);
@@ -2176,10 +2167,7 @@ function buildHubFilterOptions(){
     });
     const arr = Array.from(ams).sort((a,b)=>a.localeCompare(b));
     const prevSel = new Set(Array.from(amFilter.selectedOptions).map(o=>o.value));
-   amFilter.innerHTML = [
-  '<option value="All">All</option>',
-  ...arr.map(v => `<option>${escape(v)}</option>`)
-].join('');
+    amFilter.innerHTML = ['<option value="All">All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
     const toSelect = arr.filter(v=>prevSel.has(v));
     if (toSelect.length){ setMulti(amFilter, toSelect); } else { setMulti(amFilter, ['All']); }
     filterSelect(amFilter, amSearch.value);
@@ -2344,97 +2332,6 @@ function buildHubFilterOptions(){
       coverageWorker.postMessage(payload);
     });
   }
-
-    }
-
-  function refreshSandbox(){
-    if (!sandboxOpen) return;
-    const r = Number(id('sandboxR')?.value)||DEFAULT_RADIUS;
-    const c = sandboxMarker?.getLatLng?.();
-    if (!c) return;
-    if (sandboxCircle){ sandboxCircle.setLatLng(c); sandboxCircle.setRadius(r*1609); }
-    const list = storesWithin([c.lat,c.lng], r);
-    const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
-    list.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0)+1; });
-    id('sandboxStats').innerHTML = `
-      <div><b>${list.length}</b> stores within <b>${r} mi</b></div>
-      <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
-        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
-        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
-        <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
-        <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
-      </div>`;
-    id('sandboxListBtn').onclick = ()=>{
-      const rows = list
-        .map(s => ({...s, __d: distMiles(c.lat,c.lng,s.lat,s.lng)}))
-        .sort((a,b)=>a.__d-b.__d)
-        .map(s=>`
-          <tr>
-            <td>#${htmlEscape(s.storeNumberStr)}</td>
-            <td>${htmlEscape(s.storeName||'')}</td>
-            <td>${htmlEscape(s.address||'')}, ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</td>
-            <td>${htmlEscape(s.coverageType||'')}</td>
-            <td style="text-align:right">${s.__d.toFixed(1)}</td>
-            <td>${htmlEscape(s.areaManager||'')}</td>
-            <td>${htmlEscape(s.regionalManager||'')}</td>
-          </tr>`).join('');
-      const win = window.open('', '_blank');
-      win.document.write(`
-        <html><head><title>Sandbox — ${r}mi</title>
-        <style>
-          body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px}
-          table{border-collapse:collapse;width:100%}
-          th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
-          th{background:#f3f4f6;text-align:left}
-          td:nth-child(5){text-align:right}
-          h2{margin:0 0 8px}
-          .meta{color:#555;margin-bottom:10px}
-        </style></head><body>
-          <h2>New-hub Sandbox</h2>
-          <div class="meta">Center: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)} • Radius: <b>${r} mi</b> • Stores: <b>${list.length}</b></div>
-          <table>
-            <thead><tr><th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>Distance (mi)</th><th>AM</th><th>RM</th></tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-          <script>window.print()<\\/script>
-
-<!-- Help Modal -->
-<div id="helpModal" class="modal">
-  <div class="modal-content">
-    <span id="helpClose" class="close">&times;</span>
-    <h2>Help</h2>
-    <p>Use the filters to explore coverage by hub, region, or manager. 
-       Toggle layers with the checkboxes. "Gap finder" highlights uncovered stores, 
-       and "Rollups" summarizes totals. Use "Export" to save visible data.</p>
-  </div>
-</div>
-
-<!-- Sandbox Modal -->
-<div id="sandboxModal" class="modal">
-  <div class="modal-content">
-    <span id="sandboxClose" class="close">&times;</span>
-    <h2>New Hub Sandbox</h2>
-    <p>Click anywhere on the map to drop a temporary sandbox hub and 
-       calculate coverage radius. Drag to reposition.</p>
-  </div>
-</div>
-
-
-  
-        </body></html>`);
-      win.document.close();
-    };
-  }
-
-  // ---------- Heatmap ----------
-  function updateHeat(){
-    const pts = filteredStores.map(s => [s.lat, s.lng, 0.6]);
-    if (!heatLayerHolder.layer){
-      heatLayerHolder.layer = L.heatLayer(pts, { radius: 25, blur: 18 });
-      map.addLayer(heatLayerHolder.layer);
-    }else{
-      heatLayerHolder.layer.setLatLngs(pts);
-    }
 
 })();
 </script>
