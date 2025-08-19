@@ -103,9 +103,11 @@
   .hub.pending{background:#9ea3a8}
   .hub.acosta{ background: var(--a); }
   .hl{width:22px;height:22px;border-radius:50%;border:2px solid #111;background:rgba(0,0,0,.05);box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.4); }
+.modal.show { display:block; }
+.modal-content { background:#fff; margin:10% auto; padding:20px; border:1px solid #888; width:50%; border-radius:8px; }
+.close { float:right; font-size:24px; font-weight:bold; cursor:pointer; }
 
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:5000}
-  .modal.show{display:flex}
   .card{background:#fff;border-radius:12px;max-width:900px;width:92vw;box-shadow:0 20px 50px rgba(0,0,0,.25);border:1px solid var(--border)}
   .card header{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
   .card header h3{margin:0;font-size:18px;flex:1}
@@ -596,10 +598,16 @@ const showPending   = id('showPending');
 const showAcosta    = id('showAcosta');
 // ... (other refs)
 
-// --- Help modal wiring (always runs, independent of data loading) ---
+// --- Help modal wiring ---
 const helpModal = id('helpModal');
-id('helpBtn')  ?.addEventListener('click', () => helpModal?.classList.add('show'));
+id('helpBtn')?.addEventListener('click', () => helpModal?.classList.add('show'));
 id('helpClose')?.addEventListener('click', () => helpModal?.classList.remove('show'));
+
+// --- Sandbox modal wiring ---
+const sandboxModal = id('sandboxModal');
+id('sandboxBtn')?.addEventListener('click', () => sandboxModal?.classList.add('show'));
+id('sandboxClose')?.addEventListener('click', () => sandboxModal?.classList.remove('show'));
+
 
 // ---------- Load data ----------
 showBusy(true); let spinnerFailSafe = setTimeout(()=>showBusy(false), 7000);
@@ -2404,6 +2412,26 @@ function buildHubFilterOptions(){
           </table>
           <script>window.print()<\\/script>
 
+<!-- Help Modal -->
+<div id="helpModal" class="modal">
+  <div class="modal-content">
+    <span id="helpClose" class="close">&times;</span>
+    <h2>Help</h2>
+    <p>Use the filters to explore coverage by hub, region, or manager. 
+       Toggle layers with the checkboxes. "Gap finder" highlights uncovered stores, 
+       and "Rollups" summarizes totals. Use "Export" to save visible data.</p>
+  </div>
+</div>
+
+<!-- Sandbox Modal -->
+<div id="sandboxModal" class="modal">
+  <div class="modal-content">
+    <span id="sandboxClose" class="close">&times;</span>
+    <h2>New Hub Sandbox</h2>
+    <p>Click anywhere on the map to drop a temporary sandbox hub and 
+       calculate coverage radius. Drag to reposition.</p>
+  </div>
+</div>
 
 
   
