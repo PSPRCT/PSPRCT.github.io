@@ -865,10 +865,14 @@ if (id('tgHeat').checked) {
       source: srcMode
     });
 
-  } catch(err){
-    STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Init error:</span> ${escape((err && err.message) || String(err))}
-    console.error(err);
-  } finally { clearTimeout(spinnerFailSafe); showBusy(false); }
+} catch (err) {
+  STATUS.innerHTML =
+    `<span style="color:#b42318;font-weight:600">Init error:</span> ${escapeHtml((err && err.message) || String(err))}`;
+  console.error(err);
+} finally {
+  clearTimeout(spinnerFailSafe);
+  showBusy(false);
+}
 
   if (PENDING_PIN_IDS.length){
     pinnedHubs = visibleHubs().filter(h => PENDING_PIN_IDS.includes(h.id));
