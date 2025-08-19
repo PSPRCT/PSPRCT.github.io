@@ -1631,42 +1631,43 @@
     const src = useFiltered && filteredStores.length ? filteredStores : allStores;
     return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
   }
-  function buildHubFilterOptions(){
-    let hubsAll = [];
-    if (showConfirmed.checked) hubsAll = hubsAll.concat(premiumConfirmed);
-    if (showPending.checked)   hubsAll = hubsAll.concat(premiumPending, userHubs);
+function buildHubFilterOptions(){
+  let hubsAll = [];
+  if (showConfirmed.checked) hubsAll = hubsAll.concat(premiumConfirmed);
+  if (showPending.checked)   hubsAll = hubsAll.concat(premiumPending, userHubs);
 
-    const seen = new Set();
-    hubsAll = hubsAll.filter(h => h && !seen.has(h.id) && seen.add(h.id));
+  const seen = new Set();
+  hubsAll = hubsAll.filter(h => h && !seen.has(h.id) && seen.add(h.id));
 
-    const r = Number(radius.value) || DEFAULT_RADIUS;
+  const r = Number(radius.value) || DEFAULT_RADIUS;
 
-    const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
-    const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o => o.value));
-    const amSel  = new Set(Array.from(amFilter.selectedOptions).map(o => o.value));
-    const covOK = s => covSel.has('All') || covSel.has(s.coverageType || '');
-    const rmOK  = s => rmSel.has('All')  || rmSel.has(s.regionalManager || '');
-    const amOK  = s => amSel.has('All')  || amSel.has(s.areaManager || '');
-    const subset = allStores.filter(s => covOK(s) && rmOK(s) && amOK(s));
+  // Cascade: respect current Coverage / RM / AM selections
+  const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
+  const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o => o.value));
+  const amSel  = new Set(Array.from(amFilter.selectedOptions).map(o => o.value));
+  const covOK = s => covSel.has('All') || covSel.has(s.coverageType || '');
+  const rmOK  = s => rmSel.has('All')  || rmSel.has(s.regionalManager || '');
+  const amOK  = s => amSel.has('All')  || amSel.has(s.areaManager || '');
+  const subset = allStores.filter(s => covOK(s) && rmOK(s) && amOK(s));
 
-    const counted = hubsAll.map(h => ({
-      hub: h,
-      n: subset.reduce((acc,s)=> acc + (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r ? 1 : 0), 0)
-    }));
+  const counted = hubsAll.map(h => ({
+    hub: h,
+    n: subset.reduce((acc,s)=> acc + (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r ? 1 : 0), 0)
+  }));
 
-    const prevSel = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
+  const prevSel = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
 
-    hubFilter.innerHTML = counted
-      .sort((a,b)=> (hubDisplay(a.hub)||'').localeCompare(hubDisplay(b.hub)||''))
-      .map(({hub:nHub, n}) =>
-        `<option value="${escape(nHub.id)}">${escape(hubDisplay(nHub))} — ${n}</option>`
-      ).join('');
+  hubFilter.innerHTML = counted
+    .sort((a,b)=> (hubDisplay(a.hub)||'').localeCompare(hubDisplay(b.hub)||''))
+    .map(({hub:nHub, n}) => `<option value="${escape(nHub.id)}">${escape(hubDisplay(nHub))} — ${n}</option>`)
+    .join('');
 
-    const keep = counted.map(x => x.hub.id).filter(id => prevSel.has(id));
-    if (keep.length) setMulti(hubFilter, keep);
+  const keep = counted.map(x => x.hub.id).filter(id => prevSel.has(id));
+  if (keep.length) setMulti(hubFilter, keep);
 
-    filterSelect(hubFilter, hubSearch.value);
-  }
+  filterSelect(hubFilter, hubSearch.value);
+}
+
 
   function uniqSorted(arr){
     const set = new Set();
@@ -2376,10 +2377,10 @@ map.on('click', (e)=>{
   });
 
   // ---------- Gap Finder ----------
-  id('gapBtn').onclick = ()=> showModal(id('gapModal'));
-  id('gapClose').onclick = ()=> hideModal(id('gapModal'));
-  id('gapRun').onclick = runGapFinder;
-  id('gapExport').onclick = exportGapCsv;
+id('gapBtn').onclick  = ()=> showModal(id('gapModal'));
+id('gapClose').onclick= ()=> hideModal(id('gapModal'));
+id('gapRun').onclick  = runGapFinder;
+id('gapExport').onclick = exportGapCsv;
 
   function cityCentersFromStores(rows){
     const by = new Map();
@@ -2445,11 +2446,12 @@ map.on('click', (e)=>{
   }
 
   // ---------- Rollups ----------
-  id('rollupBtn').onclick  = ()=>{ showModal(id('rollupModal')); buildRollups(); };
-  id('rollupClose').onclick= ()=> hideModal(id('rollupModal'));
-  id('rollByRM').onchange  = buildRollups;
-  id('rollByAM').onchange  = buildRollups;
-  id('rollExport').onclick = exportRollupsCsv;
+id('rollupBtn').onclick  = ()=>{ showModal(id('rollupModal')); buildRollups(); };
+id('rollupClose').onclick= ()=> hideModal(id('rollupModal'));
+id('rollByRM').onchange  = buildRollups;
+id('rollByAM').onchange  = buildRollups;
+id('rollExport').onclick = exportRollupsCsv;
+
 
   let lastRoll = { by: 'RM', rows: [] };
   function buildRollups(){
