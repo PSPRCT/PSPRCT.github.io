@@ -1065,9 +1065,7 @@ function renderSavedViews(){
 
   var html = views.length
     ? views.map(function(v,i){
-        return '<button class="btn" data-i="'+i+'" style="display:block;width:100%;text-align:left">'
-             + escapeHtml(v.name || ('View ' + (i+1)))
-             + '</button>';
+        return `<button data-i="${i}">${escapeHtml(v.name || ("View " + (i+1)))}</button>`;
       }).join('')
     : '<div style="padding:6px 8px;color:var(--muted)">No saved views yet.</div>';
 
@@ -1084,6 +1082,7 @@ function renderSavedViews(){
     }
   );
 }
+
 
 function badgeSource(mode, urls){
   var text = (mode==='url') ? ('External ('+[urls.stores,urls.premium,urls.acosta].filter(Boolean).length+' files)') : 'Local JSON';
