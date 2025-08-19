@@ -564,7 +564,7 @@
     });
   });
 
-on('input', radius, ()=>{ /* … */ buildHubFilterOptions(); /* … */ });
+
 on('change', rmFilter,  ()=>{ cascadeAM(); runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
 on('change', amFilter,  ()=>{ runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
 on('change', covFilter, ()=>{ runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
@@ -1741,11 +1741,7 @@ function buildHubFilterOptions(){
 }
 
 
-  }
-
-  // Respect the hub search box
-  if (typeof filterSelect === 'function') filterSelect(hubFilter, hubSearch?.value||'');
-}
+  
 (function robustButtonWiring(){
   if (window.__wiredToolBtns) return; // run once
   window.__wiredToolBtns = true;
