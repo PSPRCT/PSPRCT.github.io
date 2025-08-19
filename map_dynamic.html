@@ -866,8 +866,10 @@ if (id('tgHeat').checked) {
     });
 
 } catch (err) {
-  STATUS.innerHTML =
-    `<span style="color:#b42318;font-weight:600">Init error:</span> ${escapeHtml((err && err.message) || String(err))}`;
+
+ STATUS.innerHTML =
+  `<span style="color:#b42318;font-weight:600">Init error:</span> ${escapeHtml((err && err.message) || String(err))}`;
+
   console.error(err);
 } finally {
   clearTimeout(spinnerFailSafe);
