@@ -47,7 +47,155 @@
   .picker{display:flex;flex-direction:column;gap:6px}
   .picker input{padding:6px 8px;font-size:13px;border:1px solid #d0d7de;border-radius:8px;background:var(--bg);color:var(--fg)}
   select[multiple]{height:110px;border:1px solid #d0d7de;border-radius:8px;padding:6px 8px;background:var(--bg);color:var(--fg)}
+</style><style>
+/* --- Toolbar (row 1) -------------------------------------------------- */
+.topbar,
+.toolbar,
+.headerbar {                 /* cover common class names used earlier */
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: #fff;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  padding: 6px 10px;
+}
+
+.topbar .controls,
+.toolbar .controls,
+.headerbar .controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* keep controls from stretching */
+.topbar .controls > *,
+.toolbar .controls > *,
+.headerbar .controls > * {
+  flex: 0 0 auto;
+}
+
+/* normalize heights */
+input[type="text"],
+input[type="search"],
+select,
+button,
+.btn {
+  height: 30px;
+  line-height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+}
+
+/* Search box + icon: no overlap */
+.searchbox { position: relative; width: 340px; max-width: 42vw; }
+.searchbox input {
+  padding-left: 28px;         /* room for the icon */
+  padding-right: 14px;        /* room for clear button etc */
+}
+.searchbox .icon {
+  position: absolute;
+  left: 8px; top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  opacity: .7;
+  font-size: 14px;
+}
+
+/* Make any search dropdown sit above controls but below modals */
+.search-dropdown,
+.typeahead,
+.autocomplete-list {
+  position: absolute;
+  z-index: 1200;
+  max-height: 240px;
+  overflow: auto;
+}
+
+/* --- Filter strip (row 2) --------------------------------------------- */
+.filters,
+.filter-row,
+#filterRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 12px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  background: #fff;
+}
+
+/* listboxes (coverage / RM / AM / hubs) */
+.filters select[size],
+.filter-row select[size],
+#filterRow select[size],
+.filters .listbox,
+.filter-row .listbox,
+#filterRow .listbox {
+  height: 120px;              /* keeps the rows even like before */
+  min-height: 120px;
+  width: 100%;
+}
+
+/* labels inside listbox blocks */
+.filters .label,
+.filter-row .label,
+#filterRow .label {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+/* counts/status strip under filters */
+.counts,
+.status-strip {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #374151;
+}
+
+/* --- Map + sidepanel spacing ----------------------------------------- */
+.mapwrap { position: relative; }
+.sidepanel {
+  position: absolute;
+  right: 10px; top: 70px;     /* below sticky topbar */
+  width: 380px; max-width: 40vw;
+  z-index: 900;               /* below dropdowns but above map */
+}
+
+/* --- Buttons cluster under the map ----------------------------------- */
+.toolchips,
+.toggles-row {
+  position: sticky;
+  bottom: 0;
+  background: rgba(255,255,255,.9);
+  border-top: 1px solid var(--border, #e5e7eb);
+  padding: 6px 8px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  z-index: 800;
+}
+
+/* --- Responsive adjustments ------------------------------------------ */
+@media (max-width: 1280px){
+  .filters, .filter-row, #filterRow {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+  .sidepanel{ width: 340px; }
+}
+@media (max-width: 900px){
+  .filters, .filter-row, #filterRow {
+    grid-template-columns: 1fr;
+  }
+  .searchbox{ width: 100%; max-width: 100%; }
+  .sidepanel{ position: fixed; right: 8px; left: 8px; width: auto; }
+}
+
+/* --- Safety: make any stray dropdown/select menus not overflow topbar */
+select { max-width: 220px; }
 </style>
+
 </head>
 <body>
 <!-- Top bar -->
