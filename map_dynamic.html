@@ -1655,42 +1655,66 @@ window.addEventListener('resize', adjustSearchPadding);
     const src = useFiltered && filteredStores.length ? filteredStores : allStores;
     return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
   }
-  function buildHubFilterOptions(){
-    let hubsAll = [];
-    if (showConfirmed.checked) hubsAll = hubsAll.concat(premiumConfirmed);
-    if (showPending.checked)   hubsAll = hubsAll.concat(premiumPending, userHubs);
+function buildHubFilterOptions(){
+  // which hubs are even visible by the top toggles
+  let hubsAll = [];
+  if (showConfirmed.checked) hubsAll = hubsAll.concat(premiumConfirmed);
+  if (showPending.checked)   hubsAll = hubsAll.concat(premiumPending, userHubs);
+  // (Acosta hubs intentionally excluded from this picker)
 
-    const seen = new Set();
-    hubsAll = hubsAll.filter(h => h && !seen.has(h.id) && seen.add(h.id));
+  // dedupe by id
+  const seen = new Set();
+  hubsAll = hubsAll.filter(h => h && !seen.has(h.id) && seen.add(h.id));
 
-    const r = Number(radius.value) || DEFAULT_RADIUS;
+  const r = Number(radius.value) || DEFAULT_RADIUS;
 
-    const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
-    const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o => o.value));
-    const amSel  = new Set(Array.from(amFilter.selectedOptions).map(o => o.value));
-    const covOK = s => covSel.has('All') || covSel.has(s.coverageType || '');
-    const rmOK  = s => rmSel.has('All')  || rmSel.has(s.regionalManager || '');
-    const amOK  = s => amSel.has('All')  || amSel.has(s.areaManager || '');
-    const subset = allStores.filter(s => covOK(s) && rmOK(s) && amOK(s));
+  // Current chip filters → derive store subset
+  const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
+  const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o => o.value));
+  const amSel  = new Set(Array.from(amFilter.selectedOptions).map(o => o.value));
 
-    const counted = hubsAll.map(h => ({
-      hub: h,
-      n: subset.reduce((acc,s)=> acc + (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r ? 1 : 0), 0)
-    }));
+  const covOK = s => covSel.has('All') || covSel.has(s.coverageType || '');
+  const rmOK  = s => rmSel.has('All')  || rmSel.has(s.regionalManager || '');
+  const amOK  = s => amSel.has('All')  || amSel.has(s.areaManager || '');
 
-    const prevSel = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
+  // Base subset from store filters
+  let subset = allStores.filter(s => covOK(s) && rmOK(s) && amOK(s));
 
-    hubFilter.innerHTML = counted
-      .sort((a,b)=> (hubDisplay(a.hub)||'').localeCompare(hubDisplay(b.hub)||''))
-      .map(({hub:nHub, n}) =>
-        `<option value="${escape(nHub.id)}">${escape(hubDisplay(nHub))} — ${n}</option>`
-      ).join('');
-
-    const keep = counted.map(x => x.hub.id).filter(id => prevSel.has(id));
-    if (keep.length) setMulti(hubFilter, keep);
-
-    filterSelect(hubFilter, hubSearch.value);
+  // If "Within hubs" is on, restrict to stores inside any currently visible hub
+  if (tgWithin.checked) {
+    const vis = visibleHubs();
+    subset = subset.filter(s =>
+      vis.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r)
+    );
   }
+
+  // Count how many filtered stores each hub covers at radius r
+  const counted = hubsAll.map(h => ({
+    hub: h,
+    n: subset.reduce((acc, s) =>
+      acc + (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r ? 1 : 0), 0)
+  }))
+  // *** Only keep hubs that cover ≥1 store in the current subset ***
+  .filter(x => x.n > 0);
+
+  // Remember previous selections so we can keep them if still valid
+  const prevSel = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
+
+  // Rebuild the options
+  hubFilter.innerHTML = counted
+    .sort((a, b) => (hubDisplay(a.hub)||'').localeCompare(hubDisplay(b.hub)||''))
+    .map(({ hub: nHub, n }) =>
+      `<option value="${escape(nHub.id)}">${escape(hubDisplay(nHub))} — ${n}</option>`
+    ).join('');
+
+  // Reselect any that still qualify
+  const keep = counted.map(x => x.hub.id).filter(id => prevSel.has(id));
+  if (keep.length) setMulti(hubFilter, keep);
+
+  // Apply the search box text over the rebuilt list
+  filterSelect(hubFilter, hubSearch.value);
+}
+
 
   function uniqSorted(arr){
     const set = new Set();
