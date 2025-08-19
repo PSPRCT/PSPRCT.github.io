@@ -523,13 +523,19 @@ on('input', radius, ()=>{
   on('input', rmSearch,  ()=> filterSelect(rmFilter,  rmSearch.value));
   on('input', amSearch,  ()=> filterSelect(amFilter,  amSearch.value));
   on('input', hubSearch, ()=> filterSelect(hubFilter, hubSearch.value));
-  
-});
-document.querySelectorAll('.sp-quick .btn[data-r]').forEach(b=>{
-  b.addEventListener('click', ()=>{
-    radius.value = b.dataset.r; radiusLbl.textContent=b.dataset.r;
-    recomputeCoverage(); runFilter(); updateRings(); if (spHub) openSidepanel(spHub); refreshComparePanel(); saveState();
-    fitToResults(); // ← add this one for immediate fit on quick-pick
+
+// Quick radius buttons (keep inside IIFE)
+document.querySelectorAll('.sp-quick .btn[data-r]').forEach(b => {
+  b.addEventListener('click', () => {
+    radius.value = b.dataset.r;
+    radiusLbl.textContent = b.dataset.r;
+    recomputeCoverage();
+    runFilter();
+    updateRings();
+    if (spHub) openSidepanel(spHub);
+    refreshComparePanel();
+    saveState();
+    fitToResults(); // immediate fit on quick-pick
   });
 });
 
