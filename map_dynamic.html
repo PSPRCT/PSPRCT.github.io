@@ -397,7 +397,7 @@
   // ---------- CONFIG ----------
   const DATA_URL    = './store_data.json?v=' + Date.now();
   const ACOSTA_URL  = './acosta_geocoded.json?v=' + Date.now();
-  const PREMIUM_URL = './premium_trainers_master.json?v=1' + Date.now();
+const PREMIUM_URL = 'premium_trainers_master.json?v=2025-08-19a';
 
   const FALLBACK_STORES = [
     { storeNumberStr:"1234", storeName:"Walmart", address:"701 W 51st St", city:"Austin", state:"TX", coverageType:"Uncovered", areaManager:"", regionalManager:"", trainerCity:"", lat:30.309, lng:-97.742 },
@@ -646,16 +646,12 @@
     try {
       const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
       const pJson = await pResp.json();
-
-      const rows = Array.isArray(pJson)
-        ? pJson
-        : [
-            ...(pJson.confirmed || []),
-            ...(pJson.pending  || []),
-            ...(pJson.open     || []),
-            ...(pJson.recruit  || []),
-            ...(pJson.cities   || []),
-          ];
+     const rows = Array.isArray(pJson)
+      ? pJson
+      : [
+          ...(pJson.confirmed || []),
+          ...(pJson.pending   || []),
+        ];
 
       const txt = v => String(v ?? '').toLowerCase();
 
@@ -1092,17 +1088,16 @@
     if (showAcosta.checked)    out.push(...acostaHubs);
     return out;
   }
-  function hubDisplay(h){
-  // Best available: fullName ("City, ST") added in the normalized JSON
+function hubDisplay(h){
   if (h.fullName && /[A-Za-z]/.test(h.fullName)) return h.fullName;
-  // Else build from City/State if present
   const city = (h.city || h.City || '').trim();
   const st   = (h.state || h.State || '').trim();
   if (city && st) return `${city}, ${st}`;
   if (city)       return city;
-  if (st)         return st;     // last fallback (state-only)
+  if (st)         return st;
   return h.name || h.label || 'Proposed';
 }
+
 
 
   function copyHubLink(){
@@ -1670,6 +1665,19 @@ function buildHubFilterOptions(){
   if (showConfirmed.checked) hubsAll = hubsAll.concat(premiumConfirmed);
   if (showPending.checked)   hubsAll = hubsAll.concat(premiumPending);
   if (showAcosta.checked)    hubsAll = hubsAll.concat(acostaHubs);  // <-- add this
+// Assuming json is the parsed JSON from premium_trainers_master.json
+const confirmed = json.confirmed || [];
+const pending   = json.pending   || [];
+
+// ✅ Only merge confirmed + pending
+let hubsAll = confirmed.concat(pending);
+
+// Build filter options with City + State
+let hubOptions = hubsAll.map(h => {
+  const city  = h.City || h.city || '';
+  const state = h.State || h.state || '';
+  return `${city}, ${state}`.trim();
+});
 
   // dedupe
   const seen = new Set();
