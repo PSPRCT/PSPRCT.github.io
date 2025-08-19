@@ -378,7 +378,10 @@
   </div>
 </div>
 
-<div id="busy" class="busy" hidden><div class="spin"></div></div>
+<div id="busy" class="busy" hidden role="status" aria-live="polite" aria-label="Loading">
+  <div class="spin"></div>
+</div>
+
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
@@ -1503,7 +1506,16 @@
   // ---------- Helpers ----------
   function id(x){ return document.getElementById(x); }
   function on(ev,el,fn,capture){ el.addEventListener(ev,fn,capture||false); }
-  function showBusy(v){ if (busy) busy.hidden = !v; }
+  function showBusy(v){
+  if (!busy) return;
+  // Force the visual state (defensive against stray inline styles)
+  busy.style.display = v ? 'flex' : 'none';
+  // Keep the attribute in sync for CSS & a11y tooling
+  busy.toggleAttribute('hidden', !v);
+  // Nice-to-have: announce to AT
+  document.body.toggleAttribute('aria-busy', !!v);
+}
+
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
   function escape(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
   function htmlEscape(s){ return (s ?? "").toString().replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
