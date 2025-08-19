@@ -616,6 +616,41 @@
   spExport.onclick = ()=>{ exportSidepanelCsv(); if(AUTO_RESET()){ resetAll(); runFilter(); renderChips(); } };
   spPrint.onclick  = ()=>{ printSidepanelList();  if(AUTO_RESET()){ resetAll(); runFilter(); renderChips(); } };
   spPinBtn.onclick = ()=> togglePinFromPanel();
+// ---- modal helpers (one copy only) ----
+function showModal(el){ if(el){ el.classList.add('show'); } }
+function hideModal(el){ if(el){ el.classList.remove('show'); } }
+
+// ---- wire Help / Gap Finder / Rollups buttons ----
+(function wireAnalysisModalsOnce(){
+  if (window.__wiredAnalysisModals) return;
+  window.__wiredAnalysisModals = true;
+
+  const helpBtn = id('helpBtn'), helpModal = id('helpModal'), helpClose = id('helpClose');
+  const gapBtn  = id('gapBtn'),  gapModal  = id('gapModal'),  gapClose  = id('gapClose');
+  const rollBtn = id('rollupBtn'), rollModal = id('rollupModal'), rollClose = id('rollupClose');
+
+  // Help
+  helpBtn && (helpBtn.onclick = ()=> showModal(helpModal));
+  helpClose && (helpClose.onclick = ()=> hideModal(helpModal));
+
+  // Gap Finder
+  gapBtn  && (gapBtn.onclick  = ()=> showModal(gapModal));
+  gapClose&& (gapClose.onclick = ()=> hideModal(gapModal));
+  id('gapRun')    && (id('gapRun').onclick    = runGapFinder);
+  id('gapExport') && (id('gapExport').onclick = exportGapCsv);
+
+  // Rollups
+  rollBtn  && (rollBtn.onclick  = ()=> { showModal(rollModal); buildRollups(); });
+  rollClose&& (rollClose.onclick = ()=> hideModal(rollModal));
+  id('rollByRM') && (id('rollByRM').onchange = buildRollups);
+  id('rollByAM') && (id('rollByAM').onchange = buildRollups);
+  id('rollExport') && (id('rollExport').onclick = exportRollupsCsv);
+
+  // click backdrop to close
+  document.querySelectorAll('.modal').forEach(m=>{
+    m.addEventListener('click', (e)=>{ if(e.target === m) m.classList.remove('show'); });
+  });
+})();
 
   // Map events
   markers.on('clustermouseover', (e)=>{
@@ -2441,6 +2476,35 @@ map.on('click', (e)=>{
     return Array.from(by.values()).map(g => ({ city:g.city, state:g.state, lat: g.lat/g.n, lng: g.lng/g.n }));
   }
 
+  function runGapFinder(){
+  const minN = Number(id('gapMin').value) || 10;
+  const rMi  = Number(id('gapMiles').value) || 50;
+  const uncovered = allStores.filter(s => s.coverageType === 'Uncovered');
+  const centers = cityCentersFromStores(uncovered);
+  const rows = centers.map(c=>{
+    const n = uncovered.reduce((acc,s)=> acc + (distMiles(c.lat, c.lng, s.lat, s.lng) <= rMi ? 1 : 0), 0);
+    return { ...c, n };
+  }).filter(r => r.n >= minN)
+    .sort((a,b)=> b.n - a.n)
+    .slice(0, 300);
+  lastGapResults = rows;
+  id('gapResults').innerHTML = rows.map((r,i)=>`
+    <div class="row" data-i="${i}" title="Zoom to ${escape(r.city)}, ${escape(r.state)}">
+      <div class="num">${r.n}</div>
+      <div class="text">
+        <div class="title">${escape(r.city)}, ${escape(r.state)}</div>
+        <div class="addr">Within ${rMi} mi</div>
+      </div>
+    </div>
+  `).join('') || '<div class="muted">No gaps at this threshold.</div>';
+  Array.from(id('gapResults').querySelectorAll('.row')).forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const r = lastGapResults[Number(el.getAttribute('data-i'))];
+      map.setView([r.lat, r.lng], 9);
+    });
+  });
+}
+
   let lastGapResults = [];
   function runGapFinder(){
     const minN = Number(id('gapMin').value) || 10;
@@ -2572,6 +2636,51 @@ map.on('click', (e)=>{
     }catch(e){ console.warn('Bad snapshot hash', e); }
     return false;
   }
+  let lastRoll = { by:'Regional Manager', rows:[] };
+function buildRollups(){
+  const byRM = id('rollByRM').checked;
+  const key = s => byRM ? (s.regionalManager || '—') : (s.areaManager || '—');
+  const label = byRM ? 'Regional Manager' : 'Area Manager';
+  const base = filteredStores.length ? filteredStores : allStores;
+  const by = new Map();
+  base.forEach(s=>{
+    const k = key(s);
+    const g = by.get(k) || { label:k, total:0, pa:0, p:0, a:0, u:0 };
+    g.total++;
+    if (s.coverageType === 'Premium + Acosta') g.pa++;
+    else if (s.coverageType === 'Premium Only') g.p++;
+    else if (s.coverageType === 'Acosta Only') g.a++;
+    else g.u++;
+    by.set(k,g);
+  });
+  const rows = Array.from(by.values()).sort((a,b)=> b.total - a.total);
+  lastRoll = { by: label, rows };
+  id('rollTable').innerHTML = `
+    <table style="border-collapse:collapse;width:100%;font-size:13px">
+      <thead>
+        <tr>
+          <th style="text-align:left;border-bottom:1px solid var(--border);padding:4px 6px">${label}</th>
+          <th style="text-align:right;border-bottom:1px solid var(--border);padding:4px 6px">P+A</th>
+          <th style="text-align:right;border-bottom:1px solid var(--border);padding:4px 6px">Premium</th>
+          <th style="text-align:right;border-bottom:1px solid var(--border);padding:4px 6px">Acosta</th>
+          <th style="text-align:right;border-bottom:1px solid var(--border);padding:4px 6px">Uncov</th>
+          <th style="text-align:right;border-bottom:1px solid var(--border);padding:4px 6px">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(r=>`
+          <tr>
+            <td style="padding:4px 6px">${escape(r.label)}</td>
+            <td style="text-align:right;padding:4px 6px">${r.pa}</td>
+            <td style="text-align:right;padding:4px 6px">${r.p}</td>
+            <td style="text-align:right;padding:4px 6px">${r.a}</td>
+            <td style="text-align:right;padding:4px 6px">${r.u}</td>
+            <td style="text-align:right;padding:4px 6px"><b>${r.total}</b></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+}
 
   // ---------- User proposals persistence ----------
   function loadUserHubs(){
