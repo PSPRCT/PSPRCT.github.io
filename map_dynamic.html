@@ -21,10 +21,38 @@
 
   .topbar{position:sticky; top:0; background:var(--panel); display:flex;flex-wrap:wrap;gap:10px;align-items:center; padding:8px 10px;border-bottom:1px solid #eef0f3;z-index:10; box-shadow:0 4px 14px rgba(0,0,0,.04)}
   .search-wrap{display:flex;gap:8px;align-items:center;min-width:280px;flex:1}
-  .searchbox{position:relative;flex:1}
-  .searchbox input{width:100%;border:1px solid #d0d7de;border-radius:10px;padding:10px 12px 10px 64px;font-size:14px;background:var(--bg);color:var(--fg)}
-  .badge-left{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:800;letter-spacing:.3px;background:#eef6ff;color:#0b5bd3;border:1px solid #cfe6ff;border-radius:999px;padding:3px 8px;display:none}
-  .badge-left.show{display:inline-block}
+ /* AFTER */
+.search-wrap{display:flex;gap:8px;align-items:center;min-width:280px;flex:1} /* already present, OK */
+.searchbox{position:relative;flex:1}
+
+/* input no longer needs extra left padding */
+.searchbox input{
+  width:100%;
+  border:1px solid #d0d7de;
+  border-radius:10px;
+  padding:10px 12px;             /* was 10px 12px 10px 64px */
+  font-size:14px;
+  background:var(--bg);
+  color:var(--fg);
+}
+
+/* badge is now a normal inline element (no absolute positioning) */
+.badge-left{
+  position:static;                /* remove absolute */
+  transform:none;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.3px;
+  background:#eef6ff;
+  color:#0b5bd3;
+  border:1px solid #cfe6ff;
+  border-radius:999px;
+  padding:3px 8px;
+  display:none;                   /* hidden by default */
+  align-items:center;             /* nice vertical centering when shown */
+  height:28px;                    /* optional: match input height vibe */
+}
+.badge-left.show{display:inline-flex;}
   .results{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--panel);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 24px rgba(0,0,0,.18);display:none;z-index:20;max-height:360px;overflow:auto}
   .results.show{display:block}
   .res{display:flex;gap:10px;padding:10px;cursor:pointer;align-items:flex-start}
@@ -144,15 +172,14 @@
 </head>
 <body>
 
-<div class="topbar">
-  <div class="search-wrap" title="Type a store #, city/state, or hub name. Tip: type ‘near’ for nearby stores.">
-    <div class="searchbox">
-      <span id="searchBadge" class="badge-left">SEARCH</span>
-      <input id="searchBox" type="text" placeholder="Type a store #, city/state, hub name… (tip: 'near Dallas')" autocomplete="off" aria-label="Search store or city" />
-      <div id="searchResults" class="results" role="listbox"></div>
-    </div>
-    <button id="searchClear" class="btn" type="button" title="Clear search">Clear</button>
+<div class="search-wrap">
+  <span id="searchBadge" class="badge-left">SEARCH</span>
+  <div class="searchbox">
+    <input id="searchBox" type="text" placeholder="Type a store #, city/state, hub name…" />
+    <div id="searchResults" class="results"></div>
   </div>
+</div>
+
 
   <label class="toggle" title="Show Premium confirmed hubs"><input id="showConfirmed" type="checkbox" checked />Premium (confirmed)</label>
   <label class="toggle" title="Show Premium pending offers"><input id="showPending" type="checkbox" checked />Premium (pending)</label>
@@ -196,13 +223,7 @@
   <button id="helpBtn" class="btn" type="button" title="Quick tips and shortcuts">Help</button>
 </div>
 
-<div class="pillbar" id="presetBar">
-  <div id="presetUncov" class="pill" title="Uncovered + Rings + Heatmap">
-    <span class="dot" style="background:var(--u)"></span> Preset: Uncovered focus
-  </div>
-  <div id="presetHubs" class="pill" title="Show only stores within any visible hub radius">
-    🟦 Preset: Hubs coverage
-  </div>
+
   <div id="snapBtn" class="pill" title="Copy a shareable URL">🔗 Save snapshot link</div>
 </div>
 
