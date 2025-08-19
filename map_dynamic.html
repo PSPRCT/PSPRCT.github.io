@@ -591,29 +591,6 @@ showAcosta.checked = false;
     if (id('tgHeat').checked) requestIdleCallback?.(updateHeat) ?? updateHeat();
     saveState();
   });
-// UI refs
-const STATUS = id('dataStatus');
-const showConfirmed = id('showConfirmed');
-const showPending   = id('showPending');
-const showAcosta    = id('showAcosta');
-// ... (other refs)
-
-// --- Help modal wiring ---
-const helpModal = id('helpModal');
-id('helpBtn')?.addEventListener('click', () => helpModal?.classList.add('show'));
-id('helpClose')?.addEventListener('click', () => helpModal?.classList.remove('show'));
-
-// --- Sandbox modal wiring ---
-const sandboxModal = id('sandboxModal');
-id('sandboxBtn')?.addEventListener('click', () => sandboxModal?.classList.add('show'));
-id('sandboxClose')?.addEventListener('click', () => sandboxModal?.classList.remove('show'));
-
-
-// ---------- Load data ----------
-showBusy(true); let spinnerFailSafe = setTimeout(()=>showBusy(false), 7000);
-try {
-  // STORES ...
-
 
   // ---------- Load data ----------
   showBusy(true); let spinnerFailSafe = setTimeout(()=>showBusy(false), 7000);
