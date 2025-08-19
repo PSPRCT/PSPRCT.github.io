@@ -1244,6 +1244,22 @@ function distMi(lat1,lon1,lat2,lon2){
   return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 function toRad(d){ return d*Math.PI/180; }
+// ===== SIMPLE PICKER POPULATORS =====
+function populateRM(stores){
+  var rms = uniq(stores.map(function(s){ return s.regionalManager || ''; })
+                     .filter(Boolean)).sort();
+  rmFilter.innerHTML =
+    '<option value="All" selected>All</option>' +
+    rms.map(function(rm){ return '<option>'+escapeHtml(rm)+'</option>'; }).join('');
+}
+
+function populateAM(stores){
+  var ams = uniq(stores.map(function(s){ return s.areaManager || ''; })
+                     .filter(Boolean)).sort();
+  amFilter.innerHTML =
+    '<option value="All" selected>All</option>' +
+    ams.map(function(am){ return '<option>'+escapeHtml(am)+'</option>'; }).join('');
+}
 
 function setMultiSelect(sel, values){
   if(!values || !values.length) return;
