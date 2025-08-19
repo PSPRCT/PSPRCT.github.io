@@ -428,6 +428,7 @@
 async function main(){
 
 
+
   // ========== CONFIG ==========
   // Default local JSON filenames (next to this HTML)
   const DATA_URL_DEFAULT    = './store_data.json';
@@ -2054,15 +2055,15 @@ const escape = escapeHtml;
   id('emptyReset').onclick = ()=>{ resetAll(); runFilter(); renderChips(); saveState(); };
 
   function resetAll(){
-    showConfirmed.checked = true;
-    showPending.checked   = true;
-    showAcosta.checked    = false; // default off
-    tgHeat.checked = false; tgRings.checked=false; tgOverlap.checked=false; tgCompare.checked=false; compareMode=false; tgWithin.checked=false; tgCluster.checked=true;
-    radius.value = DEFAULT_RADIUS; radiusLbl.textContent = DEFAULT_RADIUS;
-    selectOptions(covFilter, ['All']); selectOptions(rmFilter, ['All']); selectOptions(amFilter, ['All']); buildHubFilterOptions(); selectOptions(hubFilter, ['All']);
-    id('searchBox').value=''; hideResults(); clearTarget(); localStorage.removeItem(LS_LAST_QUERY);
-    renderHubs(); updateRings();
-  }
+  showConfirmed.checked = true;
+  showPending.checked   = true;
+  showAcosta.checked    = false; // default off
+  tgHeat.checked = false; tgRings.checked=false; tgOverlap.checked=false; tgCompare.checked=false; compareMode=false; tgWithin.checked=false; tgCluster.checked=true;
+  radius.value = DEFAULT_RADIUS; radiusLbl.textContent = DEFAULT_RADIUS;
+  selectOptions(covFilter, ['All']); selectOptions(rmFilter, ['All']); selectOptions(amFilter, ['All']); buildHubFilterOptions(); selectOptions(hubFilter, ['All']);
+  id('searchBox').value=''; hideResults(); clearTarget(); localStorage.removeItem(LS_LAST_QUERY);
+  renderHubs(); updateRings();
+}
 
 } // end main()
 
@@ -2071,11 +2072,10 @@ main().catch(err => {
   const msg = (err && err.message) || String(err);
   if (STATUS) {
     STATUS.innerHTML =
-      `<span style="color:#b42318;font-weight:600">Init error:</span> ${msg.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}`;
+      `<span style="color:#b42318;font-weight:600">Init error:</span> ${msg.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}`;
   }
   console.error(err);
 });
 </script>
 </body>
 </html>
-
