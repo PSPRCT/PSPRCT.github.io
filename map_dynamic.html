@@ -564,11 +564,16 @@
     });
   });
 
-  on('change', rmFilter,  ()=>{ lastFilterChanged='rmFilter'; cascadeAM(); runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
-  rebuildAMOptionsWithCounts();
-  on('change', amFilter,  ()=>{ lastFilterChanged='amFilter'; runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
-  on('change', covFilter, ()=>{ lastFilterChanged='covFilter'; runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
-  on('change', hubFilter, ()=>{ lastFilterChanged='hubFilter'; runFilter(); fitToResults(); saveState(); renderChips(); });
+on('input', radius, ()=>{ /* … */ buildHubFilterOptions(); /* … */ });
+on('change', rmFilter,  ()=>{ cascadeAM(); runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
+on('change', amFilter,  ()=>{ runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
+on('change', covFilter, ()=>{ runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
+
+// visibility toggles also rebuild hubs
+showConfirmed.onchange = handleHubVisibilityChange;
+showPending.onchange   = handleHubVisibilityChange;
+showAcosta.onchange    = handleHubVisibilityChange;
+tgWithin.onchange      = ()=>{ runFilter(); fitToResults(); saveState(); buildHubFilterOptions(); };
 
   id('fitBtn').onclick  = ()=>{ fitToResults(); saveState(); };
   id('homeBtn').onclick = ()=>{ map.setView(HOME_VIEW.center, HOME_VIEW.zoom); };
@@ -1099,6 +1104,32 @@
     const amSel = Array.from(amFilter.selectedOptions).map(o=>o.value);
     const rmOK  = rmSel.includes('All') || rmSel.includes(s.regionalManager || '');
     const amOK  = amSel.includes('All') || amSel.includes(s.areaManager || '');
+
+    (function wireToolButtons(){
+  function el(id){ return document.getElementById(id); }
+  function onBtn(key, handler){
+    const n = el(key) || document.querySelector(`[data-action="${key}"]`);
+    if (!n){ console.warn('Button not found:', key); return; }
+    n.addEventListener('click', (e)=>{ e.preventDefault(); handler(); });
+  }
+  const show = id => el(id)?.classList.add('show');
+  const hide = id => el(id)?.classList.remove('show');
+
+  onBtn('helpBtn',   ()=> show('helpModal'));
+  onBtn('helpClose', ()=> hide('helpModal'));
+
+  onBtn('gapBtn',    ()=> show('gapModal'));
+  onBtn('gapClose',  ()=> hide('gapModal'));
+  onBtn('gapRun',    ()=> { try{ runGapFinder(); }catch(e){ console.error(e); alert('Gap Finder error'); }});
+  onBtn('gapExport', ()=> { try{ exportGapCsv(); } catch(e){ console.error(e); alert('Export error'); }});
+
+  onBtn('rollupBtn',   ()=> { show('rollupModal'); try{ buildRollups(); }catch(e){ console.error(e); }});
+  onBtn('rollupClose', ()=> hide('rollupModal'));
+  onBtn('rollByRM',    ()=> { try{ buildRollups(); }catch(e){ console.error(e); }});
+  onBtn('rollByAM',    ()=> { try{ buildRollups(); }catch(e){ console.error(e); }});
+  onBtn('rollExport',  ()=> { try{ exportRollupsCsv(); }catch(e){ console.error(e); alert('Export error'); }});
+})();
+
 
     // Hubs (value = hub IDs)
     const hubSel = Array.from(hubFilter.selectedOptions).map(o=>o.value);
