@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Premium Retail Trainer Map (stable rollback)</title>
+<title>Premium Retail Trainer Map</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
@@ -33,10 +33,15 @@
   .res .text .sub{color:var(--muted);font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
   .btn{border:1px solid #d0d7de;background:var(--panel);border-radius:10px;padding:8px 10px;font-weight:600;cursor:pointer;color:var(--fg); box-shadow:0 2px 8px rgba(0,0,0,.04)}
+  .btn.link{border-color:transparent;text-decoration:underline}
   .toggle{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:999px;padding:6px 10px;background:var(--panel);white-space:nowrap}
   .toggle input{width:16px;height:16px;accent-color:var(--blue)}
   .range{display:flex;align-items:center;gap:8px;white-space:nowrap}
   .range small{color:var(--muted)}
+
+  .pillbar{display:flex;gap:6px;flex-wrap:wrap;padding:6px 10px}
+  .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid #d0d7de;border-radius:999px;padding:6px 10px;background:var(--panel);color:var(--fg);cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.04)}
+  .pill .dot{width:10px;height:10px;border-radius:50%}
 
   .filters{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:10px;padding:8px 10px;border-top:1px solid #eef0f3;border-bottom:1px solid #eef0f3;background:var(--panel); border-radius:12px; margin:6px 10px; box-shadow:0 6px 20px rgba(0,0,0,.06)}
   .picker{display:flex;flex-direction:column;gap:6px}
@@ -45,10 +50,12 @@
 
   .summary{display:flex;gap:10px;align-items:center;padding:6px 10px;border-bottom:1px solid #eef0f3;background:var(--panel)}
   .chip{display:inline-flex;align-items:center;gap:8px;padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:var(--panel);}
+
   .dot{width:10px;height:10px;border-radius:50%}
+  .muted{color:var(--muted);margin-left:auto}
 
   .mapwrap{position:relative;flex:1;min-height:460px;display:flex;overflow:hidden}
-  #map{flex:1; min-height: 480px;}
+  #map{flex:1}
 
   .sidepanel{width:380px;max-width:90vw;flex:0 0 380px;background:var(--panel);border-left:1px solid var(--border);box-shadow:-4px 0 18px rgba(0,0,0,.12);display:none;flex-direction:column;z-index:6}
   .sidepanel.show{display:flex}
@@ -58,8 +65,14 @@
   .sp-actions{display:flex;gap:8px;flex-wrap:wrap}
   .sp-counts{display:flex;gap:8px;flex-wrap:wrap}
   .sp-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:3px 8px}
+  .sp-toggles{display:flex;gap:8px;flex-wrap:wrap}
+  .sp-quick{display:flex;gap:6px;flex-wrap:wrap}
   .sp-list{flex:1;min-height:160px;border:1px solid var(--border);border-radius:8px;padding:0;display:flex;flex-direction:column;overflow:auto; box-shadow: inset 0 0 0 2px rgba(0,0,0,.02)}
-  .sp-list input{margin:8px;border:1px solid var(--border);border-radius:8px;padding:6px 8px;position:sticky;top:0;background:var(--panel);z-index:1}
+  .sp-list input{margin:8px;border:1px solid var(--border);border-radius:8px;padding:6px 8px}
+  .sp-list input{position: sticky; top: 0; z-index: 3; background: var(--panel); border-bottom-left-radius: 0; border-bottom-right-radius: 0; box-shadow: 0 4px 6px rgba(0,0,0,.04);}
+  .sp-quick{ position: sticky; top: 0; z-index: 3; background: var(--panel); }
+
+  .sp-rows{position:static;height:auto}
   .row{position:relative;display:flex;gap:8px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--border);background:var(--panel);cursor:pointer;min-height:56px}
   .row .title{font-weight:800;line-height:1.25}
   .row .addr{color:var(--muted);font-size:12px;line-height:1.25}
@@ -71,24 +84,54 @@
 
   .legend{position:absolute;top:10px;right:10px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:8px 10px;box-shadow:0 6px 18px rgba(0,0,0,.12);z-index:401}
 
-  .sandbox{position:absolute;left:10px;bottom:10px;z-index:402;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:none;min-width:260px;box-shadow:0 10px 24px rgba(0,0,0,.12)}
-  .sandbox.show{display:block}
+  .sandbox{position:absolute;left:10px;bottom:10px;z-index:402;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:none}
+
+  .dropdown-menu{position:absolute;right:0;top:calc(100% + 4px);background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:6px;z-index:5;max-height:70vh;overflow:auto;box-sizing:border-box;display:none;min-width:240px}
+
+  .busy{position:fixed;inset:0;background:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;z-index:9999}
+  .busy[hidden]{display:none}
+  .spin{width:36px;height:36px;border-radius:50%;border:4px solid rgba(0,0,0,.15);border-top-color:var(--blue);animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .marker-cluster.marker-pa div{background:var(--pa);border:2px solid #fff}
+  .marker-cluster.marker-p  div{background:var(--p); border:2px solid #fff}
+  .marker-cluster.marker-a  div{background:var(--a); border:2px solid #fff}
+
+  .hub{width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+  .hub.confirmed{background:var(--violet)}
+  .hub.pending{background:#9ea3a8}
+  .hub.acosta{ background: var(--a); }
+  .hl{width:22px;height:22px;border-radius:50%;border:2px solid #111;background:rgba(0,0,0,.05);box-shadow:0 0 0 1px rgba(0,0,0,.25)}
 
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:5000}
   .modal.show{display:flex}
-  .card{background:#fff;border-radius:12px;max-width:980px;width:92vw;box-shadow:0 20px 50px rgba(0,0,0,.25);border:1px solid var(--border)}
+  .card{background:#fff;border-radius:12px;max-width:900px;width:92vw;box-shadow:0 20px 50px rgba(0,0,0,.25);border:1px solid var(--border)}
   .card header{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
   .card header h3{margin:0;font-size:18px;flex:1}
   .card .body{padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
   .kbd{display:inline-block;border:1px solid #cfd3d7;border-bottom-width:3px;border-radius:6px;padding:2px 6px;font-weight:700;background:#fff}
-  .body .section{border:1px dashed #e5e7eb;border-radius:8px;padding:10px}
+
+  /* Saved views thumbnails */
+  .view-row{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:4px 0}
+  .view-thumb{flex:0 0 auto;border:1px solid var(--border);border-radius:6px;width:96px;height:64px;background:#f9fafb}
+  .view-actions{display:flex;gap:6px;align-items:center}
+
+  /* Empty state overlay */
+  .empty-state{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:401;pointer-events:none}
+  .empty-card{pointer-events:auto;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 28px rgba(0,0,0,.12);padding:14px 16px;max-width:520px}
+  .empty-card h4{margin:0 0 6px 0}
+  .empty-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  /* important: let hidden actually hide it */
+  .empty-state[hidden]{display:none !important;}
+
+  /* Compare/Venn panel */
+  .compare-panel{position:absolute;left:10px;bottom:120px;z-index:402;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:none;min-width:280px;box-shadow:0 10px 24px rgba(0,0,0,.12)}
+  .compare-panel.show{display:block}
+  .compare-grid{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:baseline}
+
   @media (max-width:720px){ .card .body{grid-template-columns:1fr;} }
   @media (max-width: 1100px){ .filters{grid-template-columns:repeat(2,minmax(220px,1fr));} }
   @media (max-width: 640px){ .filters{grid-template-columns:1fr;} }
-
-  /* simple dropdown */
-  .dropdown { position:relative }
-  .dropdown .dropdown-menu{ display:none; position:absolute; top:calc(100% + 6px); left:0; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:6px; box-shadow:0 10px 24px rgba(0,0,0,.14); z-index:25 }
 </style>
 </head>
 <body>
@@ -103,9 +146,9 @@
     <button id="searchClear" class="btn" type="button" title="Clear search">Clear</button>
   </div>
 
-  <label class="toggle"><input id="showConfirmed" type="checkbox" checked />Premium (confirmed)</label>
-  <label class="toggle"><input id="showPending"   type="checkbox" checked />Premium (pending)</label>
-  <label class="toggle"><input id="showAcosta"    type="checkbox" />Acosta</label>
+  <label class="toggle" title="Show Premium confirmed hubs"><input id="showConfirmed" type="checkbox" checked />Premium (confirmed)</label>
+  <label class="toggle" title="Show Premium pending offers"><input id="showPending" type="checkbox" checked />Premium (pending)</label>
+  <label class="toggle" title="Show Acosta trainers"><input id="showAcosta" type="checkbox" checked />Acosta</label>
 
   <div class="range" title="Hub radius used for coverage, lists, rings, overlap">
     <span>Radius</span>
@@ -113,22 +156,24 @@
     <b id="radiusLbl">75</b><small>mi</small>
   </div>
 
-  <button id="fitBtn" class="btn" type="button">Fit to Results</button>
-  <button id="homeBtn" class="btn" type="button">Home</button>
-  <button id="resetBtn" class="btn" type="button">Reset</button>
+  <button id="fitBtn" class="btn" type="button" title="Fit map to filtered stores">Fit to Results</button>
+  <button id="homeBtn" class="btn" type="button" title="Reset to starting view (keeps filters)">Home</button>
+  <button id="resetBtn" class="btn" type="button" title="Reset all filters and view">Reset</button>
 
+  <!-- Export -->
   <div class="dropdown" id="exportDrop" style="position:relative">
-    <button class="btn" type="button">Export ▾</button>
+    <button class="btn" type="button" title="Download CSV of filtered stores or panel list">Export ▾</button>
     <div class="dropdown-menu">
-      <button id="exportStores" class="btn" type="button" style="display:block;width:100%;margin:4px 0">
+      <button id="exportStores" class="btn" type="button" style="display:block;width:100%;margin:4px 0" title="Export all filtered stores on the map">
         Export filtered stores (CSV)
       </button>
       <label class="toggle" style="margin:6px 4px;display:flex"><input id="autoReset" type="checkbox" />Auto-reset after export/print</label>
     </div>
   </div>
 
+  <!-- Saved Views -->
   <div class="dropdown" id="viewsDrop" style="position:relative">
-    <button class="btn" type="button">Views ▾</button>
+    <button class="btn" type="button" title="Save or recall views">Views ▾</button>
     <div class="dropdown-menu" id="viewsMenu">
       <button id="viewSave" class="btn" type="button" style="display:block;width:100%">Save current view…</button>
       <div style="border-top:1px solid var(--border);margin:6px 0"></div>
@@ -136,23 +181,27 @@
     </div>
   </div>
 
-  <div class="dropdown" id="sourceDrop" style="position:relative">
-    <button class="btn" type="button">Source ▾</button>
-    <div class="dropdown-menu" id="sourceMenu">
-      <div style="padding:6px 8px;font-weight:700">Data source</div>
-      <button class="btn" id="srcLocal"  type="button" style="display:block;width:100%">Local JSON (default)</button>
-      <button class="btn" id="srcURL"    type="button" style="display:block;width:100%">External Sheet / CSV / JSON…</button>
-      <div style="border-top:1px solid var(--border);margin:6px 0"></div>
-      <button class="btn link" id="srcClear" type="button" style="display:block;width:100%">Use default & clear saved source</button>
-    </div>
-  </div>
+  <!-- Analysis buttons -->
+  <button id="gapBtn" class="btn" type="button" title="Find cities with uncovered clusters">Gap finder</button>
+  <button id="rollupBtn" class="btn" type="button" title="Totals by RM/AM">Rollups</button>
 
-  <button id="gapBtn" class="btn" type="button">Gap finder</button>
-  <button id="rollupBtn" class="btn" type="button">Rollups</button>
-  <button id="helpBtn" class="btn" type="button">Help</button>
+  <button id="helpBtn" class="btn" type="button" title="Quick tips and shortcuts">Help</button>
 </div>
 
-<div class="filters">
+<div class="pillbar" id="presetBar">
+  <div id="presetUncov" class="pill" title="Uncovered + Rings + Heatmap">
+    <span class="dot" style="background:var(--u)"></span> Preset: Uncovered focus
+  </div>
+  <div id="presetHubs" class="pill" title="Show only stores within any visible hub radius">
+    🟦 Preset: Hubs coverage
+  </div>
+  <div id="snapBtn" class="pill" title="Copy a shareable URL">🔗 Save snapshot link</div>
+</div>
+
+<div class="pillbar" id="activeChips"></div>
+
+<!-- Filters -->
+<div class="filters" title="Use these to narrow stores; search also matches store # and city/state.">
   <div class="picker">
     <input id="covSearch" type="text" placeholder="Search coverage…" />
     <select id="covFilter" multiple>
@@ -173,7 +222,7 @@
   </div>
   <div class="picker">
     <input id="hubSearch" type="text" placeholder="Filter hubs…" />
-    <select id="hubFilter" multiple><option value="All" selected>All</option></select>
+    <select id="hubFilter" multiple></select>
   </div>
 </div>
 
@@ -185,40 +234,53 @@
   <span class="chip"><span class="dot" style="background:var(--a)"></span>Acosta: <b id="k_a">0</b></span>
   <span class="chip"><span class="dot" style="background:var(--u)"></span>Uncov: <b id="k_u">0</b></span>
   <span class="chip">Total: <b id="k_total">0</b></span>
-  <span class="chip">Hubs — <b id="k_confirmed">0</b> confirmed / <b id="k_offer">0</b> offer / <b id="k_proposed">0</b> proposed</span>
-  <span class="chip" id="acostaChip" hidden>Acosta hubs: <b id="k_acosta_hubs">0</b></span>
-  <span class="chip" id="datasetBadge"></span>
-  <span class="chip" id="inView">In view: 0</span>
+  <span class="chip">Hubs — <b id="k_confirmed">0</b> confirmed / <b id="k_pending">0</b> pending</span>
+  <span class="muted" id="inView">In view: 0</span>
 </div>
+<div class="summary" id="datasetBadge"></div>
 
 <div class="mapwrap">
   <div id="map" role="region" aria-label="Coverage Map"></div>
 
   <div class="floating">
-    <label class="toggle"><input id="tgHeat" type="checkbox" />Heatmap</label>
-    <label class="toggle"><input id="tgRings" type="checkbox" />Hub radii</label>
-    <label class="toggle"><input id="tgOverlap" type="checkbox" />Overlap</label>
-    <label class="toggle"><input id="tgCompare" type="checkbox" />Compare</label>
-    <label class="toggle"><input id="tgWithin" type="checkbox" />Within hubs</label>
-    <label class="toggle"><input id="tgCluster" type="checkbox" checked />Cluster</label>
-    <button id="sandboxBtn" class="btn" type="button">New-hub sandbox</button>
+    <label class="toggle" title="Density of stores"><input id="tgHeat" type="checkbox" />Heatmap</label>
+    <label class="toggle" title="Show hub radius circles"><input id="tgRings" type="checkbox" />Hub radii</label>
+    <label class="toggle" title="Highlight stores covered by 2+ hubs"><input id="tgOverlap" type="checkbox" />Overlap</label>
+    <label class="toggle" title="Pin hubs to compare coverage"><input id="tgCompare" type="checkbox" />Compare</label>
+    <label class="toggle" title="Filter: only stores inside any visible hub radius"><input id="tgWithin" type="checkbox" />Within hubs</label>
+    <label class="toggle" title="Turn clustering on/off (useful when zoomed in)"><input id="tgCluster" type="checkbox" checked />Cluster</label>
+    <button id="sandboxBtn" class="btn" type="button" title="Test a new hub location">New-hub sandbox</button>
+  </div>
+
+  <!-- Compare/Venn panel -->
+  <div id="comparePanel" class="compare-panel">
+    <div style="font-weight:800;margin-bottom:6px">Compare (2 pins)</div>
+    <div id="compareBody" style="font-size:13px"></div>
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+      <button id="cmpExport" class="btn" type="button">Export CSV</button>
+      <button id="cmpClear" class="btn" type="button">Clear pins</button>
+    </div>
   </div>
 
   <div class="sidepanel" id="sidepanel">
     <div class="sp-head">
       <h3 id="spTitle">Hub</h3>
-      <button id="spCollapse" class="btn" type="button">⟨</button>
-      <button id="spPinBtn" class="btn" type="button">Pin</button>
-      <button id="spLink" class="btn" type="button">Link</button>
-      <button id="spClose" class="btn" type="button">Close</button>
+      <button id="spCollapse" class="btn" type="button" title="Collapse panel">⟨</button>
+      <button id="spPinBtn" class="btn" type="button" title="Pin for compare">Pin</button>
+      <button id="spLink" class="btn" type="button" title="Copy link to this hub">Link</button>
+      <button id="spClose" class="btn" type="button" title="Close panel">Close</button>
     </div>
     <div class="sp-body">
       <div id="spMeta" class="sp-meta" style="font-size:13px"></div>
       <div class="sp-actions">
-        <button id="spExport" class="btn" type="button">Export list (CSV)</button>
-        <button id="spPrint" class="btn" type="button">Print store list</button>
+        <button id="spExport" class="btn" type="button" title="Download CSV of this list">Export list (CSV)</button>
+        <button id="spPrint" class="btn" type="button" title="Print this list">Print store list</button>
       </div>
-      <div class="sp-quick">Radius:
+      <div class="sp-toggles">
+        <label class="toggle" title="Show only uncovered stores in this panel"><input id="spOnlyUncov" type="checkbox" />Uncovered only</label>
+      </div>
+      <div class="sp-quick" title="Change hub radius quickly">
+        Radius: 
         <button class="btn" type="button" data-r="50">50</button>
         <button class="btn" type="button" data-r="75">75</button>
         <button class="btn" type="button" data-r="100">100</button><small> mi</small>
@@ -230,23 +292,36 @@
       </div>
     </div>
   </div>
+
+  <!-- Empty state overlay -->
+  <div id="emptyState" class="empty-state" hidden>
+    <div class="empty-card">
+      <h4>No stores match your filters</h4>
+      <div class="muted">Try widening your radius, turning off “Within hubs”, or clearing a filter.</div>
+      <div class="empty-actions">
+        <button id="clearLastFilter" class="btn" type="button">Clear last filter</button>
+        <button id="emptyReset" class="btn" type="button">Reset all</button>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- Help -->
+<!-- Help modal -->
 <div class="modal" id="helpModal" aria-modal="true" role="dialog">
   <div class="card">
     <header>
-      <h3>Help, Tips & Changelog</h3>
+      <h3>Help & Shortcuts</h3>
       <button id="helpClose" class="btn" type="button">Close</button>
     </header>
     <div class="body">
-      <div class="section">
+      <div>
         <h4>Keyboard</h4>
-        <p><span class="kbd">Ctrl</span>/<span class="kbd">⌘</span> + <span class="kbd">K</span> — Focus search</p>
-        <p><span class="kbd">H</span> — Home</p>
-        <p><span class="kbd">F</span> — Focus panel search</p>
+        <p><span class="kbd">Ctrl</span> / <span class="kbd">⌘</span> + <span class="kbd">K</span> — Focus search</p>
+        <p><span class="kbd">↑</span> <span class="kbd">↓</span> + <span class="kbd">Enter</span> — Pick search result</p>
+        <p><span class="kbd">H</span> — Home (map only)</p>
+        <p><span class="kbd">F</span> — Focus side-panel search (when open)</p>
       </div>
-      <div class="section">
+      <div>
         <h4>Tips</h4>
         <ul>
           <li>Type <b>near</b> or <b>near Dallas</b> to jump the map and suggest nearby stores.</li>
@@ -256,1165 +331,1994 @@
           <li>Use <b>Views</b> to save/restore your favorite setups.</li>
         </ul>
       </div>
-      <div class="section">
-        <h4>Changelog (local)</h4>
-        <div id="changelog" style="max-height:45vh;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#fafbfc;padding:8px;border-radius:8px;border:1px solid var(--border)"></div>
-        <div style="display:flex;gap:6px;margin-top:8px">
-          <button class="btn" id="chgClear">Clear history</button>
-          <button class="btn" id="chgExport">Export</button>
+    </div>
+  </div>
+</div>
+
+<!-- Gap Finder modal -->
+<div class="modal" id="gapModal" aria-modal="true" role="dialog">
+  <div class="card">
+    <header>
+      <h3>Gap finder</h3>
+      <button id="gapClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body" style="grid-template-columns:1fr;">
+      <div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
+          <label class="toggle" title="Only show clusters at least this big">Min uncovered
+            <input id="gapMin" type="number" value="10" style="width:80px;margin-left:8px">
+          </label>
+          <label class="toggle" title="Radius around each city center">Radius (mi)
+            <input id="gapMiles" type="number" value="50" style="width:80px;margin-left:8px">
+          </label>
+          <button id="gapRun" class="btn" type="button">Run</button>
+          <button id="gapExport" class="btn" type="button">Export CSV</button>
         </div>
+        <div id="gapResults" style="max-height:65vh;overflow:auto"></div>
       </div>
     </div>
   </div>
 </div>
 
-<div id="busy" class="busy" hidden style="position:fixed;inset:0;background:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;z-index:9999">
-  <div style="width:36px;height:36px;border-radius:50%;border:4px solid rgba(0,0,0,.15);border-top-color:var(--blue);animation:spin .8s linear infinite"></div>
+<!-- Rollups modal -->
+<div class="modal" id="rollupModal" aria-modal="true" role="dialog">
+  <div class="card">
+    <header>
+      <h3>Manager rollups</h3>
+      <button id="rollupClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body" style="grid-template-columns:1fr;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+        <label class="toggle"><input type="radio" name="rollBy" id="rollByRM" checked> By Regional Manager</label>
+        <label class="toggle"><input type="radio" name="rollBy" id="rollByAM"> By Area Manager</label>
+        <button id="rollExport" class="btn" type="button">Export CSV</button>
+      </div>
+      <div id="rollTable" style="max-height:65vh;overflow:auto"></div>
+    </div>
+  </div>
 </div>
-<div id="toast" class="toast" style="position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 12px;border-radius:10px;display:none;z-index:5001"></div>
+
+<div id="busy" class="busy" hidden><div class="spin"></div></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-
 <script>
-// ===== Tiny error banner (helps surface syntax/runtime issues) =====
-(function(){
-  var banner = document.createElement('div');
-  banner.style.cssText='position:fixed;left:10px;bottom:10px;z-index:99999;background:#111;color:#fff;padding:8px 10px;border-radius:8px;max-width:90vw;display:none';
-  document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(banner); });
-  function show(msg){ banner.textContent='Error: '+msg; banner.style.display='block'; }
-  window.addEventListener('error', function(e){ show(e.message || String(e)); });
-  window.addEventListener('unhandledrejection', function(e){ show((e.reason && e.reason.message) || String(e.reason)); });
-})();
-</script>
+(async function(){
+  // ---------- CONFIG ----------
+  const DATA_URL    = './store_data.json?v=' + Date.now();
+  const ACOSTA_URL  = './acosta_geocoded.json?v=' + Date.now();
+  const PREMIUM_URL = './premium_trainers_master.json?v=' + Date.now();
 
-<script>
-// ========================== ROLLBACK MAIN (no async/await) ==========================
-(function(){
+  const FALLBACK_STORES = [
+    { storeNumberStr:"1234", storeName:"Walmart", address:"701 W 51st St", city:"Austin", state:"TX", coverageType:"Uncovered", areaManager:"", regionalManager:"", trainerCity:"", lat:30.309, lng:-97.742 },
+    { storeNumberStr:"5678", storeName:"Walmart", address:"10 S Riverside", city:"Chicago", state:"IL", coverageType:"Uncovered", areaManager:"", regionalManager:"", trainerCity:"", lat:41.882, lng:-87.639 }
+  ];
 
-// ----- CONFIG -----
-var DATA_URL_DEFAULT    = './store_data.json';
-var ACOSTA_URL_DEFAULT  = './acosta_geocoded.json';
-var PREMIUM_URL_DEFAULT = './premium_trainers_master.json';
+  const COLORS = {
+    "Premium + Acosta": getCSS('--pa'),
+    "Premium Only":     getCSS('--p'),
+    "Acosta Only":      getCSS('--a'),
+    "Uncovered":        getCSS('--u')
+  };
+  const DEFAULT_RADIUS = 75;
+  const LS_STATE = 'prt_state_v9';
+  const LS_VIEWS = 'prt_views_v2';
+  const LS_LAST_QUERY = 'prt_last_query';
+  const HOME_VIEW = { center:[39.5,-98.35], zoom:5 };
+  const AUTO_RESET = ()=> id('autoReset')?.checked;
 
-var LS_STATE  = 'prt_state_v10';
-var LS_VIEWS  = 'prt_views_v2';
-var LS_LAST_QUERY = 'prt_last_query';
-var LS_SOURCE = 'prt_source_v1';
-var LS_CACHE  = 'prt_cache_v1';
-var LS_CHANGELOG = 'prt_changelog_v1';
+  // Revision storage key (dataset badge)
+  const REV_KEY = 'prt_dataset_revs_v1';
 
-var COLORS = {
-  "Premium + Acosta": css('--pa'),
-  "Premium Only":     css('--p'),
-  "Acosta Only":      css('--a'),
-  "Uncovered":        css('--u')
-};
-var DEFAULT_RADIUS = 75;
-var HOME_VIEW = { center:[39.5,-98.35], zoom:5 };
+  // Hub sets
+  let premiumConfirmed = [];
+  let premiumPending   = [];
+  let acostaHubs       = [];
 
-var FALLBACK_STORES = [
-  { storeNumberStr:"1234", storeName:"Walmart", address:"701 W 51st St", city:"Austin", state:"TX", coverageType:"Uncovered", areaManager:"", regionalManager:"", trainerCity:"", lat:30.309, lng:-97.742 },
-  { storeNumberStr:"5678", storeName:"Walmart", address:"10 S Riverside", city:"Chicago", state:"IL", coverageType:"Uncovered", areaManager:"", regionalManager:"", trainerCity:"", lat:41.882, lng:-87.639 }
-];
+  // Stores
+  let allStores = [];
+  let filteredStores = [];
+  const markerByStore = new Map();
 
-// ----- STATE -----
-var premiumConfirmed = [];
-var premiumPending   = [];
-var acostaHubs       = [];
+  let PENDING_OPEN_HUB_ID = null;
+  let PENDING_PIN_IDS = [];
 
-var allStores = [];
-var filteredStores = [];
-var markerByStore = new Map();
+  // Map/layers
+  const map = L.map('map', { zoomControl: true, inertia: true }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
+  const hubPane = map.createPane('hubPane'); hubPane.style.zIndex = 650; hubPane.style.pointerEvents = 'auto';
 
-var PENDING_OPEN_HUB_ID = null;
-var PENDING_PIN_IDS = [];
-var compareMode = false;
-var pinnedHubs = [];
-var lastFilterChanged = null;
-
-// ----- MAP -----
-var map = L.map('map', { zoomControl:true, inertia:true }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18, attribution:'© OpenStreetMap'}).addTo(map);
-var hubPane = map.createPane('hubPane'); hubPane.style.zIndex=650; hubPane.style.pointerEvents='auto';
-
-var markers = L.markerClusterGroup({
-  disableClusteringAtZoom: 12,
-  spiderfyOnMaxZoom: false,
-  maxClusterRadius: function(z){ return z>=9 ? 50 : 70; },
-  iconCreateFunction: clusterIconByDominantCoverage,
-  chunkedLoading: true, chunkInterval:50, chunkDelay:25
-});
-var plainMarkers = L.layerGroup();
-var targetLayer    = L.layerGroup().addTo(map);
-var ringLayer      = L.layerGroup().addTo(map);
-var highlightLayer = L.layerGroup().addTo(map);
-var hubLayer       = L.layerGroup().addTo(map);
-var heatLayerHolder = { layer:null };
-map.addLayer(markers);
-setTimeout(function(){ map.invalidateSize(); }, 120);
-
-// ----- UI refs -----
-var STATUS = id('dataStatus'), busy=id('busy'), toast=id('toast');
-var showConfirmed = id('showConfirmed');
-var showPending   = id('showPending');
-var showAcosta    = id('showAcosta'); showAcosta.checked=false;
-var acostaChip = id('acostaChip');
-var radius      = id('radius'), radiusLbl=id('radiusLbl');
-var tgHeat=id('tgHeat'), tgRings=id('tgRings'), tgOverlap=id('tgOverlap'), tgCompare=id('tgCompare'), tgWithin=id('tgWithin'), tgCluster=id('tgCluster');
-var covFilter=id('covFilter'), covSearch=id('covSearch');
-var rmFilter=id('rmFilter'), rmSearch=id('rmSearch');
-var amFilter=id('amFilter'), amSearch=id('amSearch');
-var hubFilter=id('hubFilter'), hubSearch=id('hubSearch');
-var k = {
-  pa:id('k_pa'), p:id('k_p'), a:id('k_a'), u:id('k_u'),
-  total:id('k_total'), confirmed:id('k_confirmed'),
-  offer:id('k_offer'), proposed:id('k_proposed'),
-  inView:id('inView'), acostaHubs:id('k_acosta_hubs')
-};
-
-// Side panel
-var sidepanel=id('sidepanel'), spTitle=id('spTitle'), spMeta=id('spMeta'), spCounts=id('spCounts');
-var spRowsEl=id('spRows'), spSearch=id('spSearch'), spLink=id('spLink');
-var spClose=id('spClose'), spExport=id('spExport'), spPinBtn=id('spPinBtn'), spPrint=id('spPrint'), spCollapse=id('spCollapse');
-var spHub=null, spRows=[], spFilter='';
-
-// Sandbox (placeholder in rollback)
-var sandboxBtn=id('sandboxBtn');
-
-// Helpers
-function AUTO_RESET(){ var el=id('autoReset'); return !!(el && el.checked); }
-
-// ----- Wire UI -----
-showConfirmed.onchange = handleHubVisibilityChange;
-showPending.onchange   = handleHubVisibilityChange;
-showAcosta.onchange    = handleHubVisibilityChange;
-
-on('input', radius, function(){
-  radiusLbl.textContent = radius.value;
-  recomputeCoverage(); debouncedRun(); updateRings();
-  if (tgOverlap.checked) drawOverlap();
-  if (spHub) openSidepanel(spHub);
-  saveState();
-});
-
-on('input', covSearch, function(){ filterSelect(covFilter, covSearch.value); });
-on('input', rmSearch,  function(){ filterSelect(rmFilter,  rmSearch.value); });
-on('input', amSearch,  function(){ filterSelect(amFilter,  amSearch.value); });
-on('input', hubSearch, function(){ filterSelect(hubFilter, hubSearch.value); });
-
-on('change', rmFilter,  function(){ lastFilterChanged='rmFilter'; cascadeAM(); runFilter(); fitToResults(); saveState(); buildHubFilterOptions(); });
-on('change', amFilter,  function(){ lastFilterChanged='amFilter'; cascadeRM(); runFilter(); fitToResults(); saveState(); buildHubFilterOptions(); });
-on('change', covFilter, function(){ lastFilterChanged='covFilter'; runFilter(); saveState(); });
-on('change', hubFilter, function(){ lastFilterChanged='hubFilter'; runFilter(); fitToResults(); saveState(); });
-
-id('fitBtn').onclick  = function(){ fitToResults(); saveState(); };
-id('homeBtn').onclick = function(){ map.setView(HOME_VIEW.center, HOME_VIEW.zoom); };
-id('resetBtn').onclick= function(){ resetAll(); runFilter(); saveState(); };
-
-var exportDrop = id('exportDrop'), menu = exportDrop.querySelector('.dropdown-menu');
-exportDrop.querySelector('button').onclick = function(){ toggleDropdown(menu); };
-on('click', document.body, function(e){ if(!exportDrop.contains(e.target)) menu.style.display='none'; }, true);
-id('exportStores').onclick = function(){ exportStoresCsv(); if(AUTO_RESET()) { resetAll(); runFilter(); } };
-
-var viewsDrop=id('viewsDrop'), viewsMenu=id('viewsMenu'), viewList=id('viewList');
-viewsDrop.querySelector('button').onclick = function(){ toggleDropdown(viewsMenu); renderSavedViews(); };
-on('click', document.body, function(e){ if(!viewsDrop.contains(e.target)) viewsMenu.style.display='none'; }, true);
-id('viewSave').onclick = saveCurrentView;
-
-tgHeat.onchange   = function(){ if (tgHeat.checked) updateHeat(); else clearHeat(); saveState(); };
-tgRings.onchange  = function(){ updateRings(); saveState(); };
-tgOverlap.onchange= function(){ if (tgOverlap.checked) drawOverlap(); else highlightLayer.clearLayers(); saveState(); };
-tgCompare.onchange= function(){ compareMode = tgCompare.checked; pinnedHubs=[]; highlightLayer.clearLayers(); alert(compareMode?'Compare mode on: click hub markers to pin them.':'Compare mode off.'); saveState(); };
-tgWithin.onchange = function(){ lastFilterChanged='tgWithin'; runFilter(); fitToResults(); saveState(); };
-tgCluster.onchange= function(){ refreshLayerMode(); };
-
-var searchBox=id('searchBox'), searchBadge=id('searchBadge'), searchResults=id('searchResults'), searchWrap=document.querySelector('.searchbox');
-id('searchClear').onclick=function(){ searchBox.value=''; localStorage.removeItem(LS_LAST_QUERY); searchBadge.classList.remove('show'); hideResults(); clearTarget(); runFilter(); };
-window.addEventListener('keydown', function(e){
-  if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); searchBox.focus(); searchBox.select(); }
-  if (e.key.toLowerCase()==='h'){ map.setView(HOME_VIEW.center, HOME_VIEW.zoom); }
-  if (e.key.toLowerCase()==='f' && sidepanel.classList.contains('show')){ spSearch.focus(); spSearch.select(); }
-});
-
-// sidepanel actions
-spClose.onclick=function(){ hideSidepanel(); };
-spCollapse.onclick=function(){ hideSidepanel(); };
-spSearch.addEventListener('input', function(){ spFilter = (spSearch.value||'').toLowerCase().trim(); renderSidepanelList(); });
-spExport.onclick=function(){ exportSidepanelCsv(); if(AUTO_RESET()){ resetAll(); runFilter(); } };
-spPrint.onclick=function(){ printSidepanelList(); if(AUTO_RESET()){ resetAll(); runFilter(); } };
-spPinBtn.onclick=function(){ if (spHub) togglePinned(spHub); };
-Array.prototype.forEach.call(document.querySelectorAll('.sp-quick .btn[data-r]'), function(b){
-  b.addEventListener('click', function(){
-    radius.value = b.getAttribute('data-r'); radiusLbl.textContent=radius.value;
-    recomputeCoverage(); runFilter(); updateRings(); if(spHub) openSidepanel(spHub); saveState();
+  const markers = L.markerClusterGroup({
+    disableClusteringAtZoom: 12,
+    spiderfyOnMaxZoom: false,
+    maxClusterRadius: z => z >= 9 ? 50 : 70,
+    iconCreateFunction: clusterIconByDominantCoverage,
+    chunkedLoading: true,
+    chunkInterval: 50,
+    chunkDelay: 25
   });
-});
+  const plainMarkers = L.layerGroup();
+  const targetLayer    = L.layerGroup().addTo(map);
+  const ringLayer      = L.layerGroup().addTo(map);
+  const highlightLayer = L.layerGroup().addTo(map);
+  const hubLayer       = L.layerGroup().addTo(map);
+  const heatLayerHolder = { layer: null };
+  map.addLayer(markers);
 
-// helpers & modals
-id('helpBtn').onclick=function(){ id('helpModal').classList.add('show'); renderChangelog(); };
-id('helpClose').onclick=function(){ id('helpModal').classList.remove('show'); };
-id('chgClear').onclick=function(){ localStorage.removeItem(LS_CHANGELOG); renderChangelog(); toastMsg('Changelog cleared'); };
-id('chgExport').onclick=function(){ var blob=new Blob([localStorage.getItem(LS_CHANGELOG)||'[]'],{type:'application/json'}); downloadBlob(blob,'changelog.json'); };
+  // UI refs
+  const STATUS = id('dataStatus'); const busy = id('busy');
+  const showConfirmed = id('showConfirmed');
+  const showPending   = id('showPending');
+  const showAcosta    = id('showAcosta');
+  const radius        = id('radius');  const radiusLbl = id('radiusLbl');
+  const tgHeat = id('tgHeat'), tgRings=id('tgRings'), tgOverlap=id('tgOverlap'), tgCompare=id('tgCompare'), tgWithin=id('tgWithin'), tgCluster=id('tgCluster');
+  const covFilter = id('covFilter'); const covSearch = id('covSearch');
+  const rmFilter  = id('rmFilter');  const rmSearch  = id('rmSearch');
+  const amFilter  = id('amFilter');  const amSearch  = id('amSearch');
+  const hubFilter = id('hubFilter'); const hubSearch = id('hubSearch');
+  const k = { pa:id('k_pa'), p:id('k_p'), a:id('k_a'), u:id('k_u'), total:id('k_total'), confirmed:id('k_confirmed'), pending:id('k_pending'), inView:id('inView') };
 
-id('gapBtn').onclick=function(){ showGapFinder(); };
-id('rollupBtn').onclick=function(){ showRollups(); };
+  // Side panel refs
+  const sidepanel = id('sidepanel');
+  const spTitle = id('spTitle'); const spMeta = id('spMeta'); const spCounts = id('spCounts');
+  const spRowsEl = id('spRows'); const spSearch = id('spSearch');
+  const spLink = id('spLink');
 
-// map events
-markers.on('clusterclick', function(e){ map.fitBounds(e.layer.getBounds()); });
-map.on('moveend zoomend', function(){
-  updateInViewCount();
-  if (id('tgHeat').checked){ setTimeout(updateHeat,0); }
-  saveState();
-});
+  const spClose = id('spClose'); const spExport = id('spExport'); const spPinBtn = id('spPinBtn'); const spPrint = id('spPrint'); const spOnlyUncovEl = id('spOnlyUncov'); const spCollapse = id('spCollapse');
+  let spHub = null; let spRows = []; let spFilter = ''; let spOnlyUncov = false;
 
-// ----- LOAD DATA (promise chain, cached fallback) -----
-showBusy(true);
-var spinnerFailSafe = setTimeout(function(){ showBusy(false); }, 7000);
+  // UX/analysis globals
+  let compareMode = false;
+  let pinnedHubs = [];
+  let lastFilterChanged = null;
+  const debouncedRun = (() => { let t; return () => { clearTimeout(t); t = setTimeout(runFilter, 90); }; })();
 
-var src = loadSource(), srcMode = (src && src.mode) || 'local';
-var URLS = {
-  stores:  (srcMode==='url' && src && src.stores ) ? src.stores  : DATA_URL_DEFAULT,
-  acosta:  (srcMode==='url' && src && src.acosta ) ? src.acosta  : ACOSTA_URL_DEFAULT,
-  premium: (srcMode==='url' && src && src.premium) ? src.premium : PREMIUM_URL_DEFAULT
-};
-badgeSource(srcMode, URLS);
+  const getName = r => String(
+    r.CandidateName ?? r.Candidate ?? r.RepName ?? r.repName ??
+    r.TrainerName ?? r['Trainer Name'] ??
+    r.Premium_Trainer ?? r.PremiumTrainer ??
+    r.name ?? r.Name ?? ''
+  ).trim();
 
-Promise.resolve()
-  .then(function(){
-    STATUS.textContent = 'Loading stores…';
-    return loadAny(URLS.stores, { expect:['application/json','text/csv'] })
-      .then(normalizeInputTable)
-      .then(function(storeRaw){
-        if (!Array.isArray(storeRaw)) throw new Error('Stores must be an array');
-        allStores = normalizeStores(storeRaw);
-        STATUS.textContent += '  |  '+allStores.length.toLocaleString()+' stores ready';
-        populateRM(allStores); populateAM(allStores);
-      })
-      .catch(function(fetchErr){
-        warn('Stores failed: '+ (fetchErr && fetchErr.message ? fetchErr.message : String(fetchErr)));
-        STATUS.innerHTML = '<span style="color:#a15b00;font-weight:600">Loaded fallback test data</span> — provide <code>store_data.json</code> or choose Source ▾';
-        allStores = normalizeStores(FALLBACK_STORES);
-        populateRM(allStores); populateAM(allStores);
-      });
-  })
-  .then(function(){
-    return loadAny(URLS.acosta, { expect:['application/json','text/csv'] })
-      .then(normalizeInputTable)
-      .then(function(aRows){
-        acostaHubs = (aRows||[])
-          .map(function(r){
-            var lat = num(r.Latitude || r.latitude || r.lat);
-            var lng = num(r.Longitude || r.longitude || r.lng);
-            var name = str(r.RepName || r.name || 'Acosta Rep');
-            var city = str(r.City || ''), state=str(r.State || '');
-            return (isFinite(lat)&&isFinite(lng)) ? {
-              id:'ac_'+slug(name+'-'+city+'-'+state),
-              name:name, fullName: name+' — '+city+', '+state,
-              coords:[lat,lng], status:'acosta'
-            } : null;
-          }).filter(Boolean);
-        STATUS.textContent += '  |  Acosta hubs: '+acostaHubs.length;
-      })
-      .catch(function(e){
-        STATUS.innerHTML += '  |  <span style="color:#b42318">Acosta failed</span>';
-        acostaHubs=[];
-      });
-  })
-  .then(function(){
-    return loadAny(URLS.premium, { expect:['application/json','text/csv'] })
-      .then(normalizeInputTable)
-      .then(function(rows){
-        rows = Array.isArray(rows) ? rows : [];
-        function statusText(r){
-          var fields=[r.Status,r.status,r.HubStatus,r.Hub_Status,r.TrainerStatus,r.Trainer_Status,r.CandidateStatus,r.AssignmentStatus];
-          for (var i=0;i<fields.length;i++){ var t=str(fields[i]).toLowerCase(); if(t) return t; }
-          return '';
+  setTimeout(()=> map.invalidateSize(), 120);
+
+  // Event wiring — visibility affects coverage
+  showConfirmed.onchange = handleHubVisibilityChange;
+  showPending.onchange   = handleHubVisibilityChange;
+  showAcosta.onchange    = handleHubVisibilityChange;
+
+  on('input', radius,   ()=>{
+    radiusLbl.textContent = radius.value;
+    recomputeCoverage();
+    debouncedRun();
+    updateRings();
+    buildHubFilterOptions();
+
+    if (tgOverlap.checked) drawOverlap();
+    if (sandboxMarker) refreshSandbox();
+    if (spHub) openSidepanel(spHub);
+    refreshComparePanel();
+    saveState();
+  });
+
+  on('input', covSearch, ()=> filterSelect(covFilter, covSearch.value));
+  on('input', rmSearch,  ()=> filterSelect(rmFilter,  rmSearch.value));
+  on('input', amSearch,  ()=> filterSelect(amFilter,  amSearch.value));
+  on('input', hubSearch, ()=> filterSelect(hubFilter, hubSearch.value));
+
+  on('change', rmFilter,  ()=>{ lastFilterChanged='rmFilter'; cascadeAM(); runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
+  rebuildAMOptionsWithCounts();
+  on('change', amFilter,  ()=>{ lastFilterChanged='amFilter'; runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
+  on('change', covFilter, ()=>{ lastFilterChanged='covFilter'; runFilter(); saveState(); renderChips(); buildHubFilterOptions(); });
+  on('change', hubFilter, ()=>{ lastFilterChanged='hubFilter'; runFilter(); fitToResults(); saveState(); renderChips(); });
+
+  id('fitBtn').onclick  = ()=>{ fitToResults(); saveState(); };
+  id('homeBtn').onclick = ()=>{ map.setView(HOME_VIEW.center, HOME_VIEW.zoom); };
+  id('resetBtn').onclick= ()=>{ resetAll(); runFilter(); saveState(); renderChips(); };
+
+  // Dropdowns & views
+  const exportDrop = id('exportDrop'); const menu = exportDrop.querySelector('.dropdown-menu');
+  exportDrop.querySelector('button').onclick = ()=> toggleDropdown(menu);
+  on('click', document.body, (e)=>{ if (!exportDrop.contains(e.target)) menu.style.display='none'; }, true);
+  id('exportStores').onclick  = ()=>{ exportStoresCsv(); if(AUTO_RESET()) { resetAll(); runFilter(); renderChips(); } };
+
+  const viewsDrop = id('viewsDrop'); const viewsMenu = id('viewsMenu'); const viewList = id('viewList');
+  viewsDrop.querySelector('button').onclick = ()=> toggleDropdown(viewsMenu);
+  on('click', document.body, (e)=>{ if (!viewsDrop.contains(e.target)) viewsMenu.style.display='none'; }, true);
+  id('viewSave').onclick = saveCurrentView;
+  rebuildViewsMenu();
+
+  // Floating toggles
+  tgHeat.onchange   = ()=>{ if (tgHeat.checked) updateHeat(); else clearHeat(); saveState(); };
+  tgRings.onchange  = ()=>{ updateRings(); saveState(); };
+  tgOverlap.onchange= ()=>{ if (tgOverlap.checked) drawOverlap(); else highlightLayer.clearLayers(); saveState(); };
+  tgCompare.onchange= ()=>{ compareMode = tgCompare.checked; pinnedHubs=[]; highlightLayer.clearLayers(); refreshComparePanel(); alert(compareMode ? 'Compare mode on: click hub markers to pin them.' : 'Compare mode off.'); saveState(); };
+  tgWithin.onchange = ()=>{ lastFilterChanged='tgWithin'; runFilter(); fitToResults(); saveState(); };
+  tgCluster.onchange= ()=>{ refreshLayerMode(); };
+
+  // Keyboard
+  const searchBox = id('searchBox'), searchBadge = id('searchBadge'), searchResults = id('searchResults');
+  const searchWrap = document.querySelector('.searchbox');
+  id('searchClear').onclick = ()=>{ searchBox.value=''; localStorage.removeItem(LS_LAST_QUERY); searchBadge.classList.remove('show'); hideResults(); clearTarget(); runFilter(); };
+  window.addEventListener('keydown',(e)=>{
+    if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); searchBox.focus(); searchBox.select(); }
+    if (e.key.toLowerCase() === 'h'){ map.setView(HOME_VIEW.center, HOME_VIEW.zoom); }
+    if (e.key.toLowerCase() === 'f' && sidepanel.classList.contains('show')){ spSearch.focus(); spSearch.select(); }
+  });
+
+  // Side panel actions
+  spClose.onclick = ()=> hideSidepanel();
+  spCollapse.onclick = ()=> hideSidepanel();
+  spSearch.addEventListener('input', ()=>{ spFilter = spSearch.value.trim().toLowerCase(); renderSidepanelList(); });
+  spExport.onclick = ()=>{ exportSidepanelCsv(); if(AUTO_RESET()){ resetAll(); runFilter(); renderChips(); } };
+  spPrint.onclick  = ()=>{ printSidepanelList();  if(AUTO_RESET()){ resetAll(); runFilter(); renderChips(); } };
+  spPinBtn.onclick = ()=> togglePinFromPanel();
+  spOnlyUncovEl.onchange = ()=>{ spOnlyUncov = spOnlyUncovEl.checked; renderSidepanelList(); };
+  document.querySelectorAll('.sp-quick .btn[data-r]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      radius.value = b.dataset.r; radiusLbl.textContent=b.dataset.r;
+      recomputeCoverage(); runFilter(); updateRings(); if (spHub) openSidepanel(spHub); refreshComparePanel(); saveState();
+    });
+  });
+
+  // Map events
+  markers.on('clustermouseover', (e)=>{
+    const cts = coverageCounts(e.layer.getAllChildMarkers());
+    const total = Object.values(cts).reduce((a,b)=>a+b,0)||1;
+    const pct = k => Math.round((cts[k]||0)*100/total);
+    const html = `
+      <div style="font-size:12px">
+        <div><b>${total}</b> stores</div>
+        <div><span class="dot" style="background:${COLORS["Premium + Acosta"]}"></span> P+A: <b>${cts["Premium + Acosta"]||0}</b> (${pct("Premium + Acosta")}%)</div>
+        <div><span class="dot" style="background:${COLORS["Premium Only"]}"></span> Premium: <b>${cts["Premium Only"]||0}</b> (${pct("Premium Only")}%)</div>
+        <div><span class="dot" style="background:${COLORS["Acosta Only"]}"></span> Acosta: <b>${cts["Acosta Only"]||0}</b> (${pct("Acosta Only")}%)</div>
+        <div><span class="dot" style="background:${COLORS["Uncovered"]}"></span> Uncovered: <b>${cts["Uncovered"]||0}</b> (${pct("Uncovered")}%)</div>
+      </div>`;
+    e.layer.bindTooltip(html, {direction:'top', offset:[0,-12], opacity:0.95, sticky:true}).openTooltip();
+  });
+  markers.on('clustermouseout', (e)=>{ e.layer.closeTooltip(); });
+  markers.on('clusterclick', (e)=>{ map.fitBounds(e.layer.getBounds()); });
+  map.on('moveend zoomend', ()=>{
+    updateInViewCount();
+    if (id('tgHeat').checked) requestIdleCallback?.(updateHeat) ?? updateHeat();
+    saveState();
+  });
+
+  // ---------- Load data ----------
+  showBusy(true); let spinnerFailSafe = setTimeout(()=>showBusy(false), 7000);
+  try {
+    // STORES
+    STATUS.textContent = `Loading ${DATA_URL} …`;
+    let storeRaw = null;
+    try{
+      const resp = await fetch(DATA_URL, { cache:'no-store' });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const text = await resp.text();
+      storeRaw = JSON.parse(text.replace(/^\uFEFF/,''));
+      if (!Array.isArray(storeRaw)) throw new Error('store_data.json must be a JSON array');
+    }catch(fetchErr){
+      console.warn('Data fetch failed, using fallback stores:', fetchErr);
+      STATUS.innerHTML = `<span style="color:#a15b00;font-weight:600">Loaded fallback test data</span> — place <code>store_data.json</code> next to this file to load real data.`;
+      storeRaw = FALLBACK_STORES;
+    }
+    allStores = normalizeStores(storeRaw);
+    STATUS.textContent += `  |  ${allStores.length.toLocaleString()} stores ready`;
+
+    populateRM(allStores); populateAM(allStores);
+
+    // ACOSTA
+    try {
+      const aResp = await fetch(ACOSTA_URL, { cache: 'no-store' });
+      if (!aResp.ok) throw new Error(`HTTP ${aResp.status} for ${ACOSTA_URL}`);
+      const aJson = await aResp.json();
+      const rows = Array.isArray(aJson) ? aJson : [];
+      acostaHubs = rows
+        .map(r => ({
+          lat: Number(r.Latitude ?? r.latitude ?? r.lat),
+          lng: Number(r.Longitude ?? r.longitude ?? r.lng),
+          name: String(r.RepName ?? r.name ?? 'Acosta Rep'),
+          city: String(r.City ?? ''), state: String(r.State ?? '')
+        }))
+        .filter(r => Number.isFinite(r.lat) && Number.isFinite(r.lng))
+        .map(r => ({
+          id: 'ac_' + slug(`${r.name}-${r.city}-${r.state}`),
+          name: r.name, fullName: `${r.name} — ${r.city}, ${r.state}`,
+          coords: [r.lat, r.lng], status: 'acosta'
+        }));
+      STATUS.textContent += `  |  Acosta hubs: ${acostaHubs.length}`;
+    } catch (e) {
+      STATUS.innerHTML += `  |  <span style="color:#b42318">Acosta failed</span>`;
+      console.error('Acosta load error:', e);
+      acostaHubs = [];
+    }
+
+    // PREMIUM hubs (confirmed + pending/open/proposed)
+    try {
+      const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
+      const pJson = await pResp.json();
+
+      const rows = Array.isArray(pJson)
+        ? pJson
+        : [
+            ...(pJson.confirmed || []),
+            ...(pJson.pending  || []),
+            ...(pJson.open     || []),
+            ...(pJson.recruit  || []),
+            ...(pJson.cities   || []),
+          ];
+
+      const txt = v => String(v ?? '').toLowerCase();
+
+      const statusText = r => {
+        const fields = [
+          r.Status, r.status, r.HubStatus, r.Hub_Status,
+          r.TrainerStatus, r.Trainer_Status, r.CandidateStatus, r.AssignmentStatus
+        ];
+        return fields.map(txt).find(Boolean) || '';
+      };
+
+      const isOffer      = s => /(offer|accepted)/i.test(s);
+      const isProposed   = s => /(propos|plan|target)/i.test(s);
+      const isRecruiting = s => /(recruit|source|pipeline|tbd|open|no cand|no appl|no\s*applicants|search)/i.test(s);
+
+      const getCity = r => String(
+        r.City ?? r.city ??
+        r.Hub_City ?? r['Hub City'] ??
+        r.ProposedCity ?? r['Proposed City'] ??
+        r.TargetCity ?? r['Target City'] ??
+        r.CandidateCity ?? r['Candidate City'] ??
+        r.HubCity ?? ''
+      ).trim();
+
+      const getState = r => String(
+        r.State ?? r.state ??
+        r.Hub_State ?? r['Hub State'] ??
+        r.ProposedState ?? r['Proposed State'] ??
+        r.TargetState ?? r['Target State'] ??
+        r.CandidateState ?? r['Candidate State'] ??
+        r.HubState ?? ''
+      ).trim();
+
+      const getCoords = r => {
+        const lat = Number(r.Latitude  ?? r.latitude  ?? r.lat ?? r.Lat ?? r.lat_dd ?? r.Latitude__c);
+        const lng = Number(r.Longitude ?? r.longitude ?? r.lng ?? r.Lon ?? r.lng_dd ?? r.Longitude__c);
+        return (Number.isFinite(lat) && Number.isFinite(lng)) ? [lat, lng] : null;
+      };
+
+      const NAME_OVERRIDES = {
+        'dandridge|tn':'Jennifer Matthews','acworth|ga':'John Orr','king george|va':'Amy Faulk','minden|la':'Sami Jo Slater','olive branch|ms':'Annette Brown','clarksville|tn':'Nicholas Salvato','darlington|sc':'Kristen Jones','orange park|fl':'Sabrina Hall','fort myers|fl':'Muriel Curry Whitfield','sparta|mo':'Michelle Rogers','granite falls|nc':'Lisa Walker','seguin|tx':'Christina Winston','sequin|tx':'Christina Winston','louisville|ky':'Heather Lilla',"o'fallon|mo":'Michael McAllister','kenly|nc':'Brooke Gross','folsom|ca':'Gerard White','navassa|nc':'Jennifer Hook','willimantic|ct':'Melissa Bokoff','excelsior springs|mo':'Teresa Estep','arlington|tx':'Michelle Paoli','ingleside|il':'Miguel Gonzalez','ashtabula|oh':'Sherry Hamrick','belvidere|il':'Justin Vargas Salgado','riverview|fl':'Richard Santos','mabelvale|ar':'Angela Eslick','norman|ok':'Teryl Ard','kimberly|al':'Jessica Salvage',
+      };
+
+      const CITY_ALIAS_OVERRIDES = {
+        'excelsior springs|mo': { city: 'Kansas City', state: 'MO', coords: [39.0997, -94.5786] },
+      };
+
+      const PROPOSED_CITY_OVERRIDES = { AZ:['Casa Grande'], CA:['Colton'], CO:['Centennial'], IL:['Lincoln'], MI:['White Lake'], NE:['Blair'], NJ:['Secaucus'], NY:['Waterloo'], OH:['Wilmington'], OK:['Muskogee'], OR:['Salem'], TX:['Houston'], UT:['Centerville'], VA:['Williamsburg'], WA:['Poulsbo'] };
+
+      const CITY_COORD_FIXES = {
+        'fort wayne|in':[41.0793,-85.1394],'plainfield|in':[39.7042,-86.3994],
+        'dandridge|tn':[36.0159,-83.4143],'acworth|ga':[34.0659,-84.6769],'king george|va':[38.2668,-77.1847],'minden|la':[32.6154,-93.2729],'olive branch|ms':[34.9618,-89.8295],'clarksville|tn':[36.5298,-87.3595],'darlington|sc':[34.2999,-79.8762],'orange park|fl':[30.1660,-81.7060],'fort myers|fl':[26.6406,-81.8723],'sparta|mo':[36.9959,-93.0816],'granite falls|nc':[35.7960,-81.4300],'seguin|tx':[29.5688,-97.9647],"o'fallon|mo":[38.8106,-90.6998],'louisville|ky':[38.2527,-85.7585],'kenly|nc':[35.5950,-78.1250],'folsom|ca':[38.6779,-121.1761],'navassa|nc':[34.2491,-78.0250],'willimantic|ct':[41.7107,-72.2081],'sequin|tx':[29.5688,-97.9647],
+      };
+
+      const GEO_CITY_CANDIDATES = {
+        PA:[{city:'Belle Vernon',lat:40.1251,lng:-79.8692},{city:'Parkesburg',lat:39.9587,lng:-75.9191}],
+        IN:[{city:'Fort Wayne',lat:41.0793,lng:-85.1394},{city:'Plainfield',lat:39.7042,lng:-86.3994}],
+        FL:[{city:'Coral Springs',lat:26.2712,lng:-80.2706},{city:'Lakeland',lat:28.0395,lng:-81.9498}],
+        AL:[{city:'Mobile',lat:30.6954,lng:-88.0399},{city:'Oneonta',lat:33.94815,lng:-86.47276}],
+        MO:[{city:'Excelsior Springs',lat:39.3397,lng:-94.2222},{city:'Kansas City',lat:39.0997,lng:-94.5786}],
+      };
+
+      function chooseCityForMissing(lat, lng, state){
+        const ST = (state||'').toUpperCase();
+        if (!ST) return '';
+        const choices = GEO_CITY_CANDIDATES[ST];
+        if (choices && choices.length){
+          const best = choices.map(c => ({...c, d: distMiles(lat, lng, c.lat, c.lng)})).sort((a,b)=>a.d-b.d)[0];
+          if (best) return best.city;
         }
-        function getCity(r){
-          return str(r.City||r.city||r.Hub_City||r['Hub City']||r.ProposedCity||r['Proposed City']||r.TargetCity||r['Target City']||r.CandidateCity||r['Candidate City']||r.HubCity||'');
+        const picks = PROPOSED_CITY_OVERRIDES[ST];
+        if (Array.isArray(picks) && picks.length === 1) return picks[0];
+        const inState = allStores.filter(s => (s.state||'').toUpperCase() === ST);
+        if (inState.length){
+          const nearest = inState.map(s => ({ city:s.city, d: distMiles(lat,lng,s.lat,s.lng) })).sort((a,b)=>a.d-b.d)[0];
+          if (nearest?.city) return nearest.city;
         }
-        function getState(r){
-          return str(r.State||r.state||r.Hub_State||r['Hub State']||r.ProposedState||r['Proposed State']||r.TargetState||r['Target State']||r.CandidateState||r['Candidate State']||r.HubState||'');
+        return '';
+      }
+
+      const classify = r => {
+        const s = statusText(r);
+        const hasName = !!getName(r);
+        if (hasName && !isOffer(s) && !isProposed(s) && !isRecruiting(s) && !/pend/i.test(s)) {
+          return { status: 'confirmed', statusSub: 'confirmed' };
         }
-        function getCoords(r){
-          var lat=num(r.Latitude||r.latitude||r.lat||r.Lat||r.lat_dd||r.Latitude__c);
-          var lng=num(r.Longitude||r.longitude||r.lng||r.Lon||r.lng_dd||r.Longitude__c);
-          return (isFinite(lat)&&isFinite(lng)) ? [lat,lng] : null;
+        if (isOffer(s))      return { status: 'pending', statusSub: 'pending_offer' };
+        if (isProposed(s))   return { status: 'pending', statusSub: 'proposed' };
+        if (isRecruiting(s)) return { status: 'pending', statusSub: 'open' };
+        return { status: 'pending', statusSub: hasName ? 'pending_candidate' : 'proposed' };
+      };
+
+      const pretty = sub => ({
+        confirmed:          'Confirmed',
+        pending_offer:      'Pending Offer',
+        pending_candidate:  'Pending',
+        proposed:           'Proposed',
+        open:               'Open'
+      }[sub] || 'Pending');
+
+      function coordsFromCityState(city, state){
+        if (!city || !state) return null;
+        const fix = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
+        if (fix) return fix;
+        const rows = allStores.filter(s =>
+          (s.city||'').toLowerCase() === city.toLowerCase() &&
+          (s.state||'').toUpperCase() === state.toUpperCase()
+        );
+        if (rows.length){
+          const lat = rows.reduce((a,b)=>a+b.lat,0)/rows.length;
+          const lng = rows.reduce((a,b)=>a+b.lng,0)/rows.length;
+          return [lat, lng];
         }
-        function getName(r){
-          return str(r.CandidateName||r.Candidate||r.RepName||r.repName||r.TrainerName||r['Trainer Name']||r.Premium_Trainer||r.PremiumTrainer||r.name||r.Name||'');
+        return null;
+      }
+
+      const toHub = (r) => {
+        let coords = getCoords(r);
+        let city   = getCity(r);
+        let state  = getState(r);
+        let nm     = getName(r);
+
+        if (!coords && city && state) coords = coordsFromCityState(city, state);
+        if (!coords) return null;
+        let [lat, lng] = coords;
+
+        if (city && state) {
+          const fixed = CITY_COORD_FIXES[`${city.toLowerCase()}|${state.toLowerCase()}`];
+          if (fixed) { [lat, lng] = fixed; coords = fixed; }
         }
-        function classify(r){
-          var s=statusText(r), hasName=!!getName(r);
-          if (hasName && !/(offer|propos|recruit|pend)/i.test(s)) return {status:'confirmed',statusSub:'confirmed'};
-          if (/(offer)/i.test(s)) return {status:'pending',statusSub:'pending_offer'};
-          if (/(propos|plan|target)/i.test(s)) return {status:'pending',statusSub:'proposed'};
-          if (/(recruit|source|pipeline|open)/i.test(s)) return {status:'pending',statusSub:'open'};
-          return {status:'pending',statusSub: hasName?'pending_candidate':'proposed'};
+
+        if (!nm && city && state) nm = NAME_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`] || '';
+
+        const { status, statusSub } = classify(r);
+
+        if (!city && state && status !== 'confirmed') city = chooseCityForMissing(lat, lng, state);
+
+        if (city && state) {
+          const alias = CITY_ALIAS_OVERRIDES[`${city.toLowerCase()}|${state.toLowerCase()}`];
+          if (alias) {
+            city  = alias.city  || city;
+            state = alias.state || state;
+            if (Array.isArray(alias.coords)) { [lat, lng] = alias.coords; coords = alias.coords; }
+          }
         }
-        function pretty(sub){
-          return {
-            confirmed:'Confirmed', pending_offer:'Pending Offer',
-            pending_candidate:'Pending', proposed:'Proposed', open:'Open'
-          }[sub] || 'Pending';
+
+        const statusLabel = pretty(statusSub);
+        const trainerBit  = nm ? ` — ${nm}` : '';
+        const place = city && state ? `${city}, ${state}` : (city || state || '');
+        const label = `${place} (${statusLabel}${trainerBit})`;
+
+        return {
+          id: `${status[0]}_${slug(`${city||''}-${state||''}-${lat.toFixed(3)}-${lng.toFixed(3)}-${nm||''}`)}`,
+          name: nm || 'Proposed',
+          label, fullName: label,
+          coords: [lat, lng],
+          status, statusSub, statusLabel,
+          city, state
+        };
+      };
+
+      const STATUS_PRIORITY = { confirmed:5, pending_offer:4, pending_candidate:3, open:2, proposed:1 };
+      function hubKey(h){
+        if (h.city && h.state) return `${h.city.toLowerCase()}|${h.state.toLowerCase()}`;
+        return `${h.coords[0].toFixed(3)},${h.coords[1].toFixed(3)}`;
+      }
+      function coalesceHubs(list){
+        const byKey = new Map();
+        for (const h of list){
+          const key = hubKey(h);
+          const cur = byKey.get(key);
+          if (!cur) { byKey.set(key, h); continue; }
+          const a = cur, b = h;
+          const pa = STATUS_PRIORITY[a.statusSub] || 0;
+          const pb = STATUS_PRIORITY[b.statusSub] || 0;
+          const pick = (pb > pa || (pb === pa && !a.name && b.name)) ? b : a;
+          byKey.set(key, pick);
         }
-        function coordsFromCityState(city,state){
-          if (!city||!state) return null;
-          var rows = allStores.filter(function(s){
-            return (str(s.city).toLowerCase()===str(city).toLowerCase()) &&
-                   (str(s.state).toUpperCase()===str(state).toUpperCase());
-          });
-          if (!rows.length) return null;
-          var lat=0,lng=0; rows.forEach(function(s){ lat+=s.lat; lng+=s.lng; });
-          return [lat/rows.length, lng/rows.length];
-        }
-        function toHub(r){
-          var coords=getCoords(r), city=getCity(r), state=getState(r), nm=getName(r);
-          if (!coords && city && state) coords=coordsFromCityState(city,state);
-          if (!coords) return null;
-          var c=classify(r), status=c.status, statusSub=c.statusSub, statusLabel=pretty(statusSub);
-          var label=(city&&state? (city+', '+state): (city||state||'')) + ' ('+statusLabel+(nm?(' — '+nm):'')+')';
-          return {
-            id: (status[0]+'_')+slug((city||'')+'-'+(state||'')+'-'+coords[0].toFixed(3)+'-'+coords[1].toFixed(3)+'-'+(nm||'')),
-            name: nm || 'Proposed',
-            fullName: label, label: label,
-            coords: coords, status: status, statusSub: statusSub, statusLabel: statusLabel,
-            city: city, state: state
-          };
-        }
-        var hubs = rows.map(toHub).filter(Boolean);
-        premiumConfirmed = hubs.filter(function(h){ return h.status==='confirmed'; });
-        premiumPending   = hubs.filter(function(h){ return h.status==='pending'; });
-      })
-      .catch(function(){ premiumConfirmed=[]; premiumPending=[]; });
-  })
-  .then(function(){
+        return Array.from(byKey.values());
+      }
+
+      const hubs = rows.map(toHub).filter(Boolean);
+      const merged = coalesceHubs(hubs);
+      premiumConfirmed = merged.filter(h => h.status === 'confirmed');
+      premiumPending   = merged.filter(h => h.status === 'pending');
+
+    } catch (e) {
+      console.warn('Premium file missing/invalid', e);
+      premiumConfirmed = [];
+      premiumPending   = [];
+    }
+
+    // Build initial UI state
     buildSearchIndex();
     buildHubFilterOptions();
+
     if (!tryLoadSnapshot()){ tryLoadLocal(); }
+
+    // Compute coverage once all hubs are ready
     recomputeCoverage();
-    runFilter(); renderHubs(); updateRings();
-    updateDatasetBadge('stores:'+allStores.length, 'premium:'+(premiumConfirmed.length+premiumPending.length), 'acosta:'+acostaHubs.length, srcMode);
-    pushChangelog({
-      when:new Date().toISOString(), who:'local user',
-      what:{stores:allStores.length, premium_confirmed:premiumConfirmed.length, premium_pending:premiumPending.length, acosta:acostaHubs.length},
-      source:srcMode
-    });
-  })
- .catch(function(err){
-    STATUS.innerHTML = '<span style="color:#b42318;font-weight:600">Init error:</span> '
-      + escapeHtml((err && err.message) || String(err));
+
+    // Draw
+    runFilter(); renderChips(); renderHubs(); updateRings();
+
+    // Dataset badge (simple fingerprints)
+    const storesFp  = `stores:${allStores.length}`;
+    const premiumFp = `premium:${premiumConfirmed.length + premiumPending.length}`;
+    const acostaFp  = `acosta:${acostaHubs.length}`;
+    updateDatasetBadge(storesFp, premiumFp, acostaFp);
+
+  } catch(err){
+    STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Init error:</span> ${escape(err?.message || String(err))}`;
     console.error(err);
-  })
-  .then(done, done);   // always hide the spinner
+  } finally { clearTimeout(spinnerFailSafe); showBusy(false); }
 
-
-function done(){
-  clearTimeout(spinnerFailSafe); showBusy(false);
   if (PENDING_PIN_IDS.length){
-    pinnedHubs = visibleHubs().filter(function(h){ return PENDING_PIN_IDS.indexOf(h.id)>=0; });
+    pinnedHubs = visibleHubs().filter(h => PENDING_PIN_IDS.includes(h.id));
     if (tgOverlap.checked) drawOverlap();
+    refreshComparePanel();
   }
   if (PENDING_OPEN_HUB_ID){
-    var h = visibleHubs().find(function(x){ return x.id===PENDING_OPEN_HUB_ID; });
+    const h = visibleHubs().find(x => x.id === PENDING_OPEN_HUB_ID);
     if (h) openSidepanel(h);
-    PENDING_OPEN_HUB_ID=null;
+    PENDING_OPEN_HUB_ID = null;
   }
-  updateInViewCount();
-  renderSavedViews();
-}
-function handleHubVisibilityChange(){
-  buildHubFilterOptions();
-  runFilter();
-  updateRings();
-  if (tgOverlap.checked) drawOverlap();
-  saveState();
-}
-// ================= SEARCH =================
-var searchIdx=[], resIndex=-1, targetPin=null;
-var targetIcon = L.divIcon({className:'', html:'<div style="background:#2f71ff;border:2px solid #fff;border-radius:50%;width:18px;height:18px;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>', iconSize:[18,18], iconAnchor:[9,9]});
-var hoverIcon  = L.divIcon({className:'', html:'<div style="width:22px;height:22px;border-radius:50%;border:2px solid #111;background:rgba(0,0,0,.05);box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>', iconSize:[22,22], iconAnchor:[11,11]});
-var hoverMarker=null;
 
-function buildSearchIndex(){
-  searchIdx = allStores.map(function(s){
-    return { kind:'STORE', store:s, lat:s.lat, lng:s.lng,
-      text: ('store '+s.storeNumberStr+' '+(s.storeName||'')+' '+(s.address||'')+' '+s.city+' '+s.state+' '+(s.coverageType||'')+' '+(s.areaManager||'')+' '+(s.regionalManager||'')).toLowerCase()
-    };
-  });
-}
-function showHover(lat,lng){ if(hoverMarker) highlightLayer.removeLayer(hoverMarker); hoverMarker=L.marker([lat,lng],{icon:hoverIcon}).addTo(highlightLayer); }
-function hideHover(){ if(hoverMarker){ highlightLayer.removeLayer(hoverMarker); highlightLayer.clearLayers(); hoverMarker=null; } }
-function clearTarget(){ if (targetPin){ targetLayer.removeLayer(targetPin); targetPin=null; } }
-function hideResults(){ searchResults.classList.remove('show'); searchResults.innerHTML=''; searchResults._data=[]; resIndex=-1; }
-function showResults(list){
-  if (!list.length){ hideResults(); return; }
-  searchResults.innerHTML = list.map(function(r,i){
-    return '<div class="res" data-i="'+i+'" role="option">'+
-      '<div class="kind">'+r.kind+'</div>'+
-      '<div class="text">'+
-      '<div>'+escapeHtml(r.label)+'</div>'+
-      (r.kind==='STORE'
-        ? '<div class="sub">'+escapeHtml(r.store.address||'')+' · '+escapeHtml(r.store.city||'')+', '+escapeHtml(r.store.state||'')+' · '+escapeHtml(r.store.coverageType||'')+'</div>'
-        : (r.kind==='NEAR' ? '<div class="sub">'+escapeHtml(r.store.address||'')+' · '+escapeHtml(r.store.city||'')+', '+escapeHtml(r.store.state||'')+'</div>' : '')
-      )+
-      '</div></div>';
-  }).join('');
-  searchResults.classList.add('show');
-  Array.prototype.forEach.call(searchResults.querySelectorAll('.res'), function(el){
-    el.addEventListener('mouseenter', function(){
-      var d=searchResults._data[Number(el.getAttribute('data-i'))]; if(d && d.lat) showHover(d.lat,d.lng);
+  // ---------- Search ----------
+  var searchIdx = []; let resIndex = -1; let targetPin=null; const targetIcon = L.divIcon({className:'', html:'<div style="background:#2f71ff;border:2px solid #fff;border-radius:50%;width:18px;height:18px;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>', iconSize:[18,18], iconAnchor:[9,9]});
+  const hoverIcon  = L.divIcon({className:'', html:'<div class="hl"></div>', iconSize:[22,22], iconAnchor:[11,11]});
+  let hoverMarker=null;
+
+  function buildSearchIndex(){
+    searchIdx = allStores.map(s => ({
+      kind:'STORE', store:s, lat:s.lat, lng:s.lng,
+      text: (`store ${s.storeNumberStr} ${s.storeName||''} ${s.address||''} ${s.city} ${s.state} ${s.coverageType||''} ${s.areaManager||''} ${s.regionalManager||''}`).toLowerCase()
+    }));
+  }
+  function showHover(lat,lng){ if(hoverMarker) highlightLayer.removeLayer(hoverMarker); hoverMarker=L.marker([lat,lng],{icon:hoverIcon}).addTo(highlightLayer); }
+  function hideHover(){ if(hoverMarker){ highlightLayer.removeLayer(hoverMarker); hoverMarker=null; } }
+  function clearTarget(){ if (targetPin){ targetLayer.removeLayer(targetPin); targetPin=null; } }
+  function hideResults(){ searchResults.classList.remove('show'); searchResults.innerHTML=''; searchResults._data=[]; resIndex=-1; }
+
+  function showResults(list){
+    if (!list.length){ hideResults(); return; }
+    searchResults.innerHTML = list.map((r,i)=>`
+      <div class="res" data-i="${i}" role="option" title="Open this result">
+        <div class="kind">${r.kind}</div>
+        <div class="text">
+          <div>${escape(r.label)}</div>
+          ${r.kind==='STORE'
+            ? `<div class="sub">${escape(r.store.address||'')} · ${escape(r.store.city||'')}, ${escape(r.store.state||'')} · ${escape(r.store.coverageType||'')}</div>`
+            : (r.kind==='NEAR' ? `<div class="sub">${escape(r.store.address||'')} · ${escape(r.store.city||'')}, ${escape(r.store.state||'')}</div>` : '')
+          }
+        </div>
+      </div>`).join('');
+    searchResults.classList.add('show');
+    Array.from(searchResults.querySelectorAll('.res')).forEach(el=>{
+      el.addEventListener('mouseenter', ()=>{ const d = searchResults._data[Number(el.dataset.i)]; if(d && d.lat) showHover(d.lat,d.lng); });
+      el.addEventListener('mouseleave', hideHover);
+      el.addEventListener('click', ()=>{ const d = searchResults._data[Number(el.dataset.i)]; selectResult(d); });
     });
-    el.addEventListener('mouseleave', hideHover);
-    el.addEventListener('click', function(){
-      var d=searchResults._data[Number(el.getAttribute('data-i'))]; selectResult(d);
+    searchResults._data = list; resIndex=-1;
+  }
+
+  function toResFromStore(s,score,kind='STORE'){ return { kind, store:s, label:`Store ${s.storeNumberStr} — ${s.storeName||''}, ${s.city}, ${s.state}`, lat:s.lat, lng:s.lng, score }; }
+  function toCityRes(city,state,lat,lng,score){ return { kind:'CITY', label:`${city}, ${state}`, lat, lng, score }; }
+
+  function smartNearest(center,limit=8){
+    return allStores.map(s => [distMiles(center.lat,center.lng,s.lat,s.lng), s]).sort((a,b)=>a[0]-b[0]).slice(0,limit).map((x,i)=>toResFromStore(x[1], 80-i,'NEAR'));
+  }
+
+  // --- Fuzzy helpers + “near <city>” ---
+  function fuzzyScore(hay, needle){
+    hay = (hay||'').toLowerCase(); needle = (needle||'').toLowerCase().trim();
+    if (!needle) return 0;
+    if (hay.includes(needle)) return 100;
+    const toks = needle.split(/\s+/).filter(Boolean);
+    if (!toks.length) return 0;
+    const hits = toks.reduce((a,t)=>a + (hay.includes(t)?1:0), 0);
+    return hits ? 60 + hits*10 : 0;
+  }
+  function findCityCenter(query){
+    const m = (query||'').match(/^\s*(.+?)(?:,\s*([A-Za-z]{2}))?\s*$/);
+    if (!m) return null;
+    const qCity  = (m[1]||'').toLowerCase();
+    const qState = (m[2]||'').toUpperCase();
+    const groups = new Map();
+    allStores.forEach(s=>{
+      const city = (s.city||'').toLowerCase();
+      const st   = (s.state||'').toUpperCase();
+      const cityHit  = city === qCity || city.includes(qCity);
+      const stateHit = !qState || st === qState;
+      if (cityHit && stateHit){
+        const key = `${city}|${st}`;
+        const g = groups.get(key) || {city:s.city, state:s.state, lat:0, lng:0, n:0};
+        g.lat += s.lat; g.lng += s.lng; g.n += 1; groups.set(key, g);
+      }
     });
-  });
-  searchResults._data=list; resIndex=-1;
-}
-function toResFromStore(s,score,kind){ return { kind:kind||'STORE', store:s, label:'Store '+s.storeNumberStr+' — '+(s.storeName||'')+', '+s.city+', '+s.state, lat:s.lat, lng:s.lng, score:score }; }
-function toCityRes(city,state,lat,lng,score){ return { kind:'CITY', label:city+', '+state, lat:lat, lng:lng, score:score }; }
-function smartNearest(center,limit){
-  limit = limit||8;
-  return allStores.map(function(s){ return [distMi(center.lat,center.lng,s.lat,s.lng), s]; })
-    .sort(function(a,b){ return a[0]-b[0]; }).slice(0,limit).map(function(x,i){ return toResFromStore(x[1],80-i,'NEAR'); });
-}
-function fuzzyScore(hay, needle){
-  hay=(hay||'').toLowerCase(); needle=(needle||'').toLowerCase().trim();
-  if (!needle) return 0;
-  if (hay.indexOf(needle)>=0) return 100;
-  var toks=needle.split(/\s+/).filter(Boolean), hits=0; toks.forEach(function(t){ if(hay.indexOf(t)>=0) hits++; });
-  return hits ? 60 + hits*10 : 0;
-}
-function findCityCenter(query){
-  var m=(query||'').match(/^\s*(.+?)(?:,\s*([A-Za-z]{2}))?\s*$/); if(!m) return null;
-  var qCity=(m[1]||'').toLowerCase(), qState=(m[2]||'').toUpperCase();
-  var groups=new Map();
-  allStores.forEach(function(s){
-    var city=(s.city||'').toLowerCase(), st=(s.state||'').toUpperCase();
-    var cityHit = (city===qCity) || (city.indexOf(qCity)>=0);
-    var stateHit = !qState || st===qState;
-    if (cityHit && stateHit){
-      var key=city+'|'+st, g=groups.get(key) || {city:s.city,state:s.state,lat:0,lng:0,n:0};
-      g.lat+=s.lat; g.lng+=s.lng; g.n++; groups.set(key,g);
-    }
-  });
-  if (!groups.size) return null;
-  var best = Array.from(groups.values()).sort(function(a,b){ return b.n-a.n; })[0];
-  return { city:best.city, state:best.state, lat:best.lat/best.n, lng:best.lng/best.n, n:best.n };
-}
-function highlightResult(){
-  Array.prototype.forEach.call(searchResults.querySelectorAll('.res'), function(el,i){
-    el.classList.toggle('active', i===resIndex);
-    if(i===resIndex){ var d=searchResults._data[i]; if(d && d.lat) showHover(d.lat,d.lng); }
-  });
-}
-function selectResult(d){
-  hideResults(); hideHover(); if(!d) return;
-  if(d.kind==='STORE' || d.kind==='NEAR'){ openStorePopup(d.store); return; }
-  if(d.kind==='CITY' || d.kind==='HUB'){
-    var latlng=[d.lat,d.lng];
-    showPinPopup(latlng, '<div style="font-size:13px;line-height:1.35;min-width:220px"><div style="font-weight:800;margin-bottom:4px">'+escapeHtml(d.label)+'</div><div style="color:var(--muted)">Lat: '+Number(d.lat).toFixed(4)+', Lng: '+Number(d.lng).toFixed(4)+'</div></div>');
-    map.panInside(latlng, { paddingTopLeft:[20,20], paddingBottomRight:[20,20] });
+    if (!groups.size) return null;
+    const best = Array.from(groups.values()).sort((a,b)=>b.n-a.n)[0];
+    return { city: best.city, state: best.state, lat: best.lat/best.n, lng: best.lng/best.n, n: best.n };
   }
-}
-function showPinPopup(latlng, html){
-  if(!targetPin){ targetPin=L.marker(latlng,{icon:targetIcon}).addTo(targetLayer); } else { targetPin.setLatLng(latlng); }
-  L.popup({autoClose:true, closeOnClick:true, maxWidth:320}).setLatLng(latlng).setContent(html).openOn(map);
-}
 
-searchBox.addEventListener('input', handleSearchInput);
-searchBox.addEventListener('keydown', function(e){
-  var items = searchResults._data || [];
-  if (e.key==='ArrowDown'){ e.preventDefault(); resIndex=Math.min(items.length-1,resIndex+1); highlightResult(); }
-  if (e.key==='ArrowUp'){ e.preventDefault(); resIndex=Math.max(0,resIndex-1); highlightResult(); }
-  if (e.key==='Enter'){ e.preventDefault(); if (resIndex>=0 && items[resIndex]) selectResult(items[resIndex]); }
-  if (e.key==='Escape'){ hideResults(); }
-});
-document.addEventListener('click', function(e){ if(!searchWrap.contains(e.target)) hideResults(); });
-
-function handleSearchInput(){
-  if (!allStores.length){ hideResults(); return; }
-  var qraw=(searchBox.value||'').trim(), q=qraw.toLowerCase();
-  localStorage.setItem(LS_LAST_QUERY, qraw);
-  var nearCity=q.match(/^near\s+(.+)$/i);
-  if (!q || q==='near' || q==='near me'){
-    searchBadge.textContent='NEAR'; searchBadge.classList.add('show');
-    showResults(smartNearest(map.getCenter(),8)); return;
+  function highlightResult(){
+    Array.from(searchResults.querySelectorAll('.res')).forEach((el,i)=>{
+      el.classList.toggle('active', i===resIndex);
+      if(i===resIndex){
+        el.scrollIntoView({block:'nearest'});
+        const d=searchResults._data[i]; if(d && d.lat) showHover(d.lat,d.lng);
+      }
+    });
   }
-  if (nearCity){
-    var center=findCityCenter(nearCity[1]);
-    if (center){
-      map.setView([center.lat,center.lng], Math.max(map.getZoom(),8));
-      showResults(smartNearest({lat:center.lat,lng:center.lng},8));
-      searchBadge.textContent='NEAR'; searchBadge.classList.add('show');
-      showPinPopup([center.lat,center.lng],
-        '<div style="font-size:13px;line-height:1.35;min-width:220px"><div style="font-weight:800;margin-bottom:4px">Near '+escapeHtml(center.city)+', '+escapeHtml(center.state)+'</div><div style="color:var(--muted)">'+center.n+' reference stores • '+center.lat.toFixed(4)+', '+center.lng.toFixed(4)+'</div></div>');
+  function selectResult(d){
+    hideResults(); hideHover();
+    if(!d) return;
+    if(d.kind==='STORE' || d.kind==='NEAR'){ openStorePopup(d.store); return; }
+    if(d.kind==='CITY' || d.kind==='HUB'){
+      const latlng = [d.lat,d.lng];
+      showPinPopup(latlng, `
+        <div style="font-size:13px;line-height:1.35;min-width:220px">
+          <div style="font-weight:800;margin-bottom:4px">${escape(d.label)}</div>
+          <div style="color:var(--muted)">Lat: ${Number(d.lat).toFixed(4)}, Lng: ${Number(d.lng).toFixed(4)}</div>
+        </div>
+      `);
+      map.panInside(latlng, { paddingTopLeft:[20,20], paddingBottomRight:[20,20] });
       return;
     }
   }
-  var items=[], numInside=q.match(/\b(\d{3,6})\b/);
-  if (numInside){
-    var s=allStores.find(function(x){ return x.storeNumberStr===numInside[1]; });
-    if (s) items.push(toResFromStore(s,120));
+  function showPinPopup(latlng, html){
+    if(!targetPin){ targetPin = L.marker(latlng,{icon:targetIcon}).addTo(targetLayer); }
+    else { targetPin.setLatLng(latlng); }
+    const p = L.popup({autoClose:true, closeOnClick:true, maxWidth:320}).setLatLng(latlng).setContent(html);
+    p.openOn(map);
   }
-  var cityHits=new Map();
-  allStores.forEach(function(s){
-    var score=fuzzyScore(s.city+', '+s.state, q);
-    if (score>=70){
-      var key=s.city+'|'+s.state, v=cityHits.get(key)||{city:s.city,state:s.state,lat:0,lng:0,n:0,score:score};
-      v.lat+=s.lat; v.lng+=s.lng; v.n++; v.score=Math.max(v.score,score); cityHits.set(key,v);
+
+  // Upgraded search input (fuzzy + near <city>)
+  function handleSearchInput(){
+    if (!allStores.length){ hideResults(); return; }
+    const qraw = (searchBox.value||'').trim();
+    const q = qraw.toLowerCase();
+    localStorage.setItem(LS_LAST_QUERY, qraw);
+
+    const nearCity = q.match(/^near\s+(.+)$/i);
+
+    if (!q || q === 'near' || q === 'near me'){
+      searchBadge.textContent = 'NEAR';
+      searchBadge.classList.add('show');
+      showResults(smartNearest(map.getCenter(), 8));
+      return;
     }
-  });
-  Array.from(cityHits.values()).sort(function(a,b){ return b.score-a.score || b.n-a.n; }).slice(0,8)
-    .forEach(function(c){ items.push(toCityRes(c.city,c.state,c.lat/c.n,c.lng/c.n,85)); });
-  searchIdx.forEach(function(it){ var sc=fuzzyScore(it.text,q); if(sc>=70) items.push(toResFromStore(it.store,sc)); });
-  visibleHubs().forEach(function(h){ var sc=fuzzyScore((h.fullName||h.name||''),q); if(sc>=70) items.push({kind:'HUB', label:(h.fullName||h.name), lat:h.coords[0], lng:h.coords[1], score:sc}); });
-  var seen=new Set(), out=[];
-  items.sort(function(a,b){ return b.score-a.score; }).forEach(function(it){
-    var k=it.kind+'|'+it.label+'|'+it.lat+'|'+it.lng; if(!seen.has(k)){ seen.add(k); out.push(it); }
-  });
-  if (out.length){ searchBadge.textContent='SEARCH'; searchBadge.classList.add('show'); } else { searchBadge.classList.remove('show'); }
-  showResults(out.slice(0,60));
-}
-
-// ========== FILTERING & MARKERS ==========
-function storeFilter(s){
-  var covSel = Array.prototype.map.call(covFilter.selectedOptions, function(o){ return o.value; });
-  var covOK  = covSel.indexOf('All')>=0 || covSel.indexOf(s.coverageType||'')>=0;
-  var rmSel = Array.prototype.map.call(rmFilter.selectedOptions, function(o){ return o.value; });
-  var amSel = Array.prototype.map.call(amFilter.selectedOptions, function(o){ return o.value; });
-  var rmOK  = rmSel.indexOf('All')>=0 || rmSel.indexOf(s.regionalManager||'')>=0;
-  var amOK  = amSel.indexOf('All')>=0 || amSel.indexOf(s.areaManager||'')>=0;
-
-  var hubSel = Array.prototype.map.call(hubFilter.selectedOptions, function(o){ return o.value; });
-  var hubOK = true;
-  if (hubSel.length && hubSel.indexOf('All')<0){
-    var r=num(radius.value)||DEFAULT_RADIUS, hubsNow=visibleHubs(),
-        sel=hubsNow.filter(function(h){ return hubSel.indexOf(h.id)>=0; });
-    hubOK = sel.some(function(h){ return distMi(s.lat,s.lng,h.coords[0],h.coords[1])<=r; });
-  }
-  var withinOK=true;
-  if (tgWithin.checked){
-    var r2=num(radius.value)||DEFAULT_RADIUS;
-    withinOK = visibleHubs().some(function(h){ return distMi(s.lat,s.lng,h.coords[0],h.coords[1])<=r2; });
-  }
-  return covOK && rmOK && amOK && hubOK && withinOK;
-}
-var debouncedRun=(function(){ var t; return function(){ clearTimeout(t); t=setTimeout(runFilter,90); }; })();
-
-function runFilter(){
-  markerByStore.clear();
-  if (tgCluster.checked){ markers.clearLayers(); } else { plainMarkers.clearLayers(); }
-
-  filteredStores = allStores.filter(storeFilter);
-  var addTo = tgCluster.checked ? markers : plainMarkers;
-  if (!tgCluster.checked) { map.addLayer(plainMarkers); }
-
-  filteredStores.forEach(function(s){
-    var m=L.circleMarker([s.lat,s.lng],{radius:5,weight:1,color:'#fff',fillOpacity:.95,fillColor:COLORS[s.coverageType]||'#888'})
-      .bindTooltip('Store '+escapeHtml(s.storeNumberStr)+' — '+escapeHtml(s.city)+', '+escapeHtml(s.state), {direction:'top', offset:[0,-10]})
-      .on('click', function(){ openStorePopup(s); });
-    addTo.addLayer(m); markerByStore.set(s,m);
-  });
-
-  updateSummaryCounts(); updateInViewCount();
-  if (tgHeat.checked) updateHeat();
-  updateRings();
-  renderHubs(); // ensure hub toggles/cascades reflect
-}
-function refreshLayerMode(){
-  if (tgCluster.checked){
-    map.removeLayer(plainMarkers);
-    if(!map.hasLayer(markers)) map.addLayer(markers);
-    runFilter();
-  } else {
-    map.removeLayer(markers);
-    if(!map.hasLayer(plainMarkers)) map.addLayer(plainMarkers);
-    runFilter();
-  }
-}
-function fitToResults(){
-  var arr=filteredStores; if(!arr.length) return;
-  var b=L.latLngBounds(arr.map(function(s){ return [s.lat,s.lng]; })); map.fitBounds(b.pad(0.15));
-}
-function openStorePopup(s){
-  var latlng=[s.lat,s.lng];
-  var html = '<div style="font-size:13px;min-width:240px;line-height:1.35">'+
-    '<div style="font-weight:800;margin-bottom:4px">Store '+escapeHtml(s.storeNumberStr)+' — '+escapeHtml(s.storeName||'')+'</div>'+
-    '<div>'+escapeHtml(s.address||'')+'</div>'+
-    '<div>'+escapeHtml(s.city||'')+', '+escapeHtml(s.state||'')+'</div>'+
-    '<div style="margin-top:6px"><span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+(COLORS[s.coverageType]||'#888')+'"></span> '+escapeHtml(s.coverageType||'')+'</div>'+
-    ((s.areaManager||s.regionalManager) ? '<div style="color:var(--muted);margin-top:6px">AM: '+escapeHtml(s.areaManager||'—')+' • RM: '+escapeHtml(s.regionalManager||'—')+'</div>' : '')+
-  '</div>';
-  L.popup({autoClose:true, closeOnClick:true, maxWidth:320}).setLatLng(latlng).setContent(html).openOn(map);
-  var m=markerByStore.get(s); if(m && markers.hasLayer(m)) markers.zoomToShowLayer(m, function(){ m.openPopup && m.openPopup(); });
-}
-
-// ===== COVERAGE & HUBS =====
-function visibleHubs(){
-  var list=[]; if (showConfirmed.checked) list=list.concat(premiumConfirmed);
-  if (showPending.checked) list=list.concat(premiumPending);
-  if (showAcosta.checked) list=list.concat(acostaHubs);
-  return list;
-}
-function recomputeCoverage(){
-  var r=num(radius.value)||DEFAULT_RADIUS;
-  allStores.forEach(function(s){
-    var inPrem = inAny(hcat(premiumConfirmed,premiumPending), s.lat,s.lng,r);
-    var inAco  = inAny(acostaHubs, s.lat,s.lng,r);
-    var type='Uncovered';
-    if (inPrem && inAco) type='Premium + Acosta';
-    else if (inPrem) type='Premium Only';
-    else if (inAco) type='Acosta Only';
-    s.coverageType=type;
-  });
-}
-function inAny(hubs, lat,lng, r){
-  if (!hubs || !hubs.length) return false;
-  for (var i=0;i<hubs.length;i++){
-    var h=hubs[i]; if (distMi(lat,lng,h.coords[0],h.coords[1])<=r) return true;
-  }
-  return false;
-}
-function renderHubs(){
-  hubLayer.clearLayers();
-  visibleHubs().forEach(function(h){
-    var el=document.createElement('div'); el.className='hub '+(h.status==='acosta'?'acosta':(h.status==='confirmed'?'confirmed':'pending'));
-    el.style.cssText='width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25);'+
-      (h.status==='acosta'?'background:'+css('--a'): (h.status==='confirmed'?'background:'+css('--violet'):'background:#9ea3a8'));
-    var icon=L.divIcon({className:'', html:el, iconSize:[20,20], iconAnchor:[10,10]});
-    L.marker(h.coords, {icon:icon, pane:'hubPane'})
-      .on('click', function(){ compareMode ? togglePinned(h) : openSidepanel(h); })
-      .bindTooltip(escapeHtml(h.fullName||h.name), {direction:'top', offset:[0,-12], opacity:.95, sticky:true})
-      .addTo(hubLayer);
-  });
-}
-function updateRings(){
-  ringLayer.clearLayers(); if(!tgRings.checked) return;
-  var r=num(radius.value)||DEFAULT_RADIUS;
-  visibleHubs().forEach(function(h){
-    L.circle(h.coords, { radius:r*1609.34, color:'#000', weight:1, opacity:.25, fill:false }).addTo(ringLayer);
-  });
-}
-function drawOverlap(){
-  highlightLayer.clearLayers(); if(!tgOverlap.checked) return;
-  var r=num(radius.value)||DEFAULT_RADIUS;
-  filteredStores.forEach(function(s){
-    var count=visibleHubs().reduce(function(n,h){ return n + (distMi(s.lat,s.lng,h.coords[0],h.coords[1])<=r ? 1 : 0); }, 0);
-    if (count>=2){ L.circleMarker([s.lat,s.lng], {radius:7,color:'#000',weight:2,fill:false}).addTo(highlightLayer); }
-  });
-}
-
-function togglePinned(h){
-  var ix=pinnedHubs.findIndex(function(x){ return x.id===h.id; });
-  if (ix>=0) pinnedHubs.splice(ix,1);
-  else { if (pinnedHubs.length>=2) pinnedHubs.shift(); pinnedHubs.push(h); }
-  if (tgOverlap.checked) drawOverlap();
-}
-
-// HUB filter options
-function buildHubFilterOptions(){
-  var oldSel=new Set(Array.prototype.map.call(hubFilter.selectedOptions, function(o){ return o.value; }));
-  var hubs=visibleHubs(), opts=['<option value="All"'+(oldSel.has('All')?' selected':'')+'>All</option>'];
-  hubs.forEach(function(h){ opts.push('<option value="'+escapeHtml(h.id)+'"'+(oldSel.has(h.id)?' selected':'')+'>'+escapeHtml(h.fullName||h.name)+'</option>'); });
-  hubFilter.innerHTML = opts.join('');
-}
-function cascadeAM(){
-  var rms=Array.prototype.map.call(rmFilter.selectedOptions, function(o){ return o.value; });
-  var inRM=function(s){ return rms.indexOf('All')>=0 || rms.indexOf(s.regionalManager||'')>=0; };
-  var ams=uniq(allStores.filter(inRM).map(function(s){ return s.areaManager||''; }).filter(Boolean)).sort();
-  var sel=new Set(Array.prototype.map.call(amFilter.selectedOptions, function(o){ return o.value; }));
-  amFilter.innerHTML = '<option value="All"'+(sel.has('All')?' selected':'')+'>All</option>'+ams.map(function(a){ return '<option'+(sel.has(a)?' selected':'')+'>'+escapeHtml(a)+'</option>'; }).join('');
-}
-function cascadeRM(){
-  var ams=Array.prototype.map.call(amFilter.selectedOptions, function(o){ return o.value; });
-  var inAM=function(s){ return ams.indexOf('All')>=0 || ams.indexOf(s.areaManager||'')>=0; };
-  var rms=uniq(allStores.filter(inAM).map(function(s){ return s.regionalManager||''; }).filter(Boolean)).sort();
-  var sel=new Set(Array.prototype.map.call(rmFilter.selectedOptions, function(o){ return o.value; }));
-  rmFilter.innerHTML = '<option value="All"'+(sel.has('All')?' selected':'')+'>All</option>'+rms.map(function(rm){ return '<option'+(sel.has(rm)?' selected':'')+'>'+escapeHtml(rm)+'</option>'; }).join('');
-}
-
-// ===== SIDE PANEL =====
-function openSidepanel(h){
-  spHub=h; sidepanel.classList.add('show');
-  spTitle.textContent = h.fullName || h.name || 'Hub';
-  spMeta.innerHTML = '<div>'+escapeHtml(h.city||'')+(h.state?(', '+escapeHtml(h.state)):'')+' • <b>'+escapeHtml(h.statusLabel||h.status||'')+'</b></div>';
-  var r=num(radius.value)||DEFAULT_RADIUS;
-  spRows = allStores.filter(function(s){ return distMi(s.lat,s.lng,h.coords[0],h.coords[1])<=r; })
-    .map(function(s){ return { key:String(s.storeNumberStr), title:'Store '+s.storeNumberStr+' — '+(s.storeName||''), addr:(s.address||'')+', '+(s.city||'')+', '+(s.state||''), store:s }; })
-    .sort(function(a,b){ return Number(a.store.storeNumberStr)-Number(b.store.storeNumberStr); });
-  renderSidepanelCounts(h, spRows.length);
-  renderSidepanelList();
-  map.setView(h.coords, Math.max(map.getZoom(), 8));
-  spLink.onclick=function(){ copyLinkToHub(h); };
-}
-function renderSidepanelCounts(h,n){
-  var covered={'Premium + Acosta':0, 'Premium Only':0, 'Acosta Only':0, 'Uncovered':0};
-  spRows.forEach(function(rw){ covered[rw.store.coverageType||'Uncovered']++; });
-  spCounts.innerHTML =
-    '<div class="sp-chip"><span class="dot" style="background:'+COLORS['Premium + Acosta']+'"></span>P+A: <b>'+covered['Premium + Acosta']+'</b></div>'+
-    '<div class="sp-chip"><span class="dot" style="background:'+COLORS['Premium Only']+'"></span>Premium: <b>'+covered['Premium Only']+'</b></div>'+
-    '<div class="sp-chip"><span class="dot" style="background:'+COLORS['Acosta Only']+'"></span>Acosta: <b>'+covered['Acosta Only']+'</b></div>'+
-    '<div class="sp-chip"><span class="dot" style="background:'+COLORS['Uncovered']+'"></span>Uncovered: <b>'+covered['Uncovered']+'</b></div>'+
-    '<div class="sp-chip">Total: <b>'+n+'</b></div>';
-}
-function renderSidepanelList(){
-  var rows = spRows.filter(function(r){
-    if(!spFilter) return true;
-    var hay=(r.title+' '+r.addr).toLowerCase();
-    return hay.indexOf(spFilter)>=0;
-  });
-  spRowsEl.innerHTML = rows.map(function(r){
-    return '<div class="row" data-id="'+escapeHtml(r.key)+'">'+
-      '<div class="num">'+escapeHtml(r.key)+'</div>'+
-      '<div class="text"><div class="title">'+escapeHtml(r.title)+'</div><div class="addr">'+escapeHtml(r.addr)+'</div></div>'+
-      '<div class="pill" style="margin-left:auto"><span class="dot" style="background:'+(COLORS[r.store.coverageType]||'#888')+'"></span></div>'+
-    '</div>';
-  }).join('');
-  Array.prototype.forEach.call(spRowsEl.querySelectorAll('.row'), function(el){
-    el.addEventListener('click', function(){
-      var id = el.getAttribute('data-id');
-      var row = spRows.find(function(x){ return x.key===id; });
-      if (row){ openStorePopup(row.store); map.panTo([row.store.lat,row.store.lng]); }
-      Array.prototype.forEach.call(spRowsEl.querySelectorAll('.row'), function(o){ o.classList.remove('active'); });
-      el.classList.add('active');
-    });
-  });
-}
-
-// ===== SUMMARY, COUNTS, HEAT =====
-function updateSummaryCounts(){
-  var counts={'Premium + Acosta':0, 'Premium Only':0, 'Acosta Only':0, 'Uncovered':0};
-  filteredStores.forEach(function(s){ counts[s.coverageType||'Uncovered']++; });
-  k.pa.textContent = counts['Premium + Acosta'];
-  k.p.textContent  = counts['Premium Only'];
-  k.a.textContent  = counts['Acosta Only'];
-  k.u.textContent  = counts['Uncovered'];
-  k.total.textContent = filteredStores.length;
-
-  // hub tallies
-  var offer = premiumPending.filter(function(h){ return h.statusSub==='pending_offer'; }).length;
-  var proposed = premiumPending.length - offer;
-  k.confirmed.textContent = premiumConfirmed.length;
-  k.offer.textContent = offer;
-  k.proposed.textContent = proposed;
-
-  acostaChip.hidden = !showAcosta.checked;
-  k.acostaHubs.textContent = acostaHubs.length;
-}
-function updateInViewCount(){
-  var b = map.getBounds(), n=0;
-  filteredStores.forEach(function(s){ if(b.contains([s.lat,s.lng])) n++; });
-  k.inView.textContent = 'In view: '+n.toLocaleString();
-}
-function updateHeat(){
-  var pts = filteredStores.map(function(s){ return [s.lat,s.lng, 0.5]; });
-  if (!heatLayerHolder.layer){
-    heatLayerHolder.layer = L.heatLayer(pts, { radius:22, blur:15, maxZoom:10 });
-    heatLayerHolder.layer.addTo(map);
-  } else {
-    heatLayerHolder.layer.setLatLngs(pts);
-  }
-}
-function clearHeat(){
-  if (heatLayerHolder.layer){ map.removeLayer(heatLayerHolder.layer); heatLayerHolder.layer=null; }
-}
-
-// ===== EXPORTS & PRINT =====
-function exportStoresCsv(){
-  var cols=['Store #','Store Name','Address','City','State','Coverage Type','Area Manager','Regional Manager','Lat','Lng'];
-  var rows=filteredStores.map(function(s){
-    return [s.storeNumberStr,s.storeName||'',s.address||'',s.city||'',s.state||'',s.coverageType||'',s.areaManager||'',s.regionalManager||'',s.lat,s.lng];
-  });
-  var csv = toCSV([cols].concat(rows));
-  downloadText(csv,'filtered_stores.csv','text/csv');
-  toastMsg('Exported '+rows.length+' stores');
-}
-function exportSidepanelCsv(){
-  if(!spHub) return;
-  var cols=['Store #','Store Name','Address','City','State','Coverage Type','AM','RM','Lat','Lng','Hub','Hub Status','Radius (mi)'];
-  var r=num(radius.value)||DEFAULT_RADIUS;
-  var rows=spRows.map(function(rw){
-    var s=rw.store;
-    return [s.storeNumberStr,s.storeName||'',s.address||'',s.city||'',s.state||'',s.coverageType||'',s.areaManager||'',s.regionalManager||'',s.lat,s.lng,(spHub.fullName||spHub.name||''),(spHub.statusLabel||spHub.status||''),r];
-  });
-  var csv = toCSV([cols].concat(rows));
-  downloadText(csv, 'hub_store_list.csv','text/csv');
-  toastMsg('Exported list for '+(spHub.fullName||spHub.name));
-}
-function printSidepanelList(){
-  var html='<!doctype html><meta charset="utf-8"><title>Store List</title>'+
-    '<style>body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:20px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px} th{background:#f6f8fa;text-align:left}</style>'+
-    '<h2>'+(spHub?escapeHtml(spHub.fullName||spHub.name):'Hub')+' — '+(num(radius.value)||DEFAULT_RADIUS)+' mi</h2>'+
-    '<table><thead><tr><th>#</th><th>Store</th><th>Address</th><th>City</th><th>State</th><th>Coverage</th></tr></thead><tbody>'+
-    spRows.map(function(rw){
-      var s=rw.store;
-      return '<tr><td>'+escapeHtml(String(s.storeNumberStr))+'</td><td>'+escapeHtml(s.storeName||'')+'</td><td>'+escapeHtml(s.address||'')+'</td><td>'+escapeHtml(s.city||'')+'</td><td>'+escapeHtml(s.state||'')+'</td><td>'+escapeHtml(s.coverageType||'')+'</td></tr>';
-    }).join('')+
-// Option A: escape the slash
-'</tbody></table><script>window.onload=function(){setTimeout(function(){window.print()},200)}<\/script>';
-  var w=window.open('','_blank'); if(w){ w.document.write(html); w.document.close(); }
-}
-
-// ===== VIEWS & SOURCE =====
-function saveCurrentView(){
-  var views = JSON.parse(localStorage.getItem(LS_VIEWS)||'[]');
-  var name = prompt('Name this view:','View '+(views.length+1)); if(!name) return;
-  var v = snapshotState(); v.name=name;
-  views.push(v);
-  localStorage.setItem(LS_VIEWS, JSON.stringify(views));
-  renderSavedViews();
-  toastMsg('Saved view “'+name+'”');
-}
-function renderSavedViews(){
-  var views = JSON.parse(localStorage.getItem(LS_VIEWS) || '[]');
-
-  var html = views.length
-    ? views.map(function(v,i){
-        return `<button data-i="${i}">${escapeHtml(v.name || ("View " + (i+1)))}</button>`;
-      }).join('')
-    : '<div style="padding:6px 8px;color:var(--muted)">No saved views yet.</div>';
-
-  id('viewList').innerHTML = html;
-
-  Array.prototype.forEach.call(
-    id('viewList').querySelectorAll('button[data-i]'),
-    function(b){
-      b.onclick = function(){
-        var arr = JSON.parse(localStorage.getItem(LS_VIEWS) || '[]');
-        var ix = Number(b.getAttribute('data-i'));
-        if (arr[ix]) applySnapshot(arr[ix]);
-      };
+    if (nearCity){
+      const center = findCityCenter(nearCity[1]);
+      if (center){
+        map.setView([center.lat, center.lng], Math.max(map.getZoom(), 8));
+        showResults(smartNearest({lat:center.lat, lng:center.lng}, 8));
+        searchBadge.textContent = 'NEAR'; searchBadge.classList.add('show');
+        showPinPopup([center.lat, center.lng], `
+          <div style="font-size:13px;line-height:1.35;min-width:220px">
+            <div style="font-weight:800;margin-bottom:4px">Near ${escape(center.city)}, ${escape(center.state)}</div>
+            <div style="color:var(--muted)">${center.n} reference stores • ${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}</div>
+          </div>`);
+        return;
+      }
     }
-  );
-}
 
+    const items = [];
+    const numInside = q.match(/\b(\d{3,6})\b/);
+    if (numInside){
+      const s = allStores.find(x => x.storeNumberStr === numInside[1]);
+      if (s) items.push(toResFromStore(s, 120));
+    }
 
-function badgeSource(mode, urls){
-  var text = (mode==='url') ? ('External ('+[urls.stores,urls.premium,urls.acosta].filter(Boolean).length+' files)') : 'Local JSON';
-  id('datasetBadge').textContent = text;
-}
-function loadSource(){
-  try{ return JSON.parse(localStorage.getItem(LS_SOURCE)||''); }catch(e){ return null; }
-}
-id('srcLocal').onclick=function(){
-  localStorage.removeItem(LS_SOURCE);
-  location.reload();
-};
-id('srcURL').onclick=function(){
-  var stores = prompt('URL for Stores (CSV or JSON):', '');
-  if(!stores) return;
-  var premium = prompt('URL for Premium hubs (CSV or JSON):', '');
-  var acosta  = prompt('URL for Acosta hubs (CSV or JSON):', '');
-  var cfg={mode:'url', stores:stores, premium:premium||null, acosta:acosta||null};
-  localStorage.setItem(LS_SOURCE, JSON.stringify(cfg));
-  location.reload();
-};
-id('srcClear').onclick=function(){ localStorage.removeItem(LS_SOURCE); location.reload(); };
-
-// ===== SNAPSHOT (STATE SAVE/LOAD) =====
-function snapshotState(){
-  var selToArr = function(sel){ return Array.prototype.map.call(sel.selectedOptions, function(o){return o.value;}); };
-  var b = map.getBounds();
-  return {
-    radius:num(radius.value),
-    toggles:{ confirmed:showConfirmed.checked, pending:showPending.checked, acosta:showAcosta.checked,
-      heat:tgHeat.checked, rings:tgRings.checked, overlap:tgOverlap.checked, compare:tgCompare.checked, within:tgWithin.checked, cluster:tgCluster.checked },
-    filters:{ cov:selToArr(covFilter), rm:selToArr(rmFilter), am:selToArr(amFilter), hub:selToArr(hubFilter) },
-    view:{ center:map.getCenter(), zoom:map.getZoom(), bounds:[[b.getSouth(),b.getWest()],[b.getNorth(),b.getEast()]] },
-    search: searchBox.value || '',
-    pins: pinnedHubs.map(function(h){return h.id;}),
-    openHub: spHub ? spHub.id : null
-  };
-}
-function applySnapshot(snap){
-  if(!snap) return;
-  radius.value = snap.radius || DEFAULT_RADIUS; radiusLbl.textContent=radius.value;
-
-  showConfirmed.checked = !!(snap.toggles && snap.toggles.confirmed);
-  showPending.checked   = !!(snap.toggles && snap.toggles.pending);
-  showAcosta.checked    = !!(snap.toggles && snap.toggles.acosta);
-  tgHeat.checked        = !!(snap.toggles && snap.toggles.heat);
-  tgRings.checked       = !!(snap.toggles && snap.toggles.rings);
-  tgOverlap.checked     = !!(snap.toggles && snap.toggles.overlap);
-  tgCompare.checked     = !!(snap.toggles && snap.toggles.compare); compareMode=tgCompare.checked;
-  tgWithin.checked      = !!(snap.toggles && snap.toggles.within);
-  tgCluster.checked     = !!(snap.toggles && snap.toggles.cluster);
-
-  setMultiSelect(covFilter, snap.filters && snap.filters.cov);
-  setMultiSelect(rmFilter,  snap.filters && snap.filters.rm);
-  setMultiSelect(amFilter,  snap.filters && snap.filters.am);
-  buildHubFilterOptions(); // depends on toggles
-  setMultiSelect(hubFilter, snap.filters && snap.filters.hub);
-
-  if (snap.view && snap.view.center){ map.setView([snap.view.center.lat, snap.view.center.lng], snap.view.zoom||HOME_VIEW.zoom); }
-  if (typeof snap.search==='string'){ searchBox.value=snap.search; }
-
-  PENDING_OPEN_HUB_ID = snap.openHub || null;
-  PENDING_PIN_IDS = Array.isArray(snap.pins)? snap.pins : [];
-
-  recomputeCoverage(); runFilter(); updateRings(); if (tgOverlap.checked) drawOverlap();
-  buildHubFilterOptions();
-}
-function tryLoadSnapshot(){
-  try{
-    var raw=localStorage.getItem(LS_STATE); if(!raw) return false;
-    var snap=JSON.parse(raw); applySnapshot(snap); return true;
-  }catch(e){ return false; }
-}
-function saveState(){ try{ localStorage.setItem(LS_STATE, JSON.stringify(snapshotState())); }catch(e){} }
-function tryLoadLocal(){
-  var q = localStorage.getItem(LS_LAST_QUERY)||''; if(q){ searchBox.value=q; }
-}
-
-// ===== GAP FINDER / ROLLUPS (lightweight) =====
-function showGapFinder(){
-  // Simple “uncovered by distance” list from current center outwards
-  var c = map.getCenter();
-  var rows = allStores
-    .map(function(s){ return { s:s, d: distMi(c.lat,c.lng, s.lat,s.lng) }; })
-    .filter(function(x){ return (x.s.coverageType||'Uncovered')==='Uncovered'; })
-    .sort(function(a,b){ return a.d-b.d; }).slice(0,50);
-  var html='<h3 style="margin:0 0 6px">Nearest Uncovered (from map center)</h3>'+
-    '<ol style="margin:0;padding-left:18px">'+rows.map(function(r){
-      var s=r.s;
-      return '<li>Store '+escapeHtml(String(s.storeNumberStr))+' — '+escapeHtml(s.city)+', '+escapeHtml(s.state)+' ('+r.d.toFixed(1)+' mi)</li>';
-    }).join('')+'</ol>';
-  toastBig(html);
-}
-function showRollups(){
-  var totals={'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
-  allStores.forEach(function(s){ totals[s.coverageType||'Uncovered']++; });
-  var html='<h3 style="margin:0 0 6px">Rollups (all stores)</h3>'+
-    '<div>P+A: '+totals['Premium + Acosta'].toLocaleString()+'</div>'+
-    '<div>Premium: '+totals['Premium Only'].toLocaleString()+'</div>'+
-    '<div>Acosta: '+totals['Acosta Only'].toLocaleString()+'</div>'+
-    '<div>Uncovered: '+totals['Uncovered'].toLocaleString()+'</div>';
-  toastBig(html);
-}
-
-// ===== CLUSTER ICON =====
-function clusterIconByDominantCoverage(cluster){
-  var children = cluster.getAllChildMarkers();
-  var tally={'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
-  children.forEach(function(m){
-    try{
-      var c = m.options.fillColor || '#999';
-      // We don’t know coverage type directly—approximate by color match:
-      if (c===COLORS['Premium + Acosta']) tally['Premium + Acosta']++;
-      else if (c===COLORS['Premium Only']) tally['Premium Only']++;
-      else if (c===COLORS['Acosta Only']) tally['Acosta Only']++;
-      else tally['Uncovered']++;
-    }catch(e){ tally['Uncovered']++; }
-  });
-  var best='Uncovered', max=-1; for (var k in tally){ if(tally[k]>max){ max=tally[k]; best=k; } }
-  var color = (COLORS[best]||'#888');
-  var count = children.length;
-  var html = '<div style="background:'+color+';color:#fff;border:2px solid #fff;border-radius:999px;box-shadow:0 0 0 1px rgba(0,0,0,.25);width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-weight:800">'+count+'</div>';
-  return L.divIcon({ html:html, className:'', iconSize:[34,34] });
-}
-
-// ===== UTILS =====
-function id(x){ return document.getElementById(x); }
-function on(ev, el, fn, capture){ el.addEventListener(ev, fn, !!capture); }
-function css(varName){ return getComputedStyle(document.documentElement).getPropertyValue(varName).trim(); }
-function num(x){ var n=Number(x); return isFinite(n)?n:NaN; }
-function str(x){ return (x==null)?'':String(x).trim(); }
-function uniq(arr){ var s=new Set(arr); return Array.from(s); }
-function hcat(a,b){ return (a||[]).concat(b||[]); }
-function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);}); }
-function slug(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
-function distMi(lat1,lon1,lat2,lon2){
-  var R=3958.761; var dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
-  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)*Math.sin(dLon/2);
-  return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-}
-function toRad(d){ return d*Math.PI/180; }
-// ===== SIMPLE PICKER POPULATORS =====
-function populateRM(stores){
-  var rms = uniq(stores.map(function(s){ return s.regionalManager || ''; })
-                     .filter(Boolean)).sort();
-  rmFilter.innerHTML =
-    '<option value="All" selected>All</option>' +
-    rms.map(function(rm){ return '<option>'+escapeHtml(rm)+'</option>'; }).join('');
-}
-
-function populateAM(stores){
-  var ams = uniq(stores.map(function(s){ return s.areaManager || ''; })
-                     .filter(Boolean)).sort();
-  amFilter.innerHTML =
-    '<option value="All" selected>All</option>' +
-    ams.map(function(am){ return '<option>'+escapeHtml(am)+'</option>'; }).join('');
-}
-
-function setMultiSelect(sel, values){
-  if(!values || !values.length) return;
-  Array.prototype.forEach.call(sel.options, function(o){ o.selected = values.indexOf(o.value)>=0; });
-}
-function filterSelect(sel, q){
-  q=(q||'').toLowerCase();
-  Array.prototype.forEach.call(sel.options, function(o){
-    if (o.value==='All'){ o.hidden=false; return; }
-    var show = !q || (o.textContent||'').toLowerCase().indexOf(q)>=0;
-    o.hidden = !show;
-  });
-}
-function toggleDropdown(menu){ menu.style.display = (menu.style.display==='block' ? 'none' : 'block'); }
-
-function toCSV(rows){
-  return rows.map(function(r){
-    return r.map(function(v){
-      var s=(v==null?'':String(v)); if (/[",\n]/.test(s)) s='"'+s.replace(/"/g,'""')+'"'; return s;
-    }).join(',');
-  }).join('\n');
-}
-function downloadText(text, filename, mime){
-  var blob=new Blob([text],{type: mime||'text/plain;charset=utf-8'}); downloadBlob(blob, filename);
-}
-function downloadBlob(blob, filename){
-  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click();
-  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 500);
-}
-function toastMsg(msg){ var t=toast; t.textContent=msg; t.style.display='block'; setTimeout(function(){ t.style.display='none'; }, 1800); }
-function toastBig(html){
-  var t=toast; t.innerHTML=html; t.style.display='block'; t.style.maxWidth='520px'; t.style.textAlign='left';
-  setTimeout(function(){ t.style.display='none'; t.innerHTML=''; t.style.maxWidth='unset'; }, 5000);
-}
-function showBusy(flag){ busy.hidden = !flag; }
-
-function updateDatasetBadge(){
-  var args=[].slice.call(arguments);
-  id('datasetBadge').textContent = args.join(' • ');
-}
-function warn(msg){ console.warn(msg); }
-
-// ===== NORMALIZATION & LOADERS =====
-function normalizeStores(rows){
-  return rows.map(function(r, i){
-    var lat = num(r.lat||r.Lat||r.latitude||r.Latitude);
-    var lng = num(r.lng||r.Lon||r.lon||r.Longitude||r.longitude);
-    var city = str(r.city||r.City);
-    var state= str(r.state||r.State||r.ST||r.st);
-    var numStr = str(r.storeNumberStr||r.StoreNumber||r['Store #']||r.Store||r['Store']||r.StoreNum||r.Store_Number||r.Site||r.SiteID||r.Site_Id||r.Store_ID||r.StoreId||r.Site_ID||r['Store #']);
-    if(!numStr){ numStr = String(r.StoreNum || r.Store || r.SiteID || i+1); }
-    return {
-      storeNumberStr: numStr,
-      storeName: str(r.storeName||r['Store Name']||r.Name||r.SiteName||r.Site_Name||'Walmart'),
-      address: str(r.address||r.Address||r['Street Address']||''),
-      city: city, state: state,
-      areaManager: str(r.areaManager||r['Area Mgr']||r.AreaMgr||r.AreaManager||r.AM||''),
-      regionalManager: str(r.regionalManager||r['Regional Mgr']||r.RegionalMgr||r.RegionalManager||r.RM||''),
-      trainerCity: str(r.trainerCity||r['Trainer City']||''),
-      lat: isFinite(lat)?lat:0, lng:isFinite(lng)?lng:0,
-      coverageType: str(r.coverageType||r.Coverage_Type||r.Coverage||r['Coverage']||'Uncovered')
-    };
-  }).filter(function(s){ return isFinite(s.lat)&&isFinite(s.lng); });
-}
-function loadAny(url, opts){
-  return fetch(url, {cache:'no-cache'}).then(function(res){
-    if(!res.ok) throw new Error('Fetch '+res.status);
-    var ct = (res.headers.get('content-type')||'').toLowerCase();
-    return res.text().then(function(text){
-      return { text:text, contentType:ct };
+    const cityHits = new Map();
+    allStores.forEach(s=>{
+      const score = fuzzyScore(`${s.city}, ${s.state}`, q);
+      if (score>=70){
+        const key = `${s.city}|${s.state}`;
+        const v = cityHits.get(key) || { city:s.city, state:s.state, lat:0, lng:0, n:0, score };
+        v.lat += s.lat; v.lng += s.lng; v.n += 1; v.score = Math.max(v.score, score);
+        cityHits.set(key, v);
+      }
     });
+    Array.from(cityHits.values())
+      .sort((a,b)=> b.score - a.score || b.n - a.n)
+      .slice(0,8)
+      .forEach(c => items.push(toCityRes(c.city, c.state, c.lat/c.n, c.lng/c.n, 85)));
+
+    searchIdx.forEach(it => {
+      const score = fuzzyScore(it.text, q);
+      if (score >= 70) items.push(toResFromStore(it.store, score));
+    });
+
+    visibleHubs().forEach(h=>{
+      const score = fuzzyScore(h.fullName||h.name, q);
+      if (score>=70) items.push({ kind:'HUB', label:h.fullName||h.name, lat:h.coords[0], lng:h.coords[1], score });
+    });
+
+    const seen=new Set(), out=[];
+    items.sort((a,b)=>b.score-a.score).forEach(it=>{
+      const k=it.kind+'|'+it.label+'|'+it.lat+'|'+it.lng;
+      if(!seen.has(k)){ seen.add(k); out.push(it); }
+    });
+
+    if (out.length) { searchBadge.textContent = 'SEARCH'; searchBadge.classList.add('show'); }
+    else { searchBadge.classList.remove('show'); }
+    showResults(out.slice(0,60));
+  }
+
+  searchBox.addEventListener('input', handleSearchInput);
+  searchBox.addEventListener('keydown', (e)=>{
+    const items = searchResults._data || [];
+    if (e.key === 'ArrowDown'){ e.preventDefault(); resIndex = Math.min(items.length-1,resIndex+1); highlightResult(); }
+    if (e.key === 'ArrowUp'){ e.preventDefault(); resIndex = Math.max(0,resIndex-1); highlightResult(); }
+    if (e.key === 'Enter'){ e.preventDefault(); if (resIndex>=0 && items[resIndex]) { selectResult(items[resIndex]); } }
+    if (e.key === 'Escape'){ hideResults(); }
   });
-}
-function normalizeInputTable(resp){
-  var ct = resp.contentType||'';
-  var text= resp.text||'';
-  if (/json/.test(ct) || text.trim().charAt(0)==='[' || text.trim().charAt(0)==='{'){
-    try{ var j=JSON.parse(text); return Array.isArray(j)? j : (j.rows||j.data||[]); }catch(e){ throw new Error('Bad JSON'); }
+  document.addEventListener('click', (e)=>{ if (!searchWrap.contains(e.target)) hideResults(); });
+
+  // ---------- Filtering & markers ----------
+  function storeFilter(s){
+    const covSel = Array.from(covFilter.selectedOptions).map(o=>o.value);
+    const covOK  = covSel.includes('All') || covSel.includes(s.coverageType || '');
+
+    const rmSel = Array.from(rmFilter.selectedOptions).map(o=>o.value);
+    const amSel = Array.from(amFilter.selectedOptions).map(o=>o.value);
+    const rmOK  = rmSel.includes('All') || rmSel.includes(s.regionalManager || '');
+    const amOK  = amSel.includes('All') || amSel.includes(s.areaManager || '');
+
+    // Hubs (value = hub IDs)
+    const hubSel = Array.from(hubFilter.selectedOptions).map(o=>o.value);
+    let hubOK = true;
+    if (hubSel.length){
+      const r = Number(radius.value) || DEFAULT_RADIUS;
+      const hubsNow = [...premiumConfirmed, ...premiumPending, ...acostaHubs];
+      const selHubs = hubsNow.filter(h => hubSel.includes(h.id));
+      hubOK = selHubs.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+    }
+
+    // “Within hubs” toggle
+    let withinOK = true;
+    if (tgWithin.checked){
+      const r = Number(radius.value) || DEFAULT_RADIUS;
+      withinOK = visibleHubs().some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+    }
+
+    return covOK && rmOK && amOK && hubOK && withinOK;
   }
-  // naive CSV parser (handles simple CSV)
-  var lines=text.replace(/\r/g,'').split('\n').filter(function(l){return l.trim().length;});
-  if (!lines.length) return [];
-  var headers = lines[0].split(',').map(function(h){ return h.trim(); });
-  var out=[];
-  for (var i=1;i<lines.length;i++){
-    var row = csvSplit(lines[i]); var o={};
-    headers.forEach(function(h,ix){ o[h]=row[ix]; });
-    out.push(o);
+
+  function runFilter(){
+    markerByStore.clear();
+    if(tgCluster.checked){ markers.clearLayers(); } else { plainMarkers.clearLayers(); }
+
+    filteredStores = allStores.filter(storeFilter);
+
+    const ms = filteredStores.map(s=>{
+      const m = L.circleMarker([s.lat,s.lng], {
+        radius:5, weight:1, fillOpacity:.9, color:'#fff',
+        fillColor: COLORS[s.coverageType] || '#999'
+      });
+      m.store = s;
+      m.bindPopup(storePopupHTML(s));
+      markerByStore.set(s.storeNumberStr, m);
+      return m;
+    });
+
+    if (tgCluster.checked){ markers.addLayers(ms); }
+    else { plainMarkers.addLayer(L.layerGroup(ms)); }
+
+    updateCounts();
+    rebuildRMOptionsWithCounts();
+    rebuildAMOptionsWithCounts();
+    buildHubFilterOptions();
+
+    updateInViewCount();
+    if (id('tgHeat').checked) updateHeat();
+    if (id('tgRings').checked) updateRings();
+
+    const emptyEl = id('emptyState');
+    emptyEl.hidden = filteredStores.length !== 0;
   }
-  return out;
-}
-function csvSplit(line){
-  var out=[], cur='', inQ=false;
-  for (var i=0;i<line.length;i++){
-    var ch=line[i];
-    if (inQ){
-      if (ch==='"'){ if(line[i+1]==='"'){ cur+='"'; i++; } else { inQ=false; } }
-      else cur+=ch;
+
+  function updateCounts(){
+    const total = filteredStores.length;
+    const by = { 'Premium + Acosta':0, 'Premium Only':0, 'Acosta Only':0, 'Uncovered':0 };
+    filteredStores.forEach(s => { by[s.coverageType] = (by[s.coverageType] || 0) + 1; });
+    const pct = (n) => total ? Math.round(n * 100 / total) + '%' : '0%';
+
+    k.pa.textContent = `${by['Premium + Acosta']||0} (${pct(by['Premium + Acosta']||0)})`;
+    k.p.textContent  = `${by['Premium Only']||0} (${pct(by['Premium Only']||0)})`;
+    k.a.textContent  = `${by['Acosta Only']||0} (${pct(by['Acosta Only']||0)})`;
+    k.u.textContent  = `${by['Uncovered']||0} (${pct(by['Uncovered']||0)})`;
+
+    k.total.textContent    = total;
+    k.confirmed.textContent = premiumConfirmed.length;
+    k.pending.textContent   = premiumPending.length;
+  }
+
+  function updateInViewCount(){
+    const b=map.getBounds();
+    const inV=filteredStores.filter(s=>b.contains([s.lat,s.lng])).length;
+    k.inView.textContent=`In view: ${inV}`;
+  }
+
+  function refreshLayerMode(){
+    if (tgCluster.checked){
+      if (map.hasLayer(plainMarkers)) map.removeLayer(plainMarkers);
+      if (!map.hasLayer(markers)) map.addLayer(markers);
     } else {
-      if (ch===','){ out.push(cur); cur=''; }
-      else if (ch==='"'){ inQ=true; }
-      else cur+=ch;
+      if (map.hasLayer(markers)) map.removeLayer(markers);
+      if (!map.hasLayer(plainMarkers)) map.addLayer(plainMarkers);
+    }
+    runFilter();
+  }
+
+  // ---------- Hubs ----------
+  function visibleHubs(){
+    const out = [];
+    if (showConfirmed.checked) out.push(...premiumConfirmed);
+    if (showPending.checked)   out.push(...premiumPending);
+    if (showAcosta.checked)    out.push(...acostaHubs);
+    return out;
+  }
+  function hubDisplay(h){ return h.label || h.fullName || h.name; }
+
+  function copyHubLink(){
+    if(!spHub) return;
+    saveState();
+    const st = JSON.parse(localStorage.getItem(LS_STATE) || '{}');
+    st.openHubId     = spHub.id;
+    st.pinnedHubIds  = pinnedHubs.map(h => h.id);
+    const hash = btoa(unescape(encodeURIComponent(JSON.stringify(st))));
+    const url  = `${location.origin}${location.pathname}#${hash}`;
+    navigator.clipboard?.writeText(url);
+    alert('Hub link copied to clipboard.');
+  }
+  spLink.onclick = copyHubLink;
+
+  function renderHubs(){
+    hubLayer.clearLayers();
+    const vis = visibleHubs();
+    vis.forEach(h=>{
+      const cls =
+        h.status === 'confirmed' ? 'confirmed' :
+        h.status === 'pending'   ? 'pending'   : 'acosta';
+      const icon = L.divIcon({
+        className: '',
+        html: `<div class="hub ${cls}"></div>`,
+        iconSize: [20,20],
+        iconAnchor: [10,10]
+      });
+      const m = L.marker(h.coords, { icon, title: hubDisplay(h), pane: 'hubPane' }).addTo(hubLayer);
+      m.hub = h;
+      m.on('click', ()=> compareMode ? togglePin(h) : openSidepanel(h));
+      m.on('mouseover', ()=> m.bindTooltip(hubDisplay(h), {direction:'top', offset:[0,-8]}).openTooltip());
+      m.on('mouseout',  ()=> m.closeTooltip());
+    });
+  }
+
+  function updateRings(){
+    ringLayer.clearLayers();
+    if(!tgRings.checked) return;
+    const r = Number(radius.value) || DEFAULT_RADIUS;
+    visibleHubs().forEach(h=>{
+      ringLayer.addLayer(L.circle(h.coords,{radius:r*1609,color:'#333',weight:1,fill:false,opacity:.4}));
+    });
+  }
+  function drawOverlap(){
+    highlightLayer.clearLayers();
+    if(!tgOverlap.checked) return;
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const vis = visibleHubs();
+    filteredStores.forEach(s=>{
+      let cnt = 0;
+      vis.forEach(h => { if (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r) cnt++; });
+      if (cnt >= 2){
+        highlightLayer.addLayer(L.circleMarker([s.lat,s.lng],{radius:7,color:'#111',weight:2,fillOpacity:0.2}));
+      }
+    });
+  }
+  function togglePin(h){
+    const i = pinnedHubs.findIndex(x=>x.id===h.id);
+    if (i>=0){ pinnedHubs.splice(i,1); } else { pinnedHubs.push(h); }
+    drawOverlap();
+    refreshComparePanel();
+  }
+  function togglePinFromPanel(){
+    if (!spHub) return;
+    togglePin(spHub);
+    spPinBtn.textContent = pinnedHubs.some(x => x.id === spHub.id) ? 'Unpin' : 'Pin';
+  }
+
+  // ---------- Coverage ----------
+  function recomputeCoverage(){
+    const RULE_RADIUS = 75; // miles (classification is fixed)
+    const prem = [...premiumConfirmed, ...premiumPending];
+    const ac   = [...acostaHubs];
+
+    allStores.forEach(s=>{
+      const nearPrem = prem.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= RULE_RADIUS);
+      const nearAco  = ac.some(  h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= RULE_RADIUS);
+
+      if (nearPrem && nearAco)      s.coverageType = 'Premium + Acosta';
+      else if (nearPrem)            s.coverageType = 'Premium Only';
+      else if (nearAco)             s.coverageType = 'Acosta Only';
+      else                          s.coverageType = 'Uncovered';
+    });
+  }
+
+  // ---------- Sidepanel ----------
+  function openSidepanel(h){
+    spHub = h;
+    sidepanel.classList.add('show');
+    spTitle.textContent = hubDisplay(h);
+    renderSidepanelMeta();
+    renderSidepanelList(true);
+    const padRight = 420;
+    map.panInside(h.coords, { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] });
+    spPinBtn.textContent = pinnedHubs.some(x=>x.id===h.id) ? 'Unpin' : 'Pin';
+  }
+  function hideSidepanel(){ sidepanel.classList.remove('show'); spHub=null; spRows=[]; spRowsEl.innerHTML=''; }
+
+  function renderSidepanelMeta(){
+    if(!spHub) return;
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const stores = storesWithin(spHub.coords, r, /*useFiltered*/false);
+    const [hlat, hlng] = spHub.coords;
+    const gHub = `https://www.google.com/maps?q=${encodeURIComponent(hlat+','+hlng)}`;
+    const aHub = `http://maps.apple.com/?ll=${encodeURIComponent(hlat+','+hlng)}`;
+
+    const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
+    stores.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0) + 1; });
+
+    const statusChip = spHub.statusLabel
+      ? `<span class="sp-chip"><b>Status:</b> ${escape(spHub.statusLabel)}</span>`
+      : '';
+
+    spMeta.innerHTML = `
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        ${statusChip}
+        <span class="sp-chip"><b>Maps:</b> <a target="_blank" rel="noopener" href="${gHub}">Google</a> • <a target="_blank" rel="noopener" href="${aHub}">Apple</a></span>
+        <span class="sp-chip"><b>Radius:</b> ${r} mi</span>
+      </div>
+      <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
+        <span class="sp-chip">Total: <b>${stores.length}</b></span>
+      </div>
+      ${renderWhatIfTable(spHub)}
+    `;
+  }
+
+  // What-if radii (50/75/100)
+  function renderWhatIfTable(hub){
+    const rList = [50,75,100];
+    const [lat,lng] = hub.coords;
+    const rows = rList.map(rr=>{
+      const list = allStores.filter(s => distMiles(lat,lng,s.lat,s.lng) <= rr);
+      const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
+      list.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0)+1; });
+      return { r: rr, totals, total: list.length };
+    });
+    return `
+      <div style="margin-top:8px">
+        <div style="font-weight:700;margin-bottom:4px">What-if radii</div>
+        <table style="border-collapse:collapse;width:100%;font-size:12px">
+          <thead><tr>
+            <th style="text-align:left;border-bottom:1px solid var(--border);padding:2px 4px">Radius</th>
+            <th style="text-align:right;border-bottom:1px solid var(--border);padding:2px 4px">P+A</th>
+            <th style="text-align:right;border-bottom:1px solid var(--border);padding:2px 4px">Premium</th>
+            <th style="text-align:right;border-bottom:1px solid var(--border);padding:2px 4px">Acosta</th>
+            <th style="text-align:right;border-bottom:1px solid var(--border);padding:2px 4px">Uncov</th>
+            <th style="text-align:right;border-bottom:1px solid var(--border);padding:2px 4px">Total</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map(x=>`
+              <tr>
+                <td style="padding:2px 4px">${x.r} mi</td>
+                <td style="padding:2px 4px;text-align:right">${x.totals['Premium + Acosta']||0}</td>
+                <td style="padding:2px 4px;text-align:right">${x.totals['Premium Only']||0}</td>
+                <td style="padding:2px 4px;text-align:right">${x.totals['Acosta Only']||0}</td>
+                <td style="padding:2px 4px;text-align:right">${x.totals['Uncovered']||0}</td>
+                <td style="padding:2px 4px;text-align:right"><b>${x.total}</b></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+        <div style="color:var(--muted);margin-top:4px">Coverage classification is fixed at 75 mi.</div>
+      </div>`;
+  }
+
+  function renderSidepanelList(rebuild=false){
+    if(!spHub) return;
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const [clat, clng] = spHub.coords;
+
+    let list = storesWithin(spHub.coords, r).map(s => ({ ...s, __d: distMiles(clat, clng, s.lat, s.lng) }));
+    if (spOnlyUncov) list = list.filter(s=> (s.coverageType||'')==='Uncovered');
+    spRows = list.slice();
+
+    const q = (spFilter||'').toLowerCase();
+    if (q){
+      list = list.filter(s =>
+        (s.storeNumberStr||'').toLowerCase().includes(q) ||
+        (s.address||'').toLowerCase().includes(q) ||
+        (s.city||'').toLowerCase().includes(q) ||
+        (s.state||'').toLowerCase().includes(q) ||
+        (s.coverageType||'').toLowerCase().includes(q)
+      );
+    }
+
+    list.sort((a,b)=> a.__d - b.__d);
+
+    spCounts.innerHTML = `
+      <span class="sp-chip">In list: <b>${list.length}</b></span>
+      ${spOnlyUncov?'<span class="sp-chip">Uncovered only</span>':''}
+    `;
+
+    spRowsEl.innerHTML = list.map(s => `
+      <div class="row" data-id="${htmlEscape(s.storeNumberStr)}" title="Zoom to store">
+        <div class="num">#${htmlEscape(s.storeNumberStr)}</div>
+        <div class="text">
+          <div class="title">${htmlEscape(s.storeName||'')}</div>
+          <div class="addr">${htmlEscape(s.address||'')}, ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</div>
+        </div>
+        <div class="kind">${htmlEscape(s.coverageType||'')}</div>
+        <div style="margin-left:auto; min-width:64px; text-align:right; color:var(--muted)">${s.__d.toFixed(1)} mi</div>
+      </div>
+    `).join('');
+
+    Array.from(spRowsEl.querySelectorAll('.row')).forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const idd = el.getAttribute('data-id');
+        const s = list.find(x => x.storeNumberStr === idd);
+        if (s) openStorePopup(s);
+        Array.from(spRowsEl.querySelectorAll('.row')).forEach(e=>e.classList.remove('active'));
+        el.classList.add('active');
+      });
+    });
+
+    if (rebuild) renderSidepanelMeta();
+  }
+
+  // ---------- Export/print helpers ----------
+  function exportStoresCsv(){
+    const rows = [
+      ['Store #','Name','Address','City','State','Coverage','Area Manager','Regional Manager','Lat','Lng'],
+      ...filteredStores.map(s => [
+        s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'',
+        s.coverageType||'', s.areaManager||'', s.regionalManager||'', s.lat, s.lng
+      ])
+    ];
+    downloadCsv(rows, `filtered_stores_${Date.now()}.csv`);
+  }
+  function exportSidepanelCsv(){
+    if(!spHub){ alert('Open a hub panel first.'); return; }
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const [clat, clng] = spHub.coords;
+    const rows = [
+      ['Hub','Radius(mi)','Distance(mi)','Store #','Name','Address','City','State','Coverage','Area Manager','Regional Manager','Lat','Lng'],
+      ...spRows.map(s=>{
+        const d = (typeof s.__d === 'number') ? s.__d : distMiles(clat, clng, s.lat, s.lng);
+        return [
+          spHub.fullName || spHub.name, r, d.toFixed(1),
+          s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'',
+          s.coverageType||'', s.areaManager||'', s.regionalManager||'', s.lat, s.lng
+        ];
+      })
+    ];
+    downloadCsv(rows, `${slug(spHub.name)}_${r}mi_${Date.now()}.csv`);
+  }
+  function downloadCsv(rows, filename){
+    const csv = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }
+
+  // Dataset badge revision helpers
+  function getRevs(){ try{return JSON.parse(localStorage.getItem(REV_KEY)||'{}')}catch{ return {}; } }
+  function setRevs(x){ localStorage.setItem(REV_KEY, JSON.stringify(x)); }
+  function bumpRevision(name, fingerprint){
+    const r = getRevs();
+    const cur = r[name] || { rev:0, fp:'' };
+    if (cur.fp !== fingerprint){ cur.rev = (cur.rev||0)+1; cur.fp = fingerprint; }
+    r[name] = cur; setRevs(r); return cur.rev;
+  }
+  function updateDatasetBadge(storesFp, premiumFp, acostaFp){
+    const badge = id('datasetBadge');
+    if (!badge) return;
+    const today = new Date().toISOString().slice(0,10);
+    const pRev = bumpRevision('premium', premiumFp);
+    const aRev = bumpRevision('acosta',  acostaFp);
+    badge.innerHTML =
+      `<span class="chip">Stores v${today}</span>`+
+      ` <span class="chip">Premium v${pRev}</span>`+
+      ` <span class="chip">Acosta v${aRev}</span>`;
+  }
+
+  function printSidepanelList(){
+    if(!spHub){ alert('Open a hub panel first.'); return; }
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const [clat, clng] = spHub.coords;
+
+    const rows = spRows
+      .slice()
+      .map(s => ({...s, __d: (typeof s.__d === 'number') ? s.__d : distMiles(clat, clng, s.lat, s.lng)}))
+      .sort((a,b)=> a.__d - b.__d)
+      .map(s=>`
+        <tr>
+          <td>#${htmlEscape(s.storeNumberStr)}</td>
+          <td>${htmlEscape(s.storeName||'')}</td>
+          <td>${htmlEscape(s.address||'')}, ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</td>
+          <td>${htmlEscape(s.coverageType||'')}</td>
+          <td style="text-align:right">${s.__d.toFixed(1)}</td>
+          <td>${htmlEscape(s.areaManager||'')}</td>
+          <td>${htmlEscape(s.regionalManager||'')}</td>
+        </tr>
+      `).join('');
+
+    const win = window.open('', '_blank');
+    win.document.write(`
+      <html><head><title>${htmlEscape(spHub.fullName || spHub.name)} — ${r}mi</title>
+      <style>
+        body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px}
+        table{border-collapse:collapse;width:100%}
+        th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
+        th{background:#f3f4f6;text-align:left}
+        td:nth-child(5){text-align:right}
+        h2{margin:0 0 8px}
+        .meta{color:#555;margin-bottom:10px}
+      </style></head><body>
+        <h2>${htmlEscape(spHub.fullName || spHub.name)}</h2>
+        <div class="meta">Radius: <b>${r} mi</b> • Stores: <b>${spRows.length}</b></div>
+        <table>
+          <thead>
+            <tr>
+              <th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>Distance (mi)</th><th>AM</th><th>RM</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <script>window.print()<\\/script>
+      </body></html>
+    `);
+    win.document.close();
+  }
+
+  // ---------- Helpers ----------
+  function id(x){ return document.getElementById(x); }
+  function on(ev,el,fn,capture){ el.addEventListener(ev,fn,capture||false); }
+  function showBusy(v){ if (busy) busy.hidden = !v; }
+  function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function escape(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+  function htmlEscape(s){ return (s ?? "").toString().replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
+  function distMiles(lat1,lng1,lat2,lng2){ const R=3958.8; const toRad=d=>d*Math.PI/180; const dLat=toRad(lat2-lat1); const dLon=toRad(lng2-lng1); const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2; return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); }
+  function coverageCounts(markersArr){ const out={}; markersArr.forEach(m=>{ const s=m?.store; if(!s) return; out[s.coverageType]=(out[s.coverageType]||0)+1; }); return out; }
+  function toggleDropdown(menu){ menu.style.display=menu.style.display==='block'?'none':'block'; }
+  function setMulti(sel,arr){ Array.from(sel.options).forEach(o=>{o.selected=arr.includes(o.value);}); }
+  function rebuildRMOptionsWithCounts(){
+    const prev = new Set(Array.from(rmFilter.selectedOptions).map(o=>o.value));
+    const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
+    const inCov = s => covSel.has('All') || covSel.has(s.coverageType || '');
+    const base = allStores.filter(inCov);
+
+    const by = {};
+    base.forEach(s => { const k = s.regionalManager || ''; if(k) by[k]=(by[k]||0)+1; });
+    const names = Object.keys(by).sort((a,b)=>a.localeCompare(b));
+
+    rmFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
+      `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
+    )].join('');
+
+    const sel = names.filter(n=>prev.has(n));
+    setMulti(rmFilter, sel.length ? sel : ['All']);
+    filterSelect(rmFilter, rmSearch.value);
+  }
+  function rebuildAMOptionsWithCounts(){
+    const prev = new Set(Array.from(amFilter.selectedOptions).map(o=>o.value));
+    const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
+    const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o => o.value));
+
+    const inCov = s => covSel.has('All') || covSel.has(s.coverageType || '');
+    const inRM  = s => rmSel.has('All')  || rmSel.has(s.regionalManager || '');
+    const base  = allStores.filter(s => inCov(s) && inRM(s));
+
+    const by = {};
+    base.forEach(s => { const k = s.areaManager || ''; if(k) by[k]=(by[k]||0)+1; });
+    const names = Object.keys(by).sort((a,b)=>a.localeCompare(b));
+
+    amFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
+      `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
+    )].join('');
+
+    const sel = names.filter(n=>prev.has(n));
+    setMulti(amFilter, sel.length ? sel : ['All']);
+    filterSelect(amFilter, amSearch.value);
+  }
+  function filterSelect(selectEl, q){
+    const query = (q||'').toLowerCase();
+    Array.from(selectEl.options).forEach(opt=>{
+      if (opt.value === 'All') { opt.hidden = false; return; }
+      const txt = (opt.textContent||'').toLowerCase();
+      opt.hidden = query && !txt.includes(query);
+    });
+  }
+  function clusterIconByDominantCoverage(cluster){
+    const children = cluster.getAllChildMarkers();
+    const counts = { 'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0 };
+    children.forEach(m=>{ const s = m.store; if(!s) return; counts[s.coverageType] = (counts[s.coverageType]||0) + 1; });
+    const domKey = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'Uncovered';
+    const cls =
+      domKey === 'Premium + Acosta' ? 'marker-pa' :
+      domKey === 'Premium Only'     ? 'marker-p'  :
+      domKey === 'Acosta Only'      ? 'marker-a'  : 'marker-u';
+    const total = children.length;
+    const html = `<div><span>${total}</span></div>`;
+    return L.divIcon({ html, className: `marker-cluster ${cls}`, iconSize: L.point(40, 40) });
+  }
+  function slug(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
+  function storesWithin(center, r, useFiltered=true){
+    const [lat, lng] = Array.isArray(center) ? center : [center.lat, center.lng];
+    const src = useFiltered && filteredStores.length ? filteredStores : allStores;
+    return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
+  }
+  function buildHubFilterOptions(){
+    let hubsAll = [];
+    if (showConfirmed.checked) hubsAll = hubsAll.concat(premiumConfirmed);
+    if (showPending.checked)   hubsAll = hubsAll.concat(premiumPending);
+
+    const seen = new Set();
+    hubsAll = hubsAll.filter(h => h && !seen.has(h.id) && seen.add(h.id));
+
+    const r = Number(radius.value) || DEFAULT_RADIUS;
+
+    const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
+    const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o => o.value));
+    const amSel  = new Set(Array.from(amFilter.selectedOptions).map(o => o.value));
+    const covOK = s => covSel.has('All') || covSel.has(s.coverageType || '');
+    const rmOK  = s => rmSel.has('All')  || rmSel.has(s.regionalManager || '');
+    const amOK  = s => amSel.has('All')  || amSel.has(s.areaManager || '');
+    const subset = allStores.filter(s => covOK(s) && rmOK(s) && amOK(s));
+
+    const counted = hubsAll.map(h => ({
+      hub: h,
+      n: subset.reduce((acc,s)=> acc + (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r ? 1 : 0), 0)
+    }));
+
+    const prevSel = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
+
+    hubFilter.innerHTML = counted
+      .sort((a,b)=> (hubDisplay(a.hub)||'').localeCompare(hubDisplay(b.hub)||''))
+      .map(({hub:nHub, n}) =>
+        `<option value="${escape(nHub.id)}">${escape(hubDisplay(nHub))} — ${n}</option>`
+      ).join('');
+
+    const keep = counted.map(x => x.hub.id).filter(id => prevSel.has(id));
+    if (keep.length) setMulti(hubFilter, keep);
+
+    filterSelect(hubFilter, hubSearch.value);
+  }
+
+  function uniqSorted(arr){
+    const set = new Set();
+    arr.forEach(v => { const s = (v ?? '').toString().trim(); if (s) set.add(s); });
+    return Array.from(set).sort((a,b)=> a.localeCompare(b));
+  }
+  function normalizeStores(arr){
+    return arr.map(o=>{
+      const s = { ...o };
+      s.storeNumberStr = String(o.storeNumberStr ?? o.Store ?? o.storeNumber ?? o['Store #'] ?? '').trim();
+      s.storeName  = o.storeName ?? o.Name ?? o['Store Name'] ?? 'Walmart';
+      s.address    = o.address ?? o.Address ?? '';
+      s.city       = o.city ?? o.City ?? '';
+      s.state      = o.state ?? o.State ?? '';
+      s.coverageType = o.coverageType ?? o.Coverage_Type ?? o.Covered_By ?? 'Uncovered';
+      s.areaManager   = o.areaManager ?? o.AreaMgr ?? o['Area Mgr'] ?? o['Area Manager'] ?? '';
+      s.regionalManager = o.regionalManager ?? o.RegMgr ?? o['Regional Manager'] ?? '';
+      s.trainerCity  = o.trainerCity ?? o.Assigned_Premium ?? o['Trainer City'] ?? '';
+      s.lat = Number(o.lat ?? o.Lat ?? o.latitude ?? o.Latitude);
+      s.lng = Number(o.lng ?? o.Lon ?? o.Lng ?? o.longitude ?? o.Longitude);
+      return s;
+    }).filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+  }
+
+  // Coverage-aware popup
+  function storePopupHTML(s){
+    const nearestOf = (hubs) => {
+      let best=null, dmin=Infinity;
+      hubs.forEach(h=>{
+        const d = distMiles(s.lat, s.lng, h.coords[0], h.coords[1]);
+        if (d < dmin){ dmin = d; best = h; }
+      });
+      return best ? { hub: best, d: dmin } : null;
+    };
+
+    const np = nearestOf([...premiumConfirmed, ...premiumPending]);
+    const na = nearestOf(acostaHubs);
+
+    const badge = `<span style="padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:${COLORS[s.coverageType]||'#eee'}22">${escape(s.coverageType||'')}</span>`;
+
+    return `
+      <div style="font-size:13px;line-height:1.35;min-width:240px">
+        <div style="font-weight:800;margin-bottom:4px">Store ${escape(s.storeNumberStr)} — ${escape(s.storeName||'')}</div>
+        <div>${escape(s.address||'')}</div>
+        <div>${escape(s.city||'')}, ${escape(s.state||'')}</div>
+        <div style="margin:6px 0">${badge}</div>
+        <div><b>Trainer City:</b> ${escape(s.trainerCity||'')}</div>
+        <div><b>Area Manager:</b> ${escape(s.areaManager||'')}</div>
+        <div><b>Regional Manager:</b> ${escape(s.regionalManager||'')}</div>
+        ${np ? `<div style="margin-top:6px"><b>Nearest Premium:</b> ${escape(hubDisplay(np.hub))} • ${np.d.toFixed(1)} mi</div>` : ''}
+        ${na ? `<div><b>Nearest Acosta:</b> ${escape(na.hub.label || na.hub.fullName || na.hub.name)} • ${na.d.toFixed(1)} mi</div>` : ''}
+        <div style="color:var(--muted);margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
+        <div style="margin-top:6px">
+          <b>Maps:</b>
+          <a target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(s.lat+','+s.lng)}">Google</a>
+          •
+          <a target="_blank" rel="noopener" href="http://maps.apple.com/?ll=${encodeURIComponent(s.lat+','+s.lng)}">Apple</a>
+        </div>
+      </div>`;
+  }
+
+  function ensureMarkerForStore(store){
+    let m = markerByStore.get(store.storeNumberStr);
+    if (!m){
+      m = L.circleMarker([store.lat, store.lng], {
+        radius: 5, weight: 1, fillOpacity: .9, color: '#fff',
+        fillColor: COLORS[store.coverageType] || '#999'
+      });
+      m.store = store;
+      m.bindPopup(storePopupHTML(store));
+      markerByStore.set(store.storeNumberStr, m);
+      if (tgCluster.checked) markers.addLayer(m);
+      else {
+        let g = plainMarkers.getLayers()[0];
+        if (!g){ g = L.layerGroup().addTo(plainMarkers); }
+        g.addLayer(m);
+      }
+    }
+    return m;
+  }
+  function openStorePopup(store){
+    const m = ensureMarkerForStore(store);
+    const padRight = sidepanel.classList.contains('show') ? 420 : 20;
+    const pan = () => map.panInside(m.getLatLng(), { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] });
+    const open = () => {
+      if (!m.getPopup()) m.bindPopup(storePopupHTML(store));
+      m.openPopup();
+    };
+    if (tgCluster.checked) {
+      markers.zoomToShowLayer(m, () => {
+        pan();
+        requestAnimationFrame(() => requestAnimationFrame(open));
+      });
+    } else {
+      pan();
+      requestAnimationFrame(open);
     }
   }
-  out.push(cur);
-  return out;
-}
 
-// ===== CHANGELOG =====
-function pushChangelog(entry){
-  try{
-    var arr=JSON.parse(localStorage.getItem(LS_CHANGELOG)||'[]');
-    arr.unshift(entry);
-    localStorage.setItem(LS_CHANGELOG, JSON.stringify(arr.slice(0,200)));
-  }catch(e){}
-}
-function renderChangelog(){
-  var arr=JSON.parse(localStorage.getItem(LS_CHANGELOG)||'[]');
-  id('changelog').textContent = JSON.stringify(arr, null, 2);
-}
-
-// ===== LINKS =====
-function copyLinkToHub(h){
-  var r=num(radius.value)||DEFAULT_RADIUS;
-  var snap=snapshotState(); snap.openHub=h.id; snap.pins=pinnedHubs.map(function(x){return x.id;});
-  var payload = btoa(unescape(encodeURIComponent(JSON.stringify(snap))));
-  var url = location.origin + location.pathname + '#snap='+payload;
-  navigator.clipboard.writeText(url).then(function(){ toastMsg('Link copied to clipboard'); });
-}
-
-// ===== RESET =====
-function resetAll(){
-  // toggles
-  showConfirmed.checked=true; showPending.checked=true; showAcosta.checked=false;
-  tgHeat.checked=false; clearHeat();
-  tgRings.checked=false; tgOverlap.checked=false; tgCompare.checked=false; compareMode=false; tgWithin.checked=false; tgCluster.checked=true;
-  // radius
-  radius.value=DEFAULT_RADIUS; radiusLbl.textContent=DEFAULT_RADIUS;
-  // filters
-  setMultiSelect(covFilter, ['All']); setMultiSelect(rmFilter, ['All']); setMultiSelect(amFilter, ['All']); buildHubFilterOptions(); setMultiSelect(hubFilter, ['All']);
-  // search
-  searchBox.value=''; hideResults(); clearTarget();
-  // view
-  map.setView(HOME_VIEW.center, HOME_VIEW.zoom);
-  // sidepanel
-  hideSidepanel();
-  pinnedHubs=[]; highlightLayer.clearLayers(); ringLayer.clearLayers();
-  recomputeCoverage();
-}
-function hideSidepanel(){ sidepanel.classList.remove('show'); spHub=null; spRows=[]; spRowsEl.innerHTML=''; }
-
-// ===== APPLY SNAPSHOT FROM URL (optional) =====
-(function(){
-  if(location.hash.indexOf('#snap=')===0){
-    try{
-      var payload=location.hash.slice(6);
-      var json=decodeURIComponent(escape(atob(payload)));
-      var snap=JSON.parse(json);
-      applySnapshot(snap);
-      setTimeout(function(){ location.hash=''; }, 100);
-    }catch(e){}
+  // ---------- Views / Snapshots / State ----------
+  function saveState(){
+    const state = {
+      map: { center: map.getCenter(), zoom: map.getZoom() },
+      toggles: {
+        heat: tgHeat.checked, rings: tgRings.checked, overlap: tgOverlap.checked,
+        compare: tgCompare.checked, within: tgWithin.checked, cluster: tgCluster.checked
+      },
+      filters: {
+        cov: Array.from(covFilter.selectedOptions).map(o=>o.value),
+        rm: Array.from(rmFilter.selectedOptions).map(o=>o.value),
+        am: Array.from(amFilter.selectedOptions).map(o=>o.value),
+        hub: Array.from(hubFilter.selectedOptions).map(o=>o.value)
+      },
+      radius: Number(radius.value)||DEFAULT_RADIUS,
+      showConfirmed: showConfirmed.checked,
+      showPending:   showPending.checked,
+      showAcosta:    showAcosta.checked
+    };
+    localStorage.setItem(LS_STATE, JSON.stringify(state));
   }
-})();
+  function tryLoadLocal(){
+    const raw = localStorage.getItem(LS_STATE);
+    if(!raw) return false;
+    try{
+      const st = JSON.parse(raw);
+      if (st.map) map.setView([st.map.center.lat, st.map.center.lng], st.map.zoom);
+      if (st.toggles){
+        tgHeat.checked = !!st.toggles.heat;
+        tgRings.checked= !!st.toggles.rings;
+        tgOverlap.checked=!!st.toggles.overlap;
+        tgCompare.checked=!!st.toggles.compare; compareMode = tgCompare.checked;
+        tgWithin.checked =!!st.toggles.within;
+        tgCluster.checked= !!st.toggles.cluster;
+      }
+      if (st.filters){
+        setMulti(covFilter, st.filters.cov||['All']);
+        setMulti(rmFilter,  st.filters.rm||['All']); cascadeAM();
+        setMulti(amFilter,  st.filters.am||['All']);
+        setMulti(hubFilter, st.filters.hub||[]);
+      }
+      if (st.radius){ radius.value = st.radius; radiusLbl.textContent = st.radius; }
+      if ('showConfirmed' in st) showConfirmed.checked = !!st.showConfirmed;
+      if ('showPending'   in st) showPending.checked   = !!st.showPending;
+      if ('showAcosta'    in st) showAcosta.checked    = !!st.showAcosta;
+      return true;
+    }catch(e){ console.warn('Bad saved state', e); return false; }
+  }
 
-// ===== END IIFE =====
-})(); 
+  function saveCurrentView(){
+    const name = prompt('Name this view:');
+    if(!name) return;
+    const views = JSON.parse(localStorage.getItem(LS_VIEWS) || '[]');
+    const state = JSON.parse(localStorage.getItem(LS_STATE) || '{}');
+    const b = map.getBounds();
+    const bounds = { south:b.getSouth(), west:b.getWest(), north:b.getNorth(), east:b.getEast() };
+    views.push({ id: Date.now(), name, state, bounds });
+    localStorage.setItem(LS_VIEWS, JSON.stringify(views));
+    rebuildViewsMenu();
+  }
+
+  function drawViewThumb(canvas, v){
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    const US = { west:-125, east:-66, south:24, north:50 };
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#f3f4f6'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle = '#d1d5db'; ctx.strokeRect(0.5,0.5,W-1,H-1);
+
+    function pxFromLng(l){ return ( (l - US.west) / (US.east - US.west) ) * W; }
+    function pxFromLat(a){ return ( 1 - (a - US.south) / (US.north - US.south) ) * H; }
+
+    const b = v.bounds || (()=>{
+      const c = v.state?.map?.center || {lat:39.5, lng:-98.35}; const z = v.state?.map?.zoom || 5;
+      const spanLon = 360 / (2**z) * 2; const spanLat = spanLon * 0.6;
+      return { south:c.lat-spanLat/2, north:c.lat+spanLat/2, west:c.lng-spanLon/2, east:c.lng+spanLon/2 };
+    })();
+
+    const x1 = Math.max(0, Math.min(W, pxFromLng(b.west)));
+    const x2 = Math.max(0, Math.min(W, pxFromLng(b.east)));
+    const y1 = Math.max(0, Math.min(H, pxFromLat(b.north)));
+    const y2 = Math.max(0, Math.min(H, pxFromLat(b.south)));
+
+    ctx.fillStyle = '#dbeafe';
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 1;
+    ctx.fillRect(Math.min(x1,x2), Math.min(y1,y2), Math.abs(x2-x1), Math.abs(y2-y1));
+    ctx.strokeRect(Math.min(x1,x2)+0.5, Math.min(y1,y2)+0.5, Math.abs(x2-x1)-1, Math.abs(y2-y1)-1);
+
+    const cLat = (b.south + b.north)/2, cLng = (b.west + b.east)/2;
+    ctx.beginPath();
+    ctx.arc(pxFromLng(cLng), pxFromLat(cLat), 2, 0, Math.PI*2);
+    ctx.fillStyle = '#111'; ctx.fill();
+  }
+
+  function rebuildViewsMenu(){
+    const views = JSON.parse(localStorage.getItem(LS_VIEWS) || '[]');
+    const viewList = id('viewList');
+
+    if (!views.length){
+      viewList.innerHTML = '<div style="color:var(--muted);padding:6px">No saved views yet.</div>';
+      return;
+    }
+
+    viewList.innerHTML = views.map(v=>`
+      <div class="view-row">
+        <canvas class="view-thumb" width="96" height="64" data-id="${v.id}"></canvas>
+        <button class="btn" data-id="${v.id}" style="flex:1;text-align:left">${escape(v.name)}</button>
+        <button class="btn link del" data-id="${v.id}" title="Delete">Delete</button>
+      </div>
+    `).join('');
+
+    Array.from(viewList.querySelectorAll('button.btn[data-id]')).forEach(b=>{
+      b.addEventListener('click', ()=>{
+        if (b.classList.contains('del')) return;
+        const idv = Number(b.getAttribute('data-id'));
+        const vs = JSON.parse(localStorage.getItem(LS_VIEWS) || '[]');
+        const v = vs.find(x=>x.id===idv);
+        if (!v) return;
+        localStorage.setItem(LS_STATE, JSON.stringify(v.state));
+        tryLoadLocal();
+        recomputeCoverage();
+        runFilter(); renderChips(); renderHubs(); updateRings(); fitToResults();
+      });
+    });
+    Array.from(viewList.querySelectorAll('button.del')).forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const idv = Number(b.getAttribute('data-id'));
+        const vs = JSON.parse(localStorage.getItem(LS_VIEWS) || '[]').filter(x=>x.id!==idv);
+        localStorage.setItem(LS_VIEWS, JSON.stringify(vs));
+        rebuildViewsMenu();
+      });
+    });
+
+    const canvases = Array.from(viewList.querySelectorAll('canvas.view-thumb'));
+    canvases.forEach(cv=>{
+      const idv = Number(cv.getAttribute('data-id'));
+      const v = views.find(x=>x.id===idv);
+      drawViewThumb(cv, v);
+    });
+  }
+
+  function saveSnapshot(){
+    const st = JSON.parse(localStorage.getItem(LS_STATE) || '{}');
+    const hash = btoa(unescape(encodeURIComponent(JSON.stringify(st))));
+    const url = `${location.origin}${location.pathname}#${hash}`;
+    navigator.clipboard?.writeText(url);
+    alert('Snapshot link copied to clipboard.');
+  }
+  id('snapBtn').onclick = saveSnapshot;
+
+  // Chips with counts
+  function renderChips(){
+    const chips = [];
+    const cov = Array.from(covFilter.selectedOptions).map(o=>o.value).filter(v=>v!=='All');
+    const rm  = Array.from(rmFilter.selectedOptions).map(o=>o.value).filter(v=>v!=='All');
+    const am  = Array.from(amFilter.selectedOptions).map(o=>o.value).filter(v=>v!=='All');
+    const hb  = Array.from(hubFilter.selectedOptions).map(o=>o.textContent);
+
+    if (cov.length) chips.push(`<span class="chip">Coverage: <b>${cov.length}</b> selected</span>`);
+    if (rm.length)  chips.push(`<span class="chip">RM: <b>${rm.length}</b> selected</span>`);
+    if (am.length)  chips.push(`<span class="chip">AM: <b>${am.length}</b> selected</span>`);
+    if (hb.length)  chips.push(`<span class="chip">Hubs: <b>${hb.length}</b> selected</span>`);
+    if (tgWithin.checked) chips.push(`<span class="chip">Within hubs</span>`);
+
+    id('activeChips').innerHTML = chips.join('') || '<span class="muted" style="margin-left:10px">No active chips</span>';
+  }
+
+  function resetAll(){
+    tgHeat.checked = false; clearHeat();
+    tgRings.checked = false; updateRings();
+    tgOverlap.checked = false; highlightLayer.clearLayers();
+    tgCompare.checked = false; compareMode=false; pinnedHubs=[]; refreshComparePanel();
+    tgWithin.checked = false;
+    tgCluster.checked = true;
+    showConfirmed.checked = true; showPending.checked = true; showAcosta.checked = true;
+    radius.value = DEFAULT_RADIUS; radiusLbl.textContent = DEFAULT_RADIUS;
+    setMulti(covFilter, ['All']);
+    setMulti(rmFilter, ['All']); setMulti(amFilter, ['All']);
+    setMulti(hubFilter, []);
+    const searchBox = id('searchBox');
+    searchBox.value=''; localStorage.removeItem(LS_LAST_QUERY); hideResults(); clearTarget();
+    map.setView(HOME_VIEW.center, HOME_VIEW.zoom);
+    recomputeCoverage();
+  }
+
+  function handleHubVisibilityChange(){
+    lastFilterChanged = 'visibility';
+    renderHubs();
+    updateRings();
+    if (tgOverlap.checked) drawOverlap();
+    if (tgWithin.checked){ runFilter(); fitToResults(); } else { runFilter(); }
+    if (spHub && !visibleHubs().some(h => h.id === spHub.id)) hideSidepanel();
+    refreshComparePanel();
+    saveState();
+  }
+
+  // ---------- Sandbox ----------
+  let sandboxOpen = false;
+  let sandboxCircle = null;
+  let sandboxMarker = null;
+
+  id('sandboxBtn').addEventListener('click', ()=>{
+    sandboxOpen = !sandboxOpen;
+    const pn = id('sandboxPanel');
+    if (!pn){
+      const d = document.createElement('div');
+      d.className='sandbox'; d.id='sandboxPanel';
+      d.innerHTML = `<h4>New-hub Sandbox</h4>
+        <div>Click the map to position the blue ring, <b>or</b> enter “lat,lng” below. Adjust radius as needed.</div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <input id="sandboxAddr" type="text" placeholder="e.g. 33.52,-86.80" style="flex:1;min-width:260px;border:1px solid var(--border);border-radius:8px;padding:6px 8px"/>
+          <button id="sandboxGeocode" class="btn" type="button">Use coords</button>
+        </div>
+        <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
+        <div style="margin-top:10px"><b>Radius:</b> <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}"> <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi</div>
+        <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
+        <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>`;
+      document.querySelector('.mapwrap').appendChild(d);
+    }
+    id('sandboxPanel').style.display = sandboxOpen ? 'block' : 'none';
+    if (!sandboxOpen){
+      if (sandboxCircle) ringLayer.removeLayer(sandboxCircle), sandboxCircle=null;
+      if (sandboxMarker) highlightLayer.removeLayer(sandboxMarker), sandboxMarker=null;
+      return;
+    }
+    const c = map.getCenter();
+    placeSandbox([c.lat, c.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+
+    id('sandboxR').addEventListener('input', ()=>{
+      id('sandboxRlbl').textContent = id('sandboxR').value;
+      refreshSandbox();
+    });
+
+    id('sandboxGeocode').addEventListener('click', ()=>{
+      const s = id('sandboxAddr').value.trim();
+      const out = id('sandboxGeoMsg');
+      const m = s.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+      if (!m){ out.textContent='Enter coordinates like "33.52,-86.80".'; return; }
+      const lat = parseFloat(m[1]), lng = parseFloat(m[2]);
+      if (lat<-90||lat>90||lng<-180||lng>180){ out.textContent='Out of range.'; return; }
+      out.textContent='';
+      placeSandbox([lat, lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+      map.panInside([lat, lng], { paddingTopLeft:[20,20], paddingBottomRight:[20,20] });
+    });
+
+    map.on('click', (e)=>{
+      if (!sandboxOpen) return;
+      placeSandbox([e.latlng.lat, e.latlng.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+    });
+  });
+
+  function placeSandbox(center, r){
+    if (sandboxCircle){ ringLayer.removeLayer(sandboxCircle); sandboxCircle=null; }
+    sandboxCircle = L.circle(center, { radius: r*1609, color: getCSS('--blue'), weight: 2, fill:false, opacity:.6 }).addTo(ringLayer);
+    if (sandboxMarker){ highlightLayer.removeLayer(sandboxMarker); sandboxMarker=null; }
+    const icon = L.divIcon({className:'', html:'<div style="width:18px;height:18px;border-radius:50%;background:'+getCSS('--blue')+';border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>', iconSize:[18,18], iconAnchor:[9,9]});
+    sandboxMarker = L.marker(center, { icon }).addTo(highlightLayer);
+    refreshSandbox();
+  }
+
+  function refreshSandbox(){
+    if (!sandboxOpen) return;
+    const r = Number(id('sandboxR')?.value)||DEFAULT_RADIUS;
+    const c = sandboxMarker?.getLatLng?.();
+    if (!c) return;
+    if (sandboxCircle){ sandboxCircle.setLatLng(c); sandboxCircle.setRadius(r*1609); }
+    const list = storesWithin([c.lat,c.lng], r, /*useFiltered*/false);
+    const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
+    list.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0)+1; });
+    id('sandboxStats').innerHTML = `
+      <div><b>${list.length}</b> stores within <b>${r} mi</b></div>
+      <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
+      </div>`;
+    id('sandboxListBtn').onclick = ()=>{
+      const rows = list
+        .map(s => ({...s, __d: distMiles(c.lat,c.lng,s.lat,s.lng)}))
+        .sort((a,b)=>a.__d-b.__d)
+        .map(s=>`
+          <tr>
+            <td>#${htmlEscape(s.storeNumberStr)}</td>
+            <td>${htmlEscape(s.storeName||'')}</td>
+            <td>${htmlEscape(s.address||'')}, ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</td>
+            <td>${htmlEscape(s.coverageType||'')}</td>
+            <td style="text-align:right">${s.__d.toFixed(1)}</td>
+            <td>${htmlEscape(s.areaManager||'')}</td>
+            <td>${htmlEscape(s.regionalManager||'')}</td>
+          </tr>`).join('');
+      const win = window.open('', '_blank');
+      win.document.write(`
+        <html><head><title>Sandbox — ${r}mi</title>
+        <style>
+          body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px}
+          table{border-collapse:collapse;width:100%}
+          th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
+          th{background:#f3f4f6;text-align:left}
+          td:nth-child(5){text-align:right}
+          h2{margin:0 0 8px}
+          .meta{color:#555;margin-bottom:10px}
+        </style></head><body>
+          <h2>New-hub Sandbox</h2>
+          <div class="meta">Center: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)} • Radius: <b>${r} mi</b> • Stores: <b>${list.length}</b></div>
+          <table>
+            <thead><tr><th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>Distance (mi)</th><th>AM</th><th>RM</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <script>window.print()<\\/script>
+        </body></html>`);
+      win.document.close();
+    };
+  }
+
+  // ---------- Heatmap ----------
+  function updateHeat(){
+    const pts = filteredStores.map(s => [s.lat, s.lng, 0.6]);
+    if (!heatLayerHolder.layer){
+      heatLayerHolder.layer = L.heatLayer(pts, { radius: 25, blur: 18 });
+      map.addLayer(heatLayerHolder.layer);
+    }else{
+      heatLayerHolder.layer.setLatLngs(pts);
+    }
+  }
+  function clearHeat(){
+    if (heatLayerHolder.layer){
+      map.removeLayer(heatLayerHolder.layer);
+      heatLayerHolder.layer = null;
+    }
+  }
+
+  // ---------- Cascade AM by RM ----------
+  function populateRM(stores){
+    const set = new Set();
+    stores.forEach(s=>{ if (s.regionalManager) set.add(s.regionalManager); });
+    const arr = Array.from(set).sort((a,b)=>a.localeCompare(b));
+    rmFilter.innerHTML = ['<option value="All" selected>All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
+  }
+  function populateAM(stores){
+    const set = new Set();
+    stores.forEach(s=>{ if (s.areaManager) set.add(s.areaManager); });
+    const arr = Array.from(set).sort((a,b)=>a.localeCompare(b));
+    amFilter.innerHTML = ['<option value="All" selected>All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
+  }
+  function cascadeAM(){
+    const selectedRM = Array.from(rmFilter.selectedOptions).map(o=>o.value);
+    const allowAllRM = selectedRM.includes('All') || selectedRM.length===0;
+    const ams = new Set();
+    allStores.forEach(s=>{
+      if (allowAllRM || selectedRM.includes(s.regionalManager||'')){
+        if (s.areaManager) ams.add(s.areaManager);
+      }
+    });
+    const arr = Array.from(ams).sort((a,b)=>a.localeCompare(b));
+    const prevSel = new Set(Array.from(amFilter.selectedOptions).map(o=>o.value));
+    amFilter.innerHTML = ['<option value="All">All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
+    const toSelect = arr.filter(v=>prevSel.has(v));
+    if (toSelect.length){ setMulti(amFilter, toSelect); } else { setMulti(amFilter, ['All']); }
+    filterSelect(amFilter, amSearch.value);
+  }
+
+  // ---------- Fit to results ----------
+  function fitToResults(){
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const b = L.latLngBounds();
+    let added = false;
+
+    if (tgWithin.checked){
+      visibleHubs().forEach(h=>{
+        const lat = h.coords[0], lng = h.coords[1];
+        const dLat = (r/69);
+        const dLng = (r/(Math.cos(lat*Math.PI/180)*69));
+        b.extend([lat-dLat, lng-dLng]);
+        b.extend([lat+dLat, lng+dLng]);
+        added = true;
+      });
+    }
+
+    filteredStores.forEach(s=>{ b.extend([s.lat,s.lng]); added = true; });
+
+    if (!added){ visibleHubs().forEach(h=> b.extend(h.coords)); }
+
+    if (b.isValid()){
+      map.fitBounds(b.pad(0.12), { animate:true });
+    } else {
+      map.setView(HOME_VIEW.center, HOME_VIEW.zoom);
+    }
+  }
+
+  // ---------- Snapshot loader ----------
+  function tryLoadSnapshot(){
+    if (!location.hash || location.hash.length < 2) return false;
+    try{
+      const raw = decodeURIComponent(window.escape(atob(location.hash.slice(1))));
+      const st = JSON.parse(raw);
+      if (st.openHubId)    PENDING_OPEN_HUB_ID = st.openHubId;
+      if (Array.isArray(st.pinnedHubIds)) PENDING_PIN_IDS = st.pinnedHubIds.slice();
+      localStorage.setItem(LS_STATE, JSON.stringify(st));
+      tryLoadLocal();
+      history.replaceState(null, '', location.pathname + location.search);
+      return true;
+    }catch(e){
+      console.warn('Bad snapshot in hash', e);
+      return false;
+    }
+  }
+
+  // Ensure first search selection opens popup even if cluster hasn't rendered yet
+  const originalOpenStorePopup = openStorePopup;
+  openStorePopup = function(store){
+    requestAnimationFrame(()=> originalOpenStorePopup(store));
+  };
+
+  // Empty-state actions
+  id('clearLastFilter').onclick = ()=>{
+    switch (lastFilterChanged){
+      case 'covFilter': setMulti(covFilter, ['All']); break;
+      case 'rmFilter':  setMulti(rmFilter,  ['All']); cascadeAM(); break;
+      case 'amFilter':  setMulti(amFilter,  ['All']); break;
+      case 'hubFilter': setMulti(hubFilter, []); break;
+      case 'tgWithin':  tgWithin.checked = false; break;
+      case 'visibility': showConfirmed.checked = true; showPending.checked = true; showAcosta.checked = true; break;
+      default: resetAll(); break;
+    }
+    runFilter(); renderChips(); saveState();
+  };
+  id('emptyReset').onclick = ()=>{ resetAll(); runFilter(); renderChips(); saveState(); };
+
+  // ---------- Compare / Venn metrics ----------
+  function refreshComparePanel(){
+    const panel = id('comparePanel');
+    if (!compareMode || pinnedHubs.length !== 2){ panel.classList.remove('show'); return; }
+    const [A,B] = pinnedHubs;
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+
+    const groups = { Aonly:[], Bonly:[], Both:[] };
+    allStores.forEach(s=>{
+      const inA = distMiles(s.lat,s.lng,A.coords[0],A.coords[1]) <= r;
+      const inB = distMiles(s.lat,s.lng,B.coords[0],B.coords[1]) <= r;
+      if (inA && !inB) groups.Aonly.push(s);
+      else if (inB && !inA) groups.Bonly.push(s);
+      else if (inA && inB) groups.Both.push(s);
+    });
+    const total = groups.Aonly.length + groups.Bonly.length + groups.Both.length || 1;
+    const pct = n => Math.round(n*100/total);
+
+    id('compareBody').innerHTML = `
+      <div class="compare-grid" title="Union of stores within ${r}mi of either hub">
+        <div><b>${escape(hubDisplay(A))}</b> only</div><div><b>${groups.Aonly.length}</b> (${pct(groups.Aonly.length)}%)</div>
+        <div><b>${escape(hubDisplay(B))}</b> only</div><div><b>${groups.Bonly.length}</b> (${pct(groups.Bonly.length)}%)</div>
+        <div><b>Overlap</b></div><div><b>${groups.Both.length}</b> (${pct(groups.Both.length)}%)</div>
+      </div>
+    `;
+    id('cmpExport').onclick = ()=> exportCompareCsv(A,B,groups,r);
+    id('cmpClear').onclick  = ()=> { pinnedHubs=[]; panel.classList.remove('show'); drawOverlap(); tgCompare.checked=false; compareMode=false; saveState(); };
+    panel.classList.add('show');
+  }
+  function exportCompareCsv(A,B,groups,r){
+    const rows = [['Group','Hub A','Hub B','Radius(mi)','Store #','Name','Address','City','State','Coverage','Area Manager','Regional Manager','Lat','Lng']];
+    const push = (tag,list)=> list.forEach(s=> rows.push([tag, hubDisplay(A), hubDisplay(B), r, s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'', s.coverageType||'', s.areaManager||'', s.regionalManager||'', s.lat, s.lng]));
+    push('A-only', groups.Aonly);
+    push('B-only', groups.Bonly);
+    push('Overlap', groups.Both);
+    downloadCsv(rows, `compare_${slug(hubDisplay(A))}_vs_${slug(hubDisplay(B))}_${r}mi_${Date.now()}.csv`);
+  }
+
+  // ---------- Gap finder ----------
+  id('gapBtn').onclick = ()=> id('gapModal').classList.add('show');
+  id('gapClose').onclick = ()=> id('gapModal').classList.remove('show');
+  id('gapRun').onclick = runGapFinder;
+  id('gapExport').onclick = exportGapCsv;
+
+  let lastGapResults = [];
+  function runGapFinder(){
+    const N = Math.max(1, parseInt(id('gapMin').value||'10',10));
+    const M = Math.max(5, parseInt(id('gapMiles').value||'50',10));
+
+    // build city centroids
+    const byCity = new Map();
+    allStores.forEach(s=>{
+      const key = `${(s.city||'').trim()}|${(s.state||'').trim()}`;
+      if (!byCity.has(key)) byCity.set(key,{ city:s.city||'', state:s.state||'', lat:0, lng:0, n:0 });
+      const g = byCity.get(key); g.lat+=s.lat; g.lng+=s.lng; g.n++;
+    });
+    const centroids = Array.from(byCity.values()).map(g=>({ city:g.city, state:g.state, lat:g.lat/g.n, lng:g.lng/g.n }));
+
+    const results = [];
+    centroids.forEach(c=>{
+      const hits = allStores.filter(s => s.coverageType==='Uncovered' && distMiles(c.lat,c.lng,s.lat,s.lng) <= M);
+      if (hits.length >= N){
+        const topRM = mode(hits.map(h=>h.regionalManager||''));
+        const topAM = mode(hits.map(h=>h.areaManager||''));
+        results.push({ city:c.city, state:c.state, lat:c.lat, lng:c.lng, uncov:hits.length, rm:topRM, am:topAM });
+      }
+    });
+
+    results.sort((a,b)=> b.uncov - a.uncov || a.state.localeCompare(b.state) || a.city.localeCompare(b.city));
+    lastGapResults = results;
+
+    const tbl = `
+      <table style="border-collapse:collapse;width:100%;font-size:13px">
+        <thead><tr>
+          <th style="text-align:left;border-bottom:1px solid var(--border);padding:6px">City</th>
+          <th style="text-align:left;border-bottom:1px solid var(--border);padding:6px">State</th>
+          <th style="text-align:right;border-bottom:1px solid var(--border);padding:6px">Uncovered (≤ ${M}mi)</th>
+          <th style="text-align:left;border-bottom:1px solid var(--border);padding:6px">Top RM</th>
+          <th style="text-align:left;border-bottom:1px solid var(--border);padding:6px">Top AM</th>
+          <th style="text-align:left;border-bottom:1px solid var(--border);padding:6px">Zoom</th>
+        </tr></thead>
+        <tbody>
+          ${results.map(r=>`
+            <tr>
+              <td style="padding:6px">${htmlEscape(r.city)}</td>
+              <td style="padding:6px">${htmlEscape(r.state)}</td>
+              <td style="padding:6px;text-align:right"><b>${r.uncov}</b></td>
+              <td style="padding:6px">${htmlEscape(r.rm||'')}</td>
+              <td style="padding:6px">${htmlEscape(r.am||'')}</td>
+              <td style="padding:6px"><button class="btn link gap-zoom" data-lat="${r.lat}" data-lng="${r.lng}">Zoom</button></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+    id('gapResults').innerHTML = tbl;
+
+    Array.from(document.querySelectorAll('.gap-zoom')).forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const lat = parseFloat(b.getAttribute('data-lat'));
+        const lng = parseFloat(b.getAttribute('data-lng'));
+        id('gapModal').classList.remove('show');
+        map.setView([lat,lng], 9);
+      });
+    });
+  }
+  function exportGapCsv(){
+    if (!lastGapResults.length){ alert('Run the gap finder first.'); return; }
+    const rows = [['City','State','Lat','Lng','Uncovered','Top RM','Top AM']];
+    lastGapResults.forEach(r=> rows.push([r.city,r.state,r.lat,r.lng,r.uncov,r.rm||'',r.am||'']));
+    downloadCsv(rows, `gap_finder_${Date.now()}.csv`);
+  }
+  function mode(arr){
+    const by = new Map(); arr.forEach(v=> by.set(v, (by.get(v)||0)+1));
+    let best='', n=0; by.forEach((c,k)=>{ if (c>n || (c===n && String(k).localeCompare(best)<0)){ n=c; best=k; } });
+    return best || '';
+  }
+
+  // ---------- RM/AM rollups ----------
+  id('rollupBtn').onclick = ()=> { id('rollupModal').classList.add('show'); buildRollups('RM'); };
+  id('rollupClose').onclick = ()=> id('rollupModal').classList.remove('show');
+  id('rollByRM').onchange = ()=> buildRollups('RM');
+  id('rollByAM').onchange = ()=> buildRollups('AM');
+  id('rollExport').onclick = exportRollupsCsv;
+
+  let lastRollRows = []; let lastRollKind = 'RM';
+  function buildRollups(kind){
+    lastRollKind = kind;
+    const keyOf = s => kind==='RM' ? (s.regionalManager||'(none)') : (s.areaManager||'(none)');
+    const rowsMap = new Map();
+    allStores.forEach(s=>{
+      const k = keyOf(s);
+      if (!rowsMap.has(k)) rowsMap.set(k, { name:k, pa:0, p:0, a:0, u:0, total:0 });
+      const r = rowsMap.get(k);
+      if (s.coverageType==='Premium + Acosta') r.pa++;
+      else if (s.coverageType==='Premium Only')  r.p++;
+      else if (s.coverageType==='Acosta Only')   r.a++;
+      else r.u++;
+      r.total++;
+    });
+    const rows = Array.from(rowsMap.values()).sort((a,b)=> b.total - a.total || a.name.localeCompare(b.name));
+    lastRollRows = rows;
+
+    const tbl = `
+      <table style="border-collapse:collapse;width:100%;font-size:13px">
+        <thead><tr>
+          <th style="text-align:left;border-bottom:1px solid var(--border);padding:6px">${kind==='RM'?'Regional Manager':'Area Manager'}</th>
+          <th style="text-align:right;border-bottom:1px solid var(--border);padding:6px">P+A</th>
+          <th style="text-align:right;border-bottom:1px solid var(--border);padding:6px">Premium</th>
+          <th style="text-align:right;border-bottom:1px solid var(--border);padding:6px">Acosta</th>
+          <th style="text-align:right;border-bottom:1px solid var(--border);padding:6px">Uncov</th>
+          <th style="text-align:right;border-bottom:1px solid var(--border);padding:6px">Total</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r=>`
+            <tr>
+              <td style="padding:6px">${htmlEscape(r.name)}</td>
+              <td style="padding:6px;text-align:right">${r.pa}</td>
+              <td style="padding:6px;text-align:right">${r.p}</td>
+              <td style="padding:6px;text-align:right">${r.a}</td>
+              <td style="padding:6px;text-align:right">${r.u}</td>
+              <td style="padding:6px;text-align:right"><b>${r.total}</b></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+    id('rollTable').innerHTML = tbl;
+  }
+  function exportRollupsCsv(){
+    if (!lastRollRows.length){ alert('Open rollups first.'); return; }
+    const rows = [[ lastRollKind==='RM'?'Regional Manager':'Area Manager', 'P+A','Premium','Acosta','Uncovered','Total' ]];
+    lastRollRows.forEach(r=> rows.push([r.name, r.pa, r.p, r.a, r.u, r.total]));
+    downloadCsv(rows, `rollups_${lastRollKind}_${Date.now()}.csv`);
+  }
+
+  // ---------- Compare panel update on start ----------
+  refreshComparePanel();
+
+})();
 </script>
 </body>
 </html>
