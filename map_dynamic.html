@@ -2090,7 +2090,7 @@ function buildHubFilterOptions(){
       </div>`;
     id('sandboxListBtn').onclick = ()=>{
       const rows = list
-        .map(s => ({...s, __d: distMiles(c.lat,c.lng,s.lat,s.lng)}))
+        .map(s => ({ ...s, __d: distMiles(c.lat, c.lng, s.lat, s.lng) }))
         .sort((a,b)=>a.__d-b.__d)
         .map(s=>`
           <tr>
@@ -2151,13 +2151,19 @@ function buildHubFilterOptions(){
     const set = new Set();
     stores.forEach(s=>{ if (s.regionalManager) set.add(s.regionalManager); });
     const arr = Array.from(set).sort((a,b)=>a.localeCompare(b));
-    rmFilter.innerHTML = ['<option value="All" selected>All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
+  rmFilter.innerHTML = [
+  '<option value="All" selected>All</option>',
+  ...arr.map(v => `<option>${escape(v)}</option>`)
+].join('');
   }
   function populateAM(stores){
     const set = new Set();
     stores.forEach(s=>{ if (s.areaManager) set.add(s.areaManager); });
     const arr = Array.from(set).sort((a,b)=>a.localeCompare(b));
-    amFilter.innerHTML = ['<option value="All" selected>All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
+   amFilter.innerHTML = [
+  '<option value="All" selected>All</option>',
+  ...arr.map(v => `<option>${escape(v)}</option>`)
+].join('');
   }
   function cascadeAM(){
     const selectedRM = Array.from(rmFilter.selectedOptions).map(o=>o.value);
@@ -2170,7 +2176,10 @@ function buildHubFilterOptions(){
     });
     const arr = Array.from(ams).sort((a,b)=>a.localeCompare(b));
     const prevSel = new Set(Array.from(amFilter.selectedOptions).map(o=>o.value));
-    amFilter.innerHTML = ['<option value="All">All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
+   amFilter.innerHTML = [
+  '<option value="All">All</option>',
+  ...arr.map(v => `<option>${escape(v)}</option>`)
+].join('');
     const toSelect = arr.filter(v=>prevSel.has(v));
     if (toSelect.length){ setMulti(amFilter, toSelect); } else { setMulti(amFilter, ['All']); }
     filterSelect(amFilter, amSearch.value);
