@@ -449,6 +449,8 @@ const PREMIUM_URL = 'premium_trainers_master.json?v=2025-08-19a';
   const heatLayerHolder = { layer: null };
   map.addLayer(markers);
 
+
+
   // UI refs
   const STATUS = id('dataStatus'); const busy = id('busy');
   const showConfirmed = id('showConfirmed');
@@ -587,6 +589,23 @@ showAcosta.checked = false;
     if (id('tgHeat').checked) requestIdleCallback?.(updateHeat) ?? updateHeat();
     saveState();
   });
+// UI refs
+const STATUS = id('dataStatus');
+const showConfirmed = id('showConfirmed');
+const showPending   = id('showPending');
+const showAcosta    = id('showAcosta');
+// ... (other refs)
+
+// --- Help modal wiring (always runs, independent of data loading) ---
+const helpModal = id('helpModal');
+id('helpBtn')  ?.addEventListener('click', () => helpModal?.classList.add('show'));
+id('helpClose')?.addEventListener('click', () => helpModal?.classList.remove('show'));
+
+// ---------- Load data ----------
+showBusy(true); let spinnerFailSafe = setTimeout(()=>showBusy(false), 7000);
+try {
+  // STORES ...
+
 
   // ---------- Load data ----------
   showBusy(true); let spinnerFailSafe = setTimeout(()=>showBusy(false), 7000);
@@ -609,6 +628,7 @@ showAcosta.checked = false;
     STATUS.textContent += `  |  ${allStores.length.toLocaleString()} stores ready`;
 
     populateRM(allStores); populateAM(allStores);
+
 
     // ACOSTA
     try {
@@ -1466,7 +1486,8 @@ mountVirtual(spRowsEl, list, rowH, (s)=>`
     });
     rows.sort((a,b)=> b.count - a.count);
     lastGap = rows.slice();
-
+    
+  
     const html = `
       <table style="border-collapse:collapse;width:100%">
         <thead>
@@ -2115,6 +2136,9 @@ function buildHubFilterOptions(){
             <tbody>${rows}</tbody>
           </table>
           <script>window.print()<\\/script>
+
+
+  
         </body></html>`);
       win.document.close();
     };
@@ -2326,6 +2350,77 @@ function buildHubFilterOptions(){
       coverageWorker.postMessage(payload);
     });
   }
+
+    }
+
+  function refreshSandbox(){
+    if (!sandboxOpen) return;
+    const r = Number(id('sandboxR')?.value)||DEFAULT_RADIUS;
+    const c = sandboxMarker?.getLatLng?.();
+    if (!c) return;
+    if (sandboxCircle){ sandboxCircle.setLatLng(c); sandboxCircle.setRadius(r*1609); }
+    const list = storesWithin([c.lat,c.lng], r);
+    const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
+    list.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0)+1; });
+    id('sandboxStats').innerHTML = `
+      <div><b>${list.length}</b> stores within <b>${r} mi</b></div>
+      <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
+        <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
+      </div>`;
+    id('sandboxListBtn').onclick = ()=>{
+      const rows = list
+        .map(s => ({...s, __d: distMiles(c.lat,c.lng,s.lat,s.lng)}))
+        .sort((a,b)=>a.__d-b.__d)
+        .map(s=>`
+          <tr>
+            <td>#${htmlEscape(s.storeNumberStr)}</td>
+            <td>${htmlEscape(s.storeName||'')}</td>
+            <td>${htmlEscape(s.address||'')}, ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</td>
+            <td>${htmlEscape(s.coverageType||'')}</td>
+            <td style="text-align:right">${s.__d.toFixed(1)}</td>
+            <td>${htmlEscape(s.areaManager||'')}</td>
+            <td>${htmlEscape(s.regionalManager||'')}</td>
+          </tr>`).join('');
+      const win = window.open('', '_blank');
+      win.document.write(`
+        <html><head><title>Sandbox — ${r}mi</title>
+        <style>
+          body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px}
+          table{border-collapse:collapse;width:100%}
+          th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
+          th{background:#f3f4f6;text-align:left}
+          td:nth-child(5){text-align:right}
+          h2{margin:0 0 8px}
+          .meta{color:#555;margin-bottom:10px}
+        </style></head><body>
+          <h2>New-hub Sandbox</h2>
+          <div class="meta">Center: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)} • Radius: <b>${r} mi</b> • Stores: <b>${list.length}</b></div>
+          <table>
+            <thead><tr><th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>Distance (mi)</th><th>AM</th><th>RM</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <script>window.print()<\\/script>
+
+
+
+  
+        </body></html>`);
+      win.document.close();
+    };
+  }
+
+  // ---------- Heatmap ----------
+  function updateHeat(){
+    const pts = filteredStores.map(s => [s.lat, s.lng, 0.6]);
+    if (!heatLayerHolder.layer){
+      heatLayerHolder.layer = L.heatLayer(pts, { radius: 25, blur: 18 });
+      map.addLayer(heatLayerHolder.layer);
+    }else{
+      heatLayerHolder.layer.setLatLngs(pts);
+    }
 
 })();
 </script>
