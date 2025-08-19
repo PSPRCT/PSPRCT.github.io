@@ -490,36 +490,27 @@ let spHub = null; let spRows = []; let spFilter = '';
   showPending.onchange   = handleHubVisibilityChange;
   showAcosta.onchange    = handleHubVisibilityChange;
 
-  on('input', radius,   ()=>{
-    radiusLbl.textContent = radius.value;
-    recomputeCoverage();
-    debouncedRun();
-    updateRings();
-    buildHubFilterOptions();
-
-    if (tgOverlap.checked) drawOverlap();
-    if (sandboxMarker) refreshSandbox();
-    if (spHub) openSidepanel(spHub);
-    refreshComparePanel();
-    saveState();
-  });
-
-  on('input', covSearch, ()=> filterSelect(covFilter, covSearch.value));
-  on('input', rmSearch,  ()=> filterSelect(rmFilter,  rmSearch.value));
-  on('input', amSearch,  ()=> filterSelect(amFilter,  amSearch.value));
-  on('input', hubSearch, ()=> filterSelect(hubFilter, hubSearch.value));
-  on('input', radius,   ()=>{
+on('input', radius, ()=>{
   radiusLbl.textContent = radius.value;
   recomputeCoverage();
-  debouncedRun();              // already there
-  debouncedFitToResults();     // ← NEW: only fit after user pauses
+  debouncedRun();
+  debouncedFitToResults();   // auto-fit after user pauses
   updateRings();
+  buildHubFilterOptions();
 
   if (tgOverlap.checked) drawOverlap();
   if (sandboxMarker) refreshSandbox();
   if (spHub) openSidepanel(spHub);
   refreshComparePanel();
   saveState();
+});
+
+
+  on('input', covSearch, ()=> filterSelect(covFilter, covSearch.value));
+  on('input', rmSearch,  ()=> filterSelect(rmFilter,  rmSearch.value));
+  on('input', amSearch,  ()=> filterSelect(amFilter,  amSearch.value));
+  on('input', hubSearch, ()=> filterSelect(hubFilter, hubSearch.value));
+  
 });
 document.querySelectorAll('.sp-quick .btn[data-r]').forEach(b=>{
   b.addEventListener('click', ()=>{
@@ -578,12 +569,6 @@ on('change', covFilter, ()=>{ lastFilterChanged='covFilter'; runFilter(); fitToR
   spPrint.onclick  = ()=>{ printSidepanelList();  if(AUTO_RESET()){ resetAll(); runFilter(); renderChips(); } };
   spPinBtn.onclick = ()=> togglePinFromPanel();
   
-  document.querySelectorAll('.sp-quick .btn[data-r]').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      radius.value = b.dataset.r; radiusLbl.textContent=b.dataset.r;
-      recomputeCoverage(); runFilter(); updateRings(); if (spHub) openSidepanel(spHub); refreshComparePanel(); saveState();
-    });
-  });
 
   // Map events
   markers.on('clustermouseover', (e)=>{
@@ -1125,7 +1110,7 @@ on('change', covFilter, ()=>{ lastFilterChanged='covFilter'; runFilter(); fitToR
     filteredStores = allStores.filter(storeFilter);
 
    const ms = filteredStores
-    .filter(s => (s.coverageType || '') !== 'Uncovered')   // ⟵ hide Uncovered markers
+ 
     .map(s=>{
       const m = L.circleMarker([s.lat,s.lng], {
         radius:5, weight:1, fillOpacity:.9, color:'#fff',
