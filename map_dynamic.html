@@ -24,6 +24,11 @@
   .searchbox input{width:100%;border:1px solid #d0d7de;border-radius:10px;padding:10px 12px 10px 72px;font-size:14px;background:var(--bg);color:var(--fg)}
   .badge-left{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:800;letter-spacing:.3px;background:#eef6ff;color:#0b5bd3;border:1px solid #cfe6ff;border-radius:999px;padding:3px 8px;display:none}
   .badge-left.show{display:inline-block}
+  /* keep clicks going to the input */
+.badge-left{ pointer-events:none; }
+/* leave a small default pad when badge hidden */
+.searchbox input{ padding-left: 18px; }
+
   .results{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--panel);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 24px rgba(0,0,0,.18);display:none;z-index:20;max-height:360px;overflow:auto}
   .results.show{display:block}
   .res{display:flex;gap:10px;padding:10px;cursor:pointer;align-items:flex-start}
@@ -984,6 +989,23 @@
       }
     });
   }
+  function adjustSearchPadding(){
+  // extra gap between badge and text
+  const gap = 14;
+  const base = 18; // when badge hidden
+  if (searchBadge.classList.contains('show')) {
+    // ensure it's measurable
+    searchBadge.style.display = 'inline-block';
+    const w = searchBadge.offsetWidth || 0;
+    searchBox.style.paddingLeft = (w + gap + 12) + 'px';
+  } else {
+    searchBox.style.paddingLeft = base + 'px';
+  }
+}
+
+// keep padding correct on resize/zoom changes
+window.addEventListener('resize', adjustSearchPadding);
+
   function selectResult(d){
     hideResults(); hideHover();
     if(!d) return;
@@ -1019,6 +1041,7 @@
     if (!q || q === 'near' || q === 'near me'){
       searchBadge.textContent = 'NEAR';
       searchBadge.classList.add('show');
+      adjustSearchPadding();
       showResults(smartNearest(map.getCenter(), 8));
       return;
     }
@@ -1078,6 +1101,7 @@
     if (out.length) { searchBadge.textContent = 'SEARCH'; searchBadge.classList.add('show'); }
     else { searchBadge.classList.remove('show'); }
     showResults(out.slice(0,60));
+    adjustSearchPadding();
   }
 
   searchBox.addEventListener('input', handleSearchInput);
