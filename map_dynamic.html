@@ -644,14 +644,17 @@ const PREMIUM_URL = 'premium_trainers_master.json?v=2025-08-19a';
 
    // PREMIUM hubs (confirmed + pending)
 try {
+  const PREMIUM_URL = './premium_trainers_master.json?v=' + Date.now();
+
   const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
+  if (!pResp.ok) throw new Error(`HTTP ${pResp.status} for ${PREMIUM_URL}`);
+
   const pJson = await pResp.json();
+  const rows = Array.isArray(pJson)
+    ? pJson
+    : [ ...(pJson.confirmed || []), ...(pJson.pending || []) ];
 
-  // Only the new file’s sections
-const rows = Array.isArray(pJson)
-  ? pJson
-  : [ ...(pJson.confirmed||[]), ...(pJson.pending||[]) ];
-
+  // --- helpers -------------------------------------------------
   const txt = v => String(v ?? '').toLowerCase();
   const statusText = r => {
     const fields = [
@@ -660,25 +663,20 @@ const rows = Array.isArray(pJson)
     ];
     return fields.map(txt).find(Boolean) || '';
   };
-
   const getCity = r => String(
-    r.City ?? r.city ??
-    r.Hub_City ?? r['Hub City'] ??
+    r.City ?? r.city ?? r.Hub_City ?? r['Hub City'] ??
     r.ProposedCity ?? r['Proposed City'] ??
     r.TargetCity ?? r['Target City'] ??
     r.CandidateCity ?? r['Candidate City'] ??
     r.HubCity ?? ''
   ).trim();
-
   const getState = r => String(
-    r.State ?? r.state ??
-    r.Hub_State ?? r['Hub State'] ??
+    r.State ?? r.state ?? r.Hub_State ?? r['Hub State'] ??
     r.ProposedState ?? r['Proposed State'] ??
     r.TargetState ?? r['Target State'] ??
     r.CandidateState ?? r['Candidate State'] ??
     r.HubState ?? ''
   ).trim();
-
   const getCoords = r => {
     const lat = Number(r.Latitude  ?? r.latitude  ?? r.lat ?? r.Lat ?? r.lat_dd ?? r.Latitude__c);
     const lng = Number(r.Longitude ?? r.longitude ?? r.lng ?? r.Lon ?? r.lng_dd ?? r.Longitude__c);
@@ -706,7 +704,6 @@ const rows = Array.isArray(pJson)
       /(recruit|open|tbd|no\s*app|no\s*applicant|no\s*apps?)/i.test(s) ? 'open' :
       (status === 'confirmed' ? 'confirmed' : 'pending');
 
-
     const statusLabel = ({
       confirmed:'Confirmed', pending_offer:'Pending Offer',
       pending:'Pending', proposed:'Proposed', open:'Open'
@@ -724,15 +721,25 @@ const rows = Array.isArray(pJson)
     };
   };
 
-  const hubs = rows.map(toHub).filter(Boolean);
-  premiumConfirmed = hubs.filter(h => h.status === 'confirmed');
-  premiumPending   = hubs.filter(h => h.status === 'pending');
+  const hubs = rows.map(toHub);
+  const good  = hubs.filter(Boolean);
+  const bad   = hubs.map((h,i)=>h?null:rows[i]).filter(Boolean).slice(0,2);
+
+  premiumConfirmed = good.filter(h => h.status === 'confirmed');
+  premiumPending   = good.filter(h => h.status === 'pending');
+
+  console.log(`[Premium] rows: ${rows.length}, mapped: ${good.length}, confirmed: ${premiumConfirmed.length}, pending: ${premiumPending.length}`);
+  if (bad.length) console.warn('[Premium] example unmapped rows (missing/invalid lat/lng/city/state?):', bad);
+
+  STATUS.textContent += `  |  Premium hubs: ${good.length}`;
 
 } catch (e) {
   console.warn('Premium file missing/invalid', e);
+  STATUS.innerHTML += `  |  <span style="color:#b42318">Premium failed</span>`;
   premiumConfirmed = [];
   premiumPending   = [];
 }
+
 
     // Build initial UI state
     buildSearchIndex();
