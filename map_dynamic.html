@@ -53,6 +53,9 @@
 
   .mapwrap{position:relative;flex:1;min-height:460px;display:flex;overflow:hidden}
   #map{flex:1}
+  /* ensure the map always has room even if flex calc goes weird */
+#map { min-height: 480px; }
+
 
   .sidepanel{width:380px;max-width:90vw;flex:0 0 380px;background:var(--panel);border-left:1px solid var(--border);box-shadow:-4px 0 18px rgba(0,0,0,.12);display:none;flex-direction:column;z-index:6}
   .sidepanel.show{display:flex}
@@ -404,6 +407,23 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+  <script>
+  // Loud error banner so silent runtime errors can’t hide
+  (function(){
+    const banner = document.createElement('div');
+    banner.id = 'errBanner';
+    banner.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:99999;background:#111;color:#fff;padding:8px 10px;border-radius:8px;max-width:90vw;display:none';
+    document.addEventListener('DOMContentLoaded', ()=>document.body.appendChild(banner));
+    function show(msg){
+      banner.textContent = 'Error: ' + msg;
+      banner.style.display = 'block';
+    }
+    window.addEventListener('error', e=> show(e.message || String(e)));
+    window.addEventListener('unhandledrejection', e=> show((e.reason && e.reason.message) || String(e.reason)));
+  })();
+</script>
+
 <script>
 (async function(){
   // ========== CONFIG ==========
