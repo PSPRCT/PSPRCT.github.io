@@ -1061,23 +1061,30 @@ function saveCurrentView(){
   toastMsg('Saved view “'+name+'”');
 }
 function renderSavedViews(){
-  var views = JSON.parse(localStorage.getItem(LS_VIEWS)||'[]');
-  var html = views.map(function(v,i){
-    return '<div style="display:flex;align-items:center;gap:6px;margin:4px 2px">'+
-      '<button class="btn" data-i="'+i+'" style="flex:1;text-align:left">'+escapeHtml(v.name||('View '+(i+1)))+'</button>'+
-      '<button class="btn danger" data-del="'+i+'" title="Delete">×</button>'+
-    '</div>';
-  }).join('') || '<div style="padding:6px 8px;color:var(--muted)">No saved views yet.</div>';
+  var views = JSON.parse(localStorage.getItem(LS_VIEWS) || '[]');
+
+  var html = views.length
+    ? views.map(function(v,i){
+        return '<button class="btn" data-i="'+i+'" style="display:block;width:100%;text-align:left">'
+             + escapeHtml(v.name || ('View ' + (i+1)))
+             + '</button>';
+      }).join('')
+    : '<div style="padding:6px 8px;color:var(--muted)">No saved views yet.</div>';
+
   id('viewList').innerHTML = html;
-  Array.prototype.forEach.call(id('viewList').querySelectorAll('button[data-i]'), function(b){
-    b.onclick=function(){ applySnapshot(JSON.parse(localStorage.getItem(LS_VIEWS)||'[]')[Number(b.getAttribute('data-i'))]); };
-  });
-  Array.prototype.forEach.call(id('viewList').querySelectorAll('button[data-del]'), function(b){
-    b.onclick=function(){
-      var i=Number(b.getAttribute('data-del')); var arr=JSON.parse(localStorage.getItem(LS_VIEWS)||'[]'); arr.splice(i,1); localStorage.setItem(LS_VIEWS, JSON.stringify(arr)); renderSavedViews();
-    };
-  });
+
+  Array.prototype.forEach.call(
+    id('viewList').querySelectorAll('button[data-i]'),
+    function(b){
+      b.onclick = function(){
+        var arr = JSON.parse(localStorage.getItem(LS_VIEWS) || '[]');
+        var ix = Number(b.getAttribute('data-i'));
+        if (arr[ix]) applySnapshot(arr[ix]);
+      };
+    }
+  );
 }
+
 function badgeSource(mode, urls){
   var text = (mode==='url') ? ('External ('+[urls.stores,urls.premium,urls.acosta].filter(Boolean).length+' files)') : 'Local JSON';
   id('datasetBadge').textContent = text;
