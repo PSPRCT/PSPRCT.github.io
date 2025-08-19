@@ -189,14 +189,9 @@
 </div>
 
 <div class="pillbar" id="presetBar">
-  <div id="presetUncov" class="pill" title="Uncovered + Rings + Heatmap">
-    <span class="dot" style="background:var(--u)"></span> Preset: Uncovered focus
-  </div>
-  <div id="presetHubs" class="pill" title="Show only stores within any visible hub radius">
-    🟦 Preset: Hubs coverage
-  </div>
   <div id="snapBtn" class="pill" title="Copy a shareable URL">🔗 Save snapshot link</div>
 </div>
+
 
 <div class="pillbar" id="activeChips"></div>
 
@@ -276,9 +271,7 @@
         <button id="spExport" class="btn" type="button" title="Download CSV of this list">Export list (CSV)</button>
         <button id="spPrint" class="btn" type="button" title="Print this list">Print store list</button>
       </div>
-      <div class="sp-toggles">
-        <label class="toggle" title="Show only uncovered stores in this panel"><input id="spOnlyUncov" type="checkbox" />Uncovered only</label>
-      </div>
+      
       <div class="sp-quick" title="Change hub radius quickly">
         Radius: 
         <button class="btn" type="button" data-r="50">50</button>
@@ -468,8 +461,9 @@
   const spRowsEl = id('spRows'); const spSearch = id('spSearch');
   const spLink = id('spLink');
 
-  const spClose = id('spClose'); const spExport = id('spExport'); const spPinBtn = id('spPinBtn'); const spPrint = id('spPrint'); const spOnlyUncovEl = id('spOnlyUncov'); const spCollapse = id('spCollapse');
-  let spHub = null; let spRows = []; let spFilter = ''; let spOnlyUncov = false;
+  const spClose = id('spClose'); const spExport = id('spExport'); const spPinBtn = id('spPinBtn'); const spPrint = id('spPrint'); const spCollapse = id('spCollapse');
+let spHub = null; let spRows = []; let spFilter = '';
+
 
   // UX/analysis globals
   let compareMode = false;
@@ -513,7 +507,7 @@
   on('change', rmFilter,  ()=>{ lastFilterChanged='rmFilter'; cascadeAM(); runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
   rebuildAMOptionsWithCounts();
   on('change', amFilter,  ()=>{ lastFilterChanged='amFilter'; runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
-  on('change', covFilter, ()=>{ lastFilterChanged='covFilter'; runFilter(); saveState(); renderChips(); buildHubFilterOptions(); });
+on('change', covFilter, ()=>{ lastFilterChanged='covFilter'; runFilter(); fitToResults(); saveState(); renderChips(); buildHubFilterOptions(); });
   on('change', hubFilter, ()=>{ lastFilterChanged='hubFilter'; runFilter(); fitToResults(); saveState(); renderChips(); });
 
   id('fitBtn').onclick  = ()=>{ fitToResults(); saveState(); };
@@ -543,7 +537,7 @@
   // Keyboard
   const searchBox = id('searchBox'), searchBadge = id('searchBadge'), searchResults = id('searchResults');
   const searchWrap = document.querySelector('.searchbox');
-  id('searchClear').onclick = ()=>{ searchBox.value=''; localStorage.removeItem(LS_LAST_QUERY); searchBadge.classList.remove('show'); hideResults(); clearTarget(); runFilter(); };
+  id('searchClear').onclick = ()=>{ searchBox.value=''; localStorage.removeItem(LS_LAST_QUERY); searchBadge.classList.remove('show'); hideResults(); clearTarget(); runFilter(); fitToResults(); };
   window.addEventListener('keydown',(e)=>{
     if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); searchBox.focus(); searchBox.select(); }
     if (e.key.toLowerCase() === 'h'){ map.setView(HOME_VIEW.center, HOME_VIEW.zoom); }
@@ -557,7 +551,7 @@
   spExport.onclick = ()=>{ exportSidepanelCsv(); if(AUTO_RESET()){ resetAll(); runFilter(); renderChips(); } };
   spPrint.onclick  = ()=>{ printSidepanelList();  if(AUTO_RESET()){ resetAll(); runFilter(); renderChips(); } };
   spPinBtn.onclick = ()=> togglePinFromPanel();
-  spOnlyUncovEl.onchange = ()=>{ spOnlyUncov = spOnlyUncovEl.checked; renderSidepanelList(); };
+  
   document.querySelectorAll('.sp-quick .btn[data-r]').forEach(b=>{
     b.addEventListener('click', ()=>{
       radius.value = b.dataset.r; radiusLbl.textContent=b.dataset.r;
@@ -1104,7 +1098,9 @@
 
     filteredStores = allStores.filter(storeFilter);
 
-    const ms = filteredStores.map(s=>{
+   const ms = filteredStores
+    .filter(s => (s.coverageType || '') !== 'Uncovered')   // ⟵ hide Uncovered markers
+    .map(s=>{
       const m = L.circleMarker([s.lat,s.lng], {
         radius:5, weight:1, fillOpacity:.9, color:'#fff',
         fillColor: COLORS[s.coverageType] || '#999'
@@ -1347,7 +1343,7 @@
     const [clat, clng] = spHub.coords;
 
     let list = storesWithin(spHub.coords, r).map(s => ({ ...s, __d: distMiles(clat, clng, s.lat, s.lng) }));
-    if (spOnlyUncov) list = list.filter(s=> (s.coverageType||'')==='Uncovered');
+
     spRows = list.slice();
 
     const q = (spFilter||'').toLowerCase();
@@ -1363,10 +1359,7 @@
 
     list.sort((a,b)=> a.__d - b.__d);
 
-    spCounts.innerHTML = `
-      <span class="sp-chip">In list: <b>${list.length}</b></span>
-      ${spOnlyUncov?'<span class="sp-chip">Uncovered only</span>':''}
-    `;
+  spCounts.innerHTML = `<span class="sp-chip">In list: <b>${list.length}</b></span>`;
 
     spRowsEl.innerHTML = list.map(s => `
       <div class="row" data-id="${htmlEscape(s.storeNumberStr)}" title="Zoom to store">
@@ -1916,7 +1909,8 @@
     renderHubs();
     updateRings();
     if (tgOverlap.checked) drawOverlap();
-    if (tgWithin.checked){ runFilter(); fitToResults(); } else { runFilter(); }
+    runFilter();
+    fitToResults();
     if (spHub && !visibleHubs().some(h => h.id === spHub.id)) hideSidepanel();
     refreshComparePanel();
     saveState();
