@@ -1589,6 +1589,56 @@
   id('helpBtn').onclick = ()=> id('helpModal').classList.add('show');
   id('helpClose').onclick = ()=> id('helpModal').classList.remove('show');
 
+    /* ---------- SAFETY PATCH: polyfills + toast + guards ---------- */
+  // Polyfill requestIdleCallback (Safari/older browsers)
+  window.requestIdleCallback ||= function (cb){ return setTimeout(()=>cb({timeRemaining:()=>50, didTimeout:false}), 1); };
+  window.cancelIdleCallback  ||= function (id){ clearTimeout(id); };
+
+  // Minimal toast system (used by exports/rollup/gaps)
+  function toast(msg, ms=2600){
+    let host = document.getElementById('toasts');
+    if (!host){
+      host = document.createElement('div');
+      host.id = 'toasts';
+      host.className = 'toasts';
+      document.body.appendChild(host);
+    }
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = `
+      <div class="row"><div>${escape(msg)}</div>
+      <button type="button" aria-label="Dismiss">OK</button></div>
+      <div class="bar"><div></div></div>`;
+    host.appendChild(el);
+    const bar = el.querySelector('.bar > div');
+    // animate bar
+    requestAnimationFrame(()=>{
+      bar.style.transition = `width ${ms}ms linear`;
+      bar.style.width = '100%';
+    });
+    const close = ()=>{ el.remove(); };
+    el.querySelector('button').onclick = close;
+    setTimeout(close, ms);
+  }
+
+  // Defensive guards for dropdowns (in case markup changes)
+  (function guardDropdowns(){
+    const exportDropBtn = document.querySelector('#exportDrop > button');
+    const exportMenu    = document.querySelector('#exportDrop .dropdown-menu');
+    if (exportDropBtn && exportMenu){
+      exportDropBtn.onclick = ()=> toggleDropdown(exportMenu);
+      document.addEventListener('click', (e)=>{ if (!document.getElementById('exportDrop')?.contains(e.target)) exportMenu.style.display='none'; }, true);
+    }
+
+    const viewsDropBtn = document.querySelector('#viewsDrop > button');
+    const viewsMenu    = document.querySelector('#viewsMenu');
+    if (viewsDropBtn && viewsMenu){
+      viewsDropBtn.onclick = ()=> toggleDropdown(viewsMenu);
+      document.addEventListener('click', (e)=>{ if (!document.getElementById('viewsDrop')?.contains(e.target)) viewsMenu.style.display='none'; }, true);
+    }
+  })();
+
+
   // ---------- Utils ----------
   function circleFeature(lat,lng,mi,props){
     // approximate circle with 64 points
