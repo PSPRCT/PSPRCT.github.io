@@ -644,14 +644,15 @@ const PREMIUM_URL = 'premium_trainers_master.json?v=2025-08-19a';
 
     // PREMIUM hubs (confirmed + pending/open/proposed)
     try {
-      const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
-      const pJson = await pResp.json();
-     const rows = Array.isArray(pJson)
-      ? pJson
-      : [
-          ...(pJson.confirmed || []),
-          ...(pJson.pending   || []),
-        ];
+    const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
+const pJson = await pResp.json();
+
+const rows = Array.isArray(pJson)
+  ? pJson
+  : [
+      ...(pJson.confirmed || []),
+      ...(pJson.pending   || []),
+    ];
 
       const txt = v => String(v ?? '').toLowerCase();
 
@@ -1661,23 +1662,75 @@ function hubDisplay(h){
     return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
   }
 function buildHubFilterOptions(){
+  // visible hubs based on the three checkboxes
   let hubsAll = [];
   if (showConfirmed.checked) hubsAll = hubsAll.concat(premiumConfirmed);
   if (showPending.checked)   hubsAll = hubsAll.concat(premiumPending);
-  if (showAcosta.checked)    hubsAll = hubsAll.concat(acostaHubs);  // <-- add this
-// Assuming json is the parsed JSON from premium_trainers_master.json
-const confirmed = json.confirmed || [];
-const pending   = json.pending   || [];
+  if (showAcosta.checked)    hubsAll = hubsAll.concat(acostaHubs);
 
-// ✅ Only merge confirmed + pending
-let hubsAll = confirmed.concat(pending);
+  // dedupe by id
+  const seen = new Set();
+  hubsAll = hubsAll.filter(h => h && !seen.has(h.id) && seen.add(h.id));
 
-// Build filter options with City + State
-let hubOptions = hubsAll.map(h => {
-  const city  = h.City || h.city || '';
-  const state = h.State || h.state || '';
-  return `${city}, ${state}`.trim();
-});
+  const r = Number(radius.value) || DEFAULT_RADIUS;
+
+  // upstream filters (treat "All" as no constraint)
+  const covSel = new Set(Array.from(covFilter.selectedOptions).map(o=>o.value));
+  const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o=>o.value));
+  const amSel  = new Set(Array.from(amFilter.selectedOptions).map(o=>o.value));
+  const covActive = !covSel.has('All');
+  const rmActive  = !rmSel.has('All');
+  const amActive  = !amSel.has('All');
+  const withinOnly = !!tgWithin.checked;
+
+  // helper: does a store pass upstream filters?
+  const storeOK = (s) => {
+    if (covActive && !covSel.has(s.coverageType || ''))        return false;
+    if (rmActive  && !rmSel.has(s.regionalManager || ''))      return false;
+    if (amActive  && !amSel.has(s.areaManager || ''))          return false;
+    if (withinOnly){
+      // If "Within hubs" is on, only consider stores that are within r of any visible hub
+      if (!hubsAll.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r)) return false;
+    }
+    return true;
+  };
+
+  // count qualifying stores per hub
+  const rows = hubsAll.map(h=>{
+    let n = 0;
+    for (const s of allStores){
+      if (!storeOK(s)) continue;
+      if (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r) n++;
+    }
+    return { h, value:h.id, label: hubDisplay(h), count:n };
+  });
+
+  // if any upstream filter is active, hide zero-count hubs
+  const upstreamActive = covActive || rmActive || amActive || withinOnly;
+  const options = upstreamActive ? rows.filter(r=>r.count>0) : rows;
+
+  // rebuild select, preserving still-valid selections
+  const prev = new Set(Array.from(hubFilter.selectedOptions).map(o=>o.value));
+  hubFilter.innerHTML = '';
+  const optAll = document.createElement('option');
+  optAll.value = ''; optAll.textContent = 'All';
+  hubFilter.appendChild(optAll);
+
+  options
+    .sort((a,b)=> a.label.localeCompare(b.label))
+    .forEach(({value,label,count})=>{
+      const o = document.createElement('option');
+      o.value = value;
+      o.textContent = `${label} — ${count}`;
+      if (prev.has(value)) o.selected = true;
+      hubFilter.appendChild(o);
+    });
+
+  // apply the search box to this select
+  if (typeof filterSelect === 'function') filterSelect(hubFilter, hubSearch?.value||'');
+}
+
+
 
   // dedupe
   const seen = new Set();
