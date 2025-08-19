@@ -450,7 +450,7 @@
   };
   const DEFAULT_RADIUS = 75;
   const HOME_VIEW = { center:[39.5,-98.35], zoom:5 };
-  const AUTO_RESET = ()=> id('autoReset')?.checked;
+const AUTO_RESET = ()=> !!(id('autoReset') && id('autoReset').checked);
 
   // Fallback small dataset so UI still works without files
   const FALLBACK_STORES = [
@@ -866,7 +866,7 @@ if (id('tgHeat').checked) {
     });
 
   } catch(err){
-    STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Init error:</span> ${escape(err?.message || String(err))}`;
+    STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Init error:</span> ${escape((err && err.message) || String(err))}
     console.error(err);
   } finally { clearTimeout(spinnerFailSafe); showBusy(false); }
 
@@ -1798,7 +1798,14 @@ if (id('tgHeat').checked) {
     Array.from(sel.options).forEach(o=> o.selected = want.size? want.has(o.value): o.value==='All');
   }
   function uniq(arr){ return Array.from(new Set(arr)); }
-  function shortUrl(u){ try{ const x=new URL(u); return x.host + x.pathname.slice(0,40) + (x.pathname.length>40?'…':''); }catch{return u} }
+function shortUrl(u){
+  try {
+    const x = new URL(u);
+    return x.host + x.pathname.slice(0,40) + (x.pathname.length>40?'…':'');
+  } catch (e) {
+    return u;
+  }
+}
 
   function coverageCounts(markersArr){
     const out = {'Premium + Acosta':0, 'Premium Only':0, 'Acosta Only':0, 'Uncovered':0};
@@ -1890,7 +1897,7 @@ if (id('tgHeat').checked) {
   }
   async function parseBody(body, ct){
     if (/json/i.test(ct)){
-      try { return JSON.parse(body); } catch { throw new Error('Invalid JSON'); }
+  try { return JSON.parse(body); } catch (e) { throw new Error('Invalid JSON'); }
     }
     if (/csv|plain/i.test(ct)){
       return parseCsv(body);
