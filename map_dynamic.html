@@ -1242,15 +1242,18 @@ function hubDisplay(h){
     `;
 
     // mount simple virtualization
-    const rowH = 62;
-    mountVirtual(spRowsEl, list, rowH, (s)=>`
-      <div class="num">#${htmlEscape(s.storeNumberStr)}</div>
-      <div class="text">
-        <div class="title">${htmlEscape(s.storeName||'')}</div>
-        <div class="addr">${htmlEscape(s.address||'')} · ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</div>
-      </div>
-      <div class="kind">${htmlEscape(s.coverageType||'')}</div>
-      <div style="margin-left:auto; min-width:64px; text-align:right; color:var(--muted)">${s.__d.toFixed(1)} mi</div>
+const rowH = 76; // room for 2-line address
+mountVirtual(spRowsEl, list, rowH, (s)=>`
+  <div class="num">#${htmlEscape(s.storeNumberStr)}</div>
+  <div class="text">
+    <div class="title">${htmlEscape(s.storeName||'')}</div>
+    <div class="addr" style="white-space:normal; line-height:1.2">
+      ${htmlEscape(s.address || '')}<br>
+      ${htmlEscape(s.city || '')}, ${htmlEscape(s.state || '')}
+    </div>
+  </div>
+  <div class="kind">${htmlEscape(s.coverageType||'')}</div>
+  <div style="margin-left:auto; min-width:64px; text-align:right; color:var(--muted)">${s.__d.toFixed(1)} mi</div>
     `, (el, s)=>{
       el.addEventListener('click', ()=>{
         openStorePopup(s);
