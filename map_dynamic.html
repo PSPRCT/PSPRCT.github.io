@@ -536,6 +536,135 @@
 
   setTimeout(()=> map.invalidateSize(), 120);
 <script>
+ <script>
+// =========================
+// PATCH A — Globals, Diagnostics, and Robust normalizeStores
+// (Place ABOVE Chunk 4)
+// =========================
+
+// ---- Safe globals (only set if missing) ----
+window.DEFAULT_RADIUS ??= 75;
+window.HOME_VIEW ??= { center:[39.8283, -98.5795], zoom: 4 }; // CONUS
+window.DATA_URL ??= 'store_data.json';       // adjust if you use a different filename
+window.ACOSTA_URL ??= 'acosta_hubs.json';    // adjust if you use a different filename
+window.PREMIUM_URL ??= 'premium_hubs.json';  // adjust if you use a different filename
+
+// Layers/collections if not defined yet
+window.allStores      ??= [];
+window.premiumConfirmed ??= [];
+window.premiumPending   ??= [];
+window.acostaHubs       ??= [];
+window.markerByStore    ??= new Map();
+
+// If your UI doesn't already have a STATUS element:
+window.STATUS = document.getElementById('STATUS') || { textContent:'', innerHTML:'', append(){}, };
+
+// Fallback stores if nothing loads (tiny sample so you always see *something*)
+window.FALLBACK_STORES ??= [
+  { StoreID:'0001', StoreName:'Sample Store A', City:'Wichita', State:'KS', Zip:'67202', Latitude:37.686, Longitude:-97.335, RM:'Central', AM:'Wichita' },
+  { StoreID:'0002', StoreName:'Sample Store B', City:'Dayton',  State:'OH', Zip:'45402', Latitude:39.7589, Longitude:-84.1916, RM:'East',    AM:'Dayton'  },
+  { StoreID:'0003', StoreName:'Sample Store C', City:'Tampa',   State:'FL', Zip:'33602', Latitude:27.95,   Longitude:-82.4572, RM:'Southeast', AM:'Tampa' }
+];
+
+// ---- DIAGNOSTICS: pretty logger ----
+function diag(label, obj){
+  try { console.log(`LOAD DIAG — ${label}:`, obj); } catch(e){}
+}
+
+// ---- Super-robust normalizer for store files ----
+// Accepts a wide variety of column names and shapes.
+function normalizeStores(raw){
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const r of raw){
+    // Accept either object rows or CSV-like arrays (skip arrays)
+    if (r == null || typeof r !== 'object' || Array.isArray(r)) continue;
+
+    // Extractors with many aliases
+    const pick = (...keys)=> {
+      for (const k of keys){
+        if (r[k] != null && r[k] !== '') return r[k];
+      }
+      return undefined;
+    };
+
+    const idRaw = pick('StoreID','Store Id','Store_ID','Store_Number','Store #','store_id','id','Store');
+    const name  = pick('StoreName','Store Name','name','Store_Name','Location','Walmart','Title');
+    const city  = pick('City','city','StoreCity','Store City');
+    const state = pick('State','state','St','Prov','Province');
+    const zip   = pick('Zip','ZIP','Postal','PostalCode','ZipCode','zip','Postal Code','Zip Code');
+    const lat   = Number(pick('Latitude','Lat','lat','Y','Lat_dd','latitude'));
+    const lng   = Number(pick('Longitude','Lon','Lng','lon','X','Long_dd','longitude'));
+    const rm    = pick('RM','RegionalManager','Regional Manager','Region Manager','Region','RM_Name','RMName');
+    const am    = pick('AM','AreaManager','Area Manager','AM_Name','AMName','Territory','Territory Manager');
+
+    // Skip if no coordinates
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
+    // Build a stable id if missing
+    const id = (idRaw!=null && String(idRaw).trim() !== '')
+      ? String(idRaw)
+      : `${(name||'Store')}-${(city||'')}-${(state||'')}-${lat.toFixed(4)},${lng.toFixed(4)}`;
+
+    out.push({
+      id: String(id),
+      store_name: name ?? 'Store',
+      city: city ?? '',
+      state: state ?? '',
+      postal: zip ?? '',
+      lat, lng,
+      rm: rm ?? '',
+      am: am ?? '',
+      coverageType: 'Uncovered',
+      coverage: { hubs: [] }
+    });
+  }
+
+  // DIAGNOSTICS
+  diag('normalizeStores.count', out.length);
+  if (out.length){
+    const keys = Object.keys(raw[0]||{});
+    diag('normalizeStores.firstRowKeys', keys);
+    diag('normalizeStores.sample', out.slice(0, 3));
+  }
+  return out;
+}
+
+// ---- Minimal stubs if missing (won’t override your real ones) ----
+window.showBusy ??= (on)=>{ try{
+  const el = document.getElementById('busy'); if (!el) return;
+  el.style.display = on ? 'inline-flex' : 'none';
+} catch(e){} };
+
+window.mkStoreMarker ??= function(s){
+  const mk = L.circleMarker([s.lat, s.lng], { radius:5, color:'#999', weight:1, fillOpacity:0.9 });
+  mk._store = s;
+  mk.bindPopup(`<b>${(s.store_name||'Store')}</b><br>${s.city||''}, ${s.state||''}`);
+  return mk;
+};
+
+// Create map & layers if not already created by your earlier chunks
+window.map ||= L.map('map', { preferCanvas:true }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
+if (!window._baseTileAdded){
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution:'© OSM' }).addTo(map);
+  window._baseTileAdded = true;
+}
+window.markers        ||= L.markerClusterGroup({ disableClusteringAtZoom: 11 }).addTo(map);
+window.plainStoreLayer||= L.layerGroup();
+window.hubLayer       ||= L.layerGroup().addTo(map);
+window.ringLayer      ||= L.layerGroup().addTo(map);
+window.highlightLayer ||= L.layerGroup().addTo(map);
+
+// Useful helper expected elsewhere
+function updateInViewCountSafe(){
+  try{
+    const group = document.getElementById('tgCluster')?.checked ? markers : plainStoreLayer;
+    const n = group.getLayers().length;
+    (document.getElementById('inViewCount')||{}).textContent = (n||0).toLocaleString();
+  }catch(e){}
+}
+</script>
+
 // =========================
 // CHUNK 4 — Events & Data
 // =========================
