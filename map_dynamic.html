@@ -2506,7 +2506,7 @@ id('rollExport').onclick = exportRollupsCsv;
   function exportRollupsCsv(){
     if (!lastRoll.rows.length){ buildRollups(); if (!lastRoll.rows.length) return; }
     const rows = [[lastRoll.by,'P+A','Premium','Acosta','Uncov','Total'],
-      ...lastRoll.rows.map(r => [r.label, r.pa, r.p, r.a, r.u, r.total])];
+  ...lastRoll.rows.map(r => [r.label, r.pa, r.p, r.a, r.u, r.total])];
     downloadCsv(rows, `rollups_${slug(lastRoll.by)}_${Date.now()}.csv`);
   }
 
