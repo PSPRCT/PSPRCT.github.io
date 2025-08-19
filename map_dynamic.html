@@ -192,11 +192,11 @@
   </div>
 
   <!-- Analysis buttons -->
-  <button id="gapBtn" class="btn" type="button" title="Find cities with uncovered clusters">Gap finder</button>
-  <button id="rollupBtn" class="btn" type="button" title="Totals by RM/AM">Rollups</button>
 
-  <button id="helpBtn" class="btn" type="button" title="Quick tips and shortcuts">Help</button>
-</div>
+  <button id="helpBtn" class="btn" type="button" title="Help">Help</button>
+<button id="gapBtn" class="btn" type="button" title="Gap Finder">Gap Finder</button>
+<button id="rollupBtn" class="btn" type="button" title="Rollups">Rollups</button>
+
 
 <div class="pillbar" id="presetBar">
   <div id="snapBtn" class="pill" title="Copy a shareable URL">🔗 Save snapshot link</div>
@@ -307,77 +307,60 @@
   </div>
 </div>
 
-<!-- Help modal -->
-<div class="modal" id="helpModal" aria-modal="true" role="dialog">
-  <div class="card">
-    <header>
-      <h3>Help & Shortcuts</h3>
-      <button id="helpClose" class="btn" type="button">Close</button>
-    </header>
-    <div class="body">
-      <div>
-        <h4>Keyboard</h4>
-        <p><span class="kbd">Ctrl</span> / <span class="kbd">⌘</span> + <span class="kbd">K</span> — Focus search</p>
-        <p><span class="kbd">↑</span> <span class="kbd">↓</span> + <span class="kbd">Enter</span> — Pick search result</p>
-        <p><span class="kbd">H</span> — Home (map only)</p>
-        <p><span class="kbd">F</span> — Focus side-panel search (when open)</p>
-      </div>
-      <div>
-        <h4>Tips</h4>
-        <ul>
-          <li>Type <b>near</b> or <b>near Dallas</b> to jump the map and suggest nearby stores.</li>
-          <li>Use <b>Within hubs</b> to see only stores covered by visible hubs.</li>
-          <li>Pin hubs to compare coverage; <b>Overlap</b> highlights shared stores.</li>
-          <li>Side panel shows counts & metrics; click a store to zoom to it.</li>
-          <li>Use <b>Views</b> to save/restore your favorite setups.</li>
-        </ul>
-      </div>
+<!-- HELP MODAL -->
+<div class="modal" id="helpModal" aria-hidden="true">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Help</h3>
+      <button class="btn btn-link" id="helpClose" type="button">Close</button>
+    </div>
+    <div class="modal-body" style="max-height:60vh;overflow:auto">
+      <p>Quick tips: use filters, click hubs, press “?” for help, “[”/“]” to adjust radius, etc.</p>
     </div>
   </div>
 </div>
 
-<!-- Gap Finder modal -->
-<div class="modal" id="gapModal" aria-modal="true" role="dialog">
-  <div class="card">
-    <header>
-      <h3>Gap finder</h3>
-      <button id="gapClose" class="btn" type="button">Close</button>
-    </header>
-    <div class="body" style="grid-template-columns:1fr;">
-      <div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
-          <label class="toggle" title="Only show clusters at least this big">Min uncovered
-            <input id="gapMin" type="number" value="10" style="width:80px;margin-left:8px">
-          </label>
-          <label class="toggle" title="Radius around each city center">Radius (mi)
-            <input id="gapMiles" type="number" value="50" style="width:80px;margin-left:8px">
-          </label>
-          <button id="gapRun" class="btn" type="button">Run</button>
-          <button id="gapExport" class="btn" type="button">Export CSV</button>
-        </div>
-        <div id="gapResults" style="max-height:65vh;overflow:auto"></div>
+<!-- GAP FINDER MODAL -->
+<div class="modal" id="gapModal" aria-hidden="true">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Gap Finder</h3>
+      <button class="btn btn-link" id="gapClose" type="button">Close</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <label>Min uncovered stores:
+          <input id="gapMin" type="number" value="10" min="1" style="width:80px">
+        </label>
+        <label>Radius (mi):
+          <input id="gapMiles" type="number" value="50" min="5" max="150" step="5" style="width:80px">
+        </label>
+        <button id="gapRun" class="btn" type="button">Run</button>
+        <button id="gapExport" class="btn" type="button">Export CSV</button>
       </div>
+      <div id="gapResults" style="margin-top:12px"></div>
     </div>
   </div>
 </div>
 
-<!-- Rollups modal -->
-<div class="modal" id="rollupModal" aria-modal="true" role="dialog">
-  <div class="card">
-    <header>
-      <h3>Manager rollups</h3>
-      <button id="rollupClose" class="btn" type="button">Close</button>
-    </header>
-    <div class="body" style="grid-template-columns:1fr;">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
-        <label class="toggle"><input type="radio" name="rollBy" id="rollByRM" checked> By Regional Manager</label>
-        <label class="toggle"><input type="radio" name="rollBy" id="rollByAM"> By Area Manager</label>
+<!-- ROLLUPS MODAL -->
+<div class="modal" id="rollupModal" aria-hidden="true">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Rollups</h3>
+      <button class="btn btn-link" id="rollupClose" type="button">Close</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        <label><input id="rollByRM" type="radio" name="rollby" checked> By Regional Manager</label>
+        <label><input id="rollByAM" type="radio" name="rollby"> By Area Manager</label>
         <button id="rollExport" class="btn" type="button">Export CSV</button>
       </div>
-      <div id="rollTable" style="max-height:65vh;overflow:auto"></div>
+      <div id="rollTable"></div>
     </div>
   </div>
 </div>
+
 
 <!-- Propose Hub modal -->
 <div class="modal" id="submitModal" aria-modal="true" role="dialog">
@@ -651,6 +634,43 @@ function hideModal(el){ if(el){ el.classList.remove('show'); } }
     m.addEventListener('click', (e)=>{ if(e.target === m) m.classList.remove('show'); });
   });
 })();
+
+  // ---- modal helpers (one copy only) ----
+function showModal(el){ if(el){ el.classList.add('show'); } }
+function hideModal(el){ if(el){ el.classList.remove('show'); } }
+
+// ---- wire Help / Gap Finder / Rollups buttons ----
+(function wireAnalysisModalsOnce(){
+  if (window.__wiredAnalysisModals) return;
+  window.__wiredAnalysisModals = true;
+
+  const helpBtn = id('helpBtn'), helpModal = id('helpModal'), helpClose = id('helpClose');
+  const gapBtn  = id('gapBtn'),  gapModal  = id('gapModal'),  gapClose  = id('gapClose');
+  const rollBtn = id('rollupBtn'), rollModal = id('rollupModal'), rollClose = id('rollupClose');
+
+  // Help
+  helpBtn && (helpBtn.onclick = ()=> showModal(helpModal));
+  helpClose && (helpClose.onclick = ()=> hideModal(helpModal));
+
+  // Gap Finder
+  gapBtn  && (gapBtn.onclick  = ()=> showModal(gapModal));
+  gapClose&& (gapClose.onclick = ()=> hideModal(gapModal));
+  id('gapRun')    && (id('gapRun').onclick    = runGapFinder);
+  id('gapExport') && (id('gapExport').onclick = exportGapCsv);
+
+  // Rollups
+  rollBtn  && (rollBtn.onclick  = ()=> { showModal(rollupModal); buildRollups(); });
+  rollClose&& (rollClose.onclick = ()=> hideModal(rollupModal));
+  id('rollByRM') && (id('rollByRM').onchange = buildRollups);
+  id('rollByAM') && (id('rollByAM').onchange = buildRollups);
+  id('rollExport') && (id('rollExport').onclick = exportRollupsCsv);
+
+  // click backdrop to close
+  document.querySelectorAll('.modal').forEach(m=>{
+    m.addEventListener('click', (e)=>{ if(e.target === m) m.classList.remove('show'); });
+  });
+})();
+
 
   // Map events
   markers.on('clustermouseover', (e)=>{
