@@ -1973,40 +1973,45 @@
   let sandboxMarker = null;
 
   id('sandboxBtn').addEventListener('click', ()=>{
-    sandboxOpen = !sandboxOpen;
-    const pn = id('sandboxPanel');
-    if (!pn){
-      const d = document.createElement('div');
-      d.className='sandbox'; d.id='sandboxPanel';
-      d.innerHTML = `<h4>New-hub Sandbox</h4>
-        <div>Click the map to position the blue ring, <b>or</b> enter “lat,lng” below. Adjust radius as needed.</div>
-        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-          <input id="sandboxAddr" type="text" placeholder="e.g. 33.52,-86.80" style="flex:1;min-width:260px;border:1px solid var(--border);border-radius:8px;padding:6px 8px"/>
-          <button id="sandboxGeocode" class="btn" type="button">Use coords</button>
-        </div>
-        <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
-        <div style="margin-top:10px"><b>Radius:</b> <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}"> <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi</div>
-        <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
-        <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>
+  sandboxOpen = !sandboxOpen;
 
-        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-          <button id="sandboxPropose" class="btn" type="button">Propose hub…</button>
-          <label class="toggle" title="Apply my proposals to coverage calc">
-            <input id="sandboxApplyCoverage" type="checkbox">Include in coverage
-          </label>
-          <button id="sandboxExportProposals" class="btn" type="button">Export my proposals (JSON)</button>
-        </div>`;
-      document.querySelector('.mapwrap').appendChild(d);
-    }
-    id('sandboxPanel').style.display = sandboxOpen ? 'block' : 'none';
-    if (!sandboxOpen){
-      if (sandboxCircle) ringLayer.removeLayer(sandboxCircle), sandboxCircle=null;
-      if (sandboxMarker) highlightLayer.removeLayer(sandboxMarker), sandboxMarker=null;
-      return;
-    }
-    const c = map.getCenter();
-    placeSandbox([      c.lat, c.lng]);
-    }
+  let pn = id('sandboxPanel');
+  if (!pn){
+    pn = document.createElement('div');
+    pn.className='sandbox'; pn.id='sandboxPanel';
+    pn.innerHTML = `<h4>New-hub Sandbox</h4>
+      <div>Click the map to position the blue ring, <b>or</b> enter “lat,lng” below. Adjust radius as needed.</div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <input id="sandboxAddr" type="text" placeholder="e.g. 33.52,-86.80" style="flex:1;min-width:260px;border:1px solid var(--border);border-radius:8px;padding:6px 8px"/>
+        <button id="sandboxGeocode" class="btn" type="button">Use coords</button>
+      </div>
+      <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
+      <div style="margin-top:10px"><b>Radius:</b> <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}"> <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi</div>
+      <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
+      <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>
+
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <button id="sandboxPropose" class="btn" type="button">Propose hub…</button>
+        <label class="toggle" title="Apply my proposals to coverage calc">
+          <input id="sandboxApplyCoverage" type="checkbox">Include in coverage
+        </label>
+        <button id="sandboxExportProposals" class="btn" type="button">Export my proposals (JSON)</button>
+      </div>`;
+    document.querySelector('.mapwrap').appendChild(pn);
+  }
+
+  pn.style.display = sandboxOpen ? 'block' : 'none';
+
+  if (!sandboxOpen){
+    if (sandboxCircle) ringLayer.removeLayer(sandboxCircle), sandboxCircle=null;
+    if (sandboxMarker) highlightLayer.removeLayer(sandboxMarker), sandboxMarker=null;
+    return;
+  }
+
+  const c = map.getCenter();
+  placeSandbox([c.lat, c.lng]);   // ✅ correct line
+});
+
 
     // Place / update sandbox ring & marker
     function placeSandbox(latlng){
