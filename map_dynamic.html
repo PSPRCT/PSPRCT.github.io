@@ -1046,7 +1046,8 @@ function printSidepanelList(){
       var s=rw.store;
       return '<tr><td>'+escapeHtml(String(s.storeNumberStr))+'</td><td>'+escapeHtml(s.storeName||'')+'</td><td>'+escapeHtml(s.address||'')+'</td><td>'+escapeHtml(s.city||'')+'</td><td>'+escapeHtml(s.state||'')+'</td><td>'+escapeHtml(s.coverageType||'')+'</td></tr>';
     }).join('')+
-    '</tbody></table><script>window.onload=function(){setTimeout(function(){window.print()},200)}</script>';
+// Option A: escape the slash
+'</tbody></table><script>window.onload=function(){setTimeout(function(){window.print()},200)}<\/script>';
   var w=window.open('','_blank'); if(w){ w.document.write(html); w.document.close(); }
 }
 
