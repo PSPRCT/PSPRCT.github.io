@@ -425,7 +425,9 @@
 </script>
 
 <script>
-(async function(){
+async function main(){
+
+
   // ========== CONFIG ==========
   // Default local JSON filenames (next to this HTML)
   const DATA_URL_DEFAULT    = './store_data.json';
@@ -652,15 +654,11 @@ const AUTO_RESET = ()=> !!(id('autoReset') && id('autoReset').checked);
   markers.on('clusterclick', (e)=>{ map.fitBounds(e.layer.getBounds()); });
 map.on('moveend zoomend', () => {
   updateInViewCount();
-
-  // update heat lazily so panning doesn't stutter
   if (id('tgHeat').checked) {
     (window.requestIdleCallback || ((fn) => setTimeout(fn, 0)))(updateHeat);
   }
-
   saveState();
 });
-
 
     saveState();
   });
@@ -2066,7 +2064,18 @@ const escape = escapeHtml;
     renderHubs(); updateRings();
   }
 
-})(); // end IIFE
+} // end main()
+
+main().catch(err => {
+  const STATUS = document.getElementById('dataStatus');
+  const msg = (err && err.message) || String(err);
+  if (STATUS) {
+    STATUS.innerHTML =
+      `<span style="color:#b42318;font-weight:600">Init error:</span> ${msg.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}`;
+  }
+  console.error(err);
+});
 </script>
 </body>
 </html>
+
