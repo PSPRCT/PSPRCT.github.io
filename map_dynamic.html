@@ -790,6 +790,74 @@
     return allStores.map(s => [distMiles(center.lat,center.lng,s.lat,s.lng), s]).sort((a,b)=>a[0]-b[0]).slice(0,limit).map((x,i)=>toResFromStore(x[1], 80-i,'NEAR'));
   }
 
+    function showRollupModal(){
+    // aggregate by RM from *current* filtered stores
+    const byRM = new Map();
+    filteredStores.forEach(s=>{
+      const k = s.regionalManager || '(none)';
+      const v = byRM.get(k) || { total:0, pa:0, p:0, a:0, u:0 };
+      v.total++;
+      if (s.coverageType==='Premium + Acosta') v.pa++;
+      else if (s.coverageType==='Premium Only') v.p++;
+      else if (s.coverageType==='Acosta Only') v.a++;
+      else v.u++;
+      byRM.set(k, v);
+    });
+
+    const rows = Array.from(byRM.entries())
+      .sort((a,b)=> b[1].total - a[1].total)
+      .map(([rm,v])=>({ RM:rm, Total:v.total, 'P+A':v.pa, Premium:v.p, Acosta:v.a, Uncovered:v.u }));
+
+    const table = `
+      <table style="border-collapse:collapse;width:100%;font-size:13px">
+        <thead>
+          <tr>
+            <th style="border:1px solid var(--border);padding:6px;text-align:left">RM</th>
+            <th style="border:1px solid var(--border);padding:6px">Total</th>
+            <th style="border:1px solid var(--border);padding:6px">P+A</th>
+            <th style="border:1px solid var(--border);padding:6px">Premium</th>
+            <th style="border:1px solid var(--border);padding:6px">Acosta</th>
+            <th style="border:1px solid var(--border);padding:6px">Uncovered</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r=>`
+            <tr>
+              <td style="border:1px solid var(--border);padding:6px">${escape(r.RM)}</td>
+              <td style="border:1px solid var(--border);padding:6px;text-align:right">${r.Total}</td>
+              <td style="border:1px solid var(--border);padding:6px;text-align:right">${r['P+A']}</td>
+              <td style="border:1px solid var(--border);padding:6px;text-align:right">${r.Premium}</td>
+              <td style="border:1px solid var(--border);padding:6px;text-align:right">${r.Acosta}</td>
+              <td style="border:1px solid var(--border);padding:6px;text-align:right">${r.Uncovered}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+
+    const modal = document.createElement('div');
+    modal.className = 'modal show';
+    modal.innerHTML = `
+      <div class="card" role="dialog" aria-modal="true">
+        <header>
+          <h3>Roll-Up by RM</h3>
+          <button id="ruClose" class="btn" type="button">Close</button>
+        </header>
+        <div class="body" style="grid-template-columns:1fr">
+          <div style="max-height:60vh;overflow:auto">${table}</div>
+          <div style="margin-top:10px;display:flex;gap:8px">
+            <button id="ruExport" class="btn" type="button">Export CSV</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    id('ruClose').onclick = ()=> modal.remove();
+    id('ruExport').onclick = ()=> downloadText(`rollup_${Date.now()}.csv`, toCSV(rows));
+  }
+
+  // Wire the button to the on-screen modal (instead of exporting immediately)
+  id('rollupBtn').onclick = showRollupModal;
+
+
   // Fuzzy helpers + “near <city>”
   function fuzzyScore(hay, needle){
     hay = (hay||'').toLowerCase(); needle = (needle||'').toLowerCase().trim();
@@ -1700,14 +1768,23 @@
 <kml xmlns="http://www.opengis.net/kml/2.2"><Document>${placemarks}</Document></kml>`;
   }
 
-  function updateDatasetBadge(...parts){
+   function updateDatasetBadge(...parts){
     const b = id('datasetBadge');
-    const revs = JSON.parse(localStorage.getItem(REV_KEY)||'[]');
+    let revs = [];
+    try {
+      const raw = localStorage.getItem(REV_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      revs = Array.isArray(parsed) ? parsed : [];
+    } catch { revs = []; }
+
     const fp = parts.join(' | ');
-    revs.push({ when: Date.now(), fp });
-    localStorage.setItem(REV_KEY, JSON.stringify(revs.slice(-8)));
+    // keep last 8 entries
+    revs = [...revs.slice(-7), { when: Date.now(), fp }];
+
+    try { localStorage.setItem(REV_KEY, JSON.stringify(revs)); } catch {}
     b.textContent = `Datasets • ${fp}`;
   }
+
 
   function filterSelect(sel, q){
     const s = q.trim().toLowerCase();
