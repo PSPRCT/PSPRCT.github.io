@@ -900,6 +900,7 @@ function hideModal(el){ if(el){ el.classList.remove('show'); } }
       premiumConfirmed = [];
       premiumPending   = [];
     }
+    renderLegend();
 
     // Load user proposals (local)
     loadUserHubs();
@@ -1598,25 +1599,26 @@ window.addEventListener('resize', adjustSearchPadding);
     document.body.toggleAttribute('aria-busy', !!v);
   }
   function renderLegend(){
-    let el = document.getElementById('legend');
-    if (!el){
-      el = document.createElement('div');
-      el.className = 'legend';
-      el.id = 'legend';
-      document.querySelector('.mapwrap').appendChild(el);
-    }
-    el.innerHTML = `
-      <div style="font-weight:700;margin-bottom:6px">Legend</div>
-      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 8px;align-items:center;font-size:12px">
-        <div class="dot" style="background:${COLORS['Premium + Acosta']}"></div><div>Stores — Premium + Acosta</div>
-        <div class="dot" style="background:${COLORS['Premium Only']}"></div><div>Stores — Premium Only</div>
-        <div class="dot" style="background:${COLORS['Acosta Only']}"></div><div>Stores — Acosta Only</div>
-        <div class="dot" style="background:${COLORS['Uncovered']}"></div><div>Stores — Uncovered</div>
-        <div class="hub confirmed" style="width:14px;height:14px;border-width:2px"></div><div>Hub — Confirmed</div>
-        <div class="hub pending" style="width:14px;height:14px;border-width:2px"></div><div>Hub — Pending Offer / Proposed</div>
-        <div class="hub acosta" style="width:14px;height:14px;border-width:2px"></div><div>Hub — Acosta</div>
-      </div>`;
+  let el = document.getElementById('legend');
+  if (!el){
+    el = document.createElement('div');
+    el.className = 'legend';
+    el.id = 'legend';
+    document.querySelector('.mapwrap').appendChild(el);
   }
+  el.innerHTML = `
+    <div style="font-weight:700;margin-bottom:6px">Legend</div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 8px;align-items:center;font-size:12px">
+      <div class="dot" style="background:${COLORS['Premium + Acosta']}"></div><div>Stores — Premium + Acosta</div>
+      <div class="dot" style="background:${COLORS['Premium Only']}"></div><div>Stores — Premium Only</div>
+      <div class="dot" style="background:${COLORS['Acosta Only']}"></div><div>Stores — Acosta Only</div>
+      <div class="dot" style="background:${COLORS['Uncovered']}"></div><div>Stores — Uncovered</div>
+      <div class="hub confirmed" style="width:14px;height:14px;border-width:2px"></div><div>Hub — Confirmed</div>
+      <div class="hub pending" style="width:14px;height:14px;border-width:2px"></div><div>Hub — Pending Offer / Proposed</div>
+      <div class="hub acosta" style="width:14px;height:14px;border-width:2px"></div><div>Hub — Acosta</div>
+    </div>`;
+}
+
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
   function escape(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
   function htmlEscape(s){ return (s ?? "").toString().replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
