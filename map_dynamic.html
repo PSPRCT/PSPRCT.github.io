@@ -650,10 +650,7 @@ try {
   // Only the new file’s sections
 const rows = Array.isArray(pJson)
   ? pJson
-  : [
-      ...(pJson.confirmed || []),
-      ...(pJson.pending   || []),
-    ];
+  : [ ...(pJson.confirmed||[]), ...(pJson.pending||[]) ];
 
   const txt = v => String(v ?? '').toLowerCase();
   const statusText = r => {
@@ -706,8 +703,9 @@ const rows = Array.isArray(pJson)
     const statusSub =
       /(offer)/i.test(s) ? 'pending_offer' :
       /(propos|plan|target)/i.test(s) ? 'proposed' :
-      /(recruit|open|tbd|no\s*app)/i.test(s) ? 'open' :
+      /(recruit|open|tbd|no\s*app|no\s*applicant|no\s*apps?)/i.test(s) ? 'open' :
       (status === 'confirmed' ? 'confirmed' : 'pending');
+
 
     const statusLabel = ({
       confirmed:'Confirmed', pending_offer:'Pending Offer',
