@@ -1983,7 +1983,7 @@ function buildHubFilterOptions(){
     tgCompare.checked = false; compareMode=false; pinnedHubs=[];
     tgWithin.checked = false;
     tgCluster.checked = true;
-    showConfirmed.checked = true; showPending.checked = true; showAcosta.checked = true;
+    showConfirmed.checked = true; showPending.checked = true; showAcosta.checked = false;
     radius.value = DEFAULT_RADIUS; radiusLbl.textContent = DEFAULT_RADIUS;
     setMulti(covFilter, ['All']);
     setMulti(rmFilter, ['All']); setMulti(amFilter, ['All']);
@@ -2233,7 +2233,7 @@ function buildHubFilterOptions(){
       case 'amFilter':  setMulti(amFilter,  ['All']); break;
       case 'hubFilter': setMulti(hubFilter, []); break;
       case 'tgWithin':  tgWithin.checked = false; break;
-      case 'visibility': showConfirmed.checked = true; showPending.checked = true; showAcosta.checked = true; break;
+      case 'visibility': showConfirmed.checked = true; showPending.checked = true; showAcosta.checked = false; break;
       default: resetAll(); break;
     }
     runFilter(); renderChips(); saveState();
