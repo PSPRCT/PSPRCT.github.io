@@ -2398,12 +2398,15 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
 
   // ---------- Sandbox ----------
 // ---------- Sandbox ----------
+// ---------- Sandbox ----------
 let sandboxOpen = false;
 let sandboxCircle = null;
 let sandboxMarker = null;
 
 id('sandboxBtn').addEventListener('click', ()=>{
   sandboxOpen = !sandboxOpen;
+
+  // Create panel if missing
   const pn = id('sandboxPanel');
   if (!pn){
     const d = document.createElement('div');
@@ -2418,26 +2421,23 @@ id('sandboxBtn').addEventListener('click', ()=>{
       <div style="margin-top:10px"><b>Radius:</b> <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}"> <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi</div>
       <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
       <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>
-
-      <!-- NEW: promote sandbox to a hub -->
       <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
         <button id="sandboxAddPending"  class="btn" type="button">Add as Pending Hub</button>
         <button id="sandboxAddConfirmed" class="btn" type="button">Add as Confirmed Hub</button>
       </div>
       <div id="sandboxAddMsg" style="margin-top:6px; font-size:12px; color:var(--muted)"></div>`;
     document.querySelector('.mapwrap').appendChild(d);
-  }
-
-  // ✅ UPGRADE EXISTING PANEL (this is JS, NOT inside the template string)
-  const _panel = id('sandboxPanel');
-  if (_panel && !_panel.querySelector('#sandboxAddPending')) {
-    _panel.insertAdjacentHTML('beforeend', `
-      <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
-        <button id="sandboxAddPending"  class="btn" type="button">Add as Pending Hub</button>
-        <button id="sandboxAddConfirmed" class="btn" type="button">Add as Confirmed Hub</button>
-      </div>
-      <div id="sandboxAddMsg" style="margin-top:6px; font-size:12px; color:var(--muted)"></div>
-    `);
+  } else {
+    // Upgrade existing panel if it predates the buttons
+    if (!pn.querySelector('#sandboxAddPending')){
+      pn.insertAdjacentHTML('beforeend', `
+        <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
+          <button id="sandboxAddPending"  class="btn" type="button">Add as Pending Hub</button>
+          <button id="sandboxAddConfirmed" class="btn" type="button">Add as Confirmed Hub</button>
+        </div>
+        <div id="sandboxAddMsg" style="margin-top:6px; font-size:12px; color:var(--muted)"></div>
+      `);
+    }
   }
 
   id('sandboxPanel').style.display = sandboxOpen ? 'block' : 'none';
@@ -2446,15 +2446,18 @@ id('sandboxBtn').addEventListener('click', ()=>{
     if (sandboxMarker) highlightLayer.removeLayer(sandboxMarker), sandboxMarker=null;
     return;
   }
-  const c = map.getCenter();
-  placeSandbox([c.lat, c.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
 
-  id('sandboxR').addEventListener('input', ()=>{
+  // Initialize ring at map center
+  const c0 = map.getCenter();
+  placeSandbox([c0.lat, c0.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+
+  // ——— wiring that must be (re)done every time the panel opens ———
+  id('sandboxR').oninput = ()=>{
     id('sandboxRlbl').textContent = id('sandboxR').value;
     refreshSandbox();
-  });
+  };
 
-  id('sandboxGeocode').addEventListener('click', ()=>{
+  id('sandboxGeocode').onclick = ()=>{
     const s = id('sandboxAddr').value.trim();
     const out = id('sandboxGeoMsg');
     const m = s.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
@@ -2464,79 +2467,59 @@ id('sandboxBtn').addEventListener('click', ()=>{
     out.textContent='';
     placeSandbox([lat, lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
     map.panInside([lat, lng], { paddingTopLeft:[20,20], paddingBottomRight:[20,20] });
-  });
+  };
 
-  map.on('click', (e)=>{
+  // Move ring on map click (only while panel is open)
+  map.off('click.__sandbox'); // clear any previous handler we registered
+  map.on('click.__sandbox', (e)=>{
     if (!sandboxOpen) return;
     placeSandbox([e.latlng.lat, e.latlng.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
   });
 
-  // (Chunk B wiring for prompts goes here, right after this block, before the closing "});")
+  // Add hub from sandbox with prompts
+  function addFromSandboxWithPrompts(status){
+    const msg = id('sandboxAddMsg');
+    if (!sandboxMarker){ msg.textContent = 'Place the sandbox marker first (click the map).'; return; }
+    const ll = sandboxMarker.getLatLng?.();
+    if (!ll){ msg.textContent = 'Sandbox marker missing coordinates.'; return; }
 
-  // --- promote sandbox → hub with prompts ---
-function addFromSandboxWithPrompts(status){
-  const msg = id('sandboxAddMsg');
-  if (!sandboxMarker){
-    msg.textContent = 'Place the sandbox marker first (click the map).';
-    return;
+    const defCity  = '';
+    const defState = '';
+    const defName  = '';
+    const city  = (prompt('City for this hub?', defCity)  || '').trim();
+    const state = (prompt('State (2 letters)?', defState) || '').trim().toUpperCase();
+    const name  = (prompt('Trainer name (optional)', defName) || '').trim();
+    if (state && !/^[A-Z]{2}$/.test(state)){ alert('State must be two letters (e.g., AL, TX, WA).'); return; }
+
+    const hub = {
+      id: (status==='confirmed'?'c_':'p_') + Math.random().toString(36).slice(2,9),
+      status,
+      statusLabel: status==='confirmed' ? 'Confirmed' : 'Pending',
+      name: name || (status==='confirmed' ? 'Confirmed' : 'Proposed'),
+      fullName: [city, state].filter(Boolean).join(', ') || (name || 'New hub'),
+      city, state,
+      coords: [ll.lat, ll.lng]
+    };
+
+    if (status === 'confirmed') premiumConfirmed.push(hub);
+    else premiumPending.push(hub);
+
+    renderHubs();
+    updateRings?.();
+    (typeof recomputeCoverage === 'function' ? recomputeCoverage() : Promise.resolve())
+      .then(()=> runFilter?.());
+
+    msg.textContent = `Added ${hub.statusLabel} hub at ${ll.lat.toFixed(4)}, ${ll.lng.toFixed(4)}${city||state?` — ${hub.fullName}`:''}. Press E for edit mode to remove if needed.`;
   }
-  const ll = sandboxMarker.getLatLng?.();
-  if (!ll){
-    msg.textContent = 'Sandbox marker missing coordinates.';
-    return;
-  }
 
-  // Collect labels for the new hub
-  const defCity  = '';
-  const defState = '';
-  const defName  = '';
-  const city  = (prompt('City for this hub?', defCity)  || '').trim();
-  const state = (prompt('State (2 letters)?', defState) || '').trim().toUpperCase();
-  const name  = (prompt('Trainer name (optional)', defName) || '').trim();
-
-  if (state && !/^[A-Z]{2}$/.test(state)){
-    alert('State must be two letters (e.g., AL, TX, WA).');
-    return;
-  }
-
-  const hub = {
-    id: (status==='confirmed'?'c_':'p_') + Math.random().toString(36).slice(2,9),
-    status,
-    statusLabel: status==='confirmed' ? 'Confirmed' : 'Pending',
-    name: name || (status==='confirmed' ? 'Confirmed' : 'Proposed'),
-    fullName: [city, state].filter(Boolean).join(', ') || (name || 'New hub'),
-    city, state,
-    coords: [ll.lat, ll.lng]
-  };
-
-  if (status === 'confirmed') premiumConfirmed.push(hub);
-  else premiumPending.push(hub);
-
-  renderHubs();
-  updateRings?.();
-  // If your coverage/panels depend on recompute:
-  (typeof recomputeCoverage === 'function' ? recomputeCoverage() : Promise.resolve())
-    .then(()=> runFilter?.());
-
-  msg.textContent = `Added ${hub.statusLabel} hub at ${ll.lat.toFixed(4)}, ${ll.lng.toFixed(4)}${city||state?` — ${hub.fullName}`:''}. Press E for edit mode to remove if needed.`;
-}
-
-// Wire the two buttons (guard against double-wiring)
-const btnPend = id('sandboxAddPending');
-const btnConf = id('sandboxAddConfirmed');
-if (btnPend && !btnPend.dataset.wired){
-  btnPend.dataset.wired = '1';
-  btnPend.addEventListener('click', ()=> addFromSandboxWithPrompts('pending'));
-}
-if (btnConf && !btnConf.dataset.wired){
-  btnConf.dataset.wired = '1';
-  btnConf.addEventListener('click', ()=> addFromSandboxWithPrompts('confirmed'));
-}
-
+  // Always (re)attach button handlers when panel opens
+  const btnPend = id('sandboxAddPending');
+  const btnConf = id('sandboxAddConfirmed');
+  if (btnPend) btnPend.onclick = ()=> addFromSandboxWithPrompts('pending');
+  if (btnConf) btnConf.onclick = ()=> addFromSandboxWithPrompts('confirmed');
 });
 
  
-
   function placeSandbox(center, r){
     if (sandboxCircle){ ringLayer.removeLayer(sandboxCircle); sandboxCircle=null; }
     sandboxCircle = L.circle(center, { radius: r*1609, color: getCSS('--blue'), weight: 2, fill:false, opacity:.6 }).addTo(ringLayer);
