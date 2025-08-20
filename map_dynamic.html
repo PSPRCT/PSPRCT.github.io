@@ -2131,6 +2131,27 @@ function buildHubFilterOptions(){
     });
   }
 
+  // --- small helpers ---
+function wireBtn(id, fn){
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', fn, false);
+}
+function showModal(el){ if (el) el.classList.add('show'); }
+function hideModal(el){ if (el) el.classList.remove('show'); }
+
+// HELP
+wireBtn('helpBtn',  ()=> showModal(document.getElementById('helpModal')));
+wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
+
+// optional: close on backdrop click / Esc
+(() => {
+  const modal = document.getElementById('helpModal');
+  if (!modal) return;
+  modal.addEventListener('click', (e)=>{ if (e.target === modal) hideModal(modal); });
+  window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') hideModal(modal); });
+})();
+
+
   function saveSnapshot(){
     const st = JSON.parse(localStorage.getItem(LS_STATE) || '{}');
     const hash = btoa(unescape(encodeURIComponent(JSON.stringify(st))));
