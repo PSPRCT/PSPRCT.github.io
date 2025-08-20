@@ -2397,67 +2397,145 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
   }
 
   // ---------- Sandbox ----------
-  let sandboxOpen = false;
-  let sandboxCircle = null;
-  let sandboxMarker = null;
+// ---------- Sandbox ----------
+let sandboxOpen = false;
+let sandboxCircle = null;
+let sandboxMarker = null;
 
-  id('sandboxBtn').addEventListener('click', ()=>{
-    sandboxOpen = !sandboxOpen;
-    const pn = id('sandboxPanel');
-    if (!pn){
-      const d = document.createElement('div');
-      d.className='sandbox'; d.id='sandboxPanel';
-      d.innerHTML = `<h4>New-hub Sandbox</h4>
-  <div>Click the map to position the blue ring, <b>or</b> enter “lat,lng” below. Adjust radius as needed.</div>
-  <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-    <input id="sandboxAddr" type="text" placeholder="e.g. 33.52,-86.80" style="flex:1;min-width:260px;border:1px solid var(--border);border-radius:8px;padding:6px 8px"/>
-    <button id="sandboxGeocode" class="btn" type="button">Use coords</button>
-  </div>
-  <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
-  <div style="margin-top:10px"><b>Radius:</b> <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}"> <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi</div>
-  <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
-  <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>
+id('sandboxBtn').addEventListener('click', ()=>{
+  sandboxOpen = !sandboxOpen;
+  const pn = id('sandboxPanel');
+  if (!pn){
+    const d = document.createElement('div');
+    d.className='sandbox'; d.id='sandboxPanel';
+    d.innerHTML = `<h4>New-hub Sandbox</h4>
+      <div>Click the map to position the blue ring, <b>or</b> enter “lat,lng” below. Adjust radius as needed.</div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <input id="sandboxAddr" type="text" placeholder="e.g. 33.52,-86.80" style="flex:1;min-width:260px;border:1px solid var(--border);border-radius:8px;padding:6px 8px"/>
+        <button id="sandboxGeocode" class="btn" type="button">Use coords</button>
+      </div>
+      <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
+      <div style="margin-top:10px"><b>Radius:</b> <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}"> <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi</div>
+      <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
+      <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>
 
-  <!-- NEW: promote sandbox to a hub -->
-  <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
-    <button id="sandboxAddPending"  class="btn" type="button">Add as Pending Hub</button>
-    <button id="sandboxAddConfirmed" class="btn" type="button">Add as Confirmed Hub</button>
-  </div>
-  <div id="sandboxAddMsg" style="margin-top:6px; font-size:12px; color:var(--muted)"></div>`;
+      <!-- NEW: promote sandbox to a hub -->
+      <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
+        <button id="sandboxAddPending"  class="btn" type="button">Add as Pending Hub</button>
+        <button id="sandboxAddConfirmed" class="btn" type="button">Add as Confirmed Hub</button>
+      </div>
+      <div id="sandboxAddMsg" style="margin-top:6px; font-size:12px; color:var(--muted)"></div>`;
+    document.querySelector('.mapwrap').appendChild(d);
+  }
 
-      document.querySelector('.mapwrap').appendChild(d);
-    }
-    id('sandboxPanel').style.display = sandboxOpen ? 'block' : 'none';
-    if (!sandboxOpen){
-      if (sandboxCircle) ringLayer.removeLayer(sandboxCircle), sandboxCircle=null;
-      if (sandboxMarker) highlightLayer.removeLayer(sandboxMarker), sandboxMarker=null;
-      return;
-    }
-    const c = map.getCenter();
-    placeSandbox([c.lat, c.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+  // ✅ UPGRADE EXISTING PANEL (this is JS, NOT inside the template string)
+  const _panel = id('sandboxPanel');
+  if (_panel && !_panel.querySelector('#sandboxAddPending')) {
+    _panel.insertAdjacentHTML('beforeend', `
+      <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
+        <button id="sandboxAddPending"  class="btn" type="button">Add as Pending Hub</button>
+        <button id="sandboxAddConfirmed" class="btn" type="button">Add as Confirmed Hub</button>
+      </div>
+      <div id="sandboxAddMsg" style="margin-top:6px; font-size:12px; color:var(--muted)"></div>
+    `);
+  }
 
-    id('sandboxR').addEventListener('input', ()=>{
-      id('sandboxRlbl').textContent = id('sandboxR').value;
-      refreshSandbox();
-    });
+  id('sandboxPanel').style.display = sandboxOpen ? 'block' : 'none';
+  if (!sandboxOpen){
+    if (sandboxCircle) ringLayer.removeLayer(sandboxCircle), sandboxCircle=null;
+    if (sandboxMarker) highlightLayer.removeLayer(sandboxMarker), sandboxMarker=null;
+    return;
+  }
+  const c = map.getCenter();
+  placeSandbox([c.lat, c.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
 
-    id('sandboxGeocode').addEventListener('click', ()=>{
-      const s = id('sandboxAddr').value.trim();
-      const out = id('sandboxGeoMsg');
-      const m = s.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
-      if (!m){ out.textContent='Enter coordinates like "33.52,-86.80".'; return; }
-      const lat = parseFloat(m[1]), lng = parseFloat(m[2]);
-      if (lat<-90||lat>90||lng<-180||lng>180){ out.textContent='Out of range.'; return; }
-      out.textContent='';
-      placeSandbox([lat, lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
-      map.panInside([lat, lng], { paddingTopLeft:[20,20], paddingBottomRight:[20,20] });
-    });
-
-    map.on('click', (e)=>{
-      if (!sandboxOpen) return;
-      placeSandbox([e.latlng.lat, e.latlng.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
-    });
+  id('sandboxR').addEventListener('input', ()=>{
+    id('sandboxRlbl').textContent = id('sandboxR').value;
+    refreshSandbox();
   });
+
+  id('sandboxGeocode').addEventListener('click', ()=>{
+    const s = id('sandboxAddr').value.trim();
+    const out = id('sandboxGeoMsg');
+    const m = s.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+    if (!m){ out.textContent='Enter coordinates like "33.52,-86.80".'; return; }
+    const lat = parseFloat(m[1]), lng = parseFloat(m[2]);
+    if (lat<-90||lat>90||lng<-180||lng>180){ out.textContent='Out of range.'; return; }
+    out.textContent='';
+    placeSandbox([lat, lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+    map.panInside([lat, lng], { paddingTopLeft:[20,20], paddingBottomRight:[20,20] });
+  });
+
+  map.on('click', (e)=>{
+    if (!sandboxOpen) return;
+    placeSandbox([e.latlng.lat, e.latlng.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+  });
+
+  // (Chunk B wiring for prompts goes here, right after this block, before the closing "});")
+
+  // --- promote sandbox → hub with prompts ---
+function addFromSandboxWithPrompts(status){
+  const msg = id('sandboxAddMsg');
+  if (!sandboxMarker){
+    msg.textContent = 'Place the sandbox marker first (click the map).';
+    return;
+  }
+  const ll = sandboxMarker.getLatLng?.();
+  if (!ll){
+    msg.textContent = 'Sandbox marker missing coordinates.';
+    return;
+  }
+
+  // Collect labels for the new hub
+  const defCity  = '';
+  const defState = '';
+  const defName  = '';
+  const city  = (prompt('City for this hub?', defCity)  || '').trim();
+  const state = (prompt('State (2 letters)?', defState) || '').trim().toUpperCase();
+  const name  = (prompt('Trainer name (optional)', defName) || '').trim();
+
+  if (state && !/^[A-Z]{2}$/.test(state)){
+    alert('State must be two letters (e.g., AL, TX, WA).');
+    return;
+  }
+
+  const hub = {
+    id: (status==='confirmed'?'c_':'p_') + Math.random().toString(36).slice(2,9),
+    status,
+    statusLabel: status==='confirmed' ? 'Confirmed' : 'Pending',
+    name: name || (status==='confirmed' ? 'Confirmed' : 'Proposed'),
+    fullName: [city, state].filter(Boolean).join(', ') || (name || 'New hub'),
+    city, state,
+    coords: [ll.lat, ll.lng]
+  };
+
+  if (status === 'confirmed') premiumConfirmed.push(hub);
+  else premiumPending.push(hub);
+
+  renderHubs();
+  updateRings?.();
+  // If your coverage/panels depend on recompute:
+  (typeof recomputeCoverage === 'function' ? recomputeCoverage() : Promise.resolve())
+    .then(()=> runFilter?.());
+
+  msg.textContent = `Added ${hub.statusLabel} hub at ${ll.lat.toFixed(4)}, ${ll.lng.toFixed(4)}${city||state?` — ${hub.fullName}`:''}. Press E for edit mode to remove if needed.`;
+}
+
+// Wire the two buttons (guard against double-wiring)
+const btnPend = id('sandboxAddPending');
+const btnConf = id('sandboxAddConfirmed');
+if (btnPend && !btnPend.dataset.wired){
+  btnPend.dataset.wired = '1';
+  btnPend.addEventListener('click', ()=> addFromSandboxWithPrompts('pending'));
+}
+if (btnConf && !btnConf.dataset.wired){
+  btnConf.dataset.wired = '1';
+  btnConf.addEventListener('click', ()=> addFromSandboxWithPrompts('confirmed'));
+}
+
+});
+
+ 
 
   function placeSandbox(center, r){
     if (sandboxCircle){ ringLayer.removeLayer(sandboxCircle); sandboxCircle=null; }
