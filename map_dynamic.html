@@ -56,6 +56,7 @@
   .muted{color:var(--muted);margin-left:auto}
 
   .mapwrap{position:relative;flex:1;min-height:460px;display:flex;overflow:hidden}
+  
   #map{flex:1}
 
   .sidepanel{width:380px;max-width:90vw;flex:0 0 380px;background:var(--panel);border-left:1px solid var(--border);box-shadow:-4px 0 18px rgba(0,0,0,.12);display:none;flex-direction:column;z-index:6}
@@ -312,6 +313,15 @@
 <div class="mapwrap">
   <div id="map" role="region" aria-label="Coverage Map"></div>
 
+    <!-- Overlap legend (hidden by default; JS toggles it) -->
+  <div id="overlapKey" class="legend" style="display:none; padding:6px 8px; font-size:12px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="width:10px;height:10px;border-radius:50%;border:2px solid #111;display:inline-block"></span>
+      2+ hubs cover this store
+    </div>
+  </div>
+
+
   <div class="floating">
     <label class="toggle" title="Density of stores"><input id="tgHeat" type="checkbox" />Heatmap</label>
     <label class="toggle" title="Show hub radius circles"><input id="tgRings" type="checkbox" />Hub radii</label>
@@ -526,6 +536,8 @@ const PREMIUM_URL = 'premium_trainers_master.json?v=2025-08-19a';
   const showAcosta    = id('showAcosta');
   const radius        = id('radius');  const radiusLbl = id('radiusLbl');
   const tgHeat = id('tgHeat'), tgRings=id('tgRings'), tgOverlap=id('tgOverlap'), tgCompare=id('tgCompare'), tgWithin=id('tgWithin'), tgCluster=id('tgCluster');
+  const overlapKey = id('overlapKey');  // tiny legend for overlap mode
+
   const covFilter = id('covFilter'); const covSearch = id('covSearch');
   const rmFilter  = id('rmFilter');  const rmSearch  = id('rmSearch');
   const amFilter  = id('amFilter');  const amSearch  = id('amSearch');
@@ -603,7 +615,17 @@ const PREMIUM_URL = 'premium_trainers_master.json?v=2025-08-19a';
   // Floating toggles
   tgHeat.onchange   = ()=>{ if (tgHeat.checked) updateHeat(); else clearHeat(); saveState(); };
   tgRings.onchange  = ()=>{ updateRings(); saveState(); };
-  tgOverlap.onchange= ()=>{ if (tgOverlap.checked) drawOverlap(); else highlightLayer.clearLayers(); saveState(); };
+  tgOverlap.onchange = () => {
+  if (tgOverlap.checked){
+    drawOverlap();
+    if (overlapKey?.style) overlapKey.style.display = 'block';
+  } else {
+    highlightLayer.clearLayers();
+    if (overlapKey?.style) overlapKey.style.display = 'none';
+  }
+  saveState();
+};
+
   tgCompare.onchange= ()=>{ compareMode = tgCompare.checked; pinnedHubs=[]; highlightLayer.clearLayers(); refreshComparePanel(); alert(compareMode ? 'Compare mode on: click hub markers to pin them.' : 'Compare mode off.'); saveState(); };
   tgWithin.onchange = ()=>{ lastFilterChanged='tgWithin'; runFilter(); fitToResults(); saveState(); };
   tgCluster.onchange= ()=>{ refreshLayerMode(); };
@@ -1203,6 +1225,8 @@ const icon = L.divIcon({
   }
   function drawOverlap(){
     highlightLayer.clearLayers();
+    if (overlapKey?.style) overlapKey.style.display = tgOverlap.checked ? 'block' : 'none';
+
     if(!tgOverlap.checked) return;
     const r = Number(radius.value)||DEFAULT_RADIUS;
     const vis = visibleHubs();
