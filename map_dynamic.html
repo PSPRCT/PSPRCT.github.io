@@ -1391,33 +1391,49 @@ function rowHTML(s){
 
   // Virtualized list
 function renderSidepanelList(){
-  const rows = visibleStores()
-    .map(s => {
-      const dist = storeDistMiles(s);
-      return { s, dist };
-    })
-    .sort((a,b)=> a.dist - b.dist) // nearest → farthest (Infinity goes last)
-    .map(({s, dist})=>{
-      const name  = (s.storeName || s.StoreName || 'Walmart').trim?.() || 'Walmart';
-      const addr  = (s.address   || s.Address   || '').trim?.() || '';
-      const city  = (s.city      || s.City      || '').trim?.() || '';
-      const state = (s.state     || s.State     || '').trim?.() || '';
-      const rm    = s.regionalManager || s.RegionalManager || '-';
-      const am    = s.areaManager     || s.AreaManager     || '-';
-      const hub   = s.trainerCity     || s.Assigned_Premium || s.Assigned_Acosta || s.Nearest_Premium || '-';
-      const miles = Number.isFinite(dist) ? `${dist.toFixed(1)} mi` : '—';
+  // base = rows prepared for the current hub
+  let rows = spRows || [];
 
+  // live filters in the panel
+  const q = (spFilter || '').toLowerCase();
+  if (q){
+    rows = rows.filter(s =>
+      (s.storeNumberStr || '').toLowerCase().includes(q) ||
+      (s.storeName      || '').toLowerCase().includes(q) ||
+      (s.address        || '').toLowerCase().includes(q) ||
+      (s.city           || '').toLowerCase().includes(q) ||
+      (s.state          || '').toLowerCase().includes(q)
+    );
+  }
+  if (spOnlyUncov){ rows = rows.filter(s => (s.coverageType||'') === 'Uncovered'); }
+
+  // sort by distance to the active hub
+  rows = rows
+    .map(s => ({ s, d: distToActiveHub(s) }))
+    .sort((a,b)=> a.d - b.d)
+    .map(({s,d})=>{
+      const miles = Number.isFinite(d) ? `${d.toFixed(1)} mi` : '—';
+      const rm = s.regionalManager || s.RegionalManager || '-';
+      const am = s.areaManager     || s.AreaManager     || '-';
+      const hub= s.trainerCity     || s.Assigned_Premium || s.Assigned_Acosta || s.Nearest_Premium || '-';
       return `
-      <div class="sp-row">
-        <div class="row-top"><strong>${name}</strong> • ${miles}</div>
-        <div class="row-addr">${addr}, ${city}, ${state}</div>
-        <div class="row-mgr">RM: ${rm} &nbsp;|&nbsp; AM: ${am} &nbsp;|&nbsp; Hub: ${hub}</div>
-      </div>`;
+        <div class="row" data-store="${s.storeNumberStr}">
+          <div class="num">${s.storeNumberStr}</div>
+          <div>
+            <div class="title"><strong>${s.storeName || 'Walmart'}</strong> • ${miles}</div>
+            <div class="addr">${s.address || ''}, ${s.city || ''}, ${s.state || ''}</div>
+            <div class="mgrs">RM: ${rm} &nbsp;|&nbsp; AM: ${am} &nbsp;|&nbsp; Hub: ${hub}</div>
+          </div>
+          <div class="cov-badge ${s.coverageType==='Premium + Acosta'?'cov-pa':s.coverageType==='Premium Only'?'cov-p':s.coverageType==='Acosta Only'?'cov-a':'cov-u'}">
+            ${s.coverageType || '—'}
+          </div>
+        </div>`;
     })
     .join('');
 
-  spRowsEl.innerHTML = rows;
+  spRowsEl.innerHTML = rows || '';
 }
+
 
 
 
@@ -1503,6 +1519,13 @@ function renderSidepanelList(){
     exportCsvWithToast(rows, `${slug(spHub.name)}_${r}mi_${Date.now()}.csv`);
   }
   // --- Distance helper for stores (nearest visible hub) ---
+
+  // Distance from store to the side-panel's active hub
+function distToActiveHub(s){
+  if (!spHub || !spHub.coords) return Infinity;
+  return distMiles(s.lat, s.lng, spHub.coords[0], spHub.coords[1]);
+}
+
 function storeDistMiles(s){
   const lat = s.lat ?? s.latitude, lng = s.lng ?? s.longitude;
   if (!Number.isFinite(+lat) || !Number.isFinite(+lng)) return Infinity;
