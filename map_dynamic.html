@@ -1391,69 +1391,29 @@ function rowHTML(s){
 
   // Virtualized list
   let virt = null;
-function renderSidepanelList(forceRebuild=false){
+function renderSidepanelList(force=false){
   if (!spHub) return;
 
+  // build source list
   const r = Number(radius.value) || DEFAULT_RADIUS;
-  const [hlat, hlng] = spHub.coords;
-
-  // Base: stores within current radius
-  let list = storesWithin(spHub.coords, r);
-
-  // Optional filter: uncovered only
-  if (spOnlyUncov) list = list.filter(s => (s.coverageType || '') === 'Uncovered');
-
-  // Text filter in the panel search box
-  const q = (spFilter || '').trim().toLowerCase();
-  if (q){
-    list = list.filter(s => {
-      const hay = `${s.storeNumberStr || s.storeNumber || ''} ${s.storeName || ''} ${s.address || ''} ${s.city || ''} ${s.state || ''}`.toLowerCase();
-      return hay.includes(q);
-    });
-  }
-
-  // --- 👇 INSERTED: de-dupe + distance cache + distance sort ---
-  list = uniqBy(list, storeKey);
-
-  // cache distance once; reuse everywhere (render + sort + print)
-  list.forEach(s => { s._distMiles = distMiles(hlat, hlng, s.lat, s.lng); });
-
-  // sort by miles asc
-  list.sort((a,b) => (a._distMiles || 0) - (b._distMiles || 0));
-  // --- 👆 END INSERTED ---
-
-  // stash & render
-  spRows = list;
-
-  // row template (uses cached _distMiles)
-  const rowHTML = (s) => {
-    const miles = (Math.round((s._distMiles || 0) * 10) / 10).toFixed(1);
-    const addr = [s.address, `${s.city}, ${s.state}`].filter(Boolean).join(' · ');
-    const copyVal = addr; // what the Copy button grabs
-
-    return `
-      <div class="row" role="button" tabindex="0">
-        <div class="num">#${s.storeNumberStr || s.storeNumber || ''}</div>
-        <div>
-          <div class="title">${escape(s.storeName || '')}</div>
-          <div class="addr">${escape(addr || '')}</div>
-          <div class="badge">${escape(s.coverageType || '')}</div>
-          <button class="mini" data-copy="${escape(copyVal)}" title="Copy address">Copy</button>
-        </div>
-        <div class="num">${miles} mi</div>
-      </div>`;
-  };
-
-  spRowsEl.innerHTML = list.map(rowHTML).join('');
-
-  // row click → open popup
-  const rows = Array.from(spRowsEl.querySelectorAll('.row'));
-  rows.forEach((el, i) => {
-    const s = list[i];
-    el.addEventListener('click', () => openStorePopup(s));
+  let list = storesWithin(spHub.coords, r).map(s => {
+    // cache distance for sorting / display
+    const d = distMiles(spHub.coords[0], spHub.coords[1], s.lat, s.lng);
+    return Object.assign({}, s, { _distMiles: d });
   });
-}
 
+  // panel “Uncovered only”
+  if (spOnlyUncov) list = list.filter(s => (s.coverageType||'') === 'Uncovered');
+
+  // panel search filter
+  if (spFilter){
+    const q = spFilter.toLowerCase();
+    list = list.filter(s =>
+      (`${s.storeNumberStr} ${s.storeName||''} ${s.address||''} ${s.city||''} ${s.state||''} ${s.coverageType||''}`)
+        .toLowerCase()
+        .includes(q)
+    );
+  }
 
   // sort by distance
 list.sort((a,b)=> (a._distMiles||0) - (b._distMiles||0));
@@ -1591,25 +1551,7 @@ spRowsEl.addEventListener('click', (e)=>{
       }
     })();
   }
-
-  // Keep only the first row for each key
-function uniqBy(arr, keyFn){
-  const map = new Map();
-  for (const s of arr){
-    const k = keyFn(s);
-    if (!map.has(k)) map.set(k, s);
-  }
-  return Array.from(map.values());
-}
-
-// Stable store key (prefers store #, falls back to address tuple)
-function storeKey(s){
-  return String(s.storeNumberStr || s.storeNumber || '').trim() ||
-         `${(s.address||'').trim()}|${(s.city||'').trim()}|${(s.state||'').trim()}`;
-}
-
-  
-  function printSidepanelList() {
+function printSidepanelList() {
   if (!spHub) { alert('Open a hub first.'); return; }
 
   const rows = currentPanelStores();                 // your helper
@@ -1632,22 +1574,6 @@ function storeKey(s){
         <td style="text-align:right">${d}</td>
       </tr>`;
   }).join('');
-
-    // Unique key for a store (tweak if you prefer)
-const storeKey = s =>
-  `${s.storeNumberStr || s.storeNumber || ''}|${s.address || ''}|${s.city || ''}|${s.state || ''}`;
-
-// Array de-dupe by key
-function uniqBy(arr, keyFn){
-  const seen = new Set();
-  return arr.filter(x => {
-    const k = keyFn(x);
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
-}
-
 
   const w = window.open('', '_blank');
   if (!w) { alert('Pop-up blocked. Please allow pop-ups for this site and try again.'); return; }
