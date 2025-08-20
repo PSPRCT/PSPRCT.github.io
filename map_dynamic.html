@@ -478,7 +478,7 @@
   // ---------- CONFIG ----------
   const DATA_URL    = './store_data.json?v=' + Date.now();
   const ACOSTA_URL  = './acosta_geocoded.json?v=' + Date.now();
-
+const PREMIUM_URL = 'premium_trainers_master.json?v=2025-08-19a';
 
   const FALLBACK_STORES = [
     { storeNumberStr:"1234", storeName:"Walmart", address:"701 W 51st St", city:"Austin", state:"TX", coverageType:"Uncovered", areaManager:"", regionalManager:"", trainerCity:"", lat:30.309, lng:-97.742 },
@@ -1933,11 +1933,9 @@ function printSidepanelList() {
     base.forEach(s => { const k = s.regionalManager || ''; if(k) by[k]=(by[k]||0)+1; });
     const names = Object.keys(by).sort((a,b)=>a.localeCompare(b));
 
-  rmFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
-  `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
-)].join('');
-
-
+    rmFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
+      `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
+    )].join('');
 
     const sel = names.filter(n=>prev.has(n));
     setMulti(rmFilter, sel.length ? sel : ['All']);
@@ -2460,8 +2458,7 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
       </div>`;
     id('sandboxListBtn').onclick = ()=>{
       const rows = list
-      .map(s => ({ ...s, __d: distMiles(c.lat,c.lng,s.lat,s.lng) }))
-
+        .map(s => ({...s, __d: distMiles(c.lat,c.lng,s.lat,s.lng)}))
         .sort((a,b)=>a.__d-b.__d)
         .map(s=>`
           <tr>
@@ -2525,8 +2522,7 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
     const set = new Set();
     stores.forEach(s=>{ if (s.areaManager) set.add(s.areaManager); });
     const arr = Array.from(set).sort((a,b)=>a.localeCompare(b));
-    amFilter.innerHTML = ['<option value="All" selected>All</option>', arr.map(v=>`<option>${escape(v)}</option>`)].join('');
-
+    amFilter.innerHTML = ['<option value="All" selected>All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
   }
   function cascadeAM(){
     const selectedRM = Array.from(rmFilter.selectedOptions).map(o=>o.value);
@@ -2539,8 +2535,7 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
     });
     const arr = Array.from(ams).sort((a,b)=>a.localeCompare(b));
     const prevSel = new Set(Array.from(amFilter.selectedOptions).map(o=>o.value));
-amFilter.innerHTML = ['<option value="All">All</option>', arr.map(v=>`<option>${escape(v)}</option>`)].join('');
-
+    amFilter.innerHTML = ['<option value="All">All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
     const toSelect = arr.filter(v=>prevSel.has(v));
     if (toSelect.length){ setMulti(amFilter, toSelect); } else { setMulti(amFilter, ['All']); }
     filterSelect(amFilter, amSearch.value);
