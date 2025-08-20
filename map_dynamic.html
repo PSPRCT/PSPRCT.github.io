@@ -1911,63 +1911,101 @@ function printSidepanelList() {
   // ---------- Rollups (RM/AM) ----------
   const rollModal = id('rollupModal'); id('rollupBtn').onclick = ()=>{ rollModal.classList.add('show'); buildRollups(); }; id('rollupClose').onclick = ()=> rollModal.classList.remove('show');
   id('rollByRM').onchange = buildRollups; id('rollByAM').onchange = buildRollups;
-  id('rollExport').onclick = ()=> exportRollCsv();
+id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
+
   let lastRoll = { rows:[], by:'RM' };
 
   function buildRollups(){
-    const by = id('rollByAM').checked ? 'AM' : 'RM';
-    const keyOf = s => by==='RM' ? (s.regionalManager||'') : (s.areaManager||'');
-    const byMap = new Map();
-    filteredStores.forEach(s=>{
-      const k = keyOf(s) || '(Blank)';
-      const g = byMap.get(k) || { key:k, premiumCovered:0, acostaOnly:0, uncovered:0, total:0 };
-      if (s.coverageType === 'Premium + Acosta' || s.coverageType === 'Premium Only') g.premiumCovered++;
-      else if (s.coverageType === 'Acosta Only') g.acostaOnly++;
-      else g.uncovered++;
-      g.total++; byMap.set(k,g);
-    });
-    const rows = Array.from(byMap.values()).sort((a,b)=> b.total - a.total);
-    lastRoll = { rows, by };
+  const by = id('rollByAM').checked ? 'AM' : 'RM';
+  const keyOf = s => by==='RM' ? (s.regionalManager||'') : (s.areaManager||'');
+  const byMap = new Map();
 
-    const pct = (n,t)=> t? (Math.round(n*1000/t)/10)+'%':'0%';
-    const html = `
-      <table style="border-collapse:collapse;width:100%">
-        <thead>
-  <tr>
-    <th style="padding:6px;text-align:left">Group</th>
-    <th style="padding:6px;text-align:right">Premium-covered</th>
-    <th style="padding:6px;text-align:right">Premium %</th>
-    <th style="padding:6px;text-align:right">Acosta-only</th>
-    <th style="padding:6px;text-align:right">Acosta %</th>
-    <th style="padding:6px;text-align:right">Uncovered</th>
-    <th style="padding:6px;text-align:right">Uncovered %</th>
-    <th style="padding:6px;text-align:right">Total</th>
-  </tr>
-</thead>
-        <tbody>
-          ${rows.map(r=>`
-            <tr>
-              <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.key)}</td>
-              <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.premiumCovered}</td>
-              <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.premiumCovered,r.total)}</td>
-              <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.acostaOnly}</td>
-              <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.acostaOnly,r.total)}</td>
-              <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.uncovered}</td>
-              <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.uncovered,r.total)}</td>
-              <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.total}</b></td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>`;
-    id('rollTable').innerHTML = html || '<div style="color:var(--muted)">No data.</div>';
-  }
-  function exportRollCsv(){
-    const by = lastRoll.by;
-    const rows = [['Group', 'Premium-covered', 'Premium-covered %', 'Acosta-only', 'Acosta-only %', 'Uncovered', 'Uncovered %', 'Total']];
-    const pct = (n,t)=> t? (Math.round(n*1000/t)/10)+'%':'0%';
-    lastRoll.rows.forEach(r=> rows.push([r.key, r.premiumCovered, pct(r.premiumCovered,r.total), r.acostaOnly, pct(r.acostaOnly,r.total), r.uncovered, pct(r.uncovered,r.total), r.total]));
-    exportCsvWithToast(rows, `rollups_by_${by.toLowerCase()}_${Date.now()}.csv`);
-  }
+  filteredStores.forEach(s=>{
+    const k = keyOf(s) || '(Blank)';
+    const g = byMap.get(k) || { key:k, premiumCovered:0, acostaOnly:0, uncovered:0, total:0 };
+    if (s.coverageType === 'Premium + Acosta' || s.coverageType === 'Premium Only') g.premiumCovered++;
+    else if (s.coverageType === 'Acosta Only') g.acostaOnly++;
+    else g.uncovered++;
+    g.total++;
+    byMap.set(k,g);
+  });
+
+  const rows = Array.from(byMap.values()).sort((a,b)=> b.total - a.total);
+  lastRoll = { rows, by };
+
+  const pct = (n,t)=> t? (Math.round(n*1000/t)/10)+'%':'0%';
+  const groupLabel = by === 'RM' ? 'Regional Manager'
+                    : by === 'AM' ? 'Area Manager'
+                    : 'Group';
+
+  const html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead>
+      <tr>
+        <th style="padding:6px;text-align:left">${groupLabel}</th>
+        <th style="padding:6px;text-align:right">Premium-covered</th>
+        <th style="padding:6px;text-align:right">Premium %</th>
+        <th style="padding:6px;text-align:right">Acosta-only</th>
+        <th style="padding:6px;text-align:right">Acosta %</th>
+        <th style="padding:6px;text-align:right">Uncovered</th>
+        <th style="padding:6px;text-align:right">Uncovered %</th>
+        <th style="padding:6px;text-align:right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map(r=>`
+        <tr>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.key)}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.premiumCovered}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.premiumCovered,r.total)}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.acostaOnly}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.acostaOnly,r.total)}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.uncovered}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.uncovered,r.total)}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.total}</b></td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>`;
+
+  id('rollTable').innerHTML = html || '<div style="color:var(--muted)">No data.</div>';
+}
+
+  function exportRollupsCsv(by, rows){
+  const groupLabel = by === 'RM' ? 'Regional Manager'
+                    : by === 'AM' ? 'Area Manager'
+                    : 'Group';
+
+  const header = [
+    groupLabel,
+    'Premium-covered','Premium %',
+    'Acosta-only','Acosta %',
+    'Uncovered','Uncovered %',
+    'Total'
+  ];
+
+  const pct = (n,t)=> t? (Math.round(n*1000/t)/10)+'%':'0%';
+
+  const data = rows.map(r=>[
+    r.key,
+    r.premiumCovered, pct(r.premiumCovered,r.total),
+    r.acostaOnly,     pct(r.acostaOnly,r.total),
+    r.uncovered,      pct(r.uncovered,r.total),
+    r.total
+  ]);
+
+  const csv = [header, ...data].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `rollups_by_${by.toLowerCase()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(a.href);
+  a.remove();
+}
+
+
 
   // ---------- Helpers ----------
   function id(x){ return document.getElementById(x); }
