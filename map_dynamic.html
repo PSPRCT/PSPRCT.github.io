@@ -103,6 +103,27 @@
   .row .num{min-width:62px;font-variant-numeric:tabular-nums;color:var(--muted)}
   .row.active{background:#e7f0ff}
 
+  /* Make store rows clearly clickable */
+.row {
+  cursor: pointer;                  /* hand cursor */
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  border-radius: 6px;               /* slight rounding */
+}
+
+.row:hover {
+  background: #f2f6ff;              /* light blue hover */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.row:active {
+  background: #e0ebff;              /* darker blue press */
+}
+.row .hint {
+  font-size: 20px;
+  color: #999;
+  margin-left: 8px;
+}
+
   .floating{position:absolute;left:10px;top:10px;z-index:402;display:flex;gap:8px;flex-wrap:wrap}
   .floating .btn,.floating .toggle{padding:6px 8px;font-size:12px}
 
@@ -1218,6 +1239,7 @@ function hubDisplay(h){
   `;
 }
 
+
   function openSidepanel(h){
     spHub = h;
     sidepanel.classList.add('show');
@@ -1228,6 +1250,24 @@ function hubDisplay(h){
     map.panInside(h.coords, { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] });
     spPinBtn.textContent = pinnedHubs.some(x=>x.id===h.id) ? 'Unpin' : 'Pin';
   }
+
+ function rowTemplate(s){
+  return `
+    <div class="row" onclick="focusStore(${s.id})">
+      <div class="num">#${s.id}</div>
+      <div>
+        <div class="title">${escape(s.name)}</div>
+        <div class="addr">${escape(s.addr)}<br>${escape(s.city)}, ${s.state}</div>
+        <div class="chip" style="border-color:${COLORS[s.coverageType]}">
+          ${s.coverageType}
+        </div>
+      </div>
+      <div class="dist">${s.dist.toFixed(1)} mi</div>
+      <div class="hint">›</div> <!-- clickable cue -->
+    </div>
+  `;
+}
+
   function hideSidepanel(){ sidepanel.classList.remove('show'); spHub=null; spRows=[]; spRowsEl.innerHTML=''; }
 
   function renderSidepanelMeta(){
