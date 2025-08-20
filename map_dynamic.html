@@ -74,15 +74,27 @@
   .sp-quick{ position: sticky; top: 0; z-index: 3; background: var(--panel); }
 
   .sp-rows{position:relative;height:auto;will-change:transform;}
-  .row{position:absolute;left:0;right:0;display:flex;gap:8px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--border);background:var(--panel);cursor:pointer;min-height:88px;box-sizing:border-box}
-  .row .title{font-weight:800;line-height:1.25}
-  .row .addr{
-  white-space: normal;                    /* allow wrapping */
-  overflow: visible;
-    display: block;
-     max-height: none;
-  text-overflow: unset;
-  word-break: break-word;                 /* handles long roads with slashes */
+  
+
+  /* Compact rows */
+.row{ min-height:72px; padding:8px 10px; }
+
+/* Title a touch smaller so address has room */
+.row .title{ font-size:15px; line-height:1.2; }
+
+/* Address: two lines max, smaller, tight line-height */
+.row .addr{
+  font-size:12.5px;
+  line-height:1.25;
+  color: var(--muted);
+  white-space: normal;               /* wrap at spaces */
+  word-break: keep-all;              /* don't split words like “ROUTE” */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;              /* line clamp */
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;             /* <= show up to two lines */
+  max-height: calc(1.25em * 2);      /* keeps the container tight */
 }
   .row > div:nth-child(2){ flex:1; min-width:0; }
   .row .num{min-width:62px;font-variant-numeric:tabular-nums;color:var(--muted)}
