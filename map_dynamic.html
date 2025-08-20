@@ -150,6 +150,11 @@
   .marker-cluster.marker-a  div{background:var(--a); border:2px solid #fff}
 
   .hub{width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+  /* Extra outline when a hub is pinned in Compare mode */
+.hub.pinned{
+  box-shadow:0 0 0 2px #000, 0 0 0 4px rgba(0,0,0,.25) !important;
+}
+
   .hub.confirmed{background:var(--violet)}
   .hub.pending{background:#9ea3a8}
   .hub.acosta{ background: var(--a); }
@@ -1164,12 +1169,15 @@ function hubDisplay(h){
     hubLayer.clearLayers();
     const vis = visibleHubs();
     vis.forEach(h=>{
-      const cls =
-        h.status === 'confirmed' ? 'confirmed' :
-        h.status === 'pending'   ? 'pending'   : 'acosta';
-      const icon = L.divIcon({
-        className: '',
-        html: `<div class="hub ${cls}"></div>`,
+    const base =
+  h.status === 'confirmed' ? 'confirmed' :
+  h.status === 'pending'   ? 'pending'   : 'acosta';
+const isPinned = pinnedHubs.some(x => x.id === h.id);
+const cls = `hub ${base}${isPinned ? ' pinned' : ''}`;
+const icon = L.divIcon({
+  className: '',
+  html: `<div class="${cls}"></div>`,
+
         iconSize: [20,20],
         iconAnchor: [10,10]
       });
@@ -1205,6 +1213,8 @@ function hubDisplay(h){
   function togglePin(h){
     const i = pinnedHubs.findIndex(x=>x.id===h.id);
     if (i>=0){ pinnedHubs.splice(i,1); } else { pinnedHubs.push(h); }
+    renderHubs(); // refresh marker outlines when (un)pinned
+
     drawOverlap();
     refreshComparePanel();
   }
