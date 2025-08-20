@@ -1806,15 +1806,13 @@ function printSidepanelList() {
     const html = `
       <table style="border-collapse:collapse;width:100%">
         <thead><tr>
-          <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">${by}</th>
-          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Premium-covered</th>
-          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">%</th>
-          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Acosta-only</th>
-          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">%</th>
-          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Uncovered</th>
-          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">%</th>
-          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Total</th>
-        </tr></thead>
+  <th style="width:80px">ID</th>
+  <th style="width:180px">Name</th>
+  <th style="width:240px">Address</th>
+  <th style="width:120px">Coverage</th>
+  <th style="width:140px">AM</th>
+  <th style="width:140px">RM</th>
+</tr></thead>
         <tbody>
           ${rows.map(r=>`
             <tr>
