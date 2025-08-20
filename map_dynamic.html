@@ -613,6 +613,16 @@ const PREMIUM_URL = 'premium_trainers_master.json?v=2025-08-19a';
   spClose.onclick = ()=> hideSidepanel();
   spCollapse.onclick = ()=> hideSidepanel();
   spSearch.addEventListener('input', ()=>{ spFilter = spSearch.value.trim().toLowerCase(); renderSidepanelList(); });
+  // Copy-address delegate for the side-panel list
+spRowsEl.addEventListener('click', (e)=>{
+  const btn = e.target.closest('button.mini');
+  if (!btn) return;
+  navigator.clipboard?.writeText(btn.dataset.copy || '');
+  const old = btn.textContent;
+  btn.textContent = 'Copied!';
+  setTimeout(()=> btn.textContent = old, 800);
+});
+
   spExport.onclick = ()=>{ exportSidepanelCsv(); if(AUTO_RESET()){ resetAll(); runFilter(); renderChips(); } };
   spPrint.onclick  = ()=>{ printSidepanelList();  if(AUTO_RESET()){ resetAll(); runFilter(); renderChips(); } };
   spPinBtn.onclick = ()=> togglePinFromPanel();
@@ -1236,7 +1246,11 @@ function hubDisplay(h){
       <div class="num">#${s.storeNumberStr}</div>
       <div style="flex:1;min-width:0">
         <div class="title">${escape(s.storeName || 'Walmart')}</div>
-        <div class="addr" title="${escape(fullAddr)}">${escape(fullAddr)}</div>
+        <div class="addr">
+  ${escape(addr)}
+  <button class="mini" data-copy="${escape(addr)}" title="Copy address">Copy</button>
+</div>
+
       </div>
       <div style="margin-left:auto;text-align:right">
         <div class="cov-badge ${covClass}">${escape(coverage)}</div>
