@@ -1932,14 +1932,18 @@ function printSidepanelList() {
     const pct = (n,t)=> t? (Math.round(n*1000/t)/10)+'%':'0%';
     const html = `
       <table style="border-collapse:collapse;width:100%">
-        <thead><tr>
-  <th style="width:80px">ID</th>
-  <th style="width:180px">Name</th>
-  <th style="width:240px">Address</th>
-  <th style="width:120px">Coverage</th>
-  <th style="width:140px">AM</th>
-  <th style="width:140px">RM</th>
-</tr></thead>
+        <thead>
+  <tr>
+    <th style="padding:6px;text-align:left">Group</th>
+    <th style="padding:6px;text-align:right">Premium-covered</th>
+    <th style="padding:6px;text-align:right">Premium %</th>
+    <th style="padding:6px;text-align:right">Acosta-only</th>
+    <th style="padding:6px;text-align:right">Acosta %</th>
+    <th style="padding:6px;text-align:right">Uncovered</th>
+    <th style="padding:6px;text-align:right">Uncovered %</th>
+    <th style="padding:6px;text-align:right">Total</th>
+  </tr>
+</thead>
         <tbody>
           ${rows.map(r=>`
             <tr>
