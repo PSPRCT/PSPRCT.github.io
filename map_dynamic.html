@@ -76,26 +76,29 @@
   .sp-rows{position:relative;height:auto;will-change:transform;}
   
 
-  /* Compact rows */
+  /* Compact rows (what you already added) */
 .row{ min-height:72px; padding:8px 10px; }
-
-/* Title a touch smaller so address has room */
 .row .title{ font-size:15px; line-height:1.2; }
 
-/* Address: two lines max, smaller, tight line-height */
+/* Address: two tight lines, ellipsis beyond */
 .row .addr{
-  font-size:12.5px;
-  line-height:1.25;
-  color: var(--muted);
-  white-space: normal;               /* wrap at spaces */
-  word-break: keep-all;              /* don't split words like “ROUTE” */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;              /* line clamp */
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;             /* <= show up to two lines */
-  max-height: calc(1.25em * 2);      /* keeps the container tight */
+  font-size:12.5px; line-height:1.25; color:var(--muted);
+  white-space:normal; word-break:keep-all;
+  overflow:hidden; text-overflow:ellipsis;
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
+  max-height:calc(1.25em * 2);
 }
+
+/* Coverage pill on the right */
+.cov-badge{
+  font-size:12px; font-weight:700; padding:2px 8px;
+  border:1px solid var(--border); border-radius:999px; white-space:nowrap;
+}
+.cov-pa{ background:rgba(108,92,231,.10);  border-color:var(--pa); }
+.cov-p { background:rgba(46,204,113,.12);   border-color:var(--p);  }
+.cov-a { background:rgba(243,156,18,.12);   border-color:var(--a);  }
+.cov-u { background:rgba(231,76,60,.12);    border-color:var(--u);  }
+
   .row > div:nth-child(2){ flex:1; min-width:0; }
   .row .num{min-width:62px;font-variant-numeric:tabular-nums;color:var(--muted)}
   .row.active{background:#e7f0ff}
@@ -1189,6 +1192,32 @@ function hubDisplay(h){
   }
 
   // ---------- Sidepanel ----------
+
+  function rowHTML(s){
+  const fullAddr = `${s.address||''}, ${s.city||''}, ${s.state||''}`.replace(/\s+/g,' ').trim();
+  const coverage = s.coverageType || 'Uncovered';
+  const covClass =
+    coverage === 'Premium + Acosta' ? 'cov-pa' :
+    coverage === 'Premium Only'     ? 'cov-p'  :
+    coverage === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
+
+  const dist = (s._distMiles != null) ? `${s._distMiles.toFixed(1)} mi` : '';
+
+  return `
+    <div class="row" data-id="${s.storeNumberStr}">
+      <div class="num">#${s.storeNumberStr}</div>
+      <div style="flex:1;min-width:0">
+        <div class="title">${escape(s.storeName || 'Walmart')}</div>
+        <div class="addr" title="${escape(fullAddr)}">${escape(fullAddr)}</div>
+      </div>
+      <div style="margin-left:auto;text-align:right">
+        <div class="cov-badge ${covClass}">${escape(coverage)}</div>
+        <div class="muted" style="margin-top:6px">${escape(dist)}</div>
+      </div>
+    </div>
+  `;
+}
+
   function openSidepanel(h){
     spHub = h;
     sidepanel.classList.add('show');
@@ -1241,56 +1270,45 @@ function hubDisplay(h){
 
   // Virtualized list
   let virt = null;
-  function renderSidepanelList(rebuild=false){
-    if(!spHub) return;
-    const r = Number(radius.value)||DEFAULT_RADIUS;
-    const [clat, clng] = spHub.coords;
+function renderSidepanelList(force=false){
+  if (!spHub) return;
 
-    let list = storesWithin(spHub.coords, r).map(s => ({ ...s, __d: distMiles(clat, clng, s.lat, s.lng) }));
-    if (spOnlyUncov) list = list.filter(s=> (s.coverageType||'')==='Uncovered');
-    spRows = list.slice();
+  // build source list
+  const r = Number(radius.value) || DEFAULT_RADIUS;
+  let list = storesWithin(spHub.coords, r).map(s => {
+    // cache distance for sorting / display
+    const d = distMiles(spHub.coords[0], spHub.coords[1], s.lat, s.lng);
+    return Object.assign({}, s, { _distMiles: d });
+  });
 
-    const q = (spFilter||'').toLowerCase();
-    if (q){
-      list = list.filter(s =>
-        (s.storeNumberStr||'').toLowerCase().includes(q) ||
-        (s.address||'').toLowerCase().includes(q) ||
-        (s.city||'').toLowerCase().includes(q) ||
-        (s.state||'').toLowerCase().includes(q) ||
-        (s.coverageType||'').toLowerCase().includes(q)
-      );
-    }
+  // panel “Uncovered only”
+  if (spOnlyUncov) list = list.filter(s => (s.coverageType||'') === 'Uncovered');
 
-    list.sort((a,b)=> a.__d - b.__d);
-
-    spCounts.innerHTML = `
-      <span class="sp-chip">In list: <b>${list.length}</b></span>
-      ${spOnlyUncov?'<span class="sp-chip">Uncovered only</span>':''}
-    `;
-
-    // mount simple virtualization
-const rowH = 92; // room for 2-line address
-mountVirtual(spRowsEl, list, rowH, (s)=>`
-  <div class="num">#${htmlEscape(s.storeNumberStr)}</div>
-  <div class="text">
-    <div class="title">${htmlEscape(s.storeName||'')}</div>
-    <div class="addr" style="white-space:normal; line-height:1.2">
-      ${htmlEscape(s.address || '')}<br>
-      ${htmlEscape(s.city || '')}, ${htmlEscape(s.state || '')}
-    </div>
-  </div>
-  <div class="kind">${htmlEscape(s.coverageType||'')}</div>
-  <div style="margin-left:auto; min-width:64px; text-align:right; color:var(--muted)">${s.__d.toFixed(1)} mi</div>
-    `, (el, s)=>{
-      el.addEventListener('click', ()=>{
-        openStorePopup(s);
-        Array.from(spRowsEl.querySelectorAll('.row')).forEach(e=>e.classList.remove('active'));
-        el.classList.add('active');
-      });
-    });
-
-    if (rebuild) renderSidepanelMeta();
+  // panel search filter
+  if (spFilter){
+    const q = spFilter.toLowerCase();
+    list = list.filter(s =>
+      (`${s.storeNumberStr} ${s.storeName||''} ${s.address||''} ${s.city||''} ${s.state||''} ${s.coverageType||''}`)
+        .toLowerCase()
+        .includes(q)
+    );
   }
+
+  // sort by distance
+  list.sort((a,b)=> (a._distMiles||0) - (b._distMiles||0));
+
+  // stash and render
+  spRows = list;
+  spRowsEl.innerHTML = list.map(rowHTML).join('');
+
+  // row click -> open popup/zoom
+  const rows = Array.from(spRowsEl.querySelectorAll('.row'));
+  rows.forEach((el, i) => {
+    const s = list[i];
+    el.addEventListener('click', () => openStorePopup(s));
+  });
+}
+
 
   // ---------- Compare / Venn ----------
   id('cmpClear').onclick = ()=>{ pinnedHubs=[]; refreshComparePanel(); };
