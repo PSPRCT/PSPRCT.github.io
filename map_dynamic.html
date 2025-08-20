@@ -1390,51 +1390,57 @@ function rowHTML(s){
 }
 
   // Virtualized list
-function renderSidepanelList(){
-  // base = rows prepared for the current hub
-  let rows = spRows || [];
+  let virt = null;
+function renderSidepanelList(force=false){
+  if (!spHub) return;
 
-  // live filters in the panel
-  const q = (spFilter || '').toLowerCase();
-  if (q){
-    rows = rows.filter(s =>
-      (s.storeNumberStr || '').toLowerCase().includes(q) ||
-      (s.storeName      || '').toLowerCase().includes(q) ||
-      (s.address        || '').toLowerCase().includes(q) ||
-      (s.city           || '').toLowerCase().includes(q) ||
-      (s.state          || '').toLowerCase().includes(q)
+  // build source list
+  const r = Number(radius.value) || DEFAULT_RADIUS;
+  let list = storesWithin(spHub.coords, r).map(s => {
+    // cache distance for sorting / display
+    const d = distMiles(spHub.coords[0], spHub.coords[1], s.lat, s.lng);
+    return Object.assign({}, s, { _distMiles: d });
+  });
+
+  // panel “Uncovered only”
+  if (spOnlyUncov) list = list.filter(s => (s.coverageType||'') === 'Uncovered');
+
+  // panel search filter
+  if (spFilter){
+    const q = spFilter.toLowerCase();
+    list = list.filter(s =>
+      (`${s.storeNumberStr} ${s.storeName||''} ${s.address||''} ${s.city||''} ${s.state||''} ${s.coverageType||''}`)
+        .toLowerCase()
+        .includes(q)
     );
   }
-  if (spOnlyUncov){ rows = rows.filter(s => (s.coverageType||'') === 'Uncovered'); }
 
-  // sort by distance to the active hub
-  rows = rows
-    .map(s => ({ s, d: distToActiveHub(s) }))
-    .sort((a,b)=> a.d - b.d)
-    .map(({s,d})=>{
-      const miles = Number.isFinite(d) ? `${d.toFixed(1)} mi` : '—';
-      const rm = s.regionalManager || s.RegionalManager || '-';
-      const am = s.areaManager     || s.AreaManager     || '-';
-      const hub= s.trainerCity     || s.Assigned_Premium || s.Assigned_Acosta || s.Nearest_Premium || '-';
-      return `
-        <div class="row" data-store="${s.storeNumberStr}">
-          <div class="num">${s.storeNumberStr}</div>
-          <div>
-            <div class="title"><strong>${s.storeName || 'Walmart'}</strong> • ${miles}</div>
-            <div class="addr">${s.address || ''}, ${s.city || ''}, ${s.state || ''}</div>
-            <div class="mgrs">RM: ${rm} &nbsp;|&nbsp; AM: ${am} &nbsp;|&nbsp; Hub: ${hub}</div>
-          </div>
-          <div class="cov-badge ${s.coverageType==='Premium + Acosta'?'cov-pa':s.coverageType==='Premium Only'?'cov-p':s.coverageType==='Acosta Only'?'cov-a':'cov-u'}">
-            ${s.coverageType || '—'}
-          </div>
-        </div>`;
-    })
-    .join('');
+  // sort by distance
+list.sort((a,b)=> (a._distMiles||0) - (b._distMiles||0));
 
-  spRowsEl.innerHTML = rows || '';
+// stash and render
+spRows = list;
+spRowsEl.innerHTML = list.map(rowHTML).join('');
+
+// row click -> open popup/zoom
+const rows = Array.from(spRowsEl.querySelectorAll('.row'));
+rows.forEach((el, i) => {
+  const s = list[i];
+  el.addEventListener('click', () => openStorePopup(s));
+});
+
+// Copy address button inside rows (use event delegation)
+spRowsEl.addEventListener('click', (e)=>{
+  const btn = e.target.closest('button.mini');
+  if (!btn) return;
+  e.stopPropagation(); // don't trigger the row click
+  const txt = btn.dataset.copy || '';
+  navigator.clipboard?.writeText(txt);
+  const old = btn.textContent;
+  btn.textContent = 'Copied!';
+  setTimeout(()=> btn.textContent = old || 'Copy', 800);
+});
 }
-
-
 
 
 
@@ -1518,27 +1524,6 @@ function renderSidepanelList(){
     ];
     exportCsvWithToast(rows, `${slug(spHub.name)}_${r}mi_${Date.now()}.csv`);
   }
-  // --- Distance helper for stores (nearest visible hub) ---
-
-  // Distance from store to the side-panel's active hub
-function distToActiveHub(s){
-  if (!spHub || !spHub.coords) return Infinity;
-  return distMiles(s.lat, s.lng, spHub.coords[0], spHub.coords[1]);
-}
-
-function storeDistMiles(s){
-  const lat = s.lat ?? s.latitude, lng = s.lng ?? s.longitude;
-  if (!Number.isFinite(+lat) || !Number.isFinite(+lng)) return Infinity;
-  const hubs = visibleHubs?.() || [];               // uses your existing visibleHubs()
-  if (!hubs.length) return Infinity;
-  let best = Infinity;
-  for (const h of hubs){
-    const d = distMiles(lat, lng, h.coords[0], h.coords[1]); // your existing distMiles()
-    if (d < best) best = d;
-  }
-  return best;
-}
-
   function exportCsvWithToast(rows, filename){
     const t = makeToast('Preparing CSV…', true);
     const chunk = 4000;
@@ -1566,25 +1551,69 @@ function storeDistMiles(s){
       }
     })();
   }
-function printSidepanelList(){
-  const w = window.open('', '_blank');
-  w.document.write(`
-    <html><head><title>Store List</title>
-    <style>
-      body { font-family: Arial, sans-serif; padding:16px; }
-      .sp-row { border-bottom:1px solid #e5e7eb; padding:10px 0; }
-      .row-top { font-size:14px; margin-bottom:2px; }
-      .row-addr { color:#555; font-size:12px; margin-bottom:2px; }
-      .row-mgr { color:#444; font-size:12px; }
-    </style></head><body>
-    <h2>Store Coverage List (Nearest → Farthest)</h2>
-    ${spRowsEl.innerHTML}
-    </body></html>`);
-  w.document.close();
-  w.focus();
-  w.print();
-}
+function printSidepanelList() {
+  if (!spHub) { alert('Open a hub first.'); return; }
 
+  const rows = currentPanelStores();                 // your helper
+  const [hlat, hlng] = spHub.coords;
+  const title = hubDisplay(spHub);
+  const r = Number(radius.value) || DEFAULT_RADIUS;  // show current ring
+  const fmtMi = n => (Math.round(n * 10) / 10).toFixed(1);
+
+  const htmlRows = rows.map(s => {
+    const d = fmtMi(distMiles(hlat, hlng, s.lat, s.lng));
+    const addr = [s.address, `${s.city}, ${s.state}`].filter(Boolean).join(' · ');
+    return `
+      <tr>
+        <td style="text-align:right">${s.storeNumberStr || s.storeNumber || ''}</td>
+        <td>${escape(s.storeName || '')}</td>
+        <td>${escape(addr || '')}</td>
+        <td>${escape(s.coverageType || '')}</td>
+        <td>${escape(s.areaManager || '')}</td>
+        <td>${escape(s.regionalManager || '')}</td>
+        <td style="text-align:right">${d}</td>
+      </tr>`;
+  }).join('');
+
+  const w = window.open('', '_blank');
+  if (!w) { alert('Pop-up blocked. Please allow pop-ups for this site and try again.'); return; }
+
+  w.document.write(`<!DOCTYPE html>
+  <html><head>
+    <meta charset="utf-8">
+    <title>Store list — ${escape(title)}</title>
+    <style>
+      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:24px;color:#111}
+      h1{font-size:18px;margin:0 0 10px 0}
+      .meta{color:#555;margin-bottom:12px}
+      table{width:100%;border-collapse:collapse;font-size:12.5px}
+      th,td{border-bottom:1px solid #e5e7eb;padding:6px 8px;vertical-align:top}
+      th{background:#f8fafc;text-align:left}
+      @media print { body{margin:8mm} table{font-size:11.5px} }
+    </style>
+  </head><body>
+    <h1>${escape(title)}</h1>
+    <div class="meta">
+      Radius: ${r} mi · ${spOnlyUncov ? 'Uncovered only · ' : ''}Total: ${rows.length}
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:70px;text-align:right">Store #</th>
+          <th style="width:180px">Name</th>
+          <th>Address</th>
+          <th style="width:140px">Coverage</th>
+          <th style="width:140px">Area Mgr</th>
+          <th style="width:160px">Regional Mgr</th>
+          <th style="width:70px;text-align:right">Miles</th>
+        </tr>
+      </thead>
+      <tbody>${htmlRows}</tbody>
+    </table>
+    <script>window.addEventListener('load',()=>{ setTimeout(()=>{ window.print(); }, 60); });<\/script>
+  </body></html>`);
+  w.document.close();
+}
 
 
     // ---- Sidepanel printing ----
