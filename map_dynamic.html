@@ -1476,6 +1476,84 @@ function renderSidepanelList(force=false){
         </tr>
       `).join('');
 
+    // ---- Sidepanel printing ----
+function currentPanelStores() {
+  if (!spHub) return [];
+  const r = Number(radius.value) || DEFAULT_RADIUS;
+  let list = storesWithin(spHub.coords, r);
+
+  // match sidepanel toggles/filters
+  if (spOnlyUncov) list = list.filter(s => (s.coverageType || '') === 'Uncovered');
+  if (spFilter && spFilter.trim()) {
+    const q = spFilter.trim().toLowerCase();
+    list = list.filter(s =>
+      (`${s.storeNumberStr} ${s.storeName||''} ${s.address||''} ${s.city||''} ${s.state||''}`).toLowerCase().includes(q)
+    );
+  }
+  return list;
+}
+
+function printSidepanelList() {
+  if (!spHub) { alert('Open a hub first.'); return; }
+
+  const rows = currentPanelStores();
+  const [hlat, hlng] = spHub.coords;
+  const title = hubDisplay(spHub);
+  const fmtMi = n => (Math.round(n * 10) / 10).toFixed(1);
+
+  const htmlRows = rows.map(s => {
+    const d = fmtMi(distMiles(hlat, hlng, s.lat, s.lng));
+    const addr = [s.address, `${s.city}, ${s.state}`].filter(Boolean).join(' · ');
+    return `
+      <tr>
+        <td style="text-align:right">${s.storeNumberStr || s.storeNumber || ''}</td>
+        <td>${escape(s.storeName || '')}</td>
+        <td>${escape(addr || '')}</td>
+        <td>${escape(s.coverageType || '')}</td>
+        <td style="text-align:right">${d}</td>
+      </tr>`;
+  }).join('');
+
+  const w = window.open('', '_blank');
+  if (!w) { alert('Pop-up blocked. Please allow pop-ups for this site and try again.'); return; }
+
+  w.document.write(`<!DOCTYPE html>
+  <html><head>
+    <meta charset="utf-8">
+    <title>Store list — ${escape(title)}</title>
+    <style>
+      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:24px;color:#111}
+      h1{font-size:18px;margin:0 0 10px 0}
+      .meta{color:#555;margin-bottom:12px}
+      table{width:100%;border-collapse:collapse;font-size:12.5px}
+      th,td{border-bottom:1px solid #e5e7eb;padding:6px 8px;vertical-align:top}
+      th{background:#f8fafc;text-align:left}
+      @media print { body{margin:8mm} table{font-size:11.5px} }
+    </style>
+  </head><body>
+    <h1>${escape(title)}</h1>
+    <div class="meta">
+      Radius: ${Number(radius.value)||DEFAULT_RADIUS} mi ·
+      ${spOnlyUncov ? 'Uncovered only · ' : ''}Total: ${rows.length}
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:70px;text-align:right">Store #</th>
+          <th style="width:180px">Name</th>
+          <th>Address</th>
+          <th style="width:140px">Coverage</th>
+          <th style="width:70px;text-align:right">Miles</th>
+        </tr>
+      </thead>
+      <tbody>${htmlRows}</tbody>
+    </table>
+    <script>window.addEventListener('load',()=>{ setTimeout(()=>{ window.print(); }, 50); });<\/script>
+  </body></html>`);
+  w.document.close();
+}
+
+
     const win = window.open('', '_blank');
     win.document.write(`
       <html><head><title>${htmlEscape(spHub.fullName || spHub.name)} — ${r}mi</title>
