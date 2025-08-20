@@ -122,8 +122,10 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
-.row:active {
-  background: #e0ebff;              /* darker blue press */
+/* Subtle press feedback when a row is clicked */
+.row:active{
+  transform: scale(.997);
+  background:#eef4ff;
 }
 .row .hint {
   font-size: 20px;
