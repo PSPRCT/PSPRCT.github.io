@@ -66,6 +66,15 @@
   .sp-body{padding:10px;display:flex;flex-direction:column;gap:10px;height:calc(100vh - 220px);overflow:hidden}
   .sp-actions{display:flex;gap:8px;flex-wrap:wrap}
   .sp-counts{display:flex;gap:8px;flex-wrap:wrap}
+  .sp-bars{ display:grid; gap:6px; margin-top:8px; }
+.sp-bar{ display:flex; align-items:center; gap:8px; font-size:12px; }
+.sp-bar .label{ width:110px; text-align:right; color:var(--muted); }
+.sp-bar .bar{ flex:1; height:8px; background:#f3f4f6; border-radius:999px; overflow:hidden; }
+.sp-bar .fill{ height:100%; }
+.sp-bar.pa .fill{ background: var(--pa); }
+.sp-bar.p  .fill{ background: var(--p); }
+.sp-bar.a  .fill{ background: var(--a); }
+.sp-bar.u  .fill{ background: var(--u); }
   .sp-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:3px 8px}
   .sp-toggles{display:flex;gap:8px;flex-wrap:wrap}
   .sp-quick{display:flex;gap:6px;flex-wrap:wrap}
@@ -1351,6 +1360,18 @@ function rowHTML(s){
     }).join('');
 
     spMeta.innerHTML = `
+    // Simple bars by coverage type
+const totalN = stores.length || 1;
+const asPct = n => Math.round((n*100)/totalN);
+const barsHTML = `
+  <div class="sp-bars">
+    <div class="sp-bar pa"><div class="label">Premium + Acosta</div><div class="bar"><div class="fill" style="width:${asPct(totals['Premium + Acosta']||0)}%"></div></div></div>
+    <div class="sp-bar p"><div class="label">Premium Only</div><div class="bar"><div class="fill" style="width:${asPct(totals['Premium Only']||0)}%"></div></div></div>
+    <div class="sp-bar a"><div class="label">Acosta Only</div><div class="bar"><div class="fill" style="width:${asPct(totals['Acosta Only']||0)}%"></div></div></div>
+    <div class="sp-bar u"><div class="label">Uncovered</div><div class="bar"><div class="fill" style="width:${asPct(totals['Uncovered']||0)}%"></div></div></div>
+  </div>`;
+spMeta.insertAdjacentHTML('beforeend', barsHTML);
+
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         ${statusChip}
         <span class="sp-chip"><b>Maps:</b> <a target="_blank" rel="noopener" href="${gHub}">Google</a> • <a target="_blank" rel="noopener" href="${aHub}">Apple</a></span>
