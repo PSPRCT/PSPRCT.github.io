@@ -74,9 +74,15 @@
   .sp-quick{ position: sticky; top: 0; z-index: 3; background: var(--panel); }
 
   .sp-rows{position:relative;height:auto;will-change:transform;}
-  .row{position:absolute;left:0;right:0;display:flex;gap:8px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--border);background:var(--panel);cursor:pointer;min-height:56px;box-sizing:border-box}
+  .row{position:absolute;left:0;right:0;display:flex;gap:8px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--border);background:var(--panel);cursor:pointer;min-height:88px;box-sizing:border-box}
   .row .title{font-weight:800;line-height:1.25}
-  .row .addr{color:var(--muted);font-size:12px;line-height:1.25}
+  .row .addr{
+  white-space: normal;                    /* allow wrapping */
+  overflow: visible;
+  text-overflow: unset;
+  word-break: break-word;                 /* handles long roads with slashes */
+}
+  .row > div:nth-child(2){ flex:1; min-width:0; }
   .row .num{min-width:62px;font-variant-numeric:tabular-nums;color:var(--muted)}
   .row.active{background:#e7f0ff}
 
@@ -1249,7 +1255,7 @@ function hubDisplay(h){
     `;
 
     // mount simple virtualization
-const rowH = 76; // room for 2-line address
+const rowH = 92; // room for 2-line address
 mountVirtual(spRowsEl, list, rowH, (s)=>`
   <div class="num">#${htmlEscape(s.storeNumberStr)}</div>
   <div class="text">
