@@ -1279,7 +1279,7 @@ const icon = L.divIcon({
   // ---------- Sidepanel ----------
 
 function rowHTML(s){
-  const fullAddr = `${s.address||''}, ${s.city||''}, ${s.state||''}`.replace(/\s+/g,' ').trim();
+  const addr = `${s.address||''}, ${s.city||''}, ${s.state||''}`.replace(/\s+/g,' ').trim();
   const coverage = s.coverageType || 'Uncovered';
   const covClass =
     coverage === 'Premium + Acosta' ? 'cov-pa' :
@@ -1293,18 +1293,18 @@ function rowHTML(s){
       <div class="num">#${s.storeNumberStr}</div>
       <div style="flex:1;min-width:0">
         <div class="title">${escape(s.storeName || 'Walmart')}</div>
-        <div class="addr" title="${escape(fullAddr)}">
-          ${escape(fullAddr)}
-          <button class="mini" data-copy="${escape(fullAddr)}" title="Copy address">Copy</button>
+        <div class="addr">
+          ${escape(addr)}
+          <button class="mini" data-copy="${escape(addr)}" title="Copy address">Copy</button>
         </div>
       </div>
       <div style="margin-left:auto;text-align:right">
         <div class="cov-badge ${covClass}">${escape(coverage)}</div>
         <div class="muted" style="margin-top:6px">${escape(dist)}</div>
       </div>
-    </div>
-  `;
+    </div>`;
 }
+
 
 
 
@@ -1339,54 +1339,55 @@ function rowHTML(s){
   function hideSidepanel(){ sidepanel.classList.remove('show'); spHub=null; spRows=[]; spRowsEl.innerHTML=''; }
 
   function renderSidepanelMeta(){
-    if(!spHub) return;
-    const r = Number(radius.value)||DEFAULT_RADIUS;
-    const stores = storesWithin(spHub.coords, r);
-    const [hlat, hlng] = spHub.coords;
-    const gHub = `https://www.google.com/maps?q=${encodeURIComponent(hlat+','+hlng)}`;
-    const aHub = `http://maps.apple.com/?ll=${encodeURIComponent(hlat+','+hlng)}`;
+  if(!spHub) return;
+  const r = Number(radius.value)||DEFAULT_RADIUS;
+  const stores = storesWithin(spHub.coords, r);
+  const [hlat, hlng] = spHub.coords;
+  const gHub = `https://www.google.com/maps?q=${encodeURIComponent(hlat+','+hlng)}`;
+  const aHub = `http://maps.apple.com/?ll=${encodeURIComponent(hlat+','+hlng)}`;
 
-    const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
-    stores.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0) + 1; });
+  const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
+  stores.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0) + 1; });
 
-    const statusChip = spHub.statusLabel
-      ? `<span class="sp-chip"><b>Status:</b> ${escape(spHub.statusLabel)}</span>`
-      : '';
+  const statusChip = spHub.statusLabel
+    ? `<span class="sp-chip"><b>Status:</b> ${escape(spHub.statusLabel)}</span>`
+    : '';
 
-    // What-if 50/75/100mi (classification is still fixed at 75)
-    const whatIfR = [50,75,100].map(rr=>{
-      const n = storesWithin(spHub.coords, rr).length;
-      return `<span class="sp-chip"><b>${rr}mi:</b> ${n}</span>`;
-    }).join('');
+  // What-if 50/75/100mi (classification stays fixed at 75)
+  const whatIfR = [50,75,100].map(rr=>{
+    const n = storesWithin(spHub.coords, rr).length;
+    return `<span class="sp-chip"><b>${rr}mi:</b> ${n}</span>`;
+  }).join('');
 
-    spMeta.innerHTML = `
-    // Simple bars by coverage type
-const totalN = stores.length || 1;
-const asPct = n => Math.round((n*100)/totalN);
-const barsHTML = `
-  <div class="sp-bars">
-    <div class="sp-bar pa"><div class="label">Premium + Acosta</div><div class="bar"><div class="fill" style="width:${asPct(totals['Premium + Acosta']||0)}%"></div></div></div>
-    <div class="sp-bar p"><div class="label">Premium Only</div><div class="bar"><div class="fill" style="width:${asPct(totals['Premium Only']||0)}%"></div></div></div>
-    <div class="sp-bar a"><div class="label">Acosta Only</div><div class="bar"><div class="fill" style="width:${asPct(totals['Acosta Only']||0)}%"></div></div></div>
-    <div class="sp-bar u"><div class="label">Uncovered</div><div class="bar"><div class="fill" style="width:${asPct(totals['Uncovered']||0)}%"></div></div></div>
-  </div>`;
-spMeta.insertAdjacentHTML('beforeend', barsHTML);
+  // Base chips/meta
+  spMeta.innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      ${statusChip}
+      <span class="sp-chip"><b>Maps:</b> <a target="_blank" rel="noopener" href="${gHub}">Google</a> • <a target="_blank" rel="noopener" href="${aHub}">Apple</a></span>
+      <span class="sp-chip"><b>Radius:</b> ${r} mi</span>
+      ${whatIfR}
+    </div>
+    <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
+      <span class="sp-chip">Total: <b>${stores.length}</b></span>
+    </div>
+  `;
 
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        ${statusChip}
-        <span class="sp-chip"><b>Maps:</b> <a target="_blank" rel="noopener" href="${gHub}">Google</a> • <a target="_blank" rel="noopener" href="${aHub}">Apple</a></span>
-        <span class="sp-chip"><b>Radius:</b> ${r} mi</span>
-        ${whatIfR}
-      </div>
-      <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
-        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
-        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
-        <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
-        <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
-        <span class="sp-chip">Total: <b>${stores.length}</b></span>
-      </div>
-    `;
-  }
+  // ➜ Append the mini-bars AFTER innerHTML is set
+  const totalN = stores.length || 1;
+  const asPct = n => Math.round((n*100)/totalN);
+  const barsHTML = `
+    <div class="sp-bars">
+      <div class="sp-bar pa"><div class="label">Premium + Acosta</div><div class="bar"><div class="fill" style="width:${asPct(totals['Premium + Acosta']||0)}%"></div></div></div>
+      <div class="sp-bar p"><div class="label">Premium Only</div><div class="bar"><div class="fill" style="width:${asPct(totals['Premium Only']||0)}%"></div></div></div>
+      <div class="sp-bar a"><div class="label">Acosta Only</div><div class="bar"><div class="fill" style="width:${asPct(totals['Acosta Only']||0)}%"></div></div></div>
+      <div class="sp-bar u"><div class="label">Uncovered</div><div class="bar"><div class="fill" style="width:${asPct(totals['Uncovered']||0)}%"></div></div></div>
+    </div>`;
+  spMeta.insertAdjacentHTML('beforeend', barsHTML);
+}
 
   // Virtualized list
   let virt = null;
