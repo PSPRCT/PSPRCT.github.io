@@ -505,6 +505,98 @@ const PREMIUM_URL = 'premium_trainers_master.json?v=2025-08-19a';
   let premiumPending   = [];
   let acostaHubs       = [];
 
+  // --- Edit mode (toggle with `E`) and tiny context menu ---
+let editMode = false;
+let hubMenuEl = null;
+
+document.addEventListener('keydown', (e)=>{
+  // Toggle edit mode with "E"
+  if (e.key.toLowerCase() === 'e'){
+    editMode = !editMode;
+    if (hubMenuEl) { hubMenuEl.remove(); hubMenuEl=null; }
+    // Optional visual cue
+    const b = document.body;
+    b.classList.toggle('edit-mode', editMode);
+  }
+});
+
+function showHubMenu(evt, hub, marker){
+  if (!editMode) return;
+  evt.originalEvent?.preventDefault?.();
+
+  if (!hubMenuEl){
+    hubMenuEl = document.createElement('div');
+    hubMenuEl.style.position='fixed';
+    hubMenuEl.style.zIndex='99999';
+    hubMenuEl.style.background='white';
+    hubMenuEl.style.border='1px solid #ccc';
+    hubMenuEl.style.borderRadius='8px';
+    hubMenuEl.style.boxShadow='0 6px 20px rgba(0,0,0,.15)';
+    hubMenuEl.style.padding='6px';
+    hubMenuEl.style.font='13px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+    document.body.appendChild(hubMenuEl);
+  }
+  hubMenuEl.innerHTML = `
+    <div style="padding:6px 8px; font-weight:600; border-bottom:1px solid #eee">${hubDisplay(hub)}</div>
+    <button id="hm_remove" class="btn" style="margin:6px 0 4px 0; width:100%">Remove hub</button>
+    <button id="hm_export" class="btn" style="margin:4px 0; width:100%">Export hubs JSON</button>
+    <div style="margin-top:6px; font-size:12px; color:#666">Tip: press <b>E</b> to toggle edit mode</div>
+  `;
+  const pt = evt.containerPoint || map.latLngToContainerPoint(marker.getLatLng());
+  hubMenuEl.style.left = (pt.x + 10) + 'px';
+  hubMenuEl.style.top  = (pt.y + 10) + 'px';
+
+  function closeMenu(){ hubMenuEl?.remove(); hubMenuEl=null; }
+
+  document.getElementById('hm_remove').onclick = ()=>{
+    removeHub(hub);
+    closeMenu();
+  };
+  document.getElementById('hm_export').onclick = ()=>{
+    exportHubsJson();
+    // keep menu open so user can do another thing if wanted
+  };
+
+  setTimeout(()=>{
+    const onDocClick = (e)=>{ if (hubMenuEl && !hubMenuEl.contains(e.target)) { document.removeEventListener('mousedown', onDocClick); closeMenu(); } };
+    document.addEventListener('mousedown', onDocClick);
+  }, 0);
+}
+
+// Remove hub from whichever set it belongs to
+function removeHub(h){
+  const removeFrom = (arr)=> {
+    const i = arr.findIndex(x=>x.id===h.id);
+    if (i>=0) { arr.splice(i,1); return true; }
+    return false;
+  };
+  if (!(removeFrom(premiumConfirmed) || removeFrom(premiumPending) || removeFrom(acostaHubs))){
+    alert('Could not find hub in any set.');
+    return;
+  }
+  renderHubs();
+  updateRings();
+  if (spHub && spHub.id === h.id) hideSidepanel?.();
+  if (tgOverlap?.checked) drawOverlap?.();
+  recomputeCoverage?.().then(()=> runFilter?.());
+}
+
+// Export all hub sets as a single JSON file
+function exportHubsJson(){
+  const data = {
+    premiumConfirmed,
+    premiumPending,
+    acostaHubs
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `hubs_${Date.now()}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+
   // Stores
   let allStores = [];
   let filteredStores = [];
@@ -1221,6 +1313,9 @@ const icon = L.divIcon({
       m.on('click', ()=> compareMode ? togglePin(h) : openSidepanel(h));
       m.on('mouseover', ()=> m.bindTooltip(hubDisplay(h), {direction:'top', offset:[0,-8]}).openTooltip());
       m.on('mouseout',  ()=> m.closeTooltip());
+      // Right-click (or long-press) opens edit menu when editMode is on.
+m.on('contextmenu', (e)=> showHubMenu(e, h, m));
+
     });
   }
 
@@ -2313,15 +2408,23 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
       const d = document.createElement('div');
       d.className='sandbox'; d.id='sandboxPanel';
       d.innerHTML = `<h4>New-hub Sandbox</h4>
-        <div>Click the map to position the blue ring, <b>or</b> enter “lat,lng” below. Adjust radius as needed.</div>
-        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-          <input id="sandboxAddr" type="text" placeholder="e.g. 33.52,-86.80" style="flex:1;min-width:260px;border:1px solid var(--border);border-radius:8px;padding:6px 8px"/>
-          <button id="sandboxGeocode" class="btn" type="button">Use coords</button>
-        </div>
-        <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
-        <div style="margin-top:10px"><b>Radius:</b> <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}"> <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi</div>
-        <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
-        <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>`;
+  <div>Click the map to position the blue ring, <b>or</b> enter “lat,lng” below. Adjust radius as needed.</div>
+  <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+    <input id="sandboxAddr" type="text" placeholder="e.g. 33.52,-86.80" style="flex:1;min-width:260px;border:1px solid var(--border);border-radius:8px;padding:6px 8px"/>
+    <button id="sandboxGeocode" class="btn" type="button">Use coords</button>
+  </div>
+  <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
+  <div style="margin-top:10px"><b>Radius:</b> <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}"> <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi</div>
+  <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
+  <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>
+
+  <!-- NEW: promote sandbox to a hub -->
+  <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
+    <button id="sandboxAddPending"  class="btn" type="button">Add as Pending Hub</button>
+    <button id="sandboxAddConfirmed" class="btn" type="button">Add as Confirmed Hub</button>
+  </div>
+  <div id="sandboxAddMsg" style="margin-top:6px; font-size:12px; color:var(--muted)"></div>`;
+
       document.querySelector('.mapwrap').appendChild(d);
     }
     id('sandboxPanel').style.display = sandboxOpen ? 'block' : 'none';
