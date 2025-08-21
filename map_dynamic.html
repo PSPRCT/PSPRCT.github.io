@@ -592,9 +592,9 @@ function exportHubsJson(){
   const coverageWorker = makeCoverageWorker();
 
   // Map/layers
-  const map = L.map('map', { zoomControl: true, inertia: true }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
-    window.addEventListener('resize', syncLegends);
-  syncLegends();
+ const map = L.map('map', { zoomControl: true, inertia: true }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
+// (moved the resize+initial sync further down, after sidepanel is defined)
+
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
   const hubPane = map.createPane('hubPane'); hubPane.style.zIndex = 650; hubPane.style.pointerEvents = 'auto';
@@ -625,11 +625,15 @@ function exportHubsJson(){
   const tgHeat = id('tgHeat'), tgRings=id('tgRings'), tgOverlap=id('tgOverlap'), tgCompare=id('tgCompare'), tgWithin=id('tgWithin'), tgCluster=id('tgCluster');
   const overlapKey = id('overlapKey');  // tiny legend for overlap mode
     function syncLegends(){
-    const right = sidepanel.classList.contains('show') ? 420 : 10; // match your panel width
-    document.querySelectorAll('.legend').forEach(el=>{
-      el.style.right = right + 'px';
-    });
-  }
+  // Safe lookup so it can be called before sidepanel is assigned
+  const panel = document.getElementById('sidepanel');
+  const open  = panel && panel.classList.contains('show');
+  const right = open ? 420 : 10; // match your panel width
+  document.querySelectorAll('.legend').forEach(el=>{
+    el.style.right = right + 'px';
+  });
+}
+
 
 
   const covFilter = id('covFilter'); const covSearch = id('covSearch');
@@ -641,6 +645,9 @@ function exportHubsJson(){
   // Side panel refs
   const sidepanel = id('sidepanel');
   const spTitle = id('spTitle'); const spMeta = id('spMeta'); const spCounts = id('spCounts');
+  // Legends now safe to sync because sidepanel exists
+window.addEventListener('resize', syncLegends);
+syncLegends();
   const spRowsEl = id('spRows'); const spSearch = id('spSearch');
   const spLink = id('spLink');
   const spClose = id('spClose'); const spExport = id('spExport'); const spPinBtn = id('spPinBtn'); const spPrint = id('spPrint'); const spOnlyUncovEl = id('spOnlyUncov'); const spCollapse = id('spCollapse');
