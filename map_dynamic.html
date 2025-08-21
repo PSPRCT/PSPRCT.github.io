@@ -628,6 +628,9 @@ function exportHubsJson(){
 
   // Map/layers
   const map = L.map('map', { zoomControl: true, inertia: true }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
+    window.addEventListener('resize', syncLegends);
+  syncLegends();
+
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
   const hubPane = map.createPane('hubPane'); hubPane.style.zIndex = 650; hubPane.style.pointerEvents = 'auto';
 
@@ -656,6 +659,13 @@ function exportHubsJson(){
   const radius        = id('radius');  const radiusLbl = id('radiusLbl');
   const tgHeat = id('tgHeat'), tgRings=id('tgRings'), tgOverlap=id('tgOverlap'), tgCompare=id('tgCompare'), tgWithin=id('tgWithin'), tgCluster=id('tgCluster');
   const overlapKey = id('overlapKey');  // tiny legend for overlap mode
+    function syncLegends(){
+    const right = sidepanel.classList.contains('show') ? 420 : 10; // match your panel width
+    document.querySelectorAll('.legend').forEach(el=>{
+      el.style.right = right + 'px';
+    });
+  }
+
 
   const covFilter = id('covFilter'); const covSearch = id('covSearch');
   const rmFilter  = id('rmFilter');  const rmSearch  = id('rmSearch');
@@ -747,7 +757,8 @@ function exportHubsJson(){
 
   tgCompare.onchange= ()=>{ compareMode = tgCompare.checked; pinnedHubs=[]; highlightLayer.clearLayers(); refreshComparePanel(); alert(compareMode ? 'Compare mode on: click hub markers to pin them.' : 'Compare mode off.'); saveState(); };
   tgWithin.onchange = ()=>{ lastFilterChanged='tgWithin'; runFilter(); fitToResults(); saveState(); };
-  tgCluster.onchange= ()=>{ refreshLayerMode(); };
+tgCluster.onchange = ()=>{ refreshLayerMode(); saveState(); };
+
 
   // Keyboard
   const searchBox = id('searchBox'), searchBadge = id('searchBadge'), searchResults = id('searchResults');
@@ -1174,7 +1185,13 @@ try {
     const items = searchResults._data || [];
     if (e.key === 'ArrowDown'){ e.preventDefault(); resIndex = Math.min(items.length-1,resIndex+1); highlightResult(); }
     if (e.key === 'ArrowUp'){ e.preventDefault(); resIndex = Math.max(0,resIndex-1); highlightResult(); }
-    if (e.key === 'Enter'){ e.preventDefault(); if (resIndex>=0 && items[resIndex]) { selectResult(items[resIndex]); } }
+      if (e.key === 'Enter'){
+    e.preventDefault();
+    // NEW: if nothing highlighted yet, pick the first result
+    const i = (resIndex >= 0) ? resIndex : 0;
+    if (items[i]) { selectResult(items[i]); }
+  }
+
     if (e.key === 'Escape'){ hideResults(); }
   });
   document.addEventListener('click', (e)=>{ if (!searchWrap.contains(e.target)) hideResults(); });
@@ -1443,6 +1460,8 @@ function rowHTML(s){
     renderSidepanelList(true);
     const padRight = 420;
     map.panInside(h.coords, { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] });
+        syncLegends(); // NEW
+
     spPinBtn.textContent = pinnedHubs.some(x=>x.id===h.id) ? 'Unpin' : 'Pin';
   }
 
@@ -1463,7 +1482,11 @@ function rowHTML(s){
   `;
 }
 
-  function hideSidepanel(){ sidepanel.classList.remove('show'); spHub=null; spRows=[]; spRowsEl.innerHTML=''; }
+  function hideSidepanel(){
+  sidepanel.classList.remove('show'); spHub=null; spRows=[]; spRowsEl.innerHTML='';
+  syncLegends(); // NEW
+}
+
 
   function renderSidepanelMeta(){
   if(!spHub) return;
@@ -2460,6 +2483,8 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
   function handleHubVisibilityChange(){
     lastFilterChanged = 'visibility';
     renderHubs();
+        buildHubFilterOptions(); // NEW: rebuild the hub list to match toggles
+
     updateRings();
     recomputeCoverage().then(()=>{
       if (tgOverlap.checked) drawOverlap();
