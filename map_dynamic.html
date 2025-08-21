@@ -478,7 +478,7 @@
   // ---------- CONFIG ----------
   const DATA_URL    = './store_data.json?v=' + Date.now();
   const ACOSTA_URL  = './acosta_geocoded.json?v=' + Date.now();
-const PREMIUM_URL = 'premium_trainers_master.json?v=2025-08-19a';
+
 
   const FALLBACK_STORES = [
     { storeNumberStr:"1234", storeName:"Walmart", address:"701 W 51st St", city:"Austin", state:"TX", coverageType:"Uncovered", areaManager:"", regionalManager:"", trainerCity:"", lat:30.309, lng:-97.742 },
@@ -505,42 +505,7 @@ const PREMIUM_URL = 'premium_trainers_master.json?v=2025-08-19a';
   let premiumPending   = [];
   let acostaHubs       = [];
 
-  // --- Edit mode (toggle with `E`) and tiny context menu ---
-let editMode = false;
-let hubMenuEl = null;
-
-document.addEventListener('keydown', (e)=>{
-  // Toggle edit mode with "E"
-  if (e.key.toLowerCase() === 'e'){
-    editMode = !editMode;
-    if (hubMenuEl) { hubMenuEl.remove(); hubMenuEl=null; }
-    // Optional visual cue
-    const b = document.body;
-    b.classList.toggle('edit-mode', editMode);
-  }
-});
-
-// Remove hub from whichever set contains it, then refresh
-function removeHub(h){
-  const rmFrom = (arr)=>{ const i = arr.findIndex(x=>x.id===h.id); if(i>=0){ arr.splice(i,1); return true; } return false; };
-  if (!(rmFrom(premiumConfirmed) || rmFrom(premiumPending) || rmFrom(acostaHubs))){
-    alert('Hub not found in data.'); return;
-  }
-  renderHubs();
-  updateRings?.();
-  (typeof recomputeCoverage==='function' ? recomputeCoverage() : Promise.resolve())
-    .then(()=> runFilter?.());
-  if (window.spHub && spHub.id===h.id) { hideSidepanel?.(); }
-}
-
-// (Optional) Export all hub sets as JSON
-function exportHubsJson(){
-  const out = { premiumConfirmed, premiumPending, acostaHubs };
-  const blob = new Blob([JSON.stringify(out,null,2)], {type:'application/json'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = `hubs_${Date.now()}.json`; a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
-}
+  
 
 // Context menu when right-clicking a hub (only shows in edit mode)
 function showHubMenu(evt, hub, marker){
