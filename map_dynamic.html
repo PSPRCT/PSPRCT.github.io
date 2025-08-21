@@ -186,6 +186,8 @@
   .view-row{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:4px 0}
   .view-thumb{flex:0 0 auto;border:1px solid var(--border);border-radius:6px;width:96px;height:64px;background:#f9fafb}
   .view-actions{display:flex;gap:6px;align-items:center}
+  .view-actions .btn.link{ padding:4px 8px; }
+
 
   /* Empty state overlay */
   .empty-state{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:401;pointer-events:none}
@@ -2264,34 +2266,80 @@ function buildHubFilterOptions(){
       showAcosta:    showAcosta.checked
     };
     localStorage.setItem(LS_STATE, JSON.stringify(state));
+      // NEW: write linkable state to URL
+  try {
+    const hash = encodeURIComponent(JSON.stringify(state));
+    if (location.hash !== '#'+hash) history.replaceState(null, '', '#'+hash);
+  } catch (e) { console.warn('State→hash failed', e); }
+
   }
-  function tryLoadLocal(){
-    const raw = localStorage.getItem(LS_STATE);
-    if(!raw) return false;
-    try{
-      const st = JSON.parse(raw);
-      if (st.map) map.setView([st.map.center.lat, st.map.center.lng], st.map.zoom);
-      if (st.toggles){
-        tgHeat.checked = !!st.toggles.heat;
-        tgRings.checked= !!st.toggles.rings;
-        tgOverlap.checked=!!st.toggles.overlap;
-        tgCompare.checked=!!st.toggles.compare; compareMode = tgCompare.checked;
-        tgWithin.checked =!!st.toggles.within;
-        tgCluster.checked= !!st.toggles.cluster;
+function tryLoadLocal(){
+  // 1) NEW: try URL hash first
+  try{
+    if (location.hash && location.hash.length > 1){
+      const fromHash = JSON.parse(decodeURIComponent(location.hash.slice(1)));
+      if (fromHash && typeof fromHash === 'object'){
+        applyStateObject(fromHash);
+        return true;
       }
-      if (st.filters){
-        setMulti(covFilter, st.filters.cov||['All']);
-        setMulti(rmFilter,  st.filters.rm||['All']); cascadeAM();
-        setMulti(amFilter,  st.filters.am||['All']);
-        setMulti(hubFilter, st.filters.hub||[]);
-      }
-      if (st.radius){ radius.value = st.radius; radiusLbl.textContent = st.radius; }
-      if ('showConfirmed' in st) showConfirmed.checked = !!st.showConfirmed;
-      if ('showPending'   in st) showPending.checked   = !!st.showPending;
-      if ('showAcosta'    in st) showAcosta.checked    = !!st.showAcosta;
+    }
+  }catch(e){ console.warn('Hash→state failed', e); }
+
+  // 2) NEW: try saved default view
+  try{
+    const def = localStorage.getItem('default_view_v2');
+    if (def){
+      applyStateObject(JSON.parse(def));
       return true;
-    }catch(e){ console.warn('Bad saved state', e); return false; }
+    }
+  }catch(e){ console.warn('Default view parse failed', e); }
+
+  // 3) Fallback: LS_STATE (your existing behavior)
+  const raw = localStorage.getItem(LS_STATE);
+  if (!raw) return false;
+  try{
+    const st = JSON.parse(raw);
+    applyStateObject(st);
+    return true;
+  }catch(e){
+    console.warn('Bad saved state', e);
+    return false;
   }
+}
+function applyStateObject(st){
+  if (st.map){
+    map.setView([st.map.center.lat, st.map.center.lng], st.map.zoom);
+  }
+  if (st.toggles){
+    tgHeat.checked   = !!st.toggles.heat;
+    tgRings.checked  = !!st.toggles.rings;
+    tgOverlap.checked= !!st.toggles.overlap;
+    tgCompare.checked= !!st.toggles.compare; compareMode = tgCompare.checked;
+    tgWithin.checked = !!st.toggles.within;
+    tgCluster.checked= !!st.toggles.cluster;
+  }
+  if (st.filters){
+    setMulti(covFilter, st.filters.cov || ['All']);
+    setMulti(rmFilter,  st.filters.rm  || ['All']); cascadeAM();
+    setMulti(amFilter,  st.filters.am  || ['All']);
+    setMulti(hubFilter, st.filters.hub || []);
+  }
+  if (st.radius){
+    radius.value = st.radius;
+    radiusLbl.textContent = st.radius;
+  }
+  if ('showConfirmed' in st) showConfirmed.checked = !!st.showConfirmed;
+  if ('showPending'   in st) showPending.checked   = !!st.showPending;
+  if ('showAcosta'    in st) showAcosta.checked    = !!st.showAcosta;
+
+  // If you added heat options in Chunk 2B, restore them here:
+  if (st.heat){
+    if (id('heatInt')) id('heatInt').value = String(st.heat.intensity ?? 1);
+    if (id('heatRad')) id('heatRad').value = String(st.heat.radius ?? 25);
+    tgHeat.checked = !!st.heat.on;
+  }
+}
+
 
   function saveCurrentView(){
     const name = prompt('Name this view:');
@@ -2341,21 +2389,41 @@ function buildHubFilterOptions(){
   }
 
   function rebuildViewsMenu(){
-    const views = JSON.parse(localStorage.getItem(LS_VIEWS) || '[]');
-    const viewList = id('viewList');
+  const views = JSON.parse(localStorage.getItem(LS_VIEWS) || '[]');
+  const viewList = id('viewList');
 
-    if (!views.length){
-      viewList.innerHTML = '<div style="color:var(--muted);padding:6px">No saved views yet.</div>';
-      return;
-    }
+  // NEW: actions header always present
+  const actions = `
+    <div class="view-actions" style="display:flex;gap:8px;flex-wrap:wrap; padding:6px; border-bottom:1px solid #eee; margin-bottom:6px">
+      <button class="btn link" id="viewMakeDefault">Make current view default</button>
+      <button class="btn link" id="viewCopyLink">Copy link to this view</button>
+    </div>
+  `;
 
-    viewList.innerHTML = views.map(v=>`
+  if (!views.length){
+    viewList.innerHTML = actions + '<div style="color:var(--muted);padding:6px">No saved views yet.</div>';
+  } else {
+    viewList.innerHTML = actions + views.map(v=>`
       <div class="view-row">
         <canvas class="view-thumb" width="96" height="64" data-id="${v.id}"></canvas>
         <button class="btn" data-id="${v.id}" style="flex:1;text-align:left">${escape(v.name)}</button>
         <button class="btn link del" data-id="${v.id}" title="Delete">Delete</button>
       </div>
     `).join('');
+  }
+
+  // Wire action buttons
+  id('viewMakeDefault').onclick = ()=>{
+    const raw = localStorage.getItem(LS_STATE) || '{}';
+    localStorage.setItem('default_view_v2', raw);
+    toast('Saved as default view');
+  };
+  id('viewCopyLink').onclick = ()=>{
+    saveState(); // ensure hash is up to date
+    navigator.clipboard?.writeText(location.href);
+    toast('Link copied to clipboard');
+  };
+
 
     Array.from(viewList.querySelectorAll('button.btn[data-id]')).forEach(b=>{
       b.addEventListener('click', ()=>{
