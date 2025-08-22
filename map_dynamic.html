@@ -1872,13 +1872,12 @@ if (gapResultsEl && !gapResultsEl._wiredSandbox) {
     const lng = parseFloat(btn.dataset.lng);
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
       openSandboxAt(lat, lng);
-      gapModal.classList.remove('show');
-    } else {
-      console.warn('Invalid lat/lng on gap-sbx', btn.dataset);
+      id('gapModal').classList.remove('show');
     }
   });
   gapResultsEl._wiredSandbox = true;
 }
+
 
 function runGapFinder(){
   const N = Math.max(1, Number(id('gapMin').value)  || 10);
@@ -2774,29 +2773,49 @@ id('sandboxBtn').addEventListener('click', ()=>{
         </body></html>`);
       win.document.close();
     };
+
+
+  }
+
 function openSandboxAt(lat, lng){
   const c = L.latLng(lat, lng);
 
-  // Ensure sandbox UI is open
+  // 1) Ensure sandbox UI is open (and mark the flag)
   if (!window.sandboxOpen) {
     const btn = id('sandboxBtn');
-    if (btn) { btn.click(); } else { window.sandboxOpen = true; }
+    if (btn) btn.click();
+    window.sandboxOpen = true;
   }
 
-  // Ensure marker exists
+  // 2) Ensure marker exists, then move it
   if (!window.sandboxMarker) {
-    window.sandboxMarker = L.marker(c, { draggable:true, pane:'hubPane' }).addTo(map);
+    window.sandboxMarker = L.marker(c, { draggable:true, pane:'hubPane', title:'Sandbox center' }).addTo(map);
     window.sandboxMarker.on('dragend', refreshSandbox);
   } else {
     window.sandboxMarker.setLatLng(c);
   }
 
+  // 3) Ensure ring exists and matches the current sandbox radius control
+  const r = Number(id('sandboxR')?.value) || DEFAULT_RADIUS; // miles
+  const m = r * 1609; // meters
+  if (!window.sandboxCircle) {
+    window.sandboxCircle = L.circle(c, {
+      radius: m,
+      weight: 2,
+      color: '#0ea5e9',
+      fill: false,
+      pane: 'ringPane',   // falls back to default if you don't have this pane
+      className: 'sandboxRing'
+    }).addTo(map);
+  } else {
+    window.sandboxCircle.setLatLng(c).setRadius(m);
+  }
+
+  // 4) Pan and refresh stats
   map.panTo(c);
   if (typeof refreshSandbox === 'function') refreshSandbox();
 }
 
-
-  }
 
   // ---------- Heatmap ----------
   function updateHeat(){
