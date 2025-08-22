@@ -1861,71 +1861,50 @@ function printSidepanelList() {
       ` <span class="chip">Acosta v${aRev}</span>`;
   }
 
- // ---------- Gap Finder ----------
+// ---------- Gap Finder ----------
 const gapModal = id('gapModal');
-id('gapBtn').onclick    = ()=> gapModal.classList.add('show');
-id('gapClose').onclick  = ()=> gapModal.classList.remove('show');
-id('gapRun').onclick    = runGapFinder;
-id('gapExport').onclick = ()=> exportGapCsv();
+id('gapBtn').onclick   = ()=> gapModal.classList.add('show');
+id('gapClose').onclick = ()=> gapModal.classList.remove('show');
 
 let lastGap = [];
 
-// ONE source of truth for data universe (used by both tools)
-function getUniverse(useFilters){
-  return useFilters ? filteredStores : allStores;
-}
-function storesWithinUniverse(center, rMiles, useFilters){
-  const [lat,lng] = Array.isArray(center) ? center : [center.lat, center.lng];
-  const src = getUniverse(useFilters);
-  return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= rMiles);
-}
-
-// Delegated click for "Sandbox here" buttons
-const gapResultsEl = id('gapResults');
-if (gapResultsEl && !gapResultsEl._wiredSandbox) {
-  gapResultsEl.addEventListener('click', (e)=>{
-    const btn = e.target.closest('.gap-sbx');
-    if (!btn) return;
-    e.preventDefault();
-
-    const lat = parseFloat(btn.dataset.lat);
-    const lng = parseFloat(btn.dataset.lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-
-    gapModal.classList.remove('show');
-    setTimeout(()=>{ openSandboxAt(lat, lng); map.invalidateSize(); }, 0);
-  });
-  gapResultsEl._wiredSandbox = true;
+function storesWithinUniverse(center, rMiles, useFiltered){
+  const src = useFiltered ? filteredStores : allStores;
+  const [clat, clng] = Array.isArray(center) ? center : [center.lat, center.lng];
+  return src.filter(s => distMiles(clat, clng, s.lat, s.lng) <= rMiles);
 }
 
 function runGapFinder(){
-  const minUncov = Math.max(1, Number(id('gapMin').value)   || 10);
-  const radiusMi = Math.max(1, Number(id('gapMiles').value) || 50);
-  const useFilt  = !!id('gapUseFilters')?.checked;
+  // Controls live in the modal’s header row (single set of inputs)
+  const N  = Math.max(1, Number(id('gapMin')?.value)   || 30);
+  const R  = Math.max(1, Number(id('gapMiles')?.value) || 75);
+  const useFilt = !!id('gapUseFilters')?.checked;
 
-  const universe = getUniverse(useFilt);
-  const base = universe.filter(s => (s.coverageType || '') === 'Uncovered');
+  // Base = uncovered only (honor toggle)
+  const universe = useFilt ? filteredStores : allStores;
+  const base = universe.filter(s => (s.coverageType||'') === 'Uncovered');
 
-  // group by city/state centroid
+  // Group uncovered by city/state
   const byCity = new Map();
   base.forEach(s=>{
     const key = `${(s.city||'').toLowerCase()}|${(s.state||'').toUpperCase()}`;
     const g = byCity.get(key) || { city:s.city, state:s.state, lat:0, lng:0, n:0, am:new Set(), rm:new Set(), stores:[] };
     g.lat += s.lat; g.lng += s.lng; g.n += 1;
-    g.am.add(s.areaManager||''); g.rm.add(s.regionalManager||''); g.stores.push(s);
+    if (s.areaManager)    g.am.add(s.areaManager);
+    if (s.regionalManager)g.rm.add(s.regionalManager);
+    g.stores.push(s);
     byCity.set(key, g);
   });
 
+  // Score each city by uncovered within R of its centroid
   const rows = [];
   byCity.forEach(g=>{
     const center = { lat: g.lat/g.n, lng: g.lng/g.n };
-    const count = storesWithinUniverse([center.lat, center.lng], radiusMi, useFilt)
-      .filter(s => (s.coverageType || '') === 'Uncovered').length;
-    if (count >= minUncov){
+    const count  = base.reduce((acc,s)=> acc + (distMiles(center.lat,center.lng,s.lat,s.lng) <= R ? 1 : 0), 0);
+    if (count >= N){
       rows.push({
         city:g.city, state:g.state,
-        rm:[...g.rm].filter(Boolean).join('; '),
-        am:[...g.am].filter(Boolean).join('; '),
+        rm:[...g.rm].join('; '), am:[...g.am].join('; '),
         count, center
       });
     }
@@ -1942,7 +1921,7 @@ function runGapFinder(){
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">State</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">RM</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">AM</th>
-          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Uncovered (≤ ${radiusMi} mi)</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Uncovered (≤ ${R} mi)</th>
           <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Action</th>
         </tr>
       </thead>
@@ -1955,69 +1934,67 @@ function runGapFinder(){
             <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.am||'')}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.count}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">
-              <button type="button" class="mini gap-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox here</button>
+              <button class="mini gap-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox here</button>
             </td>
-          </tr>`).join('')}
+          </tr>
+        `).join('')}
       </tbody>
     </table>`;
+
   id('gapResults').innerHTML = html || '<div style="color:var(--muted)">No gaps found.</div>';
+
+  // Bind “Sandbox here” after render
+  id('gapResults').querySelectorAll('.gap-sbx').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.preventDefault();
+      const lat = Number(btn.dataset.lat), lng = Number(btn.dataset.lng);
+      openSandboxAt(lat, lng);          // open & sync sandbox
+      gapModal.classList.remove('show'); // close the gap modal
+    });
+  });
 }
 
 function exportGapCsv(){
   if (!lastGap.length){ alert('Run the gap finder first.'); return; }
-  const radiusMi = Math.max(1, Number(id('gapMiles').value)||50);
-  const rows = [['City','State','Regional Manager(s)','Area Manager(s)',`Uncovered (≤ ${radiusMi} mi)`, 'Center Lat','Center Lng']];
+  const R = Math.max(1, Number(id('gapMiles')?.value) || 75);
+  const rows = [['City','State','Regional Manager(s)','Area Manager(s)',`Uncovered (≤ ${R} mi)`, 'Center Lat','Center Lng']];
   lastGap.forEach(r=> rows.push([r.city, r.state, r.rm, r.am, r.count, r.center.lat, r.center.lng]));
   exportCsvWithToast(rows, `gap_finder_${Date.now()}.csv`);
 }
 // ---------- /Gap Finder ----------
 
+
+
 // ---------- Rollups (RM/AM) ----------
 const rollModal = id('rollupModal');
-id('rollupBtn').onclick   = () => { rollModal.classList.add('show'); buildRollups(); };
-id('rollupClose').onclick = () => rollModal.classList.remove('show');
+id('rollupBtn').onclick   = ()=>{ rollModal.classList.add('show'); buildRollups(); };
+id('rollupClose').onclick = ()=> rollModal.classList.remove('show');
 id('rollByRM').onchange   = buildRollups;
 id('rollByAM').onchange   = buildRollups;
-id('rollExport').onclick  = () => exportRollupsCsv(lastRoll.by, lastRoll.rows);
 
-let lastRoll = { rows: [], by: 'RM' };
-
-// Tiny spark bar helper (for on-screen "Mix" column)
-function sparkBar(pa, pr, ac, uv){
-  const total = Math.max(1, pa + pr + ac + uv);
-  const W = 120;
-  const w = v => Math.round(W * (v/total));
-  const segs = [
-    { cls: 'spa', w: w(pa) },  // Premium + Acosta (covered)
-    { cls: 'spr', w: w(pr) },  // Premium-only (subset of covered)
-    { cls: 'sac', w: w(ac) },  // Acosta-only
-    { cls: 'suv', w: w(uv) }   // Uncovered
-  ].filter(s => s.w > 0);
-  return `<span class="spark">${segs.map(s => `<i class="${s.cls}" style="width:${s.w}px"></i>`).join('')}</span>`;
-}
+let lastRoll = { rows:[], by:'RM' };
+id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
 
 function buildRollups(){
-  const by    = id('rollByAM').checked ? 'AM' : 'RM';
-  const keyOf = s => by === 'RM' ? (s.regionalManager || '') : (s.areaManager || '');
-
-  // group filtered stores by RM/AM
+  const by = id('rollByAM').checked ? 'AM' : 'RM';
+  const keyOf = s => by==='RM' ? (s.regionalManager||'') : (s.areaManager||'');
   const byMap = new Map();
-  filteredStores.forEach(s => {
+
+  filteredStores.forEach(s=>{
     const k = keyOf(s) || '(Blank)';
-    const g = byMap.get(k) || { key:k, premiumCovered:0, premiumOnly:0, acostaOnly:0, uncovered:0, total:0 };
-    if      (s.coverageType === 'Premium + Acosta') g.premiumCovered++;
-    else if (s.coverageType === 'Premium Only')     { g.premiumCovered++; g.premiumOnly++; }
-    else if (s.coverageType === 'Acosta Only')      g.acostaOnly++;
-    else                                            g.uncovered++;
+    const g = byMap.get(k) || { key:k, premiumCovered:0, acostaOnly:0, uncovered:0, total:0 };
+    if (s.coverageType === 'Premium + Acosta' || s.coverageType === 'Premium Only') g.premiumCovered++;
+    else if (s.coverageType === 'Acosta Only') g.acostaOnly++;
+    else g.uncovered++;
     g.total++;
-    byMap.set(k, g);
+    byMap.set(k,g);
   });
 
-  const rows = Array.from(byMap.values()).sort((a,b) => b.total - a.total);
+  const rows = Array.from(byMap.values()).sort((a,b)=> b.total - a.total);
   lastRoll = { rows, by };
 
-  const pct = (n,t) => t ? (Math.round(n*1000/t)/10)+'%' : '0%';
-  const groupLabel = by === 'RM' ? 'Regional Manager' : (by === 'AM' ? 'Area Manager' : 'Group');
+  const pct = (n,t)=> t? (Math.round(n*1000/t)/10)+'%':'0%';
+  const groupLabel = by === 'RM' ? 'Regional Manager' : 'Area Manager';
 
   const html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead>
@@ -2030,11 +2007,10 @@ function buildRollups(){
         <th style="padding:6px;text-align:right">Uncovered</th>
         <th style="padding:6px;text-align:right">Uncovered %</th>
         <th style="padding:6px;text-align:right">Total</th>
-        <th style="padding:6px;text-align:left">Mix</th>
       </tr>
     </thead>
     <tbody>
-      ${rows.map(r => `
+      ${rows.map(r=>`
         <tr>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.key)}</td>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.premiumCovered}</td>
@@ -2044,12 +2020,6 @@ function buildRollups(){
           <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.uncovered}</td>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.uncovered,r.total)}</td>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.total}</b></td>
-          <td style="padding:6px;border-bottom:1px solid #f0f0f0">${sparkBar(
-            r.premiumCovered - (r.premiumOnly||0),  /* P + A */
-            (r.premiumOnly||0),                     /* Premium only */
-            r.acostaOnly||0,
-            r.uncovered||0
-          )}</td>
         </tr>
       `).join('')}
     </tbody>
@@ -2059,11 +2029,11 @@ function buildRollups(){
 }
 
 function exportRollupsCsv(by, rows){
-  const groupLabel = by === 'RM' ? 'Regional Manager' : (by === 'AM' ? 'Area Manager' : 'Group');
-  const header = [groupLabel,'Premium-covered','Premium %','Acosta-only','Acosta %','Uncovered','Uncovered %','Total'];
-  const pct = (n,t) => t ? (Math.round(n*1000/t)/10)+'%' : '0%';
+  const groupLabel = by === 'RM' ? 'Regional Manager' : 'Area Manager';
+  const header = [ groupLabel, 'Premium-covered','Premium %', 'Acosta-only','Acosta %', 'Uncovered','Uncovered %', 'Total' ];
+  const pct = (n,t)=> t? (Math.round(n*1000/t)/10)+'%':'0%';
 
-  const data = rows.map(r => [
+  const data = rows.map(r=>[
     r.key,
     r.premiumCovered, pct(r.premiumCovered,r.total),
     r.acostaOnly,     pct(r.acostaOnly,r.total),
@@ -2071,7 +2041,10 @@ function exportRollupsCsv(by, rows){
     r.total
   ]);
 
-  const csv = [header, ...data].map(r => r.map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const csv = [header, ...data]
+    .map(r=> r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','))
+    .join('\n');
+
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2081,7 +2054,7 @@ function exportRollupsCsv(by, rows){
   URL.revokeObjectURL(a.href);
   a.remove();
 }
-// ---------- /Rollups (RM/AM) ----------
+// ---------- /Rollups ----------
 
   // ---------- Helpers ----------
   function id(x){ return document.getElementById(x); }
@@ -2627,59 +2600,51 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
     });
   }
 
- // ---------- Sandbox ----------
+// ---------- Sandbox ----------
 let sandboxOpen = false;
 let sandboxCircle = null;
 let sandboxMarker = null;
 
-// Open/close the sandbox panel
 id('sandboxBtn').addEventListener('click', ()=>{
   sandboxOpen = !sandboxOpen;
-
-  // Create panel once
   let pn = id('sandboxPanel');
+
+  // Create once
   if (!pn){
     const d = document.createElement('div');
-    d.className='sandbox';
-    d.id='sandboxPanel';
-    d.innerHTML = `<h4>New-hub Sandbox</h4>
-  <div>Click the map to position the blue ring, <b>or</b> enter “lat,lng” below. Adjust radius as needed.</div>
+    d.className='sandbox'; d.id='sandboxPanel';
+    d.innerHTML = `
+      <h4>New-hub Sandbox</h4>
+      <div>Click the map to position the blue ring, <b>or</b> enter “lat,lng” below. Adjust radius as needed.</div>
 
-  <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-    <input id="sandboxAddr" type="text" placeholder="e.g. 33.52,-86.80"
-           style="flex:1;min-width:260px;border:1px solid var(--border);border-radius:8px;padding:6px 8px"/>
-    <button id="sandboxGeocode" class="btn" type="button">Use coords</button>
-  </div>
-  <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <input id="sandboxAddr" type="text" placeholder="e.g. 33.52,-86.80"
+               style="flex:1;min-width:260px;border:1px solid var(--border);border-radius:8px;padding:6px 8px"/>
+        <button id="sandboxGeocode" class="btn" type="button">Use coords</button>
+      </div>
+      <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
 
-  <div style="display:flex;align-items:center;gap:12px;margin-top:10px">
-    <div><b>Radius:</b> <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}">
-      <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi
-    </div>
-    <label style="display:inline-flex; gap:6px; align-items:center">
-      <input type="checkbox" id="sandboxUseFilters"> Use current filters
-    </label>
-  </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:10px">
+        <div><b>Radius:</b> <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}">
+          <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi
+        </div>
+        <!-- sandbox mirrors Gap Finder's Use current filters by reading #gapUseFilters; no extra toggle here -->
+      </div>
 
-  <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
+      <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
+      <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>
 
-  <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>
-
-  <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
-    <button id="sandboxAddPending"  class="btn" type="button">Add as Pending Hub</button>
-    <button id="sandboxAddConfirmed" class="btn" type="button">Add as Confirmed Hub</button>
-  </div>
-
-  <div id="sandboxAddMsg" style="margin-top:6px; font-size:12px; color:var(--muted)"></div>`;
-
+      <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
+        <button id="sandboxAddPending"  class="btn" type="button">Add as Pending Hub</button>
+        <button id="sandboxAddConfirmed" class="btn" type="button">Add as Confirmed Hub</button>
+      </div>
+      <div id="sandboxAddMsg" style="margin-top:6px; font-size:12px; color:var(--muted)"></div>`;
     document.querySelector('.mapwrap').appendChild(d);
     pn = d;
   }
 
   // Show/hide
   pn.style.display = sandboxOpen ? 'block' : 'none';
-
-  // Tear down layers on close
   if (!sandboxOpen){
     if (sandboxCircle) ringLayer.removeLayer(sandboxCircle), sandboxCircle=null;
     if (sandboxMarker) highlightLayer.removeLayer(sandboxMarker), sandboxMarker=null;
@@ -2687,20 +2652,15 @@ id('sandboxBtn').addEventListener('click', ()=>{
     return;
   }
 
-  // Initial placement at current map center
+  // Initial placement
   const c0 = map.getCenter();
   placeSandbox([c0.lat, c0.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
 
-  // --- wiring (re)done each open ---
+  // wiring
   id('sandboxR').addEventListener('input', ()=>{
     id('sandboxRlbl').textContent = id('sandboxR').value;
     refreshSandbox();
   });
-
-  // Recompute when sandbox toggle changes
-const useFiltChk = id('sandboxUseFilters');
-if (useFiltChk) useFiltChk.onchange = refreshSandbox;
-
 
   id('sandboxGeocode').onclick = ()=>{
     const s = id('sandboxAddr').value.trim();
@@ -2714,14 +2674,13 @@ if (useFiltChk) useFiltChk.onchange = refreshSandbox;
     map.panInside([lat,lng], { paddingTopLeft:[20,20], paddingBottomRight:[20,20] });
   };
 
-  // Move ring on map click while open
   map.off('click.__sandbox');
   map.on('click.__sandbox', (e)=>{
     if (!sandboxOpen) return;
     placeSandbox([e.latlng.lat, e.latlng.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
   });
 
-  // Add hub helpers
+  // add hub actions
   const msg = id('sandboxAddMsg');
   function addFromSandboxWithPrompts(status){
     if (!sandboxMarker){ msg.textContent = 'Place the sandbox marker first (click the map).'; return; }
@@ -2741,23 +2700,21 @@ if (useFiltChk) useFiltChk.onchange = refreshSandbox;
       city, state,
       coords: [ll.lat, ll.lng]
     };
-
     if (status === 'confirmed') premiumConfirmed.push(hub); else premiumPending.push(hub);
+
     renderHubs(); updateRings?.();
-    (typeof recomputeCoverage === 'function' ? recomputeCoverage() : Promise.resolve()).then(()=> runFilter?.());
+    (typeof recomputeCoverage === 'function' ? recomputeCoverage() : Promise.resolve())
+      .then(()=> runFilter?.());
     msg.textContent = `Added ${hub.statusLabel} hub at ${ll.lat.toFixed(4)}, ${ll.lng.toFixed(4)}${city||state?` — ${hub.fullName}`:''}.`;
   }
-  id('sandboxAddPending').onclick  = ()=> addFromSandboxWithPrompts('pending');
-  id('sandboxAddConfirmed').onclick= ()=> addFromSandboxWithPrompts('confirmed');
+  id('sandboxAddPending').onclick   = ()=> addFromSandboxWithPrompts('pending');
+  id('sandboxAddConfirmed').onclick = ()=> addFromSandboxWithPrompts('confirmed');
 });
 
-// Create/move ring + marker then refresh
 function placeSandbox(center, rMiles){
-  // circle
   if (sandboxCircle){ ringLayer.removeLayer(sandboxCircle); sandboxCircle=null; }
   sandboxCircle = L.circle(center, { radius: rMiles*1609.344, color: getCSS('--blue'), weight: 2, fill:false, opacity:.6 }).addTo(ringLayer);
 
-  // marker
   if (sandboxMarker){ highlightLayer.removeLayer(sandboxMarker); sandboxMarker=null; }
   const icon = L.divIcon({className:'', html:'<div style="width:18px;height:18px;border-radius:50%;background:'+getCSS('--blue')+';border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>', iconSize:[18,18], iconAnchor:[9,9]});
   sandboxMarker = L.marker(center, { icon, draggable:false }).addTo(highlightLayer);
@@ -2765,21 +2722,16 @@ function placeSandbox(center, rMiles){
   refreshSandbox();
 }
 
-// Use **the same universe & radius rules as Gap Finder**
 function refreshSandbox(){
   if (!sandboxOpen) return;
-  const r = Number(id('sandboxR')?.value) || DEFAULT_RADIUS;
-  const c = sandboxMarker?.getLatLng?.();
-  if (!c) return;
+  const rMiles = Number(id('sandboxR')?.value) || DEFAULT_RADIUS;
+  const c = sandboxMarker?.getLatLng?.(); if (!c) return;
 
-  if (sandboxCircle){ sandboxCircle.setLatLng(c); sandboxCircle.setRadius(r*1609.344); }
+  if (sandboxCircle){ sandboxCircle.setLatLng(c); sandboxCircle.setRadius(rMiles*1609.344); }
 
-  const useFiltSandbox = !!id('sandboxUseFilters')?.checked;
-  const list = storesWithinUniverse([c.lat, c.lng], r, useFiltSandbox);
-
-  // … (rest of your stats + “View stores in radius” code)
-}
-
+  // Sandbox follows Gap Finder’s “Use current filters”
+  const useFilt = !!id('gapUseFilters')?.checked;
+  const inRadius = storesWithinUniverse([c.lat, c.lng], rMiles, useFilt);
   const uncoveredList = inRadius.filter(s => (s.coverageType||'') === 'Uncovered');
 
   const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
@@ -2832,24 +2784,19 @@ function refreshSandbox(){
   };
 }
 
-// Clicking a row in Gap Finder calls this
 function openSandboxAt(lat, lng){
   const c = L.latLng(lat, lng);
-
-  // Close modal if open
   const gm = id('gapModal'); if (gm) gm.classList.remove('show');
 
-  // Ensure sandbox UI is open
   if (!sandboxOpen) { const btn = id('sandboxBtn'); if (btn) btn.click(); sandboxOpen = true; }
 
-  // Sync sandbox radius to Gap Finder radius if set
+  // sync radius from Gap Finder if present
   const gfR = Number(id('gapMiles')?.value);
   if (Number.isFinite(gfR) && id('sandboxR')){
     id('sandboxR').value = String(gfR);
     const lbl = id('sandboxRlbl'); if (lbl) lbl.textContent = String(gfR);
   }
 
-  // Ensure marker + circle exist at correct spot/radius
   const rMiles = Number(id('sandboxR')?.value) || DEFAULT_RADIUS;
   const rMeters = rMiles * 1609.344;
 
@@ -2864,12 +2811,7 @@ function openSandboxAt(lat, lng){
 
   map.panTo(c);
   refreshSandbox();
-
-  function storesWithinUniverse([lat,lng], rMiles, useFilters){
-  const src = useFilters ? (window.filteredStores||[]) : (window.allStores||[]);
-  return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= rMiles);
 }
-
 // ---------- /Sandbox ----------
 
 
