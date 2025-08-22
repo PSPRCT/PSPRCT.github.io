@@ -1866,14 +1866,26 @@ if (gapResultsEl && !gapResultsEl._wiredSandbox) {
   gapResultsEl.addEventListener('click', (e)=>{
     const btn = e.target.closest('.gap-sbx');
     if (!btn) return;
+
     e.preventDefault();
     e.stopPropagation();
+
     const lat = parseFloat(btn.dataset.lat);
     const lng = parseFloat(btn.dataset.lng);
-    if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      openSandboxAt(lat, lng);
-      id('gapModal').classList.remove('show');
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      console.warn('Invalid lat/lng on gap-sbx', btn.dataset);
+      return;
     }
+
+    // Close the modal first so it doesn't cover the map
+    const gm = id('gapModal');
+    if (gm) gm.classList.remove('show');
+
+    // Let layout update, then open the sandbox and refresh Leaflet sizing
+    setTimeout(()=>{
+      openSandboxAt(lat, lng);
+      map.invalidateSize();      // ensure tile/overlay layout after modal close
+    }, 0);
   });
   gapResultsEl._wiredSandbox = true;
 }
@@ -2780,7 +2792,13 @@ id('sandboxBtn').addEventListener('click', ()=>{
 function openSandboxAt(lat, lng){
   const c = L.latLng(lat, lng);
 
-  // 1) Ensure sandbox UI is open (and mark the flag)
+  // 0) Ensure a pane exists for the sandbox ring (or fall back)
+  if (!map.getPane('ringPane')) {
+    const rp = map.createPane('ringPane');
+    rp.style.zIndex = 420; // below hubPane (650) but above base tiles
+  }
+
+  // 1) Ensure sandbox UI is open
   if (!window.sandboxOpen) {
     const btn = id('sandboxBtn');
     if (btn) btn.click();
@@ -2795,20 +2813,20 @@ function openSandboxAt(lat, lng){
     window.sandboxMarker.setLatLng(c);
   }
 
-  // 3) Ensure ring exists and matches the current sandbox radius control
-  const r = Number(id('sandboxR')?.value) || DEFAULT_RADIUS; // miles
-  const m = r * 1609; // meters
+  // 3) Ensure ring exists and matches current radius
+  const rMiles = Number(id('sandboxR')?.value) || DEFAULT_RADIUS;
+  const rMeters = rMiles * 1609.344;
   if (!window.sandboxCircle) {
     window.sandboxCircle = L.circle(c, {
-      radius: m,
+      radius: rMeters,
       weight: 2,
       color: '#0ea5e9',
       fill: false,
-      pane: 'ringPane',   // falls back to default if you don't have this pane
+      pane: 'ringPane',      // now guaranteed to exist
       className: 'sandboxRing'
     }).addTo(map);
   } else {
-    window.sandboxCircle.setLatLng(c).setRadius(m);
+    window.sandboxCircle.setLatLng(c).setRadius(rMeters);
   }
 
   // 4) Pan and refresh stats
