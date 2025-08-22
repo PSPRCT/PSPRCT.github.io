@@ -2145,6 +2145,12 @@ id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
     const src = filteredStores.length ? filteredStores : allStores;
     return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
   }
+  // Always use the full universe — for sandbox parity with Gap Finder
+function storesWithinAll(center, r){
+  const [lat, lng] = Array.isArray(center) ? center : [center.lat, center.lng];
+  return allStores.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
+}
+
 function buildHubFilterOptions(){
   // visible hubs only (respect toggles)
   let hubs = [];
@@ -2738,7 +2744,7 @@ id('sandboxBtn').addEventListener('click', ()=>{
     const c = sandboxMarker?.getLatLng?.();
     if (!c) return;
     if (sandboxCircle){ sandboxCircle.setLatLng(c); sandboxCircle.setRadius(r*1609); }
-    const list = storesWithin([c.lat,c.lng], r);
+   const list = storesWithinAll([c.lat, c.lng], r);   // <— use allStores
     const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
     list.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0)+1; });
     id('sandboxStats').innerHTML = `
