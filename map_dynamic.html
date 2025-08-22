@@ -1974,54 +1974,52 @@ function exportGapCsv(){
 
 // ---------- Rollups (RM/AM) ----------
 const rollModal = id('rollupModal');
-id('rollupBtn').onclick   = ()=>{ rollModal.classList.add('show'); buildRollups(); };
-id('rollupClose').onclick = ()=> rollModal.classList.remove('show');
+id('rollupBtn').onclick   = () => { rollModal.classList.add('show'); buildRollups(); };
+id('rollupClose').onclick = () => rollModal.classList.remove('show');
 id('rollByRM').onchange   = buildRollups;
 id('rollByAM').onchange   = buildRollups;
-id('rollExport').onclick  = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
+id('rollExport').onclick  = () => exportRollupsCsv(lastRoll.by, lastRoll.rows);
 
-let lastRoll = { rows:[], by:'RM' };
+let lastRoll = { rows: [], by: 'RM' };
 
 // Tiny spark bar helper (for on-screen "Mix" column)
 function sparkBar(pa, pr, ac, uv){
-  const total = Math.max(1, pa+pr+ac+uv);
+  const total = Math.max(1, pa + pr + ac + uv);
   const W = 120;
   const w = v => Math.round(W * (v/total));
   const segs = [
-    {cls:'spa', w:w(pa)},   // Premium + Acosta (covered)
-    {cls:'spr', w:w(pr)},   // Premium-only (subset of covered)
-    {cls:'sac', w:w(ac)},   // Acosta-only
-    {cls:'suv', w:w(uv)}    // Uncovered
-  ].filter(s=>s.w>0);
-  return `<span class="spark">${segs.map(s=>`<i class="${s.cls}" style="width:${s.w}px"></i>`).join('')}</span>`;
+    { cls: 'spa', w: w(pa) },  // Premium + Acosta (covered)
+    { cls: 'spr', w: w(pr) },  // Premium-only (subset of covered)
+    { cls: 'sac', w: w(ac) },  // Acosta-only
+    { cls: 'suv', w: w(uv) }   // Uncovered
+  ].filter(s => s.w > 0);
+  return `<span class="spark">${segs.map(s => `<i class="${s.cls}" style="width:${s.w}px"></i>`).join('')}</span>`;
 }
 
 function buildRollups(){
-  const by = id('rollByAM').checked ? 'AM' : 'RM';
-  const keyOf = s => by==='RM' ? (s.regionalManager||'') : (s.areaManager||'');
+  const by    = id('rollByAM').checked ? 'AM' : 'RM';
+  const keyOf = s => by === 'RM' ? (s.regionalManager || '') : (s.areaManager || '');
 
   // group filtered stores by RM/AM
   const byMap = new Map();
-  filteredStores.forEach(s=>{
+  filteredStores.forEach(s => {
     const k = keyOf(s) || '(Blank)';
     const g = byMap.get(k) || { key:k, premiumCovered:0, premiumOnly:0, acostaOnly:0, uncovered:0, total:0 };
-    if (s.coverageType === 'Premium + Acosta') g.premiumCovered++;
-    else if (s.coverageType === 'Premium Only') g.premiumCovered++, g.premiumOnly++; // counted inside covered
-    else if (s.coverageType === 'Acosta Only') g.acostaOnly++;
-    else g.uncovered++;
+    if      (s.coverageType === 'Premium + Acosta') g.premiumCovered++;
+    else if (s.coverageType === 'Premium Only')     { g.premiumCovered++; g.premiumOnly++; }
+    else if (s.coverageType === 'Acosta Only')      g.acostaOnly++;
+    else                                            g.uncovered++;
     g.total++;
-    byMap.set(k,g);
+    byMap.set(k, g);
   });
 
-  const rows = Array.from(byMap.values()).sort((a,b)=> b.total - a.total);
+  const rows = Array.from(byMap.values()).sort((a,b) => b.total - a.total);
   lastRoll = { rows, by };
 
-  const pct = (n,t)=> t? (Math.round(n*1000/t)/10)+'%':'0%';
-  const groupLabel = by === 'RM' ? 'Regional Manager'
-                    : by === 'AM' ? 'Area Manager'
-                    : 'Group';
+  const pct = (n,t) => t ? (Math.round(n*1000/t)/10)+'%' : '0%';
+  const groupLabel = by === 'RM' ? 'Regional Manager' : (by === 'AM' ? 'Area Manager' : 'Group');
 
-    const html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+  const html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead>
       <tr>
         <th style="padding:6px;text-align:left">${groupLabel}</th>
@@ -2036,7 +2034,7 @@ function buildRollups(){
       </tr>
     </thead>
     <tbody>
-      ${rows.map(r=>`
+      ${rows.map(r => `
         <tr>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.key)}</td>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.premiumCovered}</td>
@@ -2047,21 +2045,43 @@ function buildRollups(){
           <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.uncovered,r.total)}</td>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.total}</b></td>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0">${sparkBar(
-            r.premiumCovered - (r.premiumOnly||0),   /* P + A */
-            (r.premiumOnly||0),                      /* Premium only */
+            r.premiumCovered - (r.premiumOnly||0),  /* P + A */
+            (r.premiumOnly||0),                     /* Premium only */
             r.acostaOnly||0,
             r.uncovered||0
           )}</td>
         </tr>
       `).join('')}
     </tbody>
-  </table>`;  // <-- CLOSES the template literal
+  </table>`;
 
   id('rollTable').innerHTML = html || '<div style="color:var(--muted)">No data.</div>';
-} // <-- CLOSES buildRollups()
+}
 
+function exportRollupsCsv(by, rows){
+  const groupLabel = by === 'RM' ? 'Regional Manager' : (by === 'AM' ? 'Area Manager' : 'Group');
+  const header = [groupLabel,'Premium-covered','Premium %','Acosta-only','Acosta %','Uncovered','Uncovered %','Total'];
+  const pct = (n,t) => t ? (Math.round(n*1000/t)/10)+'%' : '0%';
 
+  const data = rows.map(r => [
+    r.key,
+    r.premiumCovered, pct(r.premiumCovered,r.total),
+    r.acostaOnly,     pct(r.acostaOnly,r.total),
+    r.uncovered,      pct(r.uncovered,r.total),
+    r.total
+  ]);
 
+  const csv = [header, ...data].map(r => r.map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `rollups_by_${by.toLowerCase()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(a.href);
+  a.remove();
+}
+// ---------- /Rollups (RM/AM) ----------
 
   // ---------- Helpers ----------
   function id(x){ return document.getElementById(x); }
