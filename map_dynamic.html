@@ -1892,10 +1892,16 @@ if (gapResultsEl && !gapResultsEl._wiredSandbox) {
 
 
 function runGapFinder(){
+  console.log('[GapFinder] filteredStores:', filteredStores.length, 'allStores:', allStores.length,
+            'useFilt?', !!id('gapUseFilters')?.checked);
   const N = Math.max(1, Number(id('gapMin').value)  || 10);
   const M = Math.max(1, Number(id('gapMiles').value)|| 50);
 
-  const useFilt = !!id('gapUseFilters')?.checked;
+  const useFilt = !!id('sandboxUseFilters')?.checked;
+const list = useFilt
+  ? storesWithin([c.lat, c.lng], r)      // uses filteredStores
+  : storesWithinAll([c.lat, c.lng], r);  // uses allStores
+
   const universe = useFilt ? filteredStores : allStores;
   const base = universe.filter(s => (s.coverageType || '') === 'Uncovered');
 
@@ -2150,6 +2156,7 @@ function storesWithinAll(center, r){
   const [lat, lng] = Array.isArray(center) ? center : [center.lat, center.lng];
   return allStores.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
 }
+
 
 
 
@@ -2770,6 +2777,7 @@ if (useFiltChk) {
   }
 
   function refreshSandbox(){
+    console.log('[Sandbox] filteredStores:', filteredStores.length, 'allStores:', allStores.length);
     if (!sandboxOpen) return;
     const r = Number(id('sandboxR')?.value)||DEFAULT_RADIUS;
     const c = sandboxMarker?.getLatLng?.();
