@@ -2021,7 +2021,7 @@ function buildRollups(){
                     : by === 'AM' ? 'Area Manager'
                     : 'Group';
 
-  const html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+    const html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead>
       <tr>
         <th style="padding:6px;text-align:left">${groupLabel}</th>
@@ -2047,54 +2047,19 @@ function buildRollups(){
           <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.uncovered,r.total)}</td>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.total}</b></td>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0">${sparkBar(
-            r.premiumCovered - r.premiumOnly,  // Premium + Acosta
-            r.premiumOnly,                     // Premium-only portion
-            r.acostaOnly,
-            r.uncovered
+            r.premiumCovered - (r.premiumOnly||0),   /* P + A */
+            (r.premiumOnly||0),                      /* Premium only */
+            r.acostaOnly||0,
+            r.uncovered||0
           )}</td>
         </tr>
       `).join('')}
     </tbody>
-  </table>`;
+  </table>`;  // <-- CLOSES the template literal
 
   id('rollTable').innerHTML = html || '<div style="color:var(--muted)">No data.</div>';
-}
+} // <-- CLOSES buildRollups()
 
-function exportRollupsCsv(by, rows){
-  const groupLabel = by === 'RM' ? 'Regional Manager'
-                    : by === 'AM' ? 'Area Manager'
-                    : 'Group';
-
-  const header = [
-    groupLabel,
-    'Premium-covered','Premium %',
-    'Acosta-only','Acosta %',
-    'Uncovered','Uncovered %',
-    'Total'
-  ];
-
-  const pct = (n,t)=> t? (Math.round(n*1000/t)/10)+'%':'0%';
-
-  const data = rows.map(r=>[
-    r.key,
-    r.premiumCovered, pct(r.premiumCovered,r.total),
-    r.acostaOnly,     pct(r.acostaOnly,r.total),
-    r.uncovered,      pct(r.uncovered,r.total),
-    r.total
-  ]);
-
-  const csv = [header, ...data].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
-
-  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `rollups_by_${by.toLowerCase()}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  URL.revokeObjectURL(a.href);
-  a.remove();
-}
-// ---------- /Rollups ----------
 
 
 
