@@ -2642,31 +2642,36 @@ id('sandboxBtn').addEventListener('click', ()=>{
     const d = document.createElement('div');
     d.className='sandbox';
     d.id='sandboxPanel';
-    d.innerHTML = `
-      <h4>New-hub Sandbox</h4>
-      <div>Click the map to position the blue ring, <b>or</b> enter “lat,lng” below. Adjust radius as needed.</div>
+    d.innerHTML = `<h4>New-hub Sandbox</h4>
+  <div>Click the map to position the blue ring, <b>or</b> enter “lat,lng” below. Adjust radius as needed.</div>
 
-      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-        <input id="sandboxAddr" type="text" placeholder="e.g. 33.52,-86.80"
-          style="flex:1;min-width:260px;border:1px solid var(--border);border-radius:8px;padding:6px 8px"/>
-        <button id="sandboxGeocode" class="btn" type="button">Use coords</button>
-      </div>
-      <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
+  <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+    <input id="sandboxAddr" type="text" placeholder="e.g. 33.52,-86.80"
+           style="flex:1;min-width:260px;border:1px solid var(--border);border-radius:8px;padding:6px 8px"/>
+    <button id="sandboxGeocode" class="btn" type="button">Use coords</button>
+  </div>
+  <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
 
-      <div style="margin-top:10px">
-        <b>Radius:</b>
-        <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}">
-        <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi
-      </div>
+  <div style="display:flex;align-items:center;gap:12px;margin-top:10px">
+    <div><b>Radius:</b> <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}">
+      <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi
+    </div>
+    <label style="display:inline-flex; gap:6px; align-items:center">
+      <input type="checkbox" id="sandboxUseFilters"> Use current filters
+    </label>
+  </div>
 
-      <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
-      <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>
+  <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
 
-      <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
-        <button id="sandboxAddPending"  class="btn" type="button">Add as Pending Hub</button>
-        <button id="sandboxAddConfirmed" class="btn" type="button">Add as Confirmed Hub</button>
-      </div>
-      <div id="sandboxAddMsg" style="margin-top:6px; font-size:12px; color:var(--muted)"></div>`;
+  <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>
+
+  <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
+    <button id="sandboxAddPending"  class="btn" type="button">Add as Pending Hub</button>
+    <button id="sandboxAddConfirmed" class="btn" type="button">Add as Confirmed Hub</button>
+  </div>
+
+  <div id="sandboxAddMsg" style="margin-top:6px; font-size:12px; color:var(--muted)"></div>`;
+
     document.querySelector('.mapwrap').appendChild(d);
     pn = d;
   }
@@ -2691,6 +2696,11 @@ id('sandboxBtn').addEventListener('click', ()=>{
     id('sandboxRlbl').textContent = id('sandboxR').value;
     refreshSandbox();
   });
+
+  // Recompute when sandbox toggle changes
+const useFiltChk = id('sandboxUseFilters');
+if (useFiltChk) useFiltChk.onchange = refreshSandbox;
+
 
   id('sandboxGeocode').onclick = ()=>{
     const s = id('sandboxAddr').value.trim();
@@ -2758,15 +2768,18 @@ function placeSandbox(center, rMiles){
 // Use **the same universe & radius rules as Gap Finder**
 function refreshSandbox(){
   if (!sandboxOpen) return;
+  const r = Number(id('sandboxR')?.value) || DEFAULT_RADIUS;
+  const c = sandboxMarker?.getLatLng?.();
+  if (!c) return;
 
-  const rMiles = Number(id('sandboxR')?.value) || DEFAULT_RADIUS;
-  const c = sandboxMarker?.getLatLng?.(); if (!c) return;
+  if (sandboxCircle){ sandboxCircle.setLatLng(c); sandboxCircle.setRadius(r*1609.344); }
 
-  if (sandboxCircle){ sandboxCircle.setLatLng(c); sandboxCircle.setRadius(rMiles*1609.344); }
+  const useFiltSandbox = !!id('sandboxUseFilters')?.checked;
+  const list = storesWithinUniverse([c.lat, c.lng], r, useFiltSandbox);
 
-  // sandbox follows Gap Finder's "Use current filters" so both always match
-  const useFilt = !!id('gapUseFilters')?.checked;
-  const inRadius = storesWithinUniverse([c.lat, c.lng], rMiles, useFilt);
+  // … (rest of your stats + “View stores in radius” code)
+}
+
   const uncoveredList = inRadius.filter(s => (s.coverageType||'') === 'Uncovered');
 
   const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
@@ -2851,7 +2864,12 @@ function openSandboxAt(lat, lng){
 
   map.panTo(c);
   refreshSandbox();
+
+  function storesWithinUniverse([lat,lng], rMiles, useFilters){
+  const src = useFilters ? (window.filteredStores||[]) : (window.allStores||[]);
+  return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= rMiles);
 }
+
 // ---------- /Sandbox ----------
 
 
