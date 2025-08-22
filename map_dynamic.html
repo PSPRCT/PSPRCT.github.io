@@ -1850,66 +1850,63 @@ function printSidepanelList() {
       ` <span class="chip">Acosta v${aRev}</span>`;
   }
 
-  // ---------- Gap Finder ----------
+  // ---------- Gap Finder (CLEAN) ----------
 const gapModal = id('gapModal');
-id('gapBtn').onclick   = ()=> gapModal.classList.add('show');
-id('gapClose').onclick = ()=> gapModal.classList.remove('show');
-id('gapRun').onclick   = runGapFinder;
-id('gapExport').onclick= ()=> exportGapCsv();
+id('gapBtn').onclick    = ()=> gapModal.classList.add('show');
+id('gapClose').onclick  = ()=> gapModal.classList.remove('show');
+id('gapRun').onclick    = runGapFinder;
+id('gapExport').onclick = ()=> exportGapCsv();
 
 let lastGap = [];
 
-// One-time: delegate clicks for "Sandbox here" buttons inside the gap results table
-// This avoids having to re-bind after every render.
+// ONE source of truth for data universe
+function getUniverse(useFilters){
+  // If you have async recomputeCoverage(), make sure it is already awaited before calling this.
+  return useFilters ? filteredStores : allStores;
+}
+function storesWithinUniverse(center, rMiles, useFilters){
+  const [lat, lng] = Array.isArray(center) ? center : [center.lat, center.lng];
+  const src = getUniverse(useFilters);
+  return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= rMiles);
+}
+
+// One-time delegated click handler for "Sandbox here"
 const gapResultsEl = id('gapResults');
 if (gapResultsEl && !gapResultsEl._wiredSandbox) {
   gapResultsEl.addEventListener('click', (e)=>{
     const btn = e.target.closest('.gap-sbx');
     if (!btn) return;
-
     e.preventDefault();
-    e.stopPropagation();
 
     const lat = parseFloat(btn.dataset.lat);
     const lng = parseFloat(btn.dataset.lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      console.warn('Invalid lat/lng on gap-sbx', btn.dataset);
-      return;
-    }
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-    // Close the modal first so it doesn't cover the map
-    const gm = id('gapModal');
-    if (gm) gm.classList.remove('show');
+    // Close modal first so map is visible
+    gapModal.classList.remove('show');
 
-    // Let layout update, then open the sandbox and refresh Leaflet sizing
+    // Let layout settle, then open sandbox
     setTimeout(()=>{
       openSandboxAt(lat, lng);
-      map.invalidateSize();      // ensure tile/overlay layout after modal close
+      map.invalidateSize();
     }, 0);
   });
   gapResultsEl._wiredSandbox = true;
 }
 
-
 function runGapFinder(){
-  const N = Math.max(1, Number(id('gapMin').value)  || 10);
-  const M = Math.max(1, Number(id('gapMiles').value)|| 50);
+  const minUncov = Math.max(1, Number(id('gapMin').value)   || 10);
+  const radiusMi = Math.max(1, Number(id('gapMiles').value) || 50);
+  const useFilt  = !!id('gapUseFilters')?.checked;
 
-  // Use the correct checkbox for GAP FINDER (not sandbox)
-  const useFilt = !!id('gapUseFilters')?.checked;
-  const universe = useFilt ? filteredStores : allStores;
-
-  // Work only with uncovered stores
+  const universe = getUniverse(useFilt);
   const base = universe.filter(s => (s.coverageType || '') === 'Uncovered');
 
-  // group by city/state
+  // Group uncovered by city/state centroid
   const byCity = new Map();
   base.forEach(s=>{
     const key = `${(s.city||'').toLowerCase()}|${(s.state||'').toUpperCase()}`;
-    const g = byCity.get(key) || {
-      city:s.city, state:s.state, lat:0, lng:0, n:0,
-      am:new Set(), rm:new Set(), stores:[]
-    };
+    const g = byCity.get(key) || { city:s.city, state:s.state, lat:0, lng:0, n:0, am:new Set(), rm:new Set(), stores:[] };
     g.lat += s.lat; g.lng += s.lng; g.n += 1;
     g.am.add(s.areaManager||''); g.rm.add(s.regionalManager||''); g.stores.push(s);
     byCity.set(key, g);
@@ -1918,9 +1915,10 @@ function runGapFinder(){
   const rows = [];
   byCity.forEach(g=>{
     const center = { lat: g.lat/g.n, lng: g.lng/g.n };
-    const count = base.reduce((acc,s)=>
-      acc + (distMiles(center.lat,center.lng,s.lat,s.lng) <= M ? 1 : 0), 0);
-    if (count >= N){
+    // Count uncovered within radius of this centroid (still using same universe+filtering)
+    const count = storesWithinUniverse([center.lat, center.lng], radiusMi, useFilt)
+      .filter(s => (s.coverageType || '') === 'Uncovered').length;
+    if (count >= minUncov){
       rows.push({
         city:g.city, state:g.state,
         rm:[...g.rm].filter(Boolean).join('; '),
@@ -1941,7 +1939,7 @@ function runGapFinder(){
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">State</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">RM</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">AM</th>
-          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Uncovered (≤ ${M} mi)</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Uncovered (≤ ${radiusMi} mi)</th>
           <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Action</th>
         </tr>
       </thead>
@@ -1954,22 +1952,23 @@ function runGapFinder(){
             <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.am||'')}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.count}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">
-              <button class="mini gap-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox here</button>
+              <button type="button" class="mini gap-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox here</button>
             </td>
           </tr>`).join('')}
       </tbody>
-    </table>`;
+    </table>
+  `;
   id('gapResults').innerHTML = html || '<div style="color:var(--muted)">No gaps found.</div>';
 }
 
-
 function exportGapCsv(){
   if (!lastGap.length){ alert('Run the gap finder first.'); return; }
-  const M = Math.max(1, Number(id('gapMiles').value)||50);
-  const rows = [['City','State','Regional Manager(s)','Area Manager(s)',`Uncovered (≤ ${M} mi)`, 'Center Lat','Center Lng']];
+  const radiusMi = Math.max(1, Number(id('gapMiles').value)||50);
+  const rows = [['City','State','Regional Manager(s)','Area Manager(s)',`Uncovered (≤ ${radiusMi} mi)`, 'Center Lat','Center Lng']];
   lastGap.forEach(r=> rows.push([r.city, r.state, r.rm, r.am, r.count, r.center.lat, r.center.lng]));
   exportCsvWithToast(rows, `gap_finder_${Date.now()}.csv`);
 }
+
 
 
   // ---------- Rollups (RM/AM) ----------
@@ -2633,6 +2632,7 @@ id('sandboxBtn').addEventListener('click', ()=>{
     d.innerHTML = `<h4>New-hub Sandbox</h4>
       <div>Click the map to position the blue ring, <b>or</b> enter “lat,lng” below. Adjust radius as needed.</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
   <label class="toggle" title="Only show clusters at least this big">Min uncovered
     <input id="gapMin" type="number" value="10" style="width:80px;margin-left:8px">
   </label>
@@ -2641,20 +2641,20 @@ id('sandboxBtn').addEventListener('click', ()=>{
   </label>
   <button id="gapRun" class="btn" type="button">Run</button>
   <button id="gapExport" class="btn" type="button">Export CSV</button>
-
-  <!-- Keep ONLY this one in the Gap Finder -->
   <label class="toggle" title="If checked, use the stores that match your current filters. If off, use all stores.">
     <input id="gapUseFilters" type="checkbox" /> Use current filters
   </label>
 </div>
 
+
       <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
  <div style="margin-top:10px"><b>Radius:</b>
   <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}">
   <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi
-  <label style="display:inline-flex; gap:6px; align-items:center; margin-left:10px; font-size:12px; color:var(--muted)">
-    <input type="checkbox" id="sandboxUseFilters"> Use current filters
-</div>
+ <label style="display:inline-flex; gap:6px; align-items:center; margin-left:10px; font-size:12px; color:var(--muted)">
+  <input type="checkbox" id="sandboxUseFilters"> Use current filters
+</label>
+
 <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
 
       <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>
@@ -2786,27 +2786,30 @@ if (useFiltChk) {
 
 function refreshSandbox(){
   if (!sandboxOpen) return;
-  const r = Number(id('sandboxR')?.value)||DEFAULT_RADIUS;
+  const r = Number(id('sandboxR')?.value) || DEFAULT_RADIUS;
   const c = sandboxMarker?.getLatLng?.();
   if (!c) return;
 
-  // pick source based on sandbox toggle
-  const srcFiltered = !!id('sandboxUseFilters')?.checked;
-  const list = srcFiltered
-    ? storesWithin([c.lat, c.lng], r)      // filteredStores
-    : storesWithinAll([c.lat, c.lng], r);  // allStores
+  if (sandboxCircle){ sandboxCircle.setLatLng(c); sandboxCircle.setRadius(r*1609.344); }
 
+  const useFiltSandbox = !!id('sandboxUseFilters')?.checked; // sandbox's own toggle
+  const list = storesWithinUniverse([c.lat, c.lng], r, useFiltSandbox);
 
-    const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
-    list.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0)+1; });
-    id('sandboxStats').innerHTML = `
-      <div><b>${list.length}</b> stores within <b>${r} mi</b></div>
-      <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
-        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
-        <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
-        <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
-        <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
-      </div>`;
+  const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
+  list.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0)+1; });
+
+  id('sandboxStats').innerHTML = `
+    <div><b>${list.length}</b> stores within <b>${r} mi</b></div>
+    <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
+    </div>`;
+
+  // (your existing "View stores in radius" btn code can stay; it will use `list`)
+}
+
     id('sandboxListBtn').onclick = ()=>{
       const rows = list
         .map(s => ({...s, __d: distMiles(c.lat,c.lng,s.lat,s.lng)}))
