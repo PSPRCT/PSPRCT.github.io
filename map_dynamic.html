@@ -2609,7 +2609,8 @@ id('sandboxBtn').addEventListener('click', ()=>{
   // Create once
   if (!pn){
     const d = document.createElement('div');
-    d.className='sandbox'; d.id='sandboxPanel';
+    d.className = 'sandbox';
+    d.id = 'sandboxPanel';
     d.innerHTML = `
       <h4>New-hub Sandbox</h4>
       <div>Click the map to position the blue ring, <b>or</b> enter “lat,lng” below. Adjust radius as needed.</div>
@@ -2625,7 +2626,7 @@ id('sandboxBtn').addEventListener('click', ()=>{
         <div><b>Radius:</b> <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}">
           <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi
         </div>
-        <!-- sandbox mirrors Gap Finder's Use current filters by reading #gapUseFilters; no extra toggle here -->
+        <!-- Sandbox mirrors Gap Finder's “Use current filters” (reads #gapUseFilters) -->
       </div>
 
       <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
@@ -2651,7 +2652,7 @@ id('sandboxBtn').addEventListener('click', ()=>{
 
   // Initial placement
   const c0 = map.getCenter();
-  placeSandbox([c0.lat, c0.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+  placeSandbox([c0.lat, c0.lng], Number(id('sandboxR').value) || DEFAULT_RADIUS);
 
   // wiring
   id('sandboxR').addEventListener('input', ()=>{
@@ -2667,14 +2668,18 @@ id('sandboxBtn').addEventListener('click', ()=>{
     const lat = parseFloat(m[1]), lng = parseFloat(m[2]);
     if (lat<-90||lat>90||lng<-180||lng>180){ out.textContent='Out of range.'; return; }
     out.textContent='';
-    placeSandbox([lat,lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
-    map.panInside([lat,lng], { paddingTopLeft:[20,20], paddingBottomRight:[20,20] });
+    placeSandbox([lat,lng], Number(id('sandboxR').value) || DEFAULT_RADIUS);
+    if (typeof map.panInside === 'function') {
+      map.panInside([lat,lng], { paddingTopLeft:[20,20], paddingBottomRight:[20,20] });
+    } else {
+      map.panTo([lat,lng]);
+    }
   };
 
   map.off('click.__sandbox');
   map.on('click.__sandbox', (e)=>{
     if (!sandboxOpen) return;
-    placeSandbox([e.latlng.lat, e.latlng.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+    placeSandbox([e.latlng.lat, e.latlng.lng], Number(id('sandboxR').value) || DEFAULT_RADIUS);
   });
 
   // add hub actions
@@ -2726,7 +2731,7 @@ function refreshSandbox(){
 
   if (sandboxCircle){ sandboxCircle.setLatLng(c); sandboxCircle.setRadius(rMiles*1609.344); }
 
-  // Sandbox follows Gap Finder’s “Use current filters”
+  // Mirror Gap Finder’s “Use current filters”
   const useFilt = !!id('gapUseFilters')?.checked;
   const inRadius = storesWithinUniverse([c.lat, c.lng], rMiles, useFilt);
   const uncoveredList = inRadius.filter(s => (s.coverageType||'') === 'Uncovered');
@@ -2743,44 +2748,42 @@ function refreshSandbox(){
       <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
     </div>`;
 
-id('sandboxListBtn').onclick = ()=>{
-  const rows = inRadius
-    .map(s => ({...s, __d: distMiles(c.lat,c.lng,s.lat,s.lng)}))
-    .sort((a,b)=>a.__d-b.__d)
-    .map(s=>`
-      <tr>
-        <td>#${htmlEscape(s.storeNumberStr)}</td>
-        <td>${htmlEscape(s.storeName||'')}</td>
-        <td>${htmlEscape(s.address||'')}, ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</td>
-        <td>${htmlEscape(s.coverageType||'')}</td>
-        <td style="text-align:right">${s.__d.toFixed(1)}</td>
-        <td>${htmlEscape(s.areaManager||'')}</td>
-        <td>${htmlEscape(s.regionalManager||'')}</td>
-      </tr>`).join('');
-
-  const win = window.open('', '_blank');
-  win.document.write(`
-    <html><head><title>Sandbox — ${rMiles}mi</title>
-    <style>
-      body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px}
-      table{border-collapse:collapse;width:100%}
-      th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
-      th{background:#f3f4f6;text-align:left}
-      td:nth-child(5){text-align:right}
-      h2{margin:0 0 8px}
-      .meta{color:#555;margin-bottom:10px}
-    </style></head><body>
-      <h2>New-hub Sandbox</h2>
-      <div class="meta">Center: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)} • Radius: <b>${rMiles} mi</b> • Stores shown: <b>${inRadius.length}</b></div>
-      <table>
-        <thead><tr><th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>Distance (mi)</th><th>AM</th><th>RM</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <script>window.print()<\\/script>
-    </body></html>`);
-  win.document.close();
-};
-
+  id('sandboxListBtn').onclick = ()=>{
+    const rows = inRadius
+      .map(s => ({...s, __d: distMiles(c.lat,c.lng,s.lat,s.lng)}))
+      .sort((a,b)=>a.__d-b.__d)
+      .map(s=>`
+        <tr>
+          <td>#${htmlEscape(s.storeNumberStr)}</td>
+          <td>${htmlEscape(s.storeName||'')}</td>
+          <td>${htmlEscape(s.address||'')}, ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</td>
+          <td>${htmlEscape(s.coverageType||'')}</td>
+          <td style="text-align:right">${s.__d.toFixed(1)}</td>
+          <td>${htmlEscape(s.areaManager||'')}</td>
+          <td>${htmlEscape(s.regionalManager||'')}</td>
+        </tr>`).join('');
+    const win = window.open('', '_blank');
+    win.document.write(`
+      <html><head><title>Sandbox — ${rMiles}mi</title>
+      <style>
+        body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px}
+        table{border-collapse:collapse;width:100%}
+        th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
+        th{background:#f3f4f6;text-align:left}
+        td:nth-child(5){text-align:right}
+        h2{margin:0 0 8px}
+        .meta{color:#555;margin-bottom:10px}
+      </style></head><body>
+        <h2>New-hub Sandbox</h2>
+        <div class="meta">Center: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)} • Radius: <b>${rMiles} mi</b> • Stores shown: <b>${inRadius.length}</b></div>
+        <table>
+          <thead><tr><th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>Distance (mi)</th><th>AM</th><th>RM</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <script>window.print()<\\/script>
+      </body></html>`);
+    win.document.close();
+  };
 }
 
 function openSandboxAt(lat, lng){
@@ -2802,15 +2805,20 @@ function openSandboxAt(lat, lng){
   if (!sandboxMarker){
     const icon = L.divIcon({className:'', html:'<div style="width:18px;height:18px;border-radius:50%;background:'+getCSS('--blue')+';border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>', iconSize:[18,18], iconAnchor:[9,9]});
     sandboxMarker = L.marker(c, { icon }).addTo(highlightLayer);
-  } else sandboxMarker.setLatLng(c);
+  } else {
+    sandboxMarker.setLatLng(c);
+  }
 
   if (!sandboxCircle){
     sandboxCircle = L.circle(c, { radius:rMeters, color: getCSS('--blue'), weight:2, fill:false, opacity:.6 }).addTo(ringLayer);
-  } else sandboxCircle.setLatLng(c).setRadius(rMeters);
+  } else {
+    sandboxCircle.setLatLng(c).setRadius(rMeters);
+  }
 
   map.panTo(c);
   refreshSandbox();
 }
+// ---------- /Sandbox ----------
 
   // ---------- Heatmap ----------
 
@@ -2841,64 +2849,78 @@ function updateHeat(){
   }
 
   // ---------- Cascade AM by RM ----------
-  function populateRM(stores){
-    const set = new Set();
-    stores.forEach(s=>{ if (s.regionalManager) set.add(s.regionalManager); });
-    const arr = Array.from(set).sort((a,b)=>a.localeCompare(b));
-    rmFilter.innerHTML = ['<option value="All" selected>All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
-  }
-  function populateAM(stores){
-    const set = new Set();
-    stores.forEach(s=>{ if (s.areaManager) set.add(s.areaManager); });
-    const arr = Array.from(set).sort((a,b)=>a.localeCompare(b));
-   amFilter.innerHTML = ['<option value="All">All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
+function populateRM(stores){
+  const set = new Set();
+  stores.forEach(s => { if (s.regionalManager) set.add(s.regionalManager); });
+  const arr = Array.from(set).sort((a,b)=> a.localeCompare(b));
 
+  rmFilter.innerHTML = [
+    '<option value="All" selected>All</option>',
+    ...arr.map(v => `<option>${escape(v)}</option>`)
+  ].join('');
 
+  // Ensure "All" is selected if nothing else is (defensive)
+  if (!Array.from(rmFilter.selectedOptions).length) {
+    setMulti?.(rmFilter, ['All']);
   }
-  function cascadeAM(){
-    const selectedRM = Array.from(rmFilter.selectedOptions).map(o=>o.value);
-    const allowAllRM = selectedRM.includes('All') || selectedRM.length===0;
-    const ams = new Set();
-    allStores.forEach(s=>{
-      if (allowAllRM || selectedRM.includes(s.regionalManager||'')){
-        if (s.areaManager) ams.add(s.areaManager);
-      }
-    });
-    const arr = Array.from(ams).sort((a,b)=>a.localeCompare(b));
-    const prevSel = new Set(Array.from(amFilter.selectedOptions).map(o=>o.value));
-    amFilter.innerHTML = ['<option value="All">All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
-    const toSelect = arr.filter(v=>prevSel.has(v));
-    if (toSelect.length){ setMulti(amFilter, toSelect); } else { setMulti(amFilter, ['All']); }
+}
+
+function populateAM(stores){
+  const set = new Set();
+  stores.forEach(s => { if (s.areaManager) set.add(s.areaManager); });
+  const arr = Array.from(set).sort((a,b)=> a.localeCompare(b));
+
+  amFilter.innerHTML = [
+    '<option value="All" selected>All</option>',
+    ...arr.map(v => `<option>${escape(v)}</option>`)
+  ].join('');
+
+  // Ensure "All" is selected if nothing else is (defensive)
+  if (!Array.from(amFilter.selectedOptions).length) {
+    setMulti?.(amFilter, ['All']);
+  }
+
+  // Optional: live filter text box, only if present
+  if (typeof filterSelect === 'function' && typeof amSearch !== 'undefined') {
     filterSelect(amFilter, amSearch.value);
   }
+}
 
-  // ---------- Fit to results ----------
-  function fitToResults(){
-    const r = Number(radius.value)||DEFAULT_RADIUS;
-    const b = L.latLngBounds();
-    let added = false;
+function cascadeAM(){
+  const selectedRM = Array.from(rmFilter.selectedOptions).map(o => o.value);
+  const allowAllRM = selectedRM.includes('All') || selectedRM.length === 0;
 
-    if (tgWithin.checked){
-      visibleHubs().forEach(h=>{
-        const lat = h.coords[0], lng = h.coords[1];
-        const dLat = (r/69);
-        const dLng = (r/(Math.cos(lat*Math.PI/180)*69));
-        b.extend([lat-dLat, lng-dLng]);
-        b.extend([lat+dLat, lng+dLng]);
-        added = true;
-      });
+  // collect AMs allowed by RM selection
+  const ams = new Set();
+  allStores.forEach(s => {
+    if (allowAllRM || selectedRM.includes(s.regionalManager || '')) {
+      if (s.areaManager) ams.add(s.areaManager);
     }
+  });
 
-    filteredStores.forEach(s=>{ b.extend([s.lat,s.lng]); added = true; });
+  const arr = Array.from(ams).sort((a,b)=> a.localeCompare(b));
 
-    if (!added){ visibleHubs().forEach(h=> b.extend(h.coords)); }
+  // remember previous AM selections
+  const prevSel = new Set(Array.from(amFilter.selectedOptions).map(o => o.value));
 
-    if (b.isValid()){
-      map.fitBounds(b.pad(0.12), { animate:true });
-    } else {
-      map.setView(HOME_VIEW.center, HOME_VIEW.zoom);
-    }
+  amFilter.innerHTML = [
+    '<option value="All">All</option>',
+    ...arr.map(v => `<option>${escape(v)}</option>`)
+  ].join('');
+
+  // restore prior selections if still valid, else default to All
+  const toSelect = arr.filter(v => prevSel.has(v));
+  if (toSelect.length) {
+    setMulti?.(amFilter, toSelect);
+  } else {
+    setMulti?.(amFilter, ['All']);
   }
+
+  if (typeof filterSelect === 'function' && typeof amSearch !== 'undefined') {
+    filterSelect(amFilter, amSearch.value);
+  }
+}
+
 
   // ---------- Snapshot loader ----------
   function tryLoadSnapshot(){
