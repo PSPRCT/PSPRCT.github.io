@@ -441,6 +441,9 @@
           </label>
           <label class="toggle" title="Radius around each city center">Radius (mi)
             <input id="gapMiles" type="number" value="50" style="width:80px;margin-left:8px">
+            <label style="display:inline-flex; gap:6px; align-items:center; margin-left:8px">
+  <input type="checkbox" id="sandboxUseFilters"> Use current filters
+</label>
           </label>
           <button id="gapRun" class="btn" type="button">Run</button>
           <button id="gapExport" class="btn" type="button">Export CSV</button>
@@ -2151,6 +2154,7 @@ function storesWithinAll(center, r){
   return allStores.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
 }
 
+
 function buildHubFilterOptions(){
   // visible hubs only (respect toggles)
   let hubs = [];
@@ -2505,6 +2509,10 @@ function applyStateObject(st){
         localStorage.setItem(LS_STATE, JSON.stringify(v.state));
         tryLoadLocal();
         recomputeCoverage().then(()=>{ runFilter(); renderChips(); renderHubs(); updateRings(); fitToResults(); });
+
+        if (sandboxOpen && id('sandboxUseFilters')?.checked) {
+  refreshSandbox();
+}
       });
     });
     Array.from(viewList.querySelectorAll('button.del')).forEach(b=>{
@@ -2627,8 +2635,15 @@ id('sandboxBtn').addEventListener('click', ()=>{
         <button id="sandboxGeocode" class="btn" type="button">Use coords</button>
       </div>
       <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
-      <div style="margin-top:10px"><b>Radius:</b> <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}"> <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi</div>
-      <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
+ <div style="margin-top:10px"><b>Radius:</b>
+  <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}">
+  <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi
+  <label style="display:inline-flex; gap:6px; align-items:center; margin-left:10px; font-size:12px; color:var(--muted)">
+    <input type="checkbox" id="sandboxUseFilters"> Use current filters
+  </label>
+</div>
+<div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
+
       <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>
       <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
         <button id="sandboxAddPending"  class="btn" type="button">Add as Pending Hub</button>
@@ -2637,34 +2652,52 @@ id('sandboxBtn').addEventListener('click', ()=>{
       <div id="sandboxAddMsg" style="margin-top:6px; font-size:12px; color:var(--muted)"></div>`;
     document.querySelector('.mapwrap').appendChild(d);
   } else {
-    // Upgrade existing panel if it predates the buttons
-    if (!pn.querySelector('#sandboxAddPending')){
-      pn.insertAdjacentHTML('beforeend', `
-        <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
-          <button id="sandboxAddPending"  class="btn" type="button">Add as Pending Hub</button>
-          <button id="sandboxAddConfirmed" class="btn" type="button">Add as Confirmed Hub</button>
-        </div>
-        <div id="sandboxAddMsg" style="margin-top:6px; font-size:12px; color:var(--muted)"></div>
-      `);
-    }
+  // Upgrade existing panel if it predates the buttons
+  if (!pn.querySelector('#sandboxAddPending')){
+    pn.insertAdjacentHTML('beforeend', `
+      <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
+        <button id="sandboxAddPending"  class="btn" type="button">Add as Pending Hub</button>
+        <button id="sandboxAddConfirmed" class="btn" type="button">Add as Confirmed Hub</button>
+      </div>
+      <div id="sandboxAddMsg" style="margin-top:6px; font-size:12px; color:var(--muted)"></div>
+    `);
   }
-
-  id('sandboxPanel').style.display = sandboxOpen ? 'block' : 'none';
-  if (!sandboxOpen){
-    if (sandboxCircle) ringLayer.removeLayer(sandboxCircle), sandboxCircle=null;
-    if (sandboxMarker) highlightLayer.removeLayer(sandboxMarker), sandboxMarker=null;
-    return;
+  // NEW: inject Use-filters toggle if missing
+  const radiusRow = pn.querySelector('#sandboxR')?.parentElement;
+  if (radiusRow && !pn.querySelector('#sandboxUseFilters')){
+    radiusRow.insertAdjacentHTML('beforeend', `
+      <label style="display:inline-flex; gap:6px; align-items:center; margin-left:10px; font-size:12px; color:var(--muted)">
+        <input type="checkbox" id="sandboxUseFilters"> Use current filters
+      </label>
+    `);
   }
+}
 
-  // Initialize ring at map center
-  const c0 = map.getCenter();
-  placeSandbox([c0.lat, c0.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
 
-  // ——— wiring that must be (re)done every time the panel opens ———
-  id('sandboxR').oninput = ()=>{
-    id('sandboxRlbl').textContent = id('sandboxR').value;
-    refreshSandbox();
-  };
+ id('sandboxPanel').style.display = sandboxOpen ? 'block' : 'none';
+if (!sandboxOpen){
+  if (sandboxCircle) ringLayer.removeLayer(sandboxCircle), sandboxCircle=null;
+  if (sandboxMarker) highlightLayer.removeLayer(sandboxMarker), sandboxMarker=null;
+  return;
+}
+
+// Initialize ring at map center
+const c0 = map.getCenter();
+placeSandbox([c0.lat, c0.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+
+// ——— wiring that must be (re)done every time the panel opens ———
+id('sandboxR').addEventListener('input', ()=>{
+  id('sandboxRlbl').textContent = id('sandboxR').value;
+  refreshSandbox();
+});
+
+// When the "Use current filters" toggle changes, recompute
+const useFiltChk = id('sandboxUseFilters');
+if (useFiltChk) {
+  useFiltChk.addEventListener('change', refreshSandbox);
+  // ensure counts reflect its current state right now
+  refreshSandbox();
+}
 
   id('sandboxGeocode').onclick = ()=>{
     const s = id('sandboxAddr').value.trim();
@@ -2744,7 +2777,11 @@ id('sandboxBtn').addEventListener('click', ()=>{
     const c = sandboxMarker?.getLatLng?.();
     if (!c) return;
     if (sandboxCircle){ sandboxCircle.setLatLng(c); sandboxCircle.setRadius(r*1609); }
-   const list = storesWithinAll([c.lat, c.lng], r);   // <— use allStores
+const useFilt = !!id('sandboxUseFilters')?.checked;
+const list = useFilt
+  ? storesWithin([c.lat, c.lng], r)     // honors current filters
+  : storesWithinAll([c.lat, c.lng], r); // full universe (matches Gap Finder)
+
     const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
     list.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0)+1; });
     id('sandboxStats').innerHTML = `
