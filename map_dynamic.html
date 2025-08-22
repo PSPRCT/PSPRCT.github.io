@@ -444,6 +444,10 @@
           </label>
           <button id="gapRun" class="btn" type="button">Run</button>
           <button id="gapExport" class="btn" type="button">Export CSV</button>
+          <label class="toggle" title="If checked, use the stores that match your current filters. If off, use all stores.">
+  <input id="gapUseFilters" type="checkbox" checked /> Use current filters
+</label>
+
         </div>
         <div id="gapResults" style="max-height:65vh;overflow:auto"></div>
       </div>
@@ -1587,15 +1591,22 @@ spRowsEl.addEventListener('click', (e)=>{
 
     const pct = n => union ? Math.round(n*100/union)+'%' : '0%';
 
-    id('compareBody').innerHTML = `
-      <div class="compare-grid">
-        <div><b>${escape(hubDisplay(A))}</b></div><div></div>
-        <div>Only A</div><div><b>${onlyA.length}</b> (${pct(onlyA.length)})</div>
-        <div>Overlap</div><div><b>${both.length}</b> (${pct(both.length)})</div>
-        <div>Only B</div><div><b>${onlyB.length}</b> (${pct(onlyB.length)})</div>
-      </div>
-      <div style="margin-top:6px;color:var(--muted)">Union: ${union}</div>
-    `;
+  // Replace your existing innerHTML assignment with this:
+  id('compareBody').innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <span class="chip">Net-new for <b>${escape(hubDisplay(A))}</b>: <b>${onlyA.length}</b></span>
+      <span class="chip">Overlap: <b>${both.length}</b></span>
+      <span class="chip">Net-new for <b>${escape(hubDisplay(B))}</b>: <b>${onlyB.length}</b></span>
+    </div>
+    <div class="compare-grid">
+      <div><b>${escape(hubDisplay(A))}</b></div><div></div>
+      <div>Only A</div><div><b>${onlyA.length}</b> (${pct(onlyA.length)})</div>
+      <div>Overlap</div><div><b>${both.length}</b> (${pct(both.length)})</div>
+      <div>Only B</div><div><b>${onlyB.length}</b> (${pct(onlyB.length)})</div>
+      <div><b>${escape(hubDisplay(B))}</b></div><div></div>
+    </div>
+  `;
+
     panel.classList.add('show');
   }
 
@@ -1848,7 +1859,10 @@ function printSidepanelList() {
     const N = Math.max(1, Number(id('gapMin').value)||10);
     const M = Math.max(1, Number(id('gapMiles').value)||50);
 
-    const base = filteredStores.filter(s=> (s.coverageType||'')==='Uncovered');
+   const useFilt = !!id('gapUseFilters')?.checked;
+const universe = useFilt ? filteredStores : allStores;
+const base = universe.filter(s=> (s.coverageType||'')==='Uncovered');
+
     // group by city/state
     const byCity = new Map();
     base.forEach(s=>{
@@ -1875,27 +1889,42 @@ function printSidepanelList() {
     const html = `
       <table style="border-collapse:collapse;width:100%">
         <thead>
-          <tr>
-            <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">City</th>
-            <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">State</th>
-            <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">RM</th>
-            <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">AM</th>
-            <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Uncovered (≤ ${M} mi)</th>
-          </tr>
-        </thead>
+  <tr>
+    <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">City</th>
+    <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">State</th>
+    <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">RM</th>
+    <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">AM</th>
+    <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Uncovered (≤ ${M} mi)</th>
+    <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Action</th> <!-- NEW -->
+  </tr>
+</thead>
+
         <tbody>
           ${rows.map(r=>`
-            <tr>
-              <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.city||'')}</td>
-              <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.state||'')}</td>
-              <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.rm||'')}</td>
-              <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.am||'')}</td>
-              <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.count}</td>
-            </tr>
-          `).join('')}
+  <tr>
+    <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.city||'')}</td>
+    <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.state||'')}</td>
+    <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.rm||'')}</td>
+    <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.am||'')}</td>
+    <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.count}</td>
+    <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">
+      <button class="mini gap-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox here</button>
+    </td>
+  </tr>
+`).join('')}
+
         </tbody>
       </table>`;
     id('gapResults').innerHTML = html || '<div style="color:var(--muted)">No gaps found.</div>';
+    // after: id('gapResults').innerHTML = html || '...';
+document.querySelectorAll('#gapResults .gap-sbx').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const lat = Number(btn.dataset.lat), lng = Number(btn.dataset.lng);
+    openSandboxAt(lat, lng);
+    gapModal.classList.remove('show');
+  });
+});
+
   }
   function exportGapCsv(){
     if (!lastGap.length){ alert('Run the gap finder first.'); return; }
@@ -2721,6 +2750,24 @@ id('sandboxBtn').addEventListener('click', ()=>{
         </body></html>`);
       win.document.close();
     };
+function openSandboxAt(lat, lng){
+  const c = L.latLng(lat, lng);
+  // Ensure the sandbox panel is open
+  if (!sandboxOpen){
+    id('sandboxBtn')?.click(); // your existing button that toggles sandbox UI
+  }
+  // Ensure the marker exists – your existing sandbox init usually creates it on first use.
+  if (!sandboxMarker){
+    // Create if absent (synthetic click or directly create if you prefer)
+    sandboxMarker = L.marker(c, { draggable: true, pane:'hubPane' }).addTo(map);
+    sandboxMarker.on('dragend', refreshSandbox);
+  } else {
+    sandboxMarker.setLatLng(c);
+  }
+  map.panTo(c);
+  refreshSandbox();
+}
+
   }
 
   // ---------- Heatmap ----------
