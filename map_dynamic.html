@@ -2306,6 +2306,7 @@ function tryLoadLocal(){
     return false;
   }
 }
+
 function applyStateObject(st){
   if (st.map){
     map.setView([st.map.center.lat, st.map.center.lng], st.map.zoom);
@@ -2339,7 +2340,6 @@ function applyStateObject(st){
     tgHeat.checked = !!st.heat.on;
   }
 }
-
 
   function saveCurrentView(){
     const name = prompt('Name this view:');
