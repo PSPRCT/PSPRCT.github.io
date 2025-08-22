@@ -435,23 +435,20 @@
     </header>
     <div class="body" style="grid-template-columns:1fr;">
       <div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
-          <label class="toggle" title="Only show clusters at least this big">Min uncovered
-            <input id="gapMin" type="number" value="10" style="width:80px;margin-left:8px">
-          </label>
-          <label class="toggle" title="Radius around each city center">Radius (mi)
-            <input id="gapMiles" type="number" value="50" style="width:80px;margin-left:8px">
-            <label style="display:inline-flex; gap:6px; align-items:center; margin-left:8px">
-  <input type="checkbox" id="sandboxUseFilters"> Use current filters
-</label>
-          </label>
-          <button id="gapRun" class="btn" type="button">Run</button>
-          <button id="gapExport" class="btn" type="button">Export CSV</button>
-          <label class="toggle" title="If checked, use the stores that match your current filters. If off, use all stores.">
-  <input id="gapUseFilters" type="checkbox" checked /> Use current filters
-</label>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
+  <label class="toggle" title="Only show clusters at least this big">Min uncovered
+    <input id="gapMin" type="number" value="10" style="width:80px;margin-left:8px">
+  </label>
+  <label class="toggle" title="Radius around each city center">Radius (mi)
+    <input id="gapMiles" type="number" value="50" style="width:80px;margin-left:8px">
+  </label>
+  <button id="gapRun" class="btn" type="button">Run</button>
+  <button id="gapExport" class="btn" type="button">Export CSV</button>
+  <label class="toggle" title="If checked, use the stores that match your current filters. If off, use all stores.">
+    <input id="gapUseFilters" type="checkbox" /> Use current filters
+  </label>
+</div>
 
-        </div>
         <div id="gapResults" style="max-height:65vh;overflow:auto"></div>
       </div>
     </div>
@@ -2155,6 +2152,7 @@ function storesWithinAll(center, r){
 }
 
 
+
 function buildHubFilterOptions(){
   // visible hubs only (respect toggles)
   let hubs = [];
@@ -2695,9 +2693,9 @@ id('sandboxR').addEventListener('input', ()=>{
 const useFiltChk = id('sandboxUseFilters');
 if (useFiltChk) {
   useFiltChk.addEventListener('change', refreshSandbox);
-  // ensure counts reflect its current state right now
   refreshSandbox();
 }
+
 
   id('sandboxGeocode').onclick = ()=>{
     const s = id('sandboxAddr').value.trim();
@@ -2779,8 +2777,9 @@ if (useFiltChk) {
     if (sandboxCircle){ sandboxCircle.setLatLng(c); sandboxCircle.setRadius(r*1609); }
 const useFilt = !!id('sandboxUseFilters')?.checked;
 const list = useFilt
-  ? storesWithin([c.lat, c.lng], r)     // honors current filters
-  : storesWithinAll([c.lat, c.lng], r); // full universe (matches Gap Finder)
+  ? storesWithin([c.lat, c.lng], r)      // honors current filters
+  : storesWithinAll([c.lat, c.lng], r);  // full universe (matches Gap Finder)
+
 
     const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
     list.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0)+1; });
