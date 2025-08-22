@@ -1961,9 +1961,6 @@ function exportGapCsv(){
   lastGap.forEach(r=> rows.push([r.city, r.state, r.rm, r.am, r.count, r.center.lat, r.center.lng]));
   exportCsvWithToast(rows, `gap_finder_${Date.now()}.csv`);
 }
-// ---------- /Gap Finder ----------
-
-
 
 // ---------- Rollups (RM/AM) ----------
 const rollModal = id('rollupModal');
@@ -2746,42 +2743,44 @@ function refreshSandbox(){
       <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
     </div>`;
 
-  id('sandboxListBtn').onclick = ()=>{
-    const rows = inRadius
-      .map(s => ({...s, __d: distMiles(c.lat,c.lng,s.lat,s.lng)}))
-      .sort((a,b)=>a.__d-b.__d)
-      .map(s=>`
-        <tr>
-          <td>#${htmlEscape(s.storeNumberStr)}</td>
-          <td>${htmlEscape(s.storeName||'')}</td>
-          <td>${htmlEscape(s.address||'')}, ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</td>
-          <td>${htmlEscape(s.coverageType||'')}</td>
-          <td style="text-align:right">${s.__d.toFixed(1)}</td>
-          <td>${htmlEscape(s.areaManager||'')}</td>
-          <td>${htmlEscape(s.regionalManager||'')}</td>
-        </tr>`).join('');
-    const win = window.open('', '_blank');
-    win.document.write(`
-      <html><head><title>Sandbox — ${rMiles}mi</title>
-      <style>
-        body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px}
-        table{border-collapse:collapse;width:100%}
-        th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
-        th{background:#f3f4f6;text-align:left}
-        td:nth-child(5){text-align:right}
-        h2{margin:0 0 8px}
-        .meta{color:#555;margin-bottom:10px}
-      </style></head><body>
-        <h2>New-hub Sandbox</h2>
-        <div class="meta">Center: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)} • Radius: <b>${rMiles} mi</b> • Stores shown: <b>${inRadius.length}</b></div>
-        <table>
-          <thead><tr><th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>Distance (mi)</th><th>AM</th><th>RM</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-        <script>window.print()<\\/script>
-      </body></html>`);
-    win.document.close();
-  };
+id('sandboxListBtn').onclick = ()=>{
+  const rows = inRadius
+    .map(s => ({...s, __d: distMiles(c.lat,c.lng,s.lat,s.lng)}))
+    .sort((a,b)=>a.__d-b.__d)
+    .map(s=>`
+      <tr>
+        <td>#${htmlEscape(s.storeNumberStr)}</td>
+        <td>${htmlEscape(s.storeName||'')}</td>
+        <td>${htmlEscape(s.address||'')}, ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</td>
+        <td>${htmlEscape(s.coverageType||'')}</td>
+        <td style="text-align:right">${s.__d.toFixed(1)}</td>
+        <td>${htmlEscape(s.areaManager||'')}</td>
+        <td>${htmlEscape(s.regionalManager||'')}</td>
+      </tr>`).join('');
+
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <html><head><title>Sandbox — ${rMiles}mi</title>
+    <style>
+      body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px}
+      table{border-collapse:collapse;width:100%}
+      th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
+      th{background:#f3f4f6;text-align:left}
+      td:nth-child(5){text-align:right}
+      h2{margin:0 0 8px}
+      .meta{color:#555;margin-bottom:10px}
+    </style></head><body>
+      <h2>New-hub Sandbox</h2>
+      <div class="meta">Center: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)} • Radius: <b>${rMiles} mi</b> • Stores shown: <b>${inRadius.length}</b></div>
+      <table>
+        <thead><tr><th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>Distance (mi)</th><th>AM</th><th>RM</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <script>window.print()<\\/script>
+    </body></html>`);
+  win.document.close();
+};
+
 }
 
 function openSandboxAt(lat, lng){
@@ -2812,8 +2811,6 @@ function openSandboxAt(lat, lng){
   map.panTo(c);
   refreshSandbox();
 }
-// ---------- /Sandbox ----------
-
 
   // ---------- Heatmap ----------
 
@@ -2854,7 +2851,9 @@ function updateHeat(){
     const set = new Set();
     stores.forEach(s=>{ if (s.areaManager) set.add(s.areaManager); });
     const arr = Array.from(set).sort((a,b)=>a.localeCompare(b));
-    amFilter.innerHTML = ['<option value="All" selected>All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
+   amFilter.innerHTML = ['<option value="All">All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
+
+
   }
   function cascadeAM(){
     const selectedRM = Array.from(rmFilter.selectedOptions).map(o=>o.value);
