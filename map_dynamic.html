@@ -1851,88 +1851,112 @@ function printSidepanelList() {
   }
 
   // ---------- Gap Finder ----------
-  const gapModal = id('gapModal'); id('gapBtn').onclick = ()=> gapModal.classList.add('show'); id('gapClose').onclick = ()=> gapModal.classList.remove('show');
-  id('gapRun').onclick = runGapFinder;
-  id('gapExport').onclick = ()=> exportGapCsv();
-  let lastGap = [];
-  function runGapFinder(){
-    const N = Math.max(1, Number(id('gapMin').value)||10);
-    const M = Math.max(1, Number(id('gapMiles').value)||50);
+const gapModal = id('gapModal');
+id('gapBtn').onclick   = ()=> gapModal.classList.add('show');
+id('gapClose').onclick = ()=> gapModal.classList.remove('show');
+id('gapRun').onclick   = runGapFinder;
+id('gapExport').onclick= ()=> exportGapCsv();
 
-   const useFilt = !!id('gapUseFilters')?.checked;
-const universe = useFilt ? filteredStores : allStores;
-const base = universe.filter(s=> (s.coverageType||'')==='Uncovered');
+let lastGap = [];
 
-    // group by city/state
-    const byCity = new Map();
-    base.forEach(s=>{
-      const key = `${(s.city||'').toLowerCase()}|${(s.state||'').toUpperCase()}`;
-      const g = byCity.get(key) || { city:s.city, state:s.state, lat:0, lng:0, n:0, am:new Set(), rm:new Set(), stores:[] };
-      g.lat += s.lat; g.lng += s.lng; g.n += 1; g.am.add(s.areaManager||''); g.rm.add(s.regionalManager||''); g.stores.push(s);
-      byCity.set(key, g);
-    });
-
-    const rows = [];
-    byCity.forEach(g=>{
-      const center = { lat: g.lat/g.n, lng: g.lng/g.n };
-      const count = base.reduce((acc,s)=> acc + (distMiles(center.lat,center.lng,s.lat,s.lng)<=M ? 1 : 0), 0);
-      if (count >= N){
-        rows.push({
-          city:g.city, state:g.state, rm:[...g.rm].filter(Boolean).join('; '), am:[...g.am].filter(Boolean).join('; '),
-          count, center
-        });
-      }
-    });
-    rows.sort((a,b)=> b.count - a.count);
-    lastGap = rows.slice();
-
-    const html = `
-      <table style="border-collapse:collapse;width:100%">
-        <thead>
-  <tr>
-    <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">City</th>
-    <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">State</th>
-    <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">RM</th>
-    <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">AM</th>
-    <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Uncovered (≤ ${M} mi)</th>
-    <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Action</th> <!-- NEW -->
-  </tr>
-</thead>
-
-        <tbody>
-          ${rows.map(r=>`
-  <tr>
-    <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.city||'')}</td>
-    <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.state||'')}</td>
-    <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.rm||'')}</td>
-    <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.am||'')}</td>
-    <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.count}</td>
-    <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">
-      <button class="mini gap-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox here</button>
-    </td>
-  </tr>
-`).join('')}
-
-        </tbody>
-      </table>`;
-    id('gapResults').innerHTML = html || '<div style="color:var(--muted)">No gaps found.</div>';
-    // after: id('gapResults').innerHTML = html || '...';
-document.querySelectorAll('#gapResults .gap-sbx').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    const lat = Number(btn.dataset.lat), lng = Number(btn.dataset.lng);
-    openSandboxAt(lat, lng);
-    gapModal.classList.remove('show');
+// One-time: delegate clicks for "Sandbox here" buttons inside the gap results table
+// This avoids having to re-bind after every render.
+const gapResultsEl = id('gapResults');
+if (gapResultsEl && !gapResultsEl._wiredSandbox) {
+  gapResultsEl.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.gap-sbx');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const lat = parseFloat(btn.dataset.lat);
+    const lng = parseFloat(btn.dataset.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      openSandboxAt(lat, lng);
+      gapModal.classList.remove('show');
+    } else {
+      console.warn('Invalid lat/lng on gap-sbx', btn.dataset);
+    }
   });
-});
+  gapResultsEl._wiredSandbox = true;
+}
 
-  }
-  function exportGapCsv(){
-    if (!lastGap.length){ alert('Run the gap finder first.'); return; }
-    const M = Math.max(1, Number(id('gapMiles').value)||50);
-    const rows = [['City','State','Regional Manager(s)','Area Manager(s)',`Uncovered (≤ ${M} mi)`, 'Center Lat','Center Lng']];
-    lastGap.forEach(r=> rows.push([r.city, r.state, r.rm, r.am, r.count, r.center.lat, r.center.lng]));
-    exportCsvWithToast(rows, `gap_finder_${Date.now()}.csv`);
-  }
+function runGapFinder(){
+  const N = Math.max(1, Number(id('gapMin').value)  || 10);
+  const M = Math.max(1, Number(id('gapMiles').value)|| 50);
+
+  const useFilt = !!id('gapUseFilters')?.checked;
+  const universe = useFilt ? filteredStores : allStores;
+  const base = universe.filter(s => (s.coverageType || '') === 'Uncovered');
+
+  // group by city/state
+  const byCity = new Map();
+  base.forEach(s=>{
+    const key = `${(s.city||'').toLowerCase()}|${(s.state||'').toUpperCase()}`;
+    const g = byCity.get(key) || { city:s.city, state:s.state, lat:0, lng:0, n:0, am:new Set(), rm:new Set(), stores:[] };
+    g.lat += s.lat; g.lng += s.lng; g.n += 1;
+    g.am.add(s.areaManager||''); g.rm.add(s.regionalManager||''); g.stores.push(s);
+    byCity.set(key, g);
+  });
+
+  const rows = [];
+  byCity.forEach(g=>{
+    const center = { lat: g.lat / g.n, lng: g.lng / g.n };
+    const count = base.reduce((acc,s)=> acc + (distMiles(center.lat, center.lng, s.lat, s.lng) <= M ? 1 : 0), 0);
+    if (count >= N){
+      rows.push({
+        city: g.city,
+        state: g.state,
+        rm: [...g.rm].filter(Boolean).join('; '),
+        am: [...g.am].filter(Boolean).join('; '),
+        count,
+        center
+      });
+    }
+  });
+
+  rows.sort((a,b)=> b.count - a.count);
+  lastGap = rows.slice();
+
+  const html = `
+    <table style="border-collapse:collapse;width:100%">
+      <thead>
+        <tr>
+          <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">City</th>
+          <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">State</th>
+          <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">RM</th>
+          <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">AM</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Uncovered (≤ ${M} mi)</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(r=>`
+          <tr>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.city||'')}</td>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.state||'')}</td>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.rm||'')}</td>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.am||'')}</td>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.count}</td>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">
+              <button type="button" class="mini gap-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox here</button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+
+  id('gapResults').innerHTML = html || '<div style="color:var(--muted)">No gaps found.</div>';
+}
+
+function exportGapCsv(){
+  if (!lastGap.length){ alert('Run the gap finder first.'); return; }
+  const M = Math.max(1, Number(id('gapMiles').value)||50);
+  const rows = [['City','State','Regional Manager(s)','Area Manager(s)',`Uncovered (≤ ${M} mi)`, 'Center Lat','Center Lng']];
+  lastGap.forEach(r=> rows.push([r.city, r.state, r.rm, r.am, r.count, r.center.lat, r.center.lng]));
+  exportCsvWithToast(rows, `gap_finder_${Date.now()}.csv`);
+}
+
 
   // ---------- Rollups (RM/AM) ----------
   const rollModal = id('rollupModal'); id('rollupBtn').onclick = ()=>{ rollModal.classList.add('show'); buildRollups(); }; id('rollupClose').onclick = ()=> rollModal.classList.remove('show');
@@ -2752,21 +2776,25 @@ id('sandboxBtn').addEventListener('click', ()=>{
     };
 function openSandboxAt(lat, lng){
   const c = L.latLng(lat, lng);
-  // Ensure the sandbox panel is open
-  if (!sandboxOpen){
-    id('sandboxBtn')?.click(); // your existing button that toggles sandbox UI
+
+  // Ensure sandbox UI is open
+  if (!window.sandboxOpen) {
+    const btn = id('sandboxBtn');
+    if (btn) { btn.click(); } else { window.sandboxOpen = true; }
   }
-  // Ensure the marker exists – your existing sandbox init usually creates it on first use.
-  if (!sandboxMarker){
-    // Create if absent (synthetic click or directly create if you prefer)
-    sandboxMarker = L.marker(c, { draggable: true, pane:'hubPane' }).addTo(map);
-    sandboxMarker.on('dragend', refreshSandbox);
+
+  // Ensure marker exists
+  if (!window.sandboxMarker) {
+    window.sandboxMarker = L.marker(c, { draggable:true, pane:'hubPane' }).addTo(map);
+    window.sandboxMarker.on('dragend', refreshSandbox);
   } else {
-    sandboxMarker.setLatLng(c);
+    window.sandboxMarker.setLatLng(c);
   }
+
   map.panTo(c);
-  refreshSandbox();
+  if (typeof refreshSandbox === 'function') refreshSandbox();
 }
+
 
   }
 
