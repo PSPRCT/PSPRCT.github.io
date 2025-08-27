@@ -302,6 +302,16 @@
     <input id="amSearch" type="text" placeholder="Filter area managers…" />
     <select id="amFilter" multiple><option value="All" selected>All</option></select>
   </div>
+    <div class="picker">
+    <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">Status</label>
+    <select id="statusFilter">
+      <option value="all" selected>All Statuses</option>
+      <option value="confirmed">Confirmed</option>
+      <option value="pending">Pending Offer</option>
+      <option value="recruiting">No Applicants</option>
+    </select>
+  </div>
+
   <div class="picker">
     <input id="hubSearch" type="text" placeholder="Filter hubs…" />
     <select id="hubFilter" multiple></select>
@@ -331,6 +341,12 @@
       2+ hubs cover this store
     </div>
   </div>
+
+    <!-- Status legend -->
+  <div id="statusLegend" class="legend" style="padding:6px 8px; font-size:12px">
+    <!-- Populated by renderStatusLegend() -->
+  </div>
+
 
 
   <div class="floating">
@@ -447,6 +463,12 @@
   <label class="toggle" title="If checked, use the stores that match your current filters. If off, use all stores.">
     <input id="gapUseFilters" type="checkbox" /> Use current filters
   </label>
+</div>
+<div id="gapTimeline" class="milestones" style="margin:6px 0 8px; font-size:12px; color:#444">
+  <strong>Milestones</strong><br>
+  Phase 1 — Confirmed trainers live now<br>
+  Phase 2 — Pending offers closing (2–4 weeks)<br>
+  Phase 3 — Recruiting to fill gaps (30–60 days)
 </div>
 
         <div id="gapResults" style="max-height:65vh;overflow:auto"></div>
@@ -647,6 +669,8 @@ function exportHubsJson(){
   const amFilter  = id('amFilter');  const amSearch  = id('amSearch');
   const hubFilter = id('hubFilter'); const hubSearch = id('hubSearch');
   const k = { pa:id('k_pa'), p:id('k_p'), a:id('k_a'), u:id('k_u'), total:id('k_total'), confirmed:id('k_confirmed'), pending:id('k_pending'), inView:id('inView') };
+  const statusFilterEl = id('statusFilter');
+  if (statusFilterEl) statusFilterEl.onchange = ()=>{ runFilter(); saveState(); renderChips(); };
 
   // Side panel refs
   const sidepanel = id('sidepanel');
@@ -954,6 +978,7 @@ try {
 
     // Draw
     runFilter(); renderChips(); renderHubs(); updateRings();
+    renderStatusLegend();
 
     // Dataset badge (simple fingerprints)
     const storesFp  = `stores:${allStores.length}`;
@@ -1200,8 +1225,30 @@ try {
       const r = Number(radius.value) || DEFAULT_RADIUS;
       withinOK = visibleHubs().some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
     }
+  // --- Status filter gate (Confirmed / Pending Offer / No Applicants) ---
+  // Map the store to a status by looking for the nearest *visible* hub within the current UI radius.
+  let statusOK = true;
+  if (statusFilterEl && statusFilterEl.value !== 'all') {
+    const sel = statusFilterEl.value; // 'confirmed' | 'pending' | 'recruiting'
+    const r = Number(radius.value) || DEFAULT_RADIUS;
 
-    return covOK && rmOK && amOK && hubOK && withinOK;
+    // nearest visible hub within r
+    const vh = visibleHubs?.() || [];
+    const near = vh.find(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+
+    // derive status for this store from the nearby hub (or lack thereof)
+    // NOTE: your hubs carry .status ('confirmed' | 'pending' | 'acosta'); we convert 'acosta' to 'confirmed' for this filter so Acosta-covered stores remain when 'confirmed' is selected.
+    const derived = near
+      ? (near.status === 'confirmed' ? 'confirmed'
+        : near.status === 'pending'   ? 'pending'
+        : /* acosta */                  'confirmed')
+      : 'recruiting';
+
+    statusOK = (derived === sel);
+  }
+
+      return covOK && rmOK && amOK && hubOK && withinOK && statusOK;
+
   }
 
   function runFilter(){
@@ -1251,6 +1298,20 @@ try {
     k.total.textContent    = total;
     k.confirmed.textContent = premiumConfirmed.length;
     k.pending.textContent   = premiumPending.length;
+
+      // Refresh Gap Finder milestones text if present
+  const tl = id('gapTimeline');
+  if (tl) {
+    const conf = Number(k.confirmed?.textContent || 0);
+    const pend = Number(k.pending?.textContent || 0);
+    tl.innerHTML = `
+      <strong>Milestones</strong><br>
+      Phase 1 — ${conf} confirmed trainers live now<br>
+      Phase 2 — ${pend} pending offers closing (2–4 weeks)<br>
+      Phase 3 — Recruiting to fill gaps (30–60 days)
+    `;
+  }
+
   }
 
   function updateInViewCount(){
@@ -2590,6 +2651,23 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
     map.setView(HOME_VIEW.center, HOME_VIEW.zoom);
     recomputeCoverage().then(()=> runFilter());
   }
+  function renderStatusLegend(){
+  const el = id('statusLegend'); if (!el) return;
+
+  // pull colors from your CSS vars so this matches theme:
+  const colorConfirmed = getCSS?.('--p')     || '#2ecc71';  // Premium green
+  const colorPending   = getCSS?.('--gray')  || '#9ea3a8';  // muted gray (Pending)
+  const colorRecruit   = getCSS?.('--muted') || '#6b7280';  // recruiting/no applicants
+  const colorAcosta    = getCSS?.('--a')     || '#f39c12';  // acosta orange
+
+  el.innerHTML = `
+    <div><span class="dot" style="width:12px;height:12px;border-radius:50%;background:${colorConfirmed};margin-right:6px"></span> Confirmed Trainer</div>
+    <div><span class="dot" style="width:12px;height:12px;border-radius:50%;background:${colorPending};margin-right:6px"></span> Pending Offer</div>
+    <div><span class="dot" style="width:12px;height:12px;border-radius:50%;background:${colorRecruit};margin-right:6px"></span> No Applicants (Recruiting)</div>
+    <div><span class="dot" style="width:12px;height:12px;border-radius:50%;background:${colorAcosta};margin-right:6px"></span> Acosta Trainer</div>
+  `;
+}
+
 
   function handleHubVisibilityChange(){
     lastFilterChanged = 'visibility';
