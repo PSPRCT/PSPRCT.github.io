@@ -274,16 +274,6 @@
   <div id="presetUncov" class="pill" title="Uncovered + Rings + Heatmap">
     <span class="dot" style="background:var(--u)"></span> Preset: Uncovered focus
   </div>
-
-  <!-- Milestones (toolbar) -->
-<div id="milestonesBox"
-     style="font-size:12px;color:#444;margin-top:6px;line-height:1.35">
-  <strong>Milestones</strong><br>
-  Phase 1 — Confirmed trainers live now<br>
-  Phase 2 — Pending offers closing (2–4 weeks)<br>
-  Phase 3 — Recruiting to fill gaps (30–60 days)
-</div>
-
   <div id="presetHubs" class="pill" title="Show only stores within any visible hub radius">
     🟦 Preset: Hubs coverage
   </div>
@@ -520,7 +510,6 @@
   let premiumConfirmed = [];
   let premiumPending   = [];
   let acostaHubs       = [];
-updateMilestones();
 
   
 
@@ -728,15 +717,7 @@ syncLegends();
   viewsDrop.querySelector('button').onclick = ()=> toggleDropdown(viewsMenu);
   on('click', document.body, (e)=>{ if (!viewsDrop.contains(e.target)) viewsMenu.style.display='none'; }, true);
   id('viewSave').onclick = saveCurrentView;
-recomputeCoverage().then(()=>{
-  runFilter();
-  renderChips();
-  renderHubs();
-  updateRings();
-  updateMilestones();   // ← ADD THIS LINE
-  fitToResults();
-});
-
+  rebuildViewsMenu();
 
   // Floating toggles
   tgHeat.onchange   = ()=>{ if (tgHeat.checked) updateHeat(); else clearHeat(); saveState(); };
@@ -1252,8 +1233,6 @@ try {
     if (id('tgHeat').checked) updateHeat();
     if (id('tgRings').checked) updateRings();
 
-    updateMilestones();   // ← ADD THIS LINE
-
     // Empty state overlay
     id('emptyState').hidden = filteredStores.length !== 0;
   }
@@ -1272,8 +1251,6 @@ try {
     k.total.textContent    = total;
     k.confirmed.textContent = premiumConfirmed.length;
     k.pending.textContent   = premiumPending.length;
-    
-  updateMilestones();   // ← ADD THIS LINE
   }
 
   function updateInViewCount(){
@@ -2578,53 +2555,6 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
     alert('Snapshot link copied to clipboard.');
   }
   id('snapBtn').onclick = saveSnapshot;
-
-function updateMilestones(){
-  const box = document.getElementById('milestonesBox');
-  if (!box) return;
-
-  // ---- 1) Build a single, de-duplicated hub list from whatever globals exist
-const concat = (...lists)=> [].concat(...lists.filter(x => Array.isArray(x)));
-// Use the real globals (they’re `let`, not on window)
-let allHubs = concat(premiumConfirmed, premiumPending, acostaHubs);
-
-
-  // De-duplicate by id if present, else by lat/lng/status triple
-  const seen = new Set();
-  const uniq = [];
-  for (const h of (allHubs || [])){
-    const key = (h.id != null) ? `id:${h.id}` : `p:${h.coords?.[0]?.toFixed?.(5)},${h.coords?.[1]?.toFixed?.(5)}|${h.status||h.base||h.type||''}`;
-    if (!seen.has(key)){ seen.add(key); uniq.push(h); }
-  }
-
-  // ---- 2) Tally by status (accepts .status or .base or .type)
-  let confirmed = 0, pending = 0;
-  for (const h of uniq){
-    const st = (h.status || h.base || h.type || '').toLowerCase();
-    if (st === 'confirmed') confirmed++;
-    else if (st === 'pending') pending++;
-  }
-  // (If you want Acosta count in this widget later, compute it similarly.)
-
-  // ---- 3) Recruiting gaps = Uncovered store count in the active universe
-  const pool = (Array.isArray(window.filteredStores) && window.filteredStores.length)
-               ? window.filteredStores
-               : (window.allStores || []);
-  let recruiting = 0;
-  for (let i = 0; i < pool.length; i++){
-    if ((pool[i].coverageType || '') === 'Uncovered') recruiting++;
-  }
-
-  // ---- 4) Render
-  box.innerHTML = `
-    <strong>Milestones</strong><br>
-    Phase 1 — ${confirmed.toLocaleString()} confirmed trainers live now<br>
-    Phase 2 — ${pending.toLocaleString()} pending offers closing (2–4 weeks)<br>
-    Phase 3 — ${recruiting.toLocaleString()} recruiting gaps (30–60 days)
-  `;
-}
-
-
 
   // Chips with counts
   function renderChips(){
