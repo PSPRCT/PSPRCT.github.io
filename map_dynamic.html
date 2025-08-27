@@ -1852,10 +1852,12 @@ function printSidepanelList() {
 
  // ---------- Gap Finder ----------
 const gapModal = id('gapModal');
-id('gapBtn').onclick    = ()=> gapModal.classList.add('show');
+id('gapBtn').onclick = ()=> { gapModal.classList.add('show'); runGapFinder(); };
 id('gapClose').onclick  = ()=> gapModal.classList.remove('show');
 id('gapRun').onclick    = runGapFinder;
 id('gapExport').onclick = ()=> exportGapCsv();
+  id('gapUseFilters').onchange = runGapFinder;
+
 
 let lastGap = [];
 
