@@ -277,6 +277,10 @@
   <div id="presetHubs" class="pill" title="Show only stores within any visible hub radius">
     🟦 Preset: Hubs coverage
   </div>
+    <div id="presetAngela" class="pill" title="Zoom to Angela Bruce’s region">
+    🎯 Angela Bruce region
+  </div>
+
   <div id="snapBtn" class="pill" title="Copy a shareable URL">🔗 Save snapshot link</div>
 </div>
 
@@ -1304,8 +1308,29 @@ function hubDisplay(h){
     alert('Hub link copied to clipboard.');
   }
   spLink.onclick = copyHubLink;
+  // Angela Bruce region preset
+{
+  const el = document.getElementById('presetAngela');
+  if (el) {
+    el.onclick = ()=>{
+      // 1) set RM filter to Angela; cascade AMs (keeps all her AMs)
+      // NOTE: if the RM label in data differs (e.g., "Angela M. Bruce"), change the string below to match exactly.
+      setMulti(rmFilter, ['Angela Bruce']);
+      cascadeAM();
 
-  function renderHubs(){
+      // 2) clear Hub filter so all relevant hubs under Angela show
+      setMulti(hubFilter, []);
+
+      // 3) apply and frame results
+      runFilter();
+      renderChips();
+      fitToResults();
+      saveState();
+    };
+  }
+}
+
+function renderHubs(){
   // clear current markers
   hubLayer.clearLayers();
 
@@ -1336,15 +1361,40 @@ function hubDisplay(h){
     // left-click: open panel or toggle pin in compare mode
     m.on('click', () => compareMode ? togglePin(h) : openSidepanel(h));
 
-    // hover tooltip
-    m.on('mouseover', () => m.bindTooltip(hubDisplay(h), { direction: 'top', offset: [0, -8] }).openTooltip());
-    m.on('mouseout',  () => m.closeTooltip());
+    // hover tooltip (status + radius + store count within radius under current filters)
+    m.on('mouseover', () => {
+      // status label from hub status
+      const statusLabel = (h.status === 'confirmed') ? 'Confirmed'
+                        : (h.status === 'pending')   ? 'Pending'
+                        : 'Acosta';
 
-    // right-click: edit menu (only acts if editMode is ON in showHubMenu)
-    m.on('contextmenu', (e) => showHubMenu(e, h, m));
-  });
-}
+      // current UI radius in miles
+      const r = Number(radius.value) || DEFAULT_RADIUS;
 
+      // pick pool (filteredStores if available; else allStores or empty)
+      const pool = (Array.isArray(filteredStores) && filteredStores.length ? filteredStores : (allStores || []));
+
+      // count stores currently in the pool within r miles of this hub
+      let cnt = 0;
+      for (let i = 0; i < pool.length; i++){
+        const s = pool[i];
+        if (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r) cnt++;
+      }
+
+      const html = `
+        <div style="font-size:12px; line-height:1.35">
+          <div style="font-weight:700">${hubDisplay(h)}</div>
+          <div>${statusLabel} • ${r} mi radius</div>
+          <div>Stores (under current filters): <b>${cnt}</b></div>
+        </div>
+      `.trim();
+
+      m.bindTooltip(html, { direction:'top', offset:[0,-8], opacity:0.95 }).openTooltip();
+    });
+
+    m.on('mouseout', () => m.closeTooltip());
+  }); // <-- closes vis.forEach
+} // <-- closes renderHubs
 
   function updateRings(){
     ringLayer.clearLayers();
