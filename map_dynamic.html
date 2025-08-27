@@ -2584,12 +2584,10 @@ function updateMilestones(){
   if (!box) return;
 
   // ---- 1) Build a single, de-duplicated hub list from whatever globals exist
-  const concat = (...lists)=> [].concat(...lists.filter(x => Array.isArray(x)));
-  // Try common names you use; fall back to union of premium+acosta lists
-  let allHubs =
-    (window.allHubs && Array.isArray(window.allHubs) && window.allHubs) ||
-    (window.hubs && Array.isArray(window.hubs) && window.hubs) ||
-    concat(window.premiumConfirmed, window.premiumPending, window.acostaHubs);
+const concat = (...lists)=> [].concat(...lists.filter(x => Array.isArray(x)));
+// Use the real globals (they’re `let`, not on window)
+let allHubs = concat(premiumConfirmed, premiumPending, acostaHubs);
+
 
   // De-duplicate by id if present, else by lat/lng/status triple
   const seen = new Set();
