@@ -520,6 +520,7 @@
   let premiumConfirmed = [];
   let premiumPending   = [];
   let acostaHubs       = [];
+updateMilestones();
 
   
 
@@ -2578,13 +2579,36 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
   }
   id('snapBtn').onclick = saveSnapshot;
 
-  function updateMilestones(){
+function updateMilestones(){
   const box = document.getElementById('milestonesBox');
   if (!box) return;
 
-  const conf = Array.isArray(window.premiumConfirmed) ? window.premiumConfirmed.length : 0;
-  const pend = Array.isArray(window.premiumPending)   ? window.premiumPending.length   : 0;
+  // ---- 1) Build a single, de-duplicated hub list from whatever globals exist
+  const concat = (...lists)=> [].concat(...lists.filter(x => Array.isArray(x)));
+  // Try common names you use; fall back to union of premium+acosta lists
+  let allHubs =
+    (window.allHubs && Array.isArray(window.allHubs) && window.allHubs) ||
+    (window.hubs && Array.isArray(window.hubs) && window.hubs) ||
+    concat(window.premiumConfirmed, window.premiumPending, window.acostaHubs);
 
+  // De-duplicate by id if present, else by lat/lng/status triple
+  const seen = new Set();
+  const uniq = [];
+  for (const h of (allHubs || [])){
+    const key = (h.id != null) ? `id:${h.id}` : `p:${h.coords?.[0]?.toFixed?.(5)},${h.coords?.[1]?.toFixed?.(5)}|${h.status||h.base||h.type||''}`;
+    if (!seen.has(key)){ seen.add(key); uniq.push(h); }
+  }
+
+  // ---- 2) Tally by status (accepts .status or .base or .type)
+  let confirmed = 0, pending = 0;
+  for (const h of uniq){
+    const st = (h.status || h.base || h.type || '').toLowerCase();
+    if (st === 'confirmed') confirmed++;
+    else if (st === 'pending') pending++;
+  }
+  // (If you want Acosta count in this widget later, compute it similarly.)
+
+  // ---- 3) Recruiting gaps = Uncovered store count in the active universe
   const pool = (Array.isArray(window.filteredStores) && window.filteredStores.length)
                ? window.filteredStores
                : (window.allStores || []);
@@ -2593,13 +2617,15 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
     if ((pool[i].coverageType || '') === 'Uncovered') recruiting++;
   }
 
+  // ---- 4) Render
   box.innerHTML = `
     <strong>Milestones</strong><br>
-    Phase 1 — ${conf.toLocaleString()} confirmed trainers live now<br>
-    Phase 2 — ${pend.toLocaleString()} pending offers closing (2–4 weeks)<br>
+    Phase 1 — ${confirmed.toLocaleString()} confirmed trainers live now<br>
+    Phase 2 — ${pending.toLocaleString()} pending offers closing (2–4 weeks)<br>
     Phase 3 — ${recruiting.toLocaleString()} recruiting gaps (30–60 days)
   `;
 }
+
 
 
   // Chips with counts
