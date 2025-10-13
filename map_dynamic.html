@@ -1116,7 +1116,8 @@ try {
     }
 
     const items = [];
-    const numInside = q.match(/\b(\d{3,6})\b/);
+   const numInside = q.match(/\b(\d{1,6})\b/); // allow 1–6 digits so “62” works
+
     if (numInside){
       const s = allStores.find(x => x.storeNumberStr === numInside[1]);
       if (s) items.push(toResFromStore(s, 120));
