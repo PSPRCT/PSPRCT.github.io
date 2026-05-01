@@ -2174,8 +2174,8 @@ function buildHubFilterOptions(){
 
   const storeOK = (s)=>{
     if (!covAll && !covSel.includes(s.coverageType||'')) return false;
-    if (!rmAll  && !rmSel.includes(s.regionalManager||'')) return false;
-    if (!amAll  && !amSel.includes(s.areaManager||''))     return false;
+   if (!rmAll && !rmSel.some(x => splitMulti(s.regionalManager).includes(x))) return false;
+if (!amAll && !amSel.some(x => splitMulti(s.areaManager).includes(x))) return false;
     return true;
   };
 
@@ -2216,11 +2216,24 @@ function buildHubFilterOptions(){
 }
 
 
-  function uniqSorted(arr){
-    const set = new Set();
-    arr.forEach(v => { const s = (v ?? '').toString().trim(); if (s) set.add(s); });
-    return Array.from(set).sort((a,b)=> a.localeCompare(b));
-  }
+function splitMulti(value){
+  return String(value || '')
+    .split('|')
+    .map(x => x.trim())
+    .filter(Boolean);
+}
+
+function uniqSorted(arr){
+  const set = new Set();
+
+  arr.forEach(v => {
+    splitMulti(v).forEach(name => {
+      if (name) set.add(name);
+    });
+  });
+
+  return Array.from(set).sort((a,b)=> a.localeCompare(b));
+}
   function normalizeStores(arr){
     return arr.map(o=>{
       const s = { ...o };
