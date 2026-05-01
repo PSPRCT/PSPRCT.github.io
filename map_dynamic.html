@@ -2096,16 +2096,25 @@ id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
   function setMulti(sel,arr){ Array.from(sel.options).forEach(o=>{o.selected=arr.includes(o.value);}); }
   function rebuildRMOptionsWithCounts(){
     const prev = new Set(selectedValues(rmFilter));
-    const amSel = selectedValues(amFilter);
-
-    const base = allStores.filter(s => {
-      if (!coverageSelectionAllows(s)) return false;
-      if (!hasAnyManager(s.areaManager, amSel)) return false;
-      return true;
-    });
+    const amSel = selectedActiveManagers(amFilter);
 
     const by = {};
-    base.forEach(s => addManagerCounts(by, s.regionalManager));
+
+    allStores.forEach(s => {
+      if (!coverageSelectionAllows(s)) return;
+
+      managerPathsForStore(s).forEach(p => {
+        const rm = String(p.regionalManager || '').trim();
+        const am = String(p.areaManager || '').trim();
+        if (!rm) return;
+
+        // KEY FIX: if an AM is selected, only list/count RMs from the same managerPath rows.
+        if (amSel.length && !amSel.includes(am)) return;
+
+        by[rm] = (by[rm] || 0) + 1;
+      });
+    });
+
     const names = Object.keys(by).sort((a,b)=>String(a).localeCompare(String(b)));
 
     rmFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
@@ -2119,18 +2128,22 @@ id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
 
   function rebuildAMOptionsWithCounts(){
     const prev = new Set(selectedValues(amFilter));
-    const rmSel = selectedValues(rmFilter);
-
-    const base = allStores.filter(s => {
-      if (!coverageSelectionAllows(s)) return false;
-      if (!regionalSelectionMatches(s, rmSel)) return false;
-      return true;
-    });
+    const rmSel = selectedActiveManagers(rmFilter);
 
     const by = {};
-    base.forEach(s => {
-      areaManagersForRegionalSelection(s, rmSel).forEach(name => {
-        if (name) by[name] = (by[name] || 0) + 1;
+
+    allStores.forEach(s => {
+      if (!coverageSelectionAllows(s)) return;
+
+      managerPathsForStore(s).forEach(p => {
+        const rm = String(p.regionalManager || '').trim();
+        const am = String(p.areaManager || '').trim();
+        if (!am) return;
+
+        // KEY FIX: if an RM is selected, only list/count AMs from the same managerPath rows.
+        if (rmSel.length && !rmSel.includes(rm)) return;
+
+        by[am] = (by[am] || 0) + 1;
       });
     });
 
@@ -2255,11 +2268,53 @@ function asManagerArray(value){
         .map(v => String(v || '').trim())
         .filter(Boolean);
     }
-
+    if (value && typeof value === 'object') {
+      return asManagerArray(value.name ?? value.value ?? value.areaManager ?? value.regionalManager ?? '');
+    }
     return String(value || '')
       .split('|')
       .map(v => v.trim())
       .filter(Boolean);
+  }
+
+  function uniqueStrings(arr){
+    return Array.from(new Set((arr || []).map(v => String(v || '').trim()).filter(Boolean)));
+  }
+
+  function normalizeManagerPaths(value){
+    let raw = [];
+
+    if (Array.isArray(value)) raw = value;
+    else if (typeof value === 'string' && value.trim()) {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) raw = parsed;
+      } catch(e) {
+        raw = [];
+      }
+    }
+
+    return raw.map(p => {
+      if (!p || typeof p !== 'object') return null;
+      const teamId = String(p.teamId ?? p.teamID ?? p.managementGroupId ?? p['Mngnt Grp Id'] ?? '').trim();
+      const teamName = String(p.teamName ?? p.team ?? p.managementGroupName ?? p['Mngnt Grp Name'] ?? '').trim();
+      const regionalManager = String(p.regionalManager ?? p.rm ?? p['Regional Manager'] ?? p['Mgr 4 Name'] ?? p['Mgr 3 Name'] ?? '').trim();
+      const areaManager = String(p.areaManager ?? p.am ?? p['Area Manager'] ?? p['Mgr 2 Name'] ?? p['Mgr 1 Name'] ?? '').trim();
+      if (!regionalManager && !areaManager) return null;
+      return { teamId, teamName, regionalManager, areaManager };
+    }).filter(Boolean);
+  }
+
+  function managerPathsForStore(s){
+    const paths = normalizeManagerPaths(s.managerPaths);
+    if (paths.length) return paths;
+
+    // Fallback for older JSON without managerPaths. This is less precise, but prevents the map from breaking.
+    const rms = asManagerArray(s.regionalManager);
+    const ams = asManagerArray(s.areaManager);
+    const out = [];
+    rms.forEach(rm => ams.forEach(am => out.push({ teamId:'', teamName:'', regionalManager:rm, areaManager:am })));
+    return out;
   }
 
   function managerLabel(value){
@@ -2291,86 +2346,61 @@ function asManagerArray(value){
     return Array.from(selectEl.selectedOptions || []).map(o => o.value).filter(v => v !== '');
   }
 
+  function selectedActiveManagers(selectEl){
+    return selectedValues(selectEl).filter(v => v && v !== 'All');
+  }
+
   function coverageSelectionAllows(s){
     const covSel = selectedValues(covFilter);
     return covSel.includes('All') || covSel.length === 0 || covSel.includes(s.coverageType || '');
   }
 
-  const TEAM_FIELDS = {
-    premium:  { area:'premiumManagers',            regional:'premiumRegionalManagers',            hints:[/premium/i, /roy anders/i, /angel bruce/i, /veronica hernandez/i] },
-    acosta:   { area:'acostaCoreManagers',         regional:'acostaCoreRegionalManagers',         hints:[/acosta/i, /alicia fiechter/i, /brian schubert/i, /jonathan shockey/i, /raina rogge/i, /dani preslicka/i, /sherry blankenhorn/i] },
-    pg:       { area:'pgManagers',                 regional:'pgRegionalManagers',                 hints:[/p\s*&?\s*g/i, /p&g/i, /james johnson/i] },
-    unilever: { area:'unileverManagers',           regional:'unileverRegionalManagers',           hints:[/univ/i, /unilever/i, /connie germoso/i, /angela mons/i, /veronica mendez/i] },
-    tyson:    { area:'tysonManagers',              regional:'tysonRegionalManagers',              hints:[/tyson/i, /lt haymon/i] }
-  };
-
-  function teamKeysPresentOnStore(s){
-    return Object.entries(TEAM_FIELDS)
-      .filter(([key,cfg]) => asManagerArray(s[cfg.area]).length > 0)
-      .map(([key]) => key);
-  }
-
-  function inferredTeamKeysForRegionalName(rm){
-    const text = String(rm || '');
-    return Object.entries(TEAM_FIELDS)
-      .filter(([key,cfg]) => cfg.hints.some(rx => rx.test(text)))
-      .map(([key]) => key);
-  }
-
-  function teamKeysForSelectedRegionalsOnStore(s, rmSel){
-    const selected = (Array.isArray(rmSel) ? rmSel : Array.from(rmSel || [])).filter(v => v && v !== 'All');
-    if (!selected.length) return [];
-
-    const storeRMs = asManagerArray(s.regionalManager);
-    const keys = new Set();
-
-    selected.forEach(rm => {
-      if (!storeRMs.includes(rm)) return;
-
-      // Preferred: true team-specific regional columns, if present in the JSON.
-      Object.entries(TEAM_FIELDS).forEach(([key,cfg]) => {
-        const teamRMs = asManagerArray(s[cfg.regional]);
-        if (teamRMs.includes(rm)) keys.add(key);
-      });
-
-      // Fallback: infer team from the RM label/name when true team-specific RM columns are absent.
-      inferredTeamKeysForRegionalName(rm).forEach(key => keys.add(key));
-    });
-
-    // If the RM matched the store but we could not identify team, keep old broad behavior for that RM.
-    if (!keys.size && selected.some(rm => storeRMs.includes(rm))) {
-      teamKeysPresentOnStore(s).forEach(key => keys.add(key));
-    }
-
-    return Array.from(keys);
-  }
-
   function regionalSelectionMatches(s, rmSel){
     const selected = (Array.isArray(rmSel) ? rmSel : Array.from(rmSel || [])).filter(v => v && v !== 'All');
     if (!selected.length) return true;
-    return selected.some(rm => asManagerArray(s.regionalManager).includes(rm));
+    return managerPathsForStore(s).some(p => selected.includes(String(p.regionalManager || '').trim()));
   }
 
   function areaManagersForRegionalSelection(s, rmSel){
-    const selected = (Array.isArray(rmSel) ? rmSel : Array.from(rmSel || [])).filter(v => v && v !== 'All');
-    if (!selected.length) return asManagerArray(s.areaManager);
+    const selectedRM = (Array.isArray(rmSel) ? rmSel : Array.from(rmSel || [])).filter(v => v && v !== 'All');
+    const paths = managerPathsForStore(s);
 
-    const keys = teamKeysForSelectedRegionalsOnStore(s, selected);
-    const out = [];
-    keys.forEach(key => {
-      const cfg = TEAM_FIELDS[key];
-      if (cfg) out.push(...asManagerArray(s[cfg.area]));
-    });
+    return uniqueStrings(paths
+      .filter(p => !selectedRM.length || selectedRM.includes(String(p.regionalManager || '').trim()))
+      .map(p => p.areaManager));
+  }
 
-    return Array.from(new Set(out.filter(Boolean)));
+  function regionalManagersForAreaSelection(s, amSel){
+    const selectedAM = (Array.isArray(amSel) ? amSel : Array.from(amSel || [])).filter(v => v && v !== 'All');
+    const paths = managerPathsForStore(s);
+
+    return uniqueStrings(paths
+      .filter(p => !selectedAM.length || selectedAM.includes(String(p.areaManager || '').trim()))
+      .map(p => p.regionalManager));
   }
 
   function areaSelectionMatches(s, amSel, rmSel){
-    const selected = (Array.isArray(amSel) ? amSel : Array.from(amSel || [])).filter(v => v && v !== 'All');
-    if (!selected.length) return true;
+    const selectedAM = (Array.isArray(amSel) ? amSel : Array.from(amSel || [])).filter(v => v && v !== 'All');
+    const selectedRM = (Array.isArray(rmSel) ? rmSel : Array.from(rmSel || [])).filter(v => v && v !== 'All');
+    if (!selectedAM.length) return true;
 
-    const candidates = areaManagersForRegionalSelection(s, rmSel);
-    return selected.some(am => candidates.includes(am));
+    return managerPathsForStore(s).some(p => {
+      const rmOK = !selectedRM.length || selectedRM.includes(String(p.regionalManager || '').trim());
+      const amOK = selectedAM.includes(String(p.areaManager || '').trim());
+      return rmOK && amOK;
+    });
+  }
+
+  function managerPathSelectionMatches(s, rmSel, amSel){
+    const selectedRM = (Array.isArray(rmSel) ? rmSel : Array.from(rmSel || [])).filter(v => v && v !== 'All');
+    const selectedAM = (Array.isArray(amSel) ? amSel : Array.from(amSel || [])).filter(v => v && v !== 'All');
+    if (!selectedRM.length && !selectedAM.length) return true;
+
+    return managerPathsForStore(s).some(p => {
+      const rmOK = !selectedRM.length || selectedRM.includes(String(p.regionalManager || '').trim());
+      const amOK = !selectedAM.length || selectedAM.includes(String(p.areaManager || '').trim());
+      return rmOK && amOK;
+    });
   }
 
   function uniqSorted(arr){
@@ -2384,6 +2414,7 @@ function asManagerArray(value){
 
     return Array.from(set).sort((a,b) => String(a).localeCompare(String(b)));
   }
+
   function normalizeStores(arr){
     return arr.map(o=>{
       const s = { ...o };
@@ -2393,8 +2424,19 @@ function asManagerArray(value){
       s.city       = o.city ?? o.City ?? '';
       s.state      = o.state ?? o.State ?? '';
       s.coverageType = o.coverageType ?? o.Coverage_Type ?? o.Covered_By ?? 'Uncovered';
-      s.areaManager = asManagerArray(o.areaManager ?? o.AreaMgr ?? o['Area Mgr'] ?? o['Area Manager'] ?? '');
-      s.regionalManager = asManagerArray(o.regionalManager ?? o.RegMgr ?? o['Regional Manager'] ?? '');
+
+      s.managerPaths = normalizeManagerPaths(o.managerPaths ?? o.ManagerPaths ?? o.manager_paths ?? []);
+
+      const pathAMs = uniqueStrings(s.managerPaths.map(p => p.areaManager));
+      const pathRMs = uniqueStrings(s.managerPaths.map(p => p.regionalManager));
+
+      s.areaManager = pathAMs.length
+        ? pathAMs
+        : asManagerArray(o.areaManager ?? o.AreaMgr ?? o['Area Mgr'] ?? o['Area Manager'] ?? '');
+
+      s.regionalManager = pathRMs.length
+        ? pathRMs
+        : asManagerArray(o.regionalManager ?? o.RegMgr ?? o['Regional Manager'] ?? '');
 
       s.premiumManagers = asManagerArray(o.premiumManagers ?? '');
       s.acostaCoreManagers = asManagerArray(o.acostaCoreManagers ?? '');
