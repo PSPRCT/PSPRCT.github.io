@@ -984,7 +984,7 @@ try {
   function buildSearchIndex(){
     searchIdx = allStores.map(s => ({
       kind:'STORE', store:s, lat:s.lat, lng:s.lng,
-      text: (`store ${s.storeNumberStr} ${s.storeName||''} ${s.address||''} ${s.city} ${s.state} ${s.coverageType||''} ${s.areaManager||''} ${s.regionalManager||''}`).toLowerCase()
+      text: (`store ${s.storeNumberStr} ${s.storeName||''} ${s.address||''} ${s.city} ${s.state} ${s.coverageType||''} ${managerLabel(s.areaManager)} ${managerLabel(s.regionalManager)}`).toLowerCase()
     }));
   }
   function showHover(lat,lng){ if(hoverMarker) highlightLayer.removeLayer(hoverMarker); hoverMarker=L.marker([lat,lng],{icon:hoverIcon}).addTo(highlightLayer); }
@@ -1182,8 +1182,8 @@ try {
 
     const rmSel = Array.from(rmFilter.selectedOptions).map(o=>o.value);
     const amSel = Array.from(amFilter.selectedOptions).map(o=>o.value);
-    const rmOK  = rmSel.includes('All') || rmSel.includes(s.regionalManager || '');
-    const amOK  = amSel.includes('All') || amSel.includes(s.areaManager || '');
+    const rmOK  = hasAnyManager(s.regionalManager, rmSel);
+    const amOK  = hasAnyManager(s.areaManager, amSel);
 
     // Hubs (value = hub IDs)
     const hubSel = Array.from(hubFilter.selectedOptions).map(o=>o.value);
@@ -1623,7 +1623,7 @@ spRowsEl.addEventListener('click', (e)=>{
       ids.forEach(id=>{
         const s = (filteredStores.find(x=>x.storeNumberStr===id) || allStores.find(x=>x.storeNumberStr===id));
         if (!s) return;
-        rows.push([label, s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'', s.coverageType||'', s.areaManager||'', s.regionalManager||'', s.lat, s.lng]);
+        rows.push([label, s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'', s.coverageType||'', managerLabel(s.areaManager), managerLabel(s.regionalManager), s.lat, s.lng]);
       });
     };
     pushList('Only A', [...Aset].filter(x=>!Bset.has(x)));
@@ -1638,7 +1638,7 @@ spRowsEl.addEventListener('click', (e)=>{
       ['Store #','Name','Address','City','State','Coverage','Area Manager','Regional Manager','Lat','Lng'],
       ...filteredStores.map(s => [
         s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'',
-        s.coverageType||'', s.areaManager||'', s.regionalManager||'', s.lat, s.lng
+        s.coverageType||'', managerLabel(s.areaManager), managerLabel(s.regionalManager), s.lat, s.lng
       ])
     ];
     exportCsvWithToast(rows, `filtered_stores_${Date.now()}.csv`);
@@ -1654,7 +1654,7 @@ spRowsEl.addEventListener('click', (e)=>{
         return [
           spHub.fullName || spHub.name, r, d.toFixed(1),
           s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'',
-          s.coverageType||'', s.areaManager||'', s.regionalManager||'', s.lat, s.lng
+          s.coverageType||'', managerLabel(s.areaManager), managerLabel(s.regionalManager), s.lat, s.lng
         ];
       })
     ];
@@ -1904,7 +1904,9 @@ function runGapFinder(){
     const key = `${(s.city||'').toLowerCase()}|${(s.state||'').toUpperCase()}`;
     const g = byCity.get(key) || { city:s.city, state:s.state, lat:0, lng:0, n:0, am:new Set(), rm:new Set(), stores:[] };
     g.lat += s.lat; g.lng += s.lng; g.n += 1;
-    g.am.add(s.areaManager||''); g.rm.add(s.regionalManager||''); g.stores.push(s);
+    asManagerArray(s.areaManager).forEach(x => g.am.add(x));
+    asManagerArray(s.regionalManager).forEach(x => g.rm.add(x));
+    g.stores.push(s);
     byCity.set(key, g);
   });
 
@@ -1973,20 +1975,23 @@ id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
 
   function buildRollups(){
   const by = id('rollByAM').checked ? 'AM' : 'RM';
-  const keyOf = s => by==='RM' ? (s.regionalManager||'') : (s.areaManager||'');
   const byMap = new Map();
 
   filteredStores.forEach(s=>{
-    const k = keyOf(s) || '(Blank)';
-    const g = byMap.get(k) || { key:k, premiumCovered:0, acostaOnly:0, uncovered:0, total:0 };
-    if (s.coverageType === 'Premium + Acosta' || s.coverageType === 'Premium Only') g.premiumCovered++;
-    else if (s.coverageType === 'Acosta Only') g.acostaOnly++;
-    else g.uncovered++;
-    g.total++;
-    byMap.set(k,g);
+    const managers = by === 'RM' ? asManagerArray(s.regionalManager) : asManagerArray(s.areaManager);
+    const names = managers.length ? managers : ['(Blank)'];
+
+    names.forEach(name => {
+      const g = byMap.get(name) || { key:name, premiumCovered:0, acostaOnly:0, uncovered:0, total:0 };
+      if (s.coverageType === 'Premium + Acosta' || s.coverageType === 'Premium Only') g.premiumCovered++;
+      else if (s.coverageType === 'Acosta Only') g.acostaOnly++;
+      else g.uncovered++;
+      g.total++;
+      byMap.set(name,g);
+    });
   });
 
-  const rows = Array.from(byMap.values()).sort((a,b)=> b.total - a.total);
+  const rows = Array.from(byMap.values()).sort((a,b)=> b.total - a.total || String(a.key).localeCompare(String(b.key)));
   lastRoll = { rows, by };
 
   const pct = (n,t)=> t? (Math.round(n*1000/t)/10)+'%':'0%';
@@ -2081,8 +2086,8 @@ id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
     const base = allStores.filter(inCov);
 
     const by = {};
-    base.forEach(s => { const k = s.regionalManager || ''; if(k) by[k]=(by[k]||0)+1; });
-    const names = Object.keys(by).sort((a,b)=>a.localeCompare(b));
+    base.forEach(s => addManagerCounts(by, s.regionalManager));
+    const names = Object.keys(by).sort((a,b)=>String(a).localeCompare(String(b)));
 
     rmFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
       `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
@@ -2095,15 +2100,15 @@ id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
   function rebuildAMOptionsWithCounts(){
     const prev = new Set(Array.from(amFilter.selectedOptions).map(o=>o.value));
     const covSel = new Set(Array.from(covFilter.selectedOptions).map(o => o.value));
-    const rmSel  = new Set(Array.from(rmFilter.selectedOptions).map(o => o.value));
+    const rmSel  = Array.from(rmFilter.selectedOptions).map(o => o.value);
 
     const inCov = s => covSel.has('All') || covSel.has(s.coverageType || '');
-    const inRM  = s => rmSel.has('All')  || rmSel.has(s.regionalManager || '');
+    const inRM  = s => hasAnyManager(s.regionalManager, rmSel);
     const base  = allStores.filter(s => inCov(s) && inRM(s));
 
     const by = {};
-    base.forEach(s => { const k = s.areaManager || ''; if(k) by[k]=(by[k]||0)+1; });
-    const names = Object.keys(by).sort((a,b)=>a.localeCompare(b));
+    base.forEach(s => addManagerCounts(by, s.areaManager));
+    const names = Object.keys(by).sort((a,b)=>String(a).localeCompare(String(b)));
 
     amFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
       `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
@@ -2174,8 +2179,8 @@ function buildHubFilterOptions(){
 
   const storeOK = (s)=>{
     if (!covAll && !covSel.includes(s.coverageType||'')) return false;
-   if (!rmAll && !rmSel.some(x => splitMulti(s.regionalManager).includes(x))) return false;
-if (!amAll && !amSel.some(x => splitMulti(s.areaManager).includes(x))) return false;
+   if (!rmAll && !rmSel.some(x => asManagerArray(s.regionalManager).includes(x))) return false;
+if (!amAll && !amSel.some(x => asManagerArray(s.areaManager).includes(x))) return false;
     return true;
   };
 
@@ -2216,24 +2221,52 @@ if (!amAll && !amSel.some(x => splitMulti(s.areaManager).includes(x))) return fa
 }
 
 
-function splitMulti(value){
-  return String(value || '')
-    .split('|')
-    .map(x => x.trim())
-    .filter(Boolean);
-}
+function asManagerArray(value){
+    if (Array.isArray(value)) {
+      return value
+        .flatMap(v => asManagerArray(v))
+        .map(v => String(v || '').trim())
+        .filter(Boolean);
+    }
 
-function uniqSorted(arr){
-  const set = new Set();
+    return String(value || '')
+      .split('|')
+      .map(v => v.trim())
+      .filter(Boolean);
+  }
 
-  arr.forEach(v => {
-    splitMulti(v).forEach(name => {
-      if (name) set.add(name);
+  function managerLabel(value){
+    return asManagerArray(value).join(' | ');
+  }
+
+  function hasAnyManager(fieldValue, selectedValues){
+    const selected = Array.isArray(selectedValues)
+      ? selectedValues
+      : Array.from(selectedValues || []);
+
+    if (!selected.length || selected.includes('All')) return true;
+
+    const managers = asManagerArray(fieldValue);
+    return selected.some(v => managers.includes(v));
+  }
+
+  function addManagerCounts(mapObj, managerField){
+    asManagerArray(managerField).forEach(name => {
+      if (name) mapObj[name] = (mapObj[name] || 0) + 1;
     });
-  });
+  }
 
-  return Array.from(set).sort((a,b)=> a.localeCompare(b));
-}
+  function uniqSorted(arr){
+    const set = new Set();
+
+    arr.forEach(v => {
+      asManagerArray(v).forEach(name => {
+        if (name) set.add(name);
+      });
+    });
+
+    return Array.from(set).sort((a,b) => String(a).localeCompare(String(b)));
+  }
   function normalizeStores(arr){
     return arr.map(o=>{
       const s = { ...o };
@@ -2243,8 +2276,16 @@ function uniqSorted(arr){
       s.city       = o.city ?? o.City ?? '';
       s.state      = o.state ?? o.State ?? '';
       s.coverageType = o.coverageType ?? o.Coverage_Type ?? o.Covered_By ?? 'Uncovered';
-      s.areaManager   = o.areaManager ?? o.AreaMgr ?? o['Area Mgr'] ?? o['Area Manager'] ?? '';
-      s.regionalManager = o.regionalManager ?? o.RegMgr ?? o['Regional Manager'] ?? '';
+      s.areaManager = asManagerArray(o.areaManager ?? o.AreaMgr ?? o['Area Mgr'] ?? o['Area Manager'] ?? '');
+      s.regionalManager = asManagerArray(o.regionalManager ?? o.RegMgr ?? o['Regional Manager'] ?? '');
+
+      s.premiumManagers = asManagerArray(o.premiumManagers ?? '');
+      s.acostaCoreManagers = asManagerArray(o.acostaCoreManagers ?? '');
+      s.pgManagers = asManagerArray(o.pgManagers ?? '');
+      s.unileverManagers = asManagerArray(o.unileverManagers ?? '');
+      s.tysonManagers = asManagerArray(o.tysonManagers ?? '');
+      s.acostaRtsSupportedManagers = asManagerArray(o.acostaRtsSupportedManagers ?? '');
+
       s.trainerCity  = o.trainerCity ?? o.Assigned_Premium ?? o['Trainer City'] ?? '';
       s.lat = Number(o.lat ?? o.Lat ?? o.latitude ?? o.Latitude);
       s.lng = Number(o.lng ?? o.Lon ?? o.Lng ?? o.longitude ?? o.Longitude);
@@ -2275,8 +2316,8 @@ function uniqSorted(arr){
         <div>${escape(s.city||'')}, ${escape(s.state||'')}</div>
         <div style="margin:6px 0">${badge}</div>
         <div><b>Trainer City:</b> ${escape(s.trainerCity||'')}</div>
-        <div><b>Area Manager:</b> ${escape(s.areaManager||'')}</div>
-        <div><b>Regional Manager:</b> ${escape(s.regionalManager||'')}</div>
+        <div><b>Area Manager:</b> ${escape(managerLabel(s.areaManager))}</div>
+        <div><b>Regional Manager:</b> ${escape(managerLabel(s.regionalManager))}</div>
         ${np ? `<div style="margin-top:6px"><b>Nearest Premium:</b> ${escape(hubDisplay(np.hub))} • ${np.d.toFixed(1)} mi</div>` : ''}
         ${na ? `<div><b>Nearest Acosta:</b> ${escape(na.hub.label || na.hub.fullName || na.hub.name)} • ${na.d.toFixed(1)} mi</div>` : ''}
         <div style="color:var(--muted);margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
@@ -2785,8 +2826,8 @@ function refreshSandbox(){
           <td>${htmlEscape(s.address||'')}, ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</td>
           <td>${htmlEscape(s.coverageType||'')}</td>
           <td style="text-align:right">${s.__d.toFixed(1)}</td>
-          <td>${htmlEscape(s.areaManager||'')}</td>
-          <td>${htmlEscape(s.regionalManager||'')}</td>
+          <td>${htmlEscape(managerLabel(s.areaManager))}</td>
+          <td>${htmlEscape(managerLabel(s.regionalManager))}</td>
         </tr>`).join('');
     const win = window.open('', '_blank');
     win.document.write(`
@@ -2867,27 +2908,22 @@ function openSandboxAt(lat, lng){
 
   // ---------- Cascade AM by RM ----------
   function populateRM(stores){
-    const set = new Set();
-    stores.forEach(s=>{ if (s.regionalManager) set.add(s.regionalManager); });
-    const arr = Array.from(set).sort((a,b)=>a.localeCompare(b));
+    const arr = uniqSorted(stores.map(s => s.regionalManager));
     rmFilter.innerHTML = ['<option value="All" selected>All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
   }
   function populateAM(stores){
-    const set = new Set();
-    stores.forEach(s=>{ if (s.areaManager) set.add(s.areaManager); });
-    const arr = Array.from(set).sort((a,b)=>a.localeCompare(b));
+    const arr = uniqSorted(stores.map(s => s.areaManager));
     amFilter.innerHTML = ['<option value="All" selected>All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
   }
   function cascadeAM(){
     const selectedRM = Array.from(rmFilter.selectedOptions).map(o=>o.value);
-    const allowAllRM = selectedRM.includes('All') || selectedRM.length===0;
     const ams = new Set();
     allStores.forEach(s=>{
-      if (allowAllRM || selectedRM.includes(s.regionalManager||'')){
-        if (s.areaManager) ams.add(s.areaManager);
+      if (hasAnyManager(s.regionalManager, selectedRM)){
+        asManagerArray(s.areaManager).forEach(name => ams.add(name));
       }
     });
-    const arr = Array.from(ams).sort((a,b)=>a.localeCompare(b));
+    const arr = Array.from(ams).sort((a,b)=>String(a).localeCompare(String(b)));
     const prevSel = new Set(Array.from(amFilter.selectedOptions).map(o=>o.value));
     amFilter.innerHTML = ['<option value="All">All</option>', ...arr.map(v=>`<option>${escape(v)}</option>`)].join('');
     const toSelect = arr.filter(v=>prevSel.has(v));
