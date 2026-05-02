@@ -1211,7 +1211,9 @@ try {
     let hubOK = true;
     if (hubSel.length){
       const r = Number(radius.value) || DEFAULT_RADIUS;
-      const hubsNow = [...premiumConfirmed, ...premiumPending, ...acostaHubs];
+    // Use active/current hubs only for filtering.
+// Pending/future hubs are display-only and should not affect coverage or gap analysis.
+const hubsNow = [...premiumConfirmed, ...acostaHubs];
       const selHubs = hubsNow.filter(h => hubSel.includes(h.id));
       hubOK = selHubs.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
     }
@@ -1220,7 +1222,12 @@ try {
     let withinOK = true;
     if (tgWithin.checked){
       const r = Number(radius.value) || DEFAULT_RADIUS;
-      withinOK = visibleHubs().some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+      const activeHubsNow = [
+  ...(showConfirmed.checked ? premiumConfirmed : []),
+  ...(showAcosta.checked ? acostaHubs : [])
+];
+
+withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
     }
 
     return covOK && rmOK && amOK && hubOK && withinOK;
