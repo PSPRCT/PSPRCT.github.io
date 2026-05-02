@@ -2526,8 +2526,10 @@ function asManagerArray(value){
       return best ? { hub: best, d: dmin } : null;
     };
 
-    const np = nearestOf([...premiumConfirmed, ...premiumPending]);
-    const na = nearestOf(acostaHubs);
+    // Nearest Premium should reflect active/current RTS coverage only.
+// Pending/future hubs are intentionally excluded.
+const np = nearestOf(premiumConfirmed);
+const na = nearestOf(acostaHubs);
 
     const badge = `<span style="padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:${COLORS[s.coverageType]||'#eee'}22">${escape(s.coverageType||'')}</span>`;
 
