@@ -1900,22 +1900,21 @@ function printSidepanelList() {
       ` <span class="chip">Premium v${pRev}</span>`+
       ` <span class="chip">Acosta v${aRev}</span>`;
   }
-
- // ---------- Gap Finder ----------
+// ---------- Current Gap Finder ----------
 const gapModal = id('gapModal');
 id('gapBtn').onclick = ()=> { gapModal.classList.add('show'); runGapFinder(); };
 id('gapClose').onclick  = ()=> gapModal.classList.remove('show');
 id('gapRun').onclick    = runGapFinder;
 id('gapExport').onclick = ()=> exportGapCsv();
-  id('gapUseFilters').onchange = runGapFinder;
-
+id('gapUseFilters').onchange = runGapFinder;
 
 let lastGap = [];
 
-// ONE source of truth for data universe (used by both tools)
+// ONE source of truth for data universe
 function getUniverse(useFilters){
   return useFilters ? filteredStores : allStores;
 }
+
 function storesWithinUniverse(center, rMiles, useFilters){
   const [lat,lng] = Array.isArray(center) ? center : [center.lat, center.lng];
   const src = getUniverse(useFilters);
@@ -1948,74 +1947,128 @@ function runGapFinder(){
   const universe = getUniverse(useFilt);
   const base = universe.filter(s => (s.coverageType || '') === 'Uncovered');
 
-  // group by city/state centroid
   const byCity = new Map();
+
   base.forEach(s=>{
     const key = `${(s.city||'').toLowerCase()}|${(s.state||'').toUpperCase()}`;
-    const g = byCity.get(key) || { city:s.city, state:s.state, lat:0, lng:0, n:0, am:new Set(), rm:new Set(), stores:[] };
-    g.lat += s.lat; g.lng += s.lng; g.n += 1;
+    const g = byCity.get(key) || {
+      city:s.city,
+      state:s.state,
+      lat:0,
+      lng:0,
+      n:0,
+      am:new Set(),
+      rm:new Set(),
+      stores:[]
+    };
+
+    g.lat += s.lat;
+    g.lng += s.lng;
+    g.n += 1;
+
     asManagerArray(s.areaManager).forEach(x => g.am.add(x));
     asManagerArray(s.regionalManager).forEach(x => g.rm.add(x));
     g.stores.push(s);
+
     byCity.set(key, g);
   });
 
   const rows = [];
+
   byCity.forEach(g=>{
     const center = { lat: g.lat/g.n, lng: g.lng/g.n };
-    const count = storesWithinUniverse([center.lat, center.lng], radiusMi, useFilt)
-      .filter(s => (s.coverageType || '') === 'Uncovered').length;
+
+    const uncoveredNearby = storesWithinUniverse([center.lat, center.lng], radiusMi, useFilt)
+      .filter(s => (s.coverageType || '') === 'Uncovered');
+
+    const count = uncoveredNearby.length;
+
     if (count >= minUncov){
       rows.push({
-        city:g.city, state:g.state,
+        city:g.city,
+        state:g.state,
         rm:[...g.rm].filter(Boolean).join('; '),
         am:[...g.am].filter(Boolean).join('; '),
-        count, center
+        count,
+        center,
+        storeCountInCity:g.n
       });
     }
   });
 
-  rows.sort((a,b)=> b.count - a.count);
+  // Rank biggest current gaps first.
+  rows.sort((a,b)=> b.count - a.count || String(a.state).localeCompare(String(b.state)) || String(a.city).localeCompare(String(b.city)));
+
   lastGap = rows.slice();
 
-  const html = `
+  const html = rows.length ? `
+    <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
+      <b>How to use:</b> This list ranks current uncovered clusters using active/confirmed RTS coverage only.
+      Higher-ranked locations are stronger candidates for future RTS hiring or repositioning.
+    </div>
+
     <table style="border-collapse:collapse;width:100%">
       <thead>
         <tr>
-          <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">City</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Rank</th>
+          <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Recommended Area</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">State</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">RM</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">AM</th>
-          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Uncovered (≤ ${radiusMi} mi)</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Current Gap Stores<br><span style="font-weight:400;color:var(--muted)">≤ ${radiusMi} mi</span></th>
           <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Action</th>
         </tr>
       </thead>
       <tbody>
-        ${rows.map(r=>`
+        ${rows.map((r,i)=>`
           <tr>
-            <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.city||'')}</td>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>#${i+1}</b></td>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0"><b>${escape(r.city||'')}</b></td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.state||'')}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.rm||'')}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.am||'')}</td>
-            <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.count}</td>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.count}</b></td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">
               <button type="button" class="mini gap-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox here</button>
             </td>
           </tr>`).join('')}
       </tbody>
-    </table>`;
-  id('gapResults').innerHTML = html || '<div style="color:var(--muted)">No gaps found.</div>';
+    </table>
+  ` : '<div style="color:var(--muted)">No current gaps found using the selected settings.</div>';
+
+  id('gapResults').innerHTML = html;
 }
 
 function exportGapCsv(){
   if (!lastGap.length){ alert('Run the gap finder first.'); return; }
-  const radiusMi = Math.max(1, Number(id('gapMiles').value)||50);
-  const rows = [['City','State','Regional Manager(s)','Area Manager(s)',`Uncovered (≤ ${radiusMi} mi)`, 'Center Lat','Center Lng']];
-  lastGap.forEach(r=> rows.push([r.city, r.state, r.rm, r.am, r.count, r.center.lat, r.center.lng]));
-  exportCsvWithToast(rows, `gap_finder_${Date.now()}.csv`);
-}
-// ---------- /Gap Finder ----------
 
+  const radiusMi = Math.max(1, Number(id('gapMiles').value)||50);
+
+  const rows = [[
+    'Rank',
+    'Recommended Area',
+    'State',
+    'Regional Manager(s)',
+    'Area Manager(s)',
+    `Current Gap Stores (≤ ${radiusMi} mi)`,
+    'Center Lat',
+    'Center Lng'
+  ]];
+
+  lastGap.forEach((r,i)=> rows.push([
+    i + 1,
+    r.city,
+    r.state,
+    r.rm,
+    r.am,
+    r.count,
+    r.center.lat,
+    r.center.lng
+  ]));
+
+  exportCsvWithToast(rows, `current_gap_finder_${Date.now()}.csv`);
+}
+// ---------- /Current Gap Finder ----------
   // ---------- Rollups (RM/AM) ----------
   const rollModal = id('rollupModal'); id('rollupBtn').onclick = ()=>{ rollModal.classList.add('show'); buildRollups(); }; id('rollupClose').onclick = ()=> rollModal.classList.remove('show');
   id('rollByRM').onchange = buildRollups; id('rollByAM').onchange = buildRollups;
