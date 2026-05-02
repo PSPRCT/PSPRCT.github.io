@@ -345,7 +345,7 @@
     <label class="toggle" title="Pin hubs to compare coverage"><input id="tgCompare" type="checkbox" />Compare</label>
     <label class="toggle" title="Filter: only stores inside any visible hub radius"><input id="tgWithin" type="checkbox" />Within hubs</label>
     <label class="toggle" title="Turn clustering on/off (useful when zoomed in)"><input id="tgCluster" type="checkbox" checked />Cluster</label>
-    <button id="sandboxBtn" class="btn" type="button" title="Test a new hub location">New-hub sandbox</button>
+    <button id="sandboxBtn" class="btn" type="button" title="Simulate adding a new RTS hub and estimate coverage impact">Simulate New RTS</button>
   </div>
 
   <!-- Compare/Venn panel -->
@@ -2983,8 +2983,11 @@ id('sandboxBtn').addEventListener('click', ()=>{
     d.className='sandbox';
     d.id='sandboxPanel';
     d.innerHTML = `
-      <h4>New-hub Sandbox</h4>
-      <div>Click the map to position the blue ring, <b>or</b> enter “lat,lng” below. Adjust radius as needed.</div>
+    <h4>Simulate New RTS</h4>
+<div>
+  Click the map or use Gap Finder → Sandbox here to test a possible new RTS location.
+  This is a simulation only until you add it as a confirmed or future hub.
+</div>
 
       <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
         <input id="sandboxAddr" type="text" placeholder="e.g. 33.52,-86.80"
