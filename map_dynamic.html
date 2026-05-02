@@ -1933,33 +1933,33 @@ if (gapResultsEl && !gapResultsEl._wiredSandbox) {
     const lng = parseFloat(btn.dataset.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-gapModal.classList.remove('show');
+    gapModal.classList.remove('show');
 
-setTimeout(()=>{
-  openSandboxAt(lat, lng);
+    setTimeout(()=>{
+      openSandboxAt(lat, lng);
 
-  // Remove the previous selected gap highlight, if one exists
-  if (gapHighlightMarker) {
-    map.removeLayer(gapHighlightMarker);
-    gapHighlightMarker = null;
-  }
+      if (gapHighlightMarker) {
+        map.removeLayer(gapHighlightMarker);
+        gapHighlightMarker = null;
+      }
 
-  // Add a clear visual marker for the selected gap area
-  gapHighlightMarker = L.circleMarker([lat, lng], {
-    radius: 11,
-    color: '#111',
-    weight: 3,
-    fillColor: '#ffcc00',
-    fillOpacity: 1
-  }).addTo(map);
+      gapHighlightMarker = L.circleMarker([lat, lng], {
+        radius: 11,
+        color: '#111',
+        weight: 3,
+        fillColor: '#ffcc00',
+        fillOpacity: 1
+      }).addTo(map);
 
-  gapHighlightMarker
-    .bindPopup('<b>Selected Gap Area</b><br>Sandbox ring placed here.')
-    .openPopup();
+      gapHighlightMarker
+        .bindPopup('<b>Selected Gap Area</b><br>Sandbox ring placed here.')
+        .openPopup();
 
-  map.setView([lat, lng], 8);
-  map.invalidateSize();
-}, 0);
+      map.setView([lat, lng], 8);
+      map.invalidateSize();
+    }, 0);
+  });
+
   gapResultsEl._wiredSandbox = true;
 }
 
