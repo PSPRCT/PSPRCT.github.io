@@ -2083,16 +2083,15 @@ id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
   id('rollTable').innerHTML = html || '<div style="color:var(--muted)">No data.</div>';
 }
 
-  function exportRollupsCsv(by, rows){
-  const groupLabel = by === 'RM' ? 'Regional Manager'
-                    : by === 'AM' ? 'Area Manager'
-                    : 'Group';
+function exportRollupsCsv(by, rows){
+  const groupLabel = by === 'RM' ? 'Regional Manager' : 'Area Manager';
 
   const header = [
     groupLabel,
-    'Premium-covered','Premium %',
-    'Acosta-only','Acosta %',
-    'Uncovered','Uncovered %',
+    'Combined Coverage','Combined %',
+    'Premium Coverage','Premium %',
+    'Acosta Coverage','Acosta %',
+    'Current Gap','Gap %',
     'Total'
   ];
 
@@ -2100,18 +2099,21 @@ id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
 
   const data = rows.map(r=>[
     r.key,
-    r.premiumCovered, pct(r.premiumCovered,r.total),
-    r.acostaOnly,     pct(r.acostaOnly,r.total),
-    r.uncovered,      pct(r.uncovered,r.total),
+    r.combinedCoverage, pct(r.combinedCoverage,r.total),
+    r.premiumCoverage,  pct(r.premiumCoverage,r.total),
+    r.acostaCoverage,   pct(r.acostaCoverage,r.total),
+    r.uncovered,        pct(r.uncovered,r.total),
     r.total
   ]);
 
-  const csv = [header, ...data].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const csv = [header, ...data]
+    .map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','))
+    .join('\n');
 
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `rollups_by_${by.toLowerCase()}.csv`;
+  a.download = `rollups_by_${by.toLowerCase()}_${Date.now()}.csv`;
   document.body.appendChild(a);
   a.click();
   URL.revokeObjectURL(a.href);
