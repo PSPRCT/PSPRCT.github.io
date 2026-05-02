@@ -3110,13 +3110,24 @@ function refreshSandbox(){
   // sandbox follows Gap Finder's "Use current filters" so both always match
   const useFilt = !!id('gapUseFilters')?.checked;
   const inRadius = storesWithinUniverse([c.lat, c.lng], rMiles, useFilt);
-  const uncoveredList = inRadius.filter(s => (s.coverageType||'') === 'Uncovered');
+const uncoveredList = inRadius.filter(s => (s.coverageType||'') === 'Uncovered');
+
+// Net-new impact = stores currently uncovered that would become covered
+// if an active RTS were placed at this simulated location.
+const netNewCovered = uncoveredList.length;
+const currentCoveredTotal = allStores.filter(s => (s.coverageType||'') !== 'Uncovered').length;
+const projectedCoveredTotal = currentCoveredTotal + netNewCovered;
+const projectedCoveragePct = allStores.length
+  ? Math.round(projectedCoveredTotal * 1000 / allStores.length) / 10
+  : 0;
 
   const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
   inRadius.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0)+1; });
 
   id('sandboxStats').innerHTML = `
-    <div><b>${uncoveredList.length}</b> uncovered within <b>${rMiles} mi</b> (of <b>${inRadius.length}</b> total stores)</div>
+ <div><b>Projected net-new coverage:</b> ${netNewCovered} stores</div>
+<div><b>Projected national coverage:</b> ${projectedCoveredTotal} / ${allStores.length} stores (${projectedCoveragePct}%)</div>
+<div style="color:var(--muted);margin-top:4px">${uncoveredList.length} currently uncovered stores within <b>${rMiles} mi</b> of this simulated RTS location.</div>
     <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
       <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
       <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
