@@ -1933,8 +1933,13 @@ if (gapResultsEl && !gapResultsEl._wiredSandbox) {
     const lng = parseFloat(btn.dataset.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-    gapModal.classList.remove('show');
-    setTimeout(()=>{ openSandboxAt(lat, lng); map.invalidateSize(); }, 0);
+gapModal.classList.remove('show');
+
+setTimeout(()=>{
+  openSandboxAt(lat, lng);
+  map.setView([lat, lng], 8);
+  map.invalidateSize();
+}, 0);
   });
   gapResultsEl._wiredSandbox = true;
 }
