@@ -266,7 +266,7 @@
   </div>
 
   <!-- Analysis buttons -->
-  <button id="gapBtn" class="btn" type="button" title="Find cities with uncovered clusters">Gap finder</button>
+  <button id="gapBtn" class="btn" type="button" title="Find current uncovered store clusters based on active RTS coverage only">Current Gap Finder</button>
   <button id="rollupBtn" class="btn" type="button" title="Totals by RM/AM">Rollups</button>
 
   <button id="helpBtn" class="btn" type="button" title="Quick tips and shortcuts">Help</button>
@@ -432,11 +432,14 @@
 <div class="modal" id="gapModal" aria-modal="true" role="dialog">
   <div class="card">
     <header>
-      <h3>Gap finder</h3>
+     <h3>Current Gap Finder</h3>
       <button id="gapClose" class="btn" type="button">Close</button>
     </header>
     <div class="body" style="grid-template-columns:1fr;">
       <div>
+        <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
+  Current Gap Finder uses active/confirmed RTS coverage only. Future or pending hubs may appear on the map if toggled on, but they do not reduce current gap counts.
+</div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
   <label class="toggle" title="Only show clusters at least this big">Min uncovered
     <input id="gapMin" type="number" value="10" style="width:80px;margin-left:8px">
