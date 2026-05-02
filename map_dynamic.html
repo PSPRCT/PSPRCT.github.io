@@ -2005,7 +2005,7 @@ id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
 
   let lastRoll = { rows:[], by:'RM' };
 
-  function buildRollups(){
+ function buildRollups(){
   const by = id('rollByAM').checked ? 'AM' : 'RM';
   const managerListFor = s => by === 'RM' ? asManagerArray(s.regionalManager) : asManagerArray(s.areaManager);
   const byMap = new Map();
@@ -2013,10 +2013,29 @@ id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
   filteredStores.forEach(s=>{
     const keys = managerListFor(s);
     (keys.length ? keys : ['(Blank)']).forEach(k=>{
-      const g = byMap.get(k) || { key:k, premiumCovered:0, acostaOnly:0, uncovered:0, total:0 };
-      if (s.coverageType === 'Premium + Acosta' || s.coverageType === 'Premium Only') g.premiumCovered++;
-      else if (s.coverageType === 'Acosta Only') g.acostaOnly++;
-      else g.uncovered++;
+      const g = byMap.get(k) || {
+        key:k,
+        combinedCoverage:0,
+        premiumCoverage:0,
+        acostaCoverage:0,
+        uncovered:0,
+        total:0
+      };
+
+      if (s.coverageType === 'Premium + Acosta') {
+        g.combinedCoverage++;
+        g.premiumCoverage++;
+        g.acostaCoverage++;
+      } else if (s.coverageType === 'Premium Only') {
+        g.combinedCoverage++;
+        g.premiumCoverage++;
+      } else if (s.coverageType === 'Acosta Only') {
+        g.combinedCoverage++;
+        g.acostaCoverage++;
+      } else {
+        g.uncovered++;
+      }
+
       g.total++;
       byMap.set(k,g);
     });
@@ -2026,20 +2045,20 @@ id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
   lastRoll = { rows, by };
 
   const pct = (n,t)=> t? (Math.round(n*1000/t)/10)+'%':'0%';
-  const groupLabel = by === 'RM' ? 'Regional Manager'
-                    : by === 'AM' ? 'Area Manager'
-                    : 'Group';
+  const groupLabel = by === 'RM' ? 'Regional Manager' : 'Area Manager';
 
   const html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead>
       <tr>
         <th style="padding:6px;text-align:left">${groupLabel}</th>
-        <th style="padding:6px;text-align:right">Premium-covered</th>
+        <th style="padding:6px;text-align:right">Combined Coverage</th>
+        <th style="padding:6px;text-align:right">Combined %</th>
+        <th style="padding:6px;text-align:right">Premium Coverage</th>
         <th style="padding:6px;text-align:right">Premium %</th>
-        <th style="padding:6px;text-align:right">Acosta-only</th>
+        <th style="padding:6px;text-align:right">Acosta Coverage</th>
         <th style="padding:6px;text-align:right">Acosta %</th>
-        <th style="padding:6px;text-align:right">Uncovered</th>
-        <th style="padding:6px;text-align:right">Uncovered %</th>
+        <th style="padding:6px;text-align:right">Current Gap</th>
+        <th style="padding:6px;text-align:right">Gap %</th>
         <th style="padding:6px;text-align:right">Total</th>
       </tr>
     </thead>
@@ -2047,10 +2066,12 @@ id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
       ${rows.map(r=>`
         <tr>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.key)}</td>
-          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.premiumCovered}</td>
-          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.premiumCovered,r.total)}</td>
-          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.acostaOnly}</td>
-          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.acostaOnly,r.total)}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.combinedCoverage}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.combinedCoverage,r.total)}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.premiumCoverage}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.premiumCoverage,r.total)}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.acostaCoverage}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.acostaCoverage,r.total)}</td>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.uncovered}</td>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.uncovered,r.total)}</td>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.total}</b></td>
