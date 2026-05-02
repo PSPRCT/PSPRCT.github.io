@@ -313,12 +313,12 @@
 <div id="dataStatus" style="padding:6px 10px;color:var(--fg);font-size:12px"></div>
 
 <div class="summary" id="summary">
-<span class="chip"><span class="dot" style="background:var(--pa)"></span>P+A: <b id="k_pa">0</b></span>
-<span class="chip"><span class="dot" style="background:var(--p)"></span>Premium: <b id="k_p">0</b></span>
-<span class="chip"><span class="dot" style="background:var(--a)"></span>Acosta: <b id="k_a">0</b></span>
-<span class="chip"><span class="dot" style="background:var(--u)"></span>Uncov: <b id="k_u">0</b></span>
+<span class="chip"><span class="dot" style="background:var(--pa)"></span>Combined Coverage: <b id="k_pa">0</b></span>
+<span class="chip"><span class="dot" style="background:var(--p)"></span>Premium Coverage: <b id="k_p">0</b></span>
+<span class="chip"><span class="dot" style="background:var(--a)"></span>Acosta Coverage: <b id="k_a">0</b></span>
+<span class="chip"><span class="dot" style="background:var(--u)"></span>Current Gap / Uncovered: <b id="k_u">0</b></span>
 <span class="chip">Total: <b id="k_total">0</b></span>
-  <span class="chip">RTS Hubs — <b id="k_confirmed">0</b> active / <b id="k_pending">0</b> future display-only</span>
+<span class="chip">RTS Hubs — <b id="k_confirmed">0</b> active / <b id="k_pending">0</b> future display-only</span>
   <span class="muted" id="inView">In view: 0</span>
 </div>
 <div class="summary" id="datasetBadge"></div>
@@ -1265,11 +1265,14 @@ const paCount = by['Premium + Acosta'] || 0;
 const premiumOnlyCount = by['Premium Only'] || 0;
 const acostaOnlyCount = by['Acosta Only'] || 0;
 const uncoveredCount = by['Uncovered'] || 0;
-const activeCoveredCount = paCount + premiumOnlyCount + acostaOnlyCount;
 
-k.pa.textContent = `${paCount} (${pct(paCount)})`;
-k.p.textContent  = `${activeCoveredCount} (${pct(activeCoveredCount)})`;
-k.a.textContent  = `${acostaOnlyCount} (${pct(acostaOnlyCount)})`;
+const premiumCoverageCount = paCount + premiumOnlyCount;
+const acostaCoverageCount = paCount + acostaOnlyCount;
+const combinedCoverageCount = paCount + premiumOnlyCount + acostaOnlyCount;
+
+k.pa.textContent = `${combinedCoverageCount} (${pct(combinedCoverageCount)})`;
+k.p.textContent  = `${premiumCoverageCount} (${pct(premiumCoverageCount)})`;
+k.a.textContent  = `${acostaCoverageCount} (${pct(acostaCoverageCount)})`;
 k.u.textContent  = `${uncoveredCount} (${pct(uncoveredCount)})`;
 
 k.total.textContent     = total;
