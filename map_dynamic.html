@@ -1261,15 +1261,20 @@ try {
     const by = { 'Premium + Acosta':0, 'Premium Only':0, 'Acosta Only':0, 'Uncovered':0 };
     filteredStores.forEach(s => { by[s.coverageType] = (by[s.coverageType] || 0) + 1; });
     const pct = (n) => total ? Math.round(n * 100 / total) + '%' : '0%';
+const paCount = by['Premium + Acosta'] || 0;
+const premiumOnlyCount = by['Premium Only'] || 0;
+const acostaOnlyCount = by['Acosta Only'] || 0;
+const uncoveredCount = by['Uncovered'] || 0;
+const activeCoveredCount = paCount + premiumOnlyCount + acostaOnlyCount;
 
-    k.pa.textContent = `${by['Premium + Acosta']||0} (${pct(by['Premium + Acosta']||0)})`;
-    k.p.textContent  = `${by['Premium Only']||0} (${pct(by['Premium Only']||0)})`;
-    k.a.textContent  = `${by['Acosta Only']||0} (${pct(by['Acosta Only']||0)})`;
-    k.u.textContent  = `${by['Uncovered']||0} (${pct(by['Uncovered']||0)})`;
+k.pa.textContent = `${paCount} (${pct(paCount)})`;
+k.p.textContent  = `${activeCoveredCount} (${pct(activeCoveredCount)})`;
+k.a.textContent  = `${acostaOnlyCount} (${pct(acostaOnlyCount)})`;
+k.u.textContent  = `${uncoveredCount} (${pct(uncoveredCount)})`;
 
-    k.total.textContent    = total;
-    k.confirmed.textContent = premiumConfirmed.length;
-    k.pending.textContent   = premiumPending.length;
+k.total.textContent     = total;
+k.confirmed.textContent = premiumConfirmed.length;
+k.pending.textContent   = premiumPending.length;
   }
 
   function updateInViewCount(){
