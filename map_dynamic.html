@@ -2245,10 +2245,12 @@ function storesWithinAll(center, r){
 
 function buildHubFilterOptions(){
   // visible hubs only (respect toggles)
-  let hubs = [];
-  if (showConfirmed?.checked) hubs = hubs.concat(premiumConfirmed || []);
-  if (showPending?.checked)   hubs = hubs.concat(premiumPending   || []);
-  if (showAcosta?.checked)    hubs = hubs.concat(acostaHubs       || []);
+// Hub Filter should only include active/current RTS hubs.
+// Pending/future hubs remain visible on the map if toggled on,
+// but they should not affect operational filtering.
+let hubs = [];
+if (showConfirmed?.checked) hubs = hubs.concat(premiumConfirmed || []);
+if (showAcosta?.checked)    hubs = hubs.concat(acostaHubs       || []);
 
   // dedupe by id
   const seen = new Set();
