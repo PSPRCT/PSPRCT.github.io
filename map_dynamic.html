@@ -1402,13 +1402,19 @@ function hubDisplay(h){
 
   // ---------- Coverage (Web Worker) ----------
   async function recomputeCoverage(){
-    const msg = {
-      action:'classify',
-      radius: CLASSIFY_RADIUS,
-      stores: allStores.map(s => ({ id:s.storeNumberStr, lat:s.lat, lng:s.lng })),
-      premium: [...premiumConfirmed, ...premiumPending].map(h=>({ lat:h.coords[0], lng:h.coords[1] })),
-      acosta: acostaHubs.map(h=>({ lat:h.coords[0], lng:h.coords[1] }))
-    };
+  const msg = {
+  action:'classify',
+  radius: CLASSIFY_RADIUS,
+  stores: allStores.map(s => ({ id:s.storeNumberStr, lat:s.lat, lng:s.lng })),
+
+  // IMPORTANT:
+  // Only confirmed/active Premium RTS hubs should count toward real coverage.
+  // Pending/future hiring hubs remain visible on the map if toggled on,
+  // but they do NOT classify stores as covered.
+  premium: premiumConfirmed.map(h=>({ lat:h.coords[0], lng:h.coords[1] })),
+
+  acosta: acostaHubs.map(h=>({ lat:h.coords[0], lng:h.coords[1] }))
+};
     const res = await callWorker(msg);
     // apply coverage
     const mapC = new Map(res.coverage); // [[id,'Premium Only'], ...]
