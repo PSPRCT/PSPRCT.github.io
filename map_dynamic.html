@@ -2126,6 +2126,8 @@ function exportGapCsv(){
     'Regional Manager(s)',
     'Area Manager(s)',
     `Current Gap Stores (≤ ${radiusMi} mi)`,
+    'Nearest Active RTS',
+'Miles from RTS',
 'Nearby Areas Rolled In',
 'Center Lat',
 'Center Lng'
@@ -2138,6 +2140,8 @@ function exportGapCsv(){
     r.rm,
     r.am,
     r.count,
+    r.nearestHubName || '',
+r.nearestHubMiles == null ? '' : Math.round(r.nearestHubMiles),
 (r.nearbyAreas || []).join('; '),
 r.center.lat,
 r.center.lng
