@@ -2036,10 +2036,12 @@ function runGapFinder(){
   });
 
 
-    rows.sort((a,b)=> b.gapScore - a.gapScore || b.count - a.count
-    String(a.state).localeCompare(String(b.state)) ||
-    String(a.city).localeCompare(String(b.city))
-  );
+  rows.sort((a,b)=>
+  b.gapScore - a.gapScore ||
+  b.count - a.count ||
+  String(a.state).localeCompare(String(b.state)) ||
+  String(a.city).localeCompare(String(b.city))
+);
 
   const consolidated = [];
 
@@ -2152,7 +2154,7 @@ function exportGapCsv(){
     r.count,
     r.nearestHubName || '',
 r.nearestHubMiles == null ? '' : Math.round(r.nearestHubMiles),
-(r.nearbyAreas || []).join('; '),
+(r.nearbyAreas || []).map(x => typeof x === 'string' ? x : `${x.label} (${x.count})`).join('; '),
 r.center.lat,
 r.center.lng
   ]));
