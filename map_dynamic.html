@@ -2048,8 +2048,11 @@ function runGapFinder(){
     );
 
     if (existing) {
-      existing.nearbyAreas.push(`${r.city}, ${r.state}`);
-      existing.altCount = (existing.altCount || 0) + 1;
+ existing.nearbyAreas.push({
+  label: `${r.city}, ${r.state}`,
+  count: r.count
+});
+existing.altCount = (existing.altCount || 0) + 1;
 
       existing.rm = uniqueStrings([
         ...existing.rm.split('; ').filter(Boolean),
@@ -2101,7 +2104,11 @@ function runGapFinder(){
             <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.nearestHubName || '—')}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.nearestHubMiles == null ? '—' : Math.round(r.nearestHubMiles)}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;color:var(--muted);font-size:12px">
-              ${r.nearbyAreas.length ? escape(r.nearbyAreas.slice(0,6).join('; ')) + (r.nearbyAreas.length > 6 ? '…' : '') : '—'}
+              ${r.nearbyAreas.length ? escape(r.nearbyAreas
+  .sort((a,b)=> b.count - a.count)
+  .slice(0,4)
+  .map(x => `${x.label} (${x.count})`)
+  .join('; ')) + (r.nearbyAreas.length > 4 ? '…' : '') : '—'}
             </td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">
               <button type="button" class="mini gap-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox here</button>
