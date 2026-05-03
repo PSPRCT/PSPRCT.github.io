@@ -1902,13 +1902,18 @@ function printSidepanelList() {
   }
 // ---------- Current Gap Finder ----------
 const gapModal = id('gapModal');
-id('gapBtn').onclick = ()=> { gapModal.classList.add('show'); runGapFinder(); };
+id('gapBtn').onclick = ()=> {
+  activeGapContext = null;
+  gapModal.classList.add('show');
+  runGapFinder();
+};
 id('gapClose').onclick  = ()=> gapModal.classList.remove('show');
 id('gapRun').onclick    = runGapFinder;
 id('gapExport').onclick = ()=> exportGapCsv();
 id('gapUseFilters').onchange = runGapFinder;
 
 let lastGap = [];
+  let activeGapContext = null;
 
 // ONE source of truth for data universe
 function getUniverse(useFilters){
@@ -2078,7 +2083,14 @@ existing.altCount = (existing.altCount || 0) + 1;
   lastGap = consolidated.slice();
   const rowsToShow = consolidated;
 
-  const html = rowsToShow.length ? `
+  const contextHeader = activeGapContext
+  ? `<div style="margin-bottom:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#f8fafc">
+      <b>Gap Summary for ${escape(activeGapContext.label)}:</b> ${escape(activeGapContext.managerName)}
+    </div>`
+  : '';
+
+const html = rowsToShow.length ? `
+  ${contextHeader}
     <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
  <b>How to use:</b> This list ranks current uncovered clusters using active/confirmed RTS coverage only.
 Higher-ranked locations are stronger candidates for future RTS hiring or repositioning.
@@ -2278,10 +2290,8 @@ id('rollTable').addEventListener('click', (e)=>{
 });
 
 function drillIntoManager(rollBy, managerName){
-  // Close Rollups so the map + Gap Finder can take over.
   rollModal.classList.remove('show');
 
-  // Reset manager filters before applying the selected manager.
   setMulti(rmFilter, ['All']);
   setMulti(amFilter, ['All']);
 
@@ -2293,6 +2303,12 @@ function drillIntoManager(rollBy, managerName){
     cascadeRM();
   }
 
+  activeGapContext = {
+    rollBy,
+    managerName,
+    label: rollBy === 'RM' ? 'Regional Manager' : 'Area Manager'
+  };
+
   lastFilterChanged = rollBy === 'RM' ? 'rmFilter' : 'amFilter';
 
   buildHubFilterOptions();
@@ -2301,10 +2317,10 @@ function drillIntoManager(rollBy, managerName){
   renderChips();
   saveState();
 
-  // Open Gap Finder using the manager-filtered store universe.
   gapModal.classList.add('show');
   id('gapUseFilters').checked = true;
   runGapFinder();
+}
 
   const label = rollBy === 'RM' ? 'Regional Manager' : 'Area Manager';
   alert(`Showing gap summary for ${label}: ${managerName}`);
