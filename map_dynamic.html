@@ -2030,14 +2030,14 @@ function runGapFinder(){
         storeCountInCity:g.n,
         nearestHubName: nearestHub ? hubDisplay(nearestHub) : '',
         nearestHubMiles: Number.isFinite(nearestMiles) ? nearestMiles : null,
-        gapScore: count - Math.round(Number.isFinite(nearestMiles) ? nearestMiles : 0)
+        priorityScore: count + Math.round((Number.isFinite(nearestMiles) ? nearestMiles : 0) / 10)
       });
     }
   });
 
 
-  rows.sort((a,b)=>
-  b.gapScore - a.gapScore ||
+rows.sort((a,b)=>
+  b.priorityScore - a.priorityScore ||
   b.count - a.count ||
   String(a.state).localeCompare(String(b.state)) ||
   String(a.city).localeCompare(String(b.city))
@@ -2080,8 +2080,10 @@ existing.altCount = (existing.altCount || 0) + 1;
 
   const html = rowsToShow.length ? `
     <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
-      <b>How to use:</b> This list ranks current uncovered clusters using active/confirmed RTS coverage only.
-      Higher-ranked locations are stronger candidates for future RTS hiring or repositioning.
+ <b>How to use:</b> This list ranks current uncovered clusters using active/confirmed RTS coverage only.
+Higher-ranked locations are stronger candidates for future RTS hiring or repositioning.
+<br><br>
+<b>Priority Score:</b> Current gap stores + distance bonus. The distance bonus adds 1 point for every 10 miles from the nearest active RTS.
     </div>
 
     <table style="border-collapse:collapse;width:100%">
@@ -2091,7 +2093,7 @@ existing.altCount = (existing.altCount || 0) + 1;
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Recommended Area</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">State</th>
           <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Current Gap Stores<br><span style="font-weight:400;color:var(--muted)">≤ ${radiusMi} mi</span></th>
-          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Gap Score</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Priority Score</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Nearest Active RTS</th>
           <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Miles from RTS</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Nearby Areas Rolled In</th>
@@ -2105,7 +2107,7 @@ existing.altCount = (existing.altCount || 0) + 1;
             <td style="padding:6px;border-bottom:1px solid #f0f0f0"><b>${escape(r.city||'')}</b></td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.state||'')}</td>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.count}</b></td>
-<td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.gapScore}</b></td>
+<td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.priorityScore}</b></td>
 <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.nearestHubName || '—')}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.nearestHubMiles == null ? '—' : Math.round(r.nearestHubMiles)}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;color:var(--muted);font-size:12px">
