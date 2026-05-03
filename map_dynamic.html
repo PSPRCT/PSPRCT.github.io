@@ -1998,6 +1998,7 @@ function runGapFinder(){
   });
 
   const rows = [];
+  const activeHubs = [...premiumConfirmed, ...acostaHubs];
 
   byCity.forEach(g=>{
     const center = { lat: g.lat/g.n, lng: g.lng/g.n };
@@ -2008,37 +2009,37 @@ function runGapFinder(){
     const count = uncoveredNearby.length;
 
     if (count >= minUncov){
-const activeHubs = [...premiumConfirmed, ...acostaHubs];
+      let nearestHub = null;
+      let nearestMiles = Infinity;
 
-let nearestHub = null;
-let nearestMiles = Infinity;
+      activeHubs.forEach(h=>{
+        const d = distMiles(center.lat, center.lng, h.coords[0], h.coords[1]);
+        if (d < nearestMiles) {
+          nearestMiles = d;
+          nearestHub = h;
+        }
+      });
 
-activeHubs.forEach(h=>{
-  const d = distMiles(center.lat, center.lng, h.coords[0], h.coords[1]);
-  if (d < nearestMiles) {
-    nearestMiles = d;
-    nearestHub = h;
-  }
-});
+      rows.push({
+        city:g.city,
+        state:g.state,
+        rm:[...g.rm].filter(Boolean).join('; '),
+        am:[...g.am].filter(Boolean).join('; '),
+        count,
+        center,
+        storeCountInCity:g.n,
+        nearestHubName: nearestHub ? hubDisplay(nearestHub) : '',
+        nearestHubMiles: Number.isFinite(nearestMiles) ? nearestMiles : null
+      });
+    }
+  });
 
-rows.push({
-  city:g.city,
-  state:g.state,
-  rm:[...g.rm].filter(Boolean).join('; '),
-  am:[...g.am].filter(Boolean).join('; '),
-  count,
-  center,
-  storeCountInCity:g.n,
-  nearestHubName: nearestHub ? hubDisplay(nearestHub) : '',
-  nearestHubMiles: Number.isFinite(nearestMiles) ? nearestMiles : null
-});
+  rows.sort((a,b)=>
+    b.count - a.count ||
+    String(a.state).localeCompare(String(b.state)) ||
+    String(a.city).localeCompare(String(b.city))
+  );
 
-  // Rank biggest current gaps first.
-   // Rank biggest current gaps first.
-  rows.sort((a,b)=> b.count - a.count || String(a.state).localeCompare(String(b.state)) || String(a.city).localeCompare(String(b.city)));
-
-  // Consolidate nearby city recommendations so the same metro area only shows once.
-  // Example: Houston / Sugar Land / Richmond should roll into one recommended area.
   const consolidated = [];
 
   rows.forEach(r=>{
@@ -2050,7 +2051,6 @@ rows.push({
       existing.nearbyAreas.push(`${r.city}, ${r.state}`);
       existing.altCount = (existing.altCount || 0) + 1;
 
-      // Merge manager names for context
       existing.rm = uniqueStrings([
         ...existing.rm.split('; ').filter(Boolean),
         ...r.rm.split('; ').filter(Boolean)
@@ -2070,8 +2070,7 @@ rows.push({
   });
 
   lastGap = consolidated.slice();
-
-    const rowsToShow = consolidated;
+  const rowsToShow = consolidated;
 
   const html = rowsToShow.length ? `
     <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
@@ -2087,15 +2086,15 @@ rows.push({
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">State</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">RM</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">AM</th>
-        <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Current Gap Stores<br><span style="font-weight:400;color:var(--muted)">≤ ${radiusMi} mi</span></th>
-<th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Nearest Active RTS</th>
-<th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Miles from RTS</th>
-<th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Nearby Areas Rolled In</th>
-<th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Action</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Current Gap Stores<br><span style="font-weight:400;color:var(--muted)">≤ ${radiusMi} mi</span></th>
+          <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Nearest Active RTS</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Miles from RTS</th>
+          <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Nearby Areas Rolled In</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Action</th>
         </tr>
       </thead>
       <tbody>
-                ${rowsToShow.map((r,i)=>`
+        ${rowsToShow.map((r,i)=>`
           <tr>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>#${i+1}</b></td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0"><b>${escape(r.city||'')}</b></td>
@@ -2103,14 +2102,12 @@ rows.push({
             <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.rm||'')}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.am||'')}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.count}</b></td>
-<td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.nearestHubName || '—')}</td>
-<td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">
-  ${r.nearestHubMiles == null ? '—' : Math.round(r.nearestHubMiles)}
-</td>
-<td style="padding:6px;border-bottom:1px solid #f0f0f0;color:var(--muted);font-size:12px">
-  ${r.nearbyAreas.length ? escape(r.nearbyAreas.slice(0,6).join('; ')) + (r.nearbyAreas.length > 6 ? '…' : '') : '—'}
-</td>
-<td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.nearestHubName || '—')}</td>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.nearestHubMiles == null ? '—' : Math.round(r.nearestHubMiles)}</td>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0;color:var(--muted);font-size:12px">
+              ${r.nearbyAreas.length ? escape(r.nearbyAreas.slice(0,6).join('; ')) + (r.nearbyAreas.length > 6 ? '…' : '') : '—'}
+            </td>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">
               <button type="button" class="mini gap-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox here</button>
             </td>
           </tr>`).join('')}
