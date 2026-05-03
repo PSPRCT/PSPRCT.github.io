@@ -1968,48 +1968,39 @@ if (gapResultsEl && !gapResultsEl._wiredSandbox) {
   gapResultsEl._wiredSandbox = true;
 }
 
-  function buildManagerScorecard(universe){
+function buildManagerScorecard(universe){
   if (!activeGapContext) return '';
 
-  const stores = universe;
+  const stores = universe || [];
   if (!stores.length) return '';
 
   const total = stores.length;
 
-  const coveredPremium = stores.filter(s => s.coverageType === 'Premium').length;
-  const coveredAcosta  = stores.filter(s => s.coverageType === 'Acosta').length;
-  const coveredCombined = stores.filter(s => (s.coverageType || '') !== 'Uncovered').length;
+  const paCount = stores.filter(s => s.coverageType === 'Premium + Acosta').length;
+  const premiumOnlyCount = stores.filter(s => s.coverageType === 'Premium Only').length;
+  const acostaOnlyCount = stores.filter(s => s.coverageType === 'Acosta Only').length;
   const uncovered = stores.filter(s => (s.coverageType || '') === 'Uncovered').length;
 
-  const pct = (n)=> total ? Math.round((n/total)*100) : 0;
+  const premiumCovered = paCount + premiumOnlyCount;
+  const acostaCovered = paCount + acostaOnlyCount;
+  const combinedCovered = paCount + premiumOnlyCount + acostaOnlyCount;
 
-  // Top 3 gap areas (by city/state)
-  const gapMap = new Map();
-  stores.forEach(s=>{
-    if ((s.coverageType || '') !== 'Uncovered') return;
-    const key = `${s.city}|${s.state}`;
-    gapMap.set(key, (gapMap.get(key) || 0) + 1);
-  });
-
-  const topGaps = [...gapMap.entries()]
-    .sort((a,b)=> b[1]-a[1])
-    .slice(0,3)
-    .map(([k,v])=> `${k} (${v})`)
-    .join(', ') || '—';
+  const pct = n => total ? Math.round((n / total) * 100) : 0;
 
   return `
     <div style="margin-bottom:10px;padding:10px;border:1px solid var(--border);border-radius:10px;background:#f8fafc">
       <div style="font-weight:800;margin-bottom:6px">
         ${escape(activeGapContext.label)}: ${escape(activeGapContext.managerName)}
       </div>
+
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:13px">
         <div><b>Total Stores:</b> ${total}</div>
-        <div><b>Covered (Combined):</b> ${coveredCombined} (${pct(coveredCombined)}%)</div>
-        <div><b>Uncovered:</b> ${uncovered} (${pct(uncovered)}%)</div>
+        <div><b>Covered Combined:</b> ${combinedCovered} (${pct(combinedCovered)}%)</div>
+        <div><b>Current Gap:</b> ${uncovered} (${pct(uncovered)}%)</div>
 
-        <div><b>Premium Covered:</b> ${coveredPremium} (${pct(coveredPremium)}%)</div>
-        <div><b>Acosta Covered:</b> ${coveredAcosta} (${pct(coveredAcosta)}%)</div>
-        <div><b>Top Gap Areas:</b> ${escape(topGaps)}</div>
+        <div><b>Premium Coverage:</b> ${premiumCovered} (${pct(premiumCovered)}%)</div>
+        <div><b>Acosta Coverage:</b> ${acostaCovered} (${pct(acostaCovered)}%)</div>
+        <div><b>Shared P+A Coverage:</b> ${paCount} (${pct(paCount)}%)</div>
       </div>
     </div>
   `;
