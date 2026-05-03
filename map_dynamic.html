@@ -2021,11 +2021,46 @@ function runGapFinder(){
   });
 
   // Rank biggest current gaps first.
+   // Rank biggest current gaps first.
   rows.sort((a,b)=> b.count - a.count || String(a.state).localeCompare(String(b.state)) || String(a.city).localeCompare(String(b.city)));
 
-  lastGap = rows.slice();
+  // Consolidate nearby city recommendations so the same metro area only shows once.
+  // Example: Houston / Sugar Land / Richmond should roll into one recommended area.
+  const consolidated = [];
 
-  const html = rows.length ? `
+  rows.forEach(r=>{
+    const existing = consolidated.find(x =>
+      distMiles(r.center.lat, r.center.lng, x.center.lat, x.center.lng) <= radiusMi
+    );
+
+    if (existing) {
+      existing.nearbyAreas.push(`${r.city}, ${r.state}`);
+      existing.altCount = (existing.altCount || 0) + 1;
+
+      // Merge manager names for context
+      existing.rm = uniqueStrings([
+        ...existing.rm.split('; ').filter(Boolean),
+        ...r.rm.split('; ').filter(Boolean)
+      ]).join('; ');
+
+      existing.am = uniqueStrings([
+        ...existing.am.split('; ').filter(Boolean),
+        ...r.am.split('; ').filter(Boolean)
+      ]).join('; ');
+    } else {
+      consolidated.push({
+        ...r,
+        nearbyAreas: [],
+        altCount: 0
+      });
+    }
+  });
+
+  lastGap = consolidated.slice();
+
+    const rowsToShow = consolidated;
+
+  const html = rowsToShow.length ? `
     <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
       <b>How to use:</b> This list ranks current uncovered clusters using active/confirmed RTS coverage only.
       Higher-ranked locations are stronger candidates for future RTS hiring or repositioning.
@@ -2040,11 +2075,12 @@ function runGapFinder(){
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">RM</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">AM</th>
           <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Current Gap Stores<br><span style="font-weight:400;color:var(--muted)">≤ ${radiusMi} mi</span></th>
-          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Action</th>
+<th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Nearby Areas Rolled In</th>
+<th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Action</th>
         </tr>
       </thead>
       <tbody>
-        ${rows.map((r,i)=>`
+                ${rowsToShow.map((r,i)=>`
           <tr>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>#${i+1}</b></td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0"><b>${escape(r.city||'')}</b></td>
@@ -2052,7 +2088,10 @@ function runGapFinder(){
             <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.rm||'')}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.am||'')}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.count}</b></td>
-            <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">
+<td style="padding:6px;border-bottom:1px solid #f0f0f0;color:var(--muted);font-size:12px">
+  ${r.nearbyAreas.length ? escape(r.nearbyAreas.slice(0,6).join('; ')) + (r.nearbyAreas.length > 6 ? '…' : '') : '—'}
+</td>
+<td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">
               <button type="button" class="mini gap-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox here</button>
             </td>
           </tr>`).join('')}
