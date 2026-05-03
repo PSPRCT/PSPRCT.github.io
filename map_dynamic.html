@@ -552,6 +552,38 @@
   </div>
 </div>
 
+
+<!-- Suggest RTS City modal -->
+<div class="modal" id="suggestModal" aria-modal="true" role="dialog">
+  <div class="card" style="max-width:1100px;width:94vw">
+    <header>
+      <h3>Suggest RTS City</h3>
+      <button id="suggestClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body" style="grid-template-columns:1fr;">
+      <div class="priority-tools">
+        <label class="toggle" title="Only show posting areas with at least this many currently uncovered stores">Min uncovered
+          <input id="suggestMin" type="number" value="25" style="width:80px;margin-left:8px">
+        </label>
+        <label class="toggle" title="RTS coverage radius used for this suggestion">Radius (mi)
+          <input id="suggestMiles" type="number" value="75" style="width:80px;margin-left:8px">
+        </label>
+        <label class="toggle" title="When checked, suggestions use the stores currently visible after filters. When unchecked, suggestions use all stores.">
+          <input id="suggestUseFilters" type="checkbox"> Use current filters
+        </label>
+        <button id="suggestRun" class="btn" type="button">Run</button>
+        <button id="suggestExport" class="btn" type="button">Export CSV</button>
+      </div>
+      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
+        <b>How to use:</b> This ranks the best current RTS posting areas using active/confirmed RTS coverage only.
+        It tests current uncovered clusters and estimates how many currently uncovered stores a single RTS could cover within the selected radius.
+        <br><b>Important:</b> This is a planning recommendation. It does not add a permanent RTS until you update your source JSON.
+      </div>
+      <div id="suggestResults" style="max-height:65vh;overflow:auto"></div>
+    </div>
+  </div>
+</div>
+
 <div id="busy" class="busy" hidden><div class="spin"></div></div>
 <div id="toasts" class="toasts"></div>
 
