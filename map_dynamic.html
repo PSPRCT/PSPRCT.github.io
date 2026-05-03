@@ -3150,8 +3150,8 @@ const projectedCoveragePct = allStores.length
           <td>${htmlEscape(managerLabel(s.regionalManager))}</td>
         </tr>`).join('');
     const win = window.open('', '_blank');
-    win.document.write(`
-      <html><head><title>Sandbox — ${rMiles}mi</title>
+   win.document.write(`
+      <html><head><title>Simulate New RTS — ${rMiles}mi</title>
       <style>
         body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px}
         table{border-collapse:collapse;width:100%}
@@ -3161,7 +3161,7 @@ const projectedCoveragePct = allStores.length
         h2{margin:0 0 8px}
         .meta{color:#555;margin-bottom:10px}
       </style></head><body>
-        <h2>New-hub Sandbox</h2>
+        <h2>Simulate New RTS</h2>
         <div class="meta">Center: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)} • Radius: <b>${rMiles} mi</b> • Stores shown: <b>${inRadius.length}</b></div>
         <table>
           <thead><tr><th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>Distance (mi)</th><th>AM</th><th>RM</th></tr></thead>
