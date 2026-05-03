@@ -1,250 +1,4183 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Map with RTS Optimization</title>
-    <style>
-        /* Your existing CSS styling */
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Premium Retail Trainer Map</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+<style>
+  :root{
+    --blue:#2f71ff; --violet:#6a1b9a; --gray:#9ea3a8; --ring:#d0d7de;
+    --pa:#6c5ce7; --p:#2ecc71; --a:#f39c12; --u:#e74c3c;
+    --bg:#fff; --fg:#111; --muted:#6b7280; --border:#e5e7eb; --panel:#fff;
+  }
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg)}
+  body{display:flex;flex-direction:column;min-width:320px}
+
+  .topbar{position:sticky; top:0; background:var(--panel); display:flex;flex-wrap:wrap;gap:10px;align-items:center; padding:8px 10px;border-bottom:1px solid #eef0f3;z-index:10; box-shadow:0 4px 14px rgba(0,0,0,.04)}
+  .search-wrap{display:flex;gap:8px;align-items:center;min-width:280px;flex:1}
+  .searchbox{position:relative;flex:1}
+  .searchbox input{width:100%;border:1px solid #d0d7de;border-radius:10px;padding:10px 12px 10px 64px;font-size:14px;background:var(--bg);color:var(--fg)}
+  .badge-left{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:800;letter-spacing:.3px;background:#eef6ff;color:#0b5bd3;border:1px solid #cfe6ff;border-radius:999px;padding:3px 8px;display:none}
+ .badge-left{ display:none !important; }
+  .results{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--panel);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 24px rgba(0,0,0,.18);display:none;z-index:20;max-height:360px;overflow:auto}
+  .results.show{display:block}
+  .res{display:flex;gap:10px;padding:10px;cursor:pointer;align-items:flex-start}
+  .res:hover{background:#f6f8fa}
+  #searchResults .res.active{ background:#e7f0ff }
+  .res .kind{flex:0 0 auto;font-size:11px;font-weight:800;padding:4px 8px;border-radius:999px;border:1px solid var(--border);color:#374151;background:var(--panel)}
+  .res .text .sub{color:var(--muted);font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .btn{border:1px solid #d0d7de;background:var(--panel);border-radius:10px;padding:8px 10px;font-weight:600;cursor:pointer;color:var(--fg); box-shadow:0 2px 8px rgba(0,0,0,.04)}
+  .btn.link{border-color:transparent;text-decoration:underline}
+  .toggle{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:999px;padding:6px 10px;background:var(--panel);white-space:nowrap}
+  .toggle input{width:16px;height:16px;accent-color:var(--blue)}
+  .range{display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .range small{color:var(--muted)}
+
+  .pillbar{display:flex;gap:6px;flex-wrap:wrap;padding:6px 10px}
+  .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid #d0d7de;border-radius:999px;padding:6px 10px;background:var(--panel);color:var(--fg);cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.04)}
+  .pill .dot{width:10px;height:10px;border-radius:50%}
+
+  .filters{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:10px;padding:8px 10px;border-top:1px solid #eef0f3;border-bottom:1px solid #eef0f3;background:var(--panel); border-radius:12px; margin:6px 10px; box-shadow:0 6px 20px rgba(0,0,0,.06)}
+  .picker{display:flex;flex-direction:column;gap:6px}
+  .picker input{padding:6px 8px;font-size:13px;border:1px solid #d0d7de;border-radius:8px;background:var(--bg);color:var(--fg)}
+  select[multiple]{height:110px;border:1px solid #d0d7de;border-radius:8px;padding:6px 8px;background:var(--bg);color:var(--fg)}
+
+  .summary{display:flex;gap:10px;align-items:center;padding:6px 10px;border-bottom:1px solid #eef0f3;background:var(--panel)}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:var(--panel);}
+
+  .dot{width:10px;height:10px;border-radius:50%}
+  .muted{color:var(--muted);margin-left:auto}
+
+  .mapwrap{position:relative;flex:1;min-height:460px;display:flex;overflow:hidden}
+  
+  #map{flex:1}
+
+  .sidepanel{width:380px;max-width:90vw;flex:0 0 380px;background:var(--panel);border-left:1px solid var(--border);box-shadow:-4px 0 18px rgba(0,0,0,.12);display:none;flex-direction:column;z-index:6}
+  .sidepanel.show{display:flex}
+  .sp-head{padding:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+  .sp-head h3{margin:0;font-size:16px;line-height:1.2;flex:1}
+  .sp-body{padding:10px;display:flex;flex-direction:column;gap:10px;height:calc(100vh - 220px);overflow:hidden}
+  .sp-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .sp-counts{display:flex;gap:8px;flex-wrap:wrap}
+  .sp-bars{ display:grid; gap:6px; margin-top:8px; }
+.sp-bar{ display:flex; align-items:center; gap:8px; font-size:12px; }
+.sp-bar .label{ width:110px; text-align:right; color:var(--muted); }
+.sp-bar .bar{ flex:1; height:8px; background:#f3f4f6; border-radius:999px; overflow:hidden; }
+.sp-bar .fill{ height:100%; }
+.sp-bar.pa .fill{ background: var(--pa); }
+.sp-bar.p  .fill{ background: var(--p); }
+.sp-bar.a  .fill{ background: var(--a); }
+.sp-bar.u  .fill{ background: var(--u); }
+  .sp-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:3px 8px}
+  .sp-toggles{display:flex;gap:8px;flex-wrap:wrap}
+  .sp-quick{display:flex;gap:6px;flex-wrap:wrap}
+  .sp-list{flex:1;min-height:160px;border:1px solid var(--border);border-radius:8px;padding:0;display:flex;flex-direction:column;overflow:auto; box-shadow: inset 0 0 0 2px rgba(0,0,0,.02)}
+  .sp-list input{margin:8px;border:1px solid var(--border);border-radius:8px;padding:6px 8px}
+  .sp-list input{position: sticky; top: 0; z-index: 3; background: var(--panel); border-bottom-left-radius: 0; border-bottom-right-radius: 0; box-shadow: 0 4px 6px rgba(0,0,0,.04);}
+  .sp-quick{ position: sticky; top: 0; z-index: 3; background: var(--panel); }
+
+  .sp-rows{position:relative;height:auto;will-change:transform;}
+  
+
+  /* Compact rows (what you already added) */
+.row{ min-height:72px; padding:8px 10px; }
+  /* Tiny action button inside rows */
+.row .mini{
+  font-size:11.5px; padding:2px 8px; border:1px solid var(--border);
+  border-radius:999px; background:#f8fafc; cursor:pointer;
+}
+.row .mini:active{ transform:translateY(1px); }
+
+.row .title{ font-size:15px; line-height:1.2; }
+
+/* Address: two tight lines, ellipsis beyond */
+.row .addr{
+  font-size:12.5px; line-height:1.25; color:var(--muted);
+  white-space:normal; word-break:keep-all;
+  overflow:hidden; text-overflow:ellipsis;
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
+  max-height:calc(1.25em * 2);
+}
+
+/* Coverage pill on the right */
+.cov-badge{
+  font-size:12px; font-weight:700; padding:2px 8px;
+  border:1px solid var(--border); border-radius:999px; white-space:nowrap;
+}
+.cov-pa{ background:rgba(108,92,231,.10);  border-color:var(--pa); }
+.cov-p { background:rgba(46,204,113,.12);   border-color:var(--p);  }
+.cov-a { background:rgba(243,156,18,.12);   border-color:var(--a);  }
+.cov-u { background:rgba(231,76,60,.12);    border-color:var(--u);  }
+
+  .row > div:nth-child(2){ flex:1; min-width:0; }
+  .row .num{min-width:62px;font-variant-numeric:tabular-nums;color:var(--muted)}
+  .row.active{background:#e7f0ff}
+
+  /* Make store rows clearly clickable */
+.row {
+  cursor: pointer;                  /* hand cursor */
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  border-radius: 6px;               /* slight rounding */
+}
+
+.row:hover {
+  background: #f2f6ff;              /* light blue hover */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* Subtle press feedback when a row is clicked */
+.row:active{
+  transform: scale(.997);
+  background:#eef4ff;
+}
+.row .hint {
+  font-size: 20px;
+  color: #999;
+  margin-left: 8px;
+}
+
+  .floating{position:absolute;left:10px;top:10px;z-index:402;display:flex;gap:8px;flex-wrap:wrap}
+  .floating .btn,.floating .toggle{padding:6px 8px;font-size:12px}
+
+  .legend{position:absolute;top:10px;right:10px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:8px 10px;box-shadow:0 6px 18px rgba(0,0,0,.12);z-index:401}
+
+  .sandbox{position:absolute;left:10px;bottom:10px;z-index:402;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:none}
+
+  .dropdown-menu{position:absolute;right:0;top:calc(100% + 4px);background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:6px;z-index:5;max-height:70vh;overflow:auto;box-sizing:border-box;display:none;min-width:240px}
+
+  .busy{position:fixed;inset:0;background:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;z-index:9999}
+  .busy[hidden]{display:none}
+  .spin{width:36px;height:36px;border-radius:50%;border:4px solid rgba(0,0,0,.15);border-top-color:var(--blue);animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .marker-cluster.marker-pa div{background:var(--pa);border:2px solid #fff}
+  .marker-cluster.marker-p  div{background:var(--p); border:2px solid #fff}
+  .marker-cluster.marker-a  div{background:var(--a); border:2px solid #fff}
+
+  .hub{width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+  /* Extra outline when a hub is pinned in Compare mode */
+/* Extra outline when a hub is pinned in Compare mode */
+.hub.pinned{
+  box-shadow:0 0 0 2px #000, 0 0 0 4px rgba(0,0,0,.25) !important;
+}
+
+
+  .hub.confirmed{background:var(--violet)}
+  .hub.pending{
+  background:#9ea3a8;
+  opacity:.55;
+}
+  .hub.acosta{ background: var(--a); }
+  .hl{width:22px;height:22px;border-radius:50%;border:2px solid #111;background:rgba(0,0,0,.05);box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:5000}
+  .modal.show{display:flex}
+  .card{background:#fff;border-radius:12px;max-width:900px;width:92vw;box-shadow:0 20px 50px rgba(0,0,0,.25);border:1px solid var(--border)}
+  .card header{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+  .card header h3{margin:0;font-size:18px;flex:1}
+  .card .body{padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .kbd{display:inline-block;border:1px solid #cfd3d7;border-bottom-width:3px;border-radius:6px;padding:2px 6px;font-weight:700;background:#fff}
+
+  /* Saved views thumbnails */
+  .view-row{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:4px 0}
+  .view-thumb{flex:0 0 auto;border:1px solid var(--border);border-radius:6px;width:96px;height:64px;background:#f9fafb}
+  .view-actions{display:flex;gap:6px;align-items:center}
+  .view-actions .btn.link{ padding:4px 8px; }
+
+
+  /* Empty state overlay */
+  .empty-state{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:401;pointer-events:none}
+  .empty-card{pointer-events:auto;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 28px rgba(0,0,0,.12);padding:14px 16px;max-width:520px}
+  .empty-card h4{margin:0 0 6px 0}
+  .empty-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .empty-state[hidden]{display:none !important;}
+
+  /* Compare/Venn panel */
+  .compare-panel{position:absolute;left:10px;bottom:120px;z-index:402;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:none;min-width:280px;box-shadow:0 10px 24px rgba(0,0,0,.12)}
+  .compare-panel.show{display:block}
+  .compare-grid{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:baseline}
+
+  /* Toasts (progress + cancel) */
+  .toasts{position:fixed;right:12px;bottom:12px;display:flex;flex-direction:column;gap:8px;z-index:6000}
+  .toast{background:#111;color:#fff;padding:10px 12px;border-radius:10px;min-width:220px;box-shadow:0 12px 24px rgba(0,0,0,.32)}
+  .toast .bar{height:4px;background:#555;margin-top:8px;border-radius:999px;overflow:hidden}
+  .toast .bar>div{height:100%;width:0;background:#2f71ff}
+  .toast .row{display:flex;align-items:center;gap:8px}
+  .toast button{margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:8px;padding:4px 8px;cursor:pointer}
+
+
+
+  /* Coverage Priorities */
+  .priority-card{border:1px solid var(--border);border-radius:12px;padding:10px;background:#f8fafc;margin-bottom:10px}
+  .priority-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  .priority-table{width:100%;border-collapse:collapse;font-size:13px}
+  .priority-table th{position:sticky;top:0;background:#f8fafc;z-index:1}
+  .priority-table th,.priority-table td{border-bottom:1px solid #eef0f3;padding:7px 8px;vertical-align:top}
+  .severity-chip{display:inline-block;padding:2px 8px;border-radius:999px;font-weight:700;font-size:12px;background:#fff}
+
+  @media (max-width:720px){ .card .body{grid-template-columns:1fr;} }
+  @media (max-width: 1100px){ .filters{grid-template-columns:repeat(2,minmax(220px,1fr));} }
+  @media (max-width: 640px){ .filters{grid-template-columns:1fr;} }
+</style>
 </head>
 <body>
-    <div id="topbar">
-        <button id="rollupBtn" class="btn" type="button" title="Totals by RM/AM">Rollups</button>
-        <button id="coverageBtn" class="btn" type="button" title="Rank managers by current coverage gaps and opportunity">Coverage Priorities</button>
-        <button id="suggestRtsBtn" class="btn">Suggest RTS City</button>
-    </div>
 
-    <!-- Coverage Priorities Modal -->
-    <div class="modal" id="coverageModal" aria-modal="true" role="dialog">
-        <div class="card" style="max-width:1100px;width:94vw">
-            <header>
-                <h3>Coverage Priorities by Manager</h3>
-                <button id="coverageClose" class="btn" type="button">Close</button>
-            </header>
-            <div class="body" style="grid-template-columns:1fr;">
-                <div class="priority-tools">
-                    <label class="toggle"><input type="radio" name="coverageBy" id="coverageByRM" checked> By Regional Manager</label>
-                    <label class="toggle"><input type="radio" name="coverageBy" id="coverageByAM"> By Area Manager</label>
-                    <label class="toggle" title="When checked, ranking uses the stores currently visible after filters. When unchecked, it ranks against all stores.">
-                        <input id="coverageUseFilters" type="checkbox"> Use current filters
-                    </label>
-                    <button id="coverageExport" class="btn" type="button">Export CSV</button>
-                </div>
-                <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
-                    <b>How to use:</b> This ranks managers by current RTS coverage gap. Click a manager name to filter the map and open their Gap Finder summary.
-                    <br><b>Estimated RTS Needed:</b> Count of consolidated 75-mile gap clusters with at least 25 uncovered stores. This is a planning estimate, not a staffing commitment.
-                    <br><b>Add 1 RTS Opportunity:</b> Largest consolidated current gap cluster for that manager — a rough estimate of the best single placement opportunity.
-                </div>
-                <div id="coverageTable" style="max-height:65vh;overflow:auto"></div>
-            </div>
+<div class="topbar">
+  <div class="search-wrap" title="Type a store #, city/state, or hub name. Tip: type ‘near’ for nearby stores.">
+    <div class="searchbox">
+     
+      <input id="searchBox" type="text" placeholder="Type a store #, city/state, hub name… (tip: 'near Dallas')" autocomplete="off" aria-label="Search store or city" />
+      <span id="searchBadge" class="badge-left">SEARCH</span>
+
+      <div id="searchResults" class="results" role="listbox"></div>
+    </div>
+    <button id="searchClear" class="btn" type="button" title="Clear search">Clear</button>
+  </div>
+
+  <label class="toggle" title="Show Premium confirmed hubs"><input id="showConfirmed" type="checkbox" checked />Premium (confirmed)</label>
+<label class="toggle" title="Show future/pending Premium hubs for planning reference only. These are faded and do not count toward coverage, rollups, filters, or gap finder.">
+  <input id="showPending" type="checkbox" checked />Future hubs reference
+</label>
+  <label class="toggle" title="Show Acosta trainers"><input id="showAcosta" type="checkbox"  />Acosta</label>
+
+  <div class="range" title="Hub radius used for coverage, lists, rings, overlap">
+    <span>Radius</span>
+    <input id="radius" type="range" min="25" max="150" step="5" value="75" />
+    <b id="radiusLbl">75</b><small>mi</small>
+  </div>
+
+  <button id="fitBtn" class="btn" type="button" title="Fit map to filtered stores">Fit to Results</button>
+  <button id="homeBtn" class="btn" type="button" title="Reset to starting view (keeps filters)">Home</button>
+  <button id="resetBtn" class="btn" type="button" title="Reset all filters and view">Reset</button>
+
+  <!-- Export -->
+  <div class="dropdown" id="exportDrop" style="position:relative">
+    <button class="btn" type="button" title="Download CSV of filtered stores or panel list">Export ▾</button>
+    <div class="dropdown-menu">
+      <button id="exportStores" class="btn" type="button" style="display:block;width:100%;margin:4px 0" title="Export all filtered stores on the map">
+        Export filtered stores (CSV)
+      </button>
+      <label class="toggle" style="margin:6px 4px;display:flex"><input id="autoReset" type="checkbox" />Auto-reset after export/print</label>
+    </div>
+  </div>
+
+  <!-- Saved Views -->
+  <div class="dropdown" id="viewsDrop" style="position:relative">
+    <button class="btn" type="button" title="Save or recall views">Views ▾</button>
+    <div class="dropdown-menu" id="viewsMenu">
+      <button id="viewSave" class="btn" type="button" style="display:block;width:100%">Save current view…</button>
+      <div style="border-top:1px solid var(--border);margin:6px 0"></div>
+      <div id="viewList" style="min-width:220px"></div>
+    </div>
+  </div>
+
+  <!-- Analysis buttons -->
+  <button id="gapBtn" class="btn" type="button" title="Find current uncovered store clusters based on active RTS coverage only">Current Gap Finder</button>
+  <button id="rollupBtn" class="btn" type="button" title="Totals by RM/AM">Rollups</button>
+  <button id="coverageBtn" class="btn" type="button" title="Rank managers by current coverage gaps and opportunity">Coverage Priorities</button>
+  <button id="suggestRtsBtn" class="btn" type="button" title="Rank the best current RTS posting locations based on uncovered store clusters">Suggest RTS City</button>
+
+  <button id="helpBtn" class="btn" type="button" title="Quick tips and shortcuts">Help</button>
+</div>
+
+<div class="pillbar" id="presetBar">
+  <div id="presetUncov" class="pill" title="Uncovered + Rings + Heatmap">
+    <span class="dot" style="background:var(--u)"></span> Preset: Uncovered focus
+  </div>
+  <div id="presetHubs" class="pill" title="Show only stores within any visible hub radius">
+    🟦 Preset: Hubs coverage
+  </div>
+  <div id="snapBtn" class="pill" title="Copy a shareable URL">🔗 Save snapshot link</div>
+</div>
+
+<div class="pillbar" id="activeChips"></div>
+
+<!-- Filters -->
+<div class="filters" title="Use these to narrow stores; search also matches store # and city/state.">
+  <div class="picker">
+    <input id="covSearch" type="text" placeholder="Search coverage…" />
+   <select id="covFilter" multiple>
+  <option value="All" selected>All</option>
+  <option value="Premium + Acosta">Combined: Premium + Acosta</option>
+  <option value="Premium Only">Premium Only</option>
+  <option value="Acosta Only">Acosta Only</option>
+  <option value="Uncovered">Current Gap / Uncovered</option>
+</select>
+  </div>
+  <div class="picker">
+    <input id="rmSearch" type="text" placeholder="Filter regional managers…" />
+    <select id="rmFilter" multiple><option value="All" selected>All</option></select>
+  </div>
+  <div class="picker">
+    <input id="amSearch" type="text" placeholder="Filter area managers…" />
+    <select id="amFilter" multiple><option value="All" selected>All</option></select>
+  </div>
+  <div class="picker">
+    <input id="hubSearch" type="text" placeholder="Filter hubs…" />
+    <select id="hubFilter" multiple></select>
+  </div>
+</div>
+
+<div id="dataStatus" style="padding:6px 10px;color:var(--fg);font-size:12px"></div>
+
+<div class="summary" id="summary">
+<span class="chip"><span class="dot" style="background:var(--pa)"></span>Combined Coverage: <b id="k_pa">0</b></span>
+<span class="chip"><span class="dot" style="background:var(--p)"></span>Premium Coverage: <b id="k_p">0</b></span>
+<span class="chip"><span class="dot" style="background:var(--a)"></span>Acosta Coverage: <b id="k_a">0</b></span>
+<span class="chip"><span class="dot" style="background:var(--u)"></span>Current Gap / Uncovered: <b id="k_u">0</b></span>
+<span class="chip">Total: <b id="k_total">0</b></span>
+<span class="chip">RTS Hubs — <b id="k_confirmed">0</b> active / <b id="k_pending">0</b> future display-only</span>
+  <span class="muted" id="inView">In view: 0</span>
+</div>
+<div class="summary" id="datasetBadge"></div>
+
+<div class="mapwrap">
+  <div id="map" role="region" aria-label="Coverage Map"></div>
+
+    <!-- Overlap legend (hidden by default; JS toggles it) -->
+  <div id="overlapKey" class="legend" style="display:none; padding:6px 8px; font-size:12px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="width:10px;height:10px;border-radius:50%;border:2px solid #111;display:inline-block"></span>
+      2+ hubs cover this store
+    </div>
+  </div>
+
+
+  <div class="floating">
+    <label class="toggle" title="Density of stores"><input id="tgHeat" type="checkbox" />Heatmap</label>
+    <label class="toggle" title="Show hub radius circles"><input id="tgRings" type="checkbox" />Hub radii</label>
+    <label class="toggle" title="Highlight stores covered by 2+ hubs"><input id="tgOverlap" type="checkbox" />Overlap</label>
+    <label class="toggle" title="Pin hubs to compare coverage"><input id="tgCompare" type="checkbox" />Compare</label>
+    <label class="toggle" title="Filter: only stores inside any visible hub radius"><input id="tgWithin" type="checkbox" />Within hubs</label>
+    <label class="toggle" title="Turn clustering on/off (useful when zoomed in)"><input id="tgCluster" type="checkbox" checked />Cluster</label>
+    <button id="sandboxBtn" class="btn" type="button" title="Simulate adding a new RTS hub and estimate coverage impact">Simulate New RTS</button>
+  </div>
+
+  <!-- Compare/Venn panel -->
+  <div id="comparePanel" class="compare-panel">
+    <div style="font-weight:800;margin-bottom:6px">Compare (2 pins)</div>
+    <div id="compareBody" style="font-size:13px"></div>
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+      <button id="cmpExport" class="btn" type="button">Export CSV</button>
+      <button id="cmpClear" class="btn" type="button">Clear pins</button>
+    </div>
+  </div>
+
+  <div class="sidepanel" id="sidepanel">
+    <div class="sp-head">
+      <h3 id="spTitle">Hub</h3>
+      <button id="spCollapse" class="btn" type="button" title="Collapse panel">⟨</button>
+      <button id="spPinBtn" class="btn" type="button" title="Pin for compare">Pin</button>
+      <button id="spLink" class="btn" type="button" title="Copy link to this hub">Link</button>
+      <button id="spClose" class="btn" type="button" title="Close panel">Close</button>
+    </div>
+    <div class="sp-body">
+      <div id="spMeta" class="sp-meta" style="font-size:13px"></div>
+      <div class="sp-actions">
+        <button id="spExport" class="btn" type="button" title="Download CSV of this list">Export list (CSV)</button>
+        <button id="spPrint" class="btn" type="button" title="Print this list">Print store list</button>
+      </div>
+      <div class="sp-toggles">
+        <label class="toggle" title="Show only uncovered stores in this panel"><input id="spOnlyUncov" type="checkbox" />Uncovered only</label>
+      </div>
+      <div class="sp-quick" title="Change hub radius quickly">
+        Radius: 
+        <button class="btn" type="button" data-r="50">50</button>
+        <button class="btn" type="button" data-r="75">75</button>
+        <button class="btn" type="button" data-r="100">100</button><small> mi</small>
+      </div>
+      <div id="spCounts" class="sp-counts"></div>
+      <div class="sp-list" id="spListWrap">
+        <input id="spSearch" type="text" placeholder="Search stores in list…" />
+        <div id="spRows" class="sp-rows"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty state overlay -->
+  <div id="emptyState" class="empty-state" hidden>
+    <div class="empty-card">
+      <h4>No stores match your filters</h4>
+      <div class="muted">Try widening your radius, turning off “Within hubs”, or clearing a filter.</div>
+      <div class="empty-actions">
+        <button id="clearLastFilter" class="btn" type="button">Clear last filter</button>
+        <button id="emptyReset" class="btn" type="button">Reset all</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Help modal -->
+<div class="modal" id="helpModal" aria-modal="true" role="dialog">
+  <div class="card">
+    <header>
+      <h3>Help & Shortcuts</h3>
+      <button id="helpClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body">
+      <div>
+        <h4>Keyboard</h4>
+        <p><span class="kbd">Ctrl</span> / <span class="kbd">⌘</span> + <span class="kbd">K</span> — Focus search</p>
+        <p><span class="kbd">↑</span> <span class="kbd">↓</span> + <span class="kbd">Enter</span> — Pick search result</p>
+        <p><span class="kbd">H</span> — Home (map only)</p>
+        <p><span class="kbd">F</span> — Focus side-panel search (when open)</p>
+      </div>
+      <div>
+        <h4>Tips</h4>
+        <ul>
+          <li>Type <b>near</b> or <b>near Dallas</b> to jump the map and suggest nearby stores.</li>
+          <li>Use <b>Within hubs</b> to see only stores covered by visible hubs.</li>
+          <li>Pin hubs to compare coverage; <b>Overlap</b> highlights shared stores.</li>
+          <li>Side panel shows counts & metrics; click a store to zoom to it.</li>
+          <li>Use <b>Views</b> to save/restore your favorite setups.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Gap Finder modal -->
+<div class="modal" id="gapModal" aria-modal="true" role="dialog">
+  <div class="card">
+    <header>
+     <h3>Current Gap Finder</h3>
+      <button id="gapClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body" style="grid-template-columns:1fr;">
+      <div>
+        <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
+  Current Gap Finder uses active/confirmed RTS coverage only. Future or pending hubs may appear on the map if toggled on, but they do not reduce current gap counts.
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
+  <label class="toggle" title="Only show clusters at least this big">Min uncovered
+    <input id="gapMin" type="number" value="25" style="width:80px;margin-left:8px">
+  </label>
+  <label class="toggle" title="Radius around each city center">Radius (mi)
+    <input id="gapMiles" type="number" value="75" style="width:80px;margin-left:8px">
+  </label>
+  <button id="gapRun" class="btn" type="button">Run</button>
+  <button id="gapExport" class="btn" type="button">Export CSV</button>
+  <label class="toggle" title="If checked, use the stores that match your current filters. If off, use all stores.">
+    <input id="gapUseFilters" type="checkbox" /> Use current filters
+  </label>
+</div>
+
+        <div id="gapResults" style="max-height:65vh;overflow:auto"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Rollups modal -->
+<div class="modal" id="rollupModal" aria-modal="true" role="dialog">
+  <div class="card">
+    <header>
+      <h3>Manager rollups</h3>
+      <button id="rollupClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body" style="grid-template-columns:1fr;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+        <label class="toggle"><input type="radio" name="rollBy" id="rollByRM" checked> By Regional Manager</label>
+        <label class="toggle"><input type="radio" name="rollBy" id="rollByAM"> By Area Manager</label>
+        <button id="rollExport" class="btn" type="button">Export CSV</button>
+      </div>
+      <div id="rollTable" style="max-height:65vh;overflow:auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Coverage Priorities modal -->
+<div class="modal" id="coverageModal" aria-modal="true" role="dialog">
+  <div class="card" style="max-width:1100px;width:94vw">
+    <header>
+      <h3>Coverage Priorities by Manager</h3>
+      <button id="coverageClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body" style="grid-template-columns:1fr;">
+      <div class="priority-tools">
+        <label class="toggle"><input type="radio" name="coverageBy" id="coverageByRM" checked> By Regional Manager</label>
+        <label class="toggle"><input type="radio" name="coverageBy" id="coverageByAM"> By Area Manager</label>
+        <label class="toggle" title="When checked, ranking uses the stores currently visible after filters. When unchecked, it ranks against all stores.">
+          <input id="coverageUseFilters" type="checkbox"> Use current filters
+        </label>
+        <button id="coverageExport" class="btn" type="button">Export CSV</button>
+      </div>
+      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
+        <b>How to use:</b> This ranks managers by current RTS coverage gap. Click a manager name to filter the map and open their Gap Finder summary.
+        <br><b>Estimated RTS Needed:</b> Count of consolidated 75-mile gap clusters with at least 25 uncovered stores. This is a planning estimate, not a staffing commitment.
+        <br><b>Add 1 RTS Opportunity:</b> Largest consolidated current gap cluster for that manager — a rough estimate of the best single placement opportunity.
+      </div>
+      <div id="coverageTable" style="max-height:65vh;overflow:auto"></div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- Suggest RTS City modal -->
+<div class="modal" id="suggestModal" aria-modal="true" role="dialog">
+  <div class="card" style="max-width:1100px;width:94vw">
+    <header>
+      <h3>Suggest RTS City</h3>
+      <button id="suggestClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body" style="grid-template-columns:1fr;">
+      <div class="priority-tools">
+        <label class="toggle" title="Only show posting areas with at least this many currently uncovered stores">Min uncovered
+          <input id="suggestMin" type="number" value="25" style="width:80px;margin-left:8px">
+        </label>
+        <label class="toggle" title="RTS coverage radius used for this suggestion">Radius (mi)
+          <input id="suggestMiles" type="number" value="75" style="width:80px;margin-left:8px">
+        </label>
+        <label class="toggle" title="When checked, suggestions use the stores currently visible after filters. When unchecked, suggestions use all stores.">
+          <input id="suggestUseFilters" type="checkbox"> Use current filters
+        </label>
+        <button id="suggestRun" class="btn" type="button">Run</button>
+        <button id="suggestExport" class="btn" type="button">Export CSV</button>
+      </div>
+      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
+        <b>How to use:</b> This ranks the best current RTS posting areas using active/confirmed RTS coverage only.
+        It tests current uncovered clusters and estimates how many currently uncovered stores a single RTS could cover within the selected radius.
+        <br><b>Important:</b> This is a planning recommendation. It does not add a permanent RTS until you update your source JSON.
+      </div>
+      <div id="suggestResults" style="max-height:65vh;overflow:auto"></div>
+    </div>
+  </div>
+</div>
+
+<div id="busy" class="busy" hidden><div class="spin"></div></div>
+<div id="toasts" class="toasts"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script>
+(async function(){
+  // ---------- CONFIG ----------
+  const DATA_URL    = './store_data.json?v=' + Date.now();
+  const ACOSTA_URL  = './acosta_geocoded.json?v=' + Date.now();
+
+
+  const FALLBACK_STORES = [
+    { storeNumberStr:"1234", storeName:"Walmart", address:"701 W 51st St", city:"Austin", state:"TX", coverageType:"Uncovered", areaManager:"", regionalManager:"", trainerCity:"", lat:30.309, lng:-97.742 },
+    { storeNumberStr:"5678", storeName:"Walmart", address:"10 S Riverside", city:"Chicago", state:"IL", coverageType:"Uncovered", areaManager:"", regionalManager:"", trainerCity:"", lat:41.882, lng:-87.639 }
+  ];
+
+  const COLORS = {
+    "Premium + Acosta": getCSS('--pa'),
+    "Premium Only":     getCSS('--p'),
+    "Acosta Only":      getCSS('--a'),
+    "Uncovered":        getCSS('--u')
+  };
+  const DEFAULT_RADIUS = 75; // UI ring/list radius (classification stays fixed at 75 regardless)
+  const CLASSIFY_RADIUS = 75; // coverage classification radius (fixed)
+  const LS_STATE = 'prt_state_v9';
+  const LS_VIEWS = 'prt_views_v2';
+  const LS_LAST_QUERY = 'prt_last_query';
+  const HOME_VIEW = { center:[39.5,-98.35], zoom:5 };
+  const AUTO_RESET = ()=> id('autoReset')?.checked;
+  const REV_KEY = 'prt_dataset_revs_v1'; // for dataset badge versioning
+
+  // Hub sets
+  let premiumConfirmed = [];
+  let premiumPending   = [];
+  let acostaHubs       = [];
+
+  
+
+// Context menu when right-clicking a hub (only shows in edit mode)
+function showHubMenu(evt, hub, marker){
+  if (!editMode) return;
+  evt.originalEvent?.preventDefault?.();
+
+  // build container
+  if (!hubMenuEl){
+    hubMenuEl = document.createElement('div');
+    Object.assign(hubMenuEl.style, {
+      position:'fixed', zIndex:99999, background:'#fff', border:'1px solid #d1d5db',
+      borderRadius:'8px', boxShadow:'0 6px 18px rgba(0,0,0,.16)', padding:'6px',
+      font:'13px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial'
+    });
+    document.body.appendChild(hubMenuEl);
+  }
+  hubMenuEl.innerHTML = `
+    <div style="padding:6px 8px; font-weight:600; border-bottom:1px solid #eee">
+      ${hub.fullName || hub.name || 'Hub'}
+    </div>
+    <button id="hm_remove" class="btn" style="margin:6px 0 4px 0; width:100%">Remove this hub</button>
+    <button id="hm_export" class="btn" style="margin:4px 0; width:100%">Export hubs JSON</button>
+    <div style="margin-top:6px; font-size:12px; color:#666">Tip: press <b>E</b> to toggle edit mode</div>
+  `;
+
+  // position near cursor/marker
+  const pt = evt.containerPoint || map.latLngToContainerPoint(marker.getLatLng());
+  hubMenuEl.style.left = (pt.x + 10) + 'px';
+  hubMenuEl.style.top  = (pt.y + 10) + 'px';
+
+  const close = ()=>{ hubMenuEl?.remove(); hubMenuEl=null; };
+  document.getElementById('hm_remove').onclick = ()=>{ removeHub(hub); close(); };
+  document.getElementById('hm_export').onclick = ()=> exportHubsJson();
+
+  setTimeout(()=>{
+    const onAway = (e)=>{ if (hubMenuEl && !hubMenuEl.contains(e.target)) { document.removeEventListener('mousedown', onAway); close(); } };
+    document.addEventListener('mousedown', onAway);
+  }, 0);
+}
+
+// Remove hub from whichever set it belongs to
+function removeHub(h){
+  const removeFrom = (arr)=> {
+    const i = arr.findIndex(x=>x.id===h.id);
+    if (i>=0) { arr.splice(i,1); return true; }
+    return false;
+  };
+  if (!(removeFrom(premiumConfirmed) || removeFrom(premiumPending) || removeFrom(acostaHubs))){
+    alert('Could not find hub in any set.');
+    return;
+  }
+  renderHubs();
+  updateRings();
+  if (spHub && spHub.id === h.id) hideSidepanel?.();
+  if (tgOverlap?.checked) drawOverlap?.();
+  recomputeCoverage?.().then(()=> runFilter?.());
+}
+
+// Export all hub sets as a single JSON file
+function exportHubsJson(){
+  const data = {
+    premiumConfirmed,
+    premiumPending,
+    acostaHubs
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `hubs_${Date.now()}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+
+  // Stores
+  let allStores = [];
+  let filteredStores = [];
+  const markerByStore = new Map();
+
+  let PENDING_OPEN_HUB_ID = null;
+  let PENDING_PIN_IDS = [];
+
+  // Worker for coverage
+  const coverageWorker = makeCoverageWorker();
+
+  // Map/layers
+ const map = L.map('map', { zoomControl: true, inertia: true }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
+// (moved the resize+initial sync further down, after sidepanel is defined)
+
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
+  const hubPane = map.createPane('hubPane'); hubPane.style.zIndex = 650; hubPane.style.pointerEvents = 'auto';
+
+  const markers = L.markerClusterGroup({
+    disableClusteringAtZoom: 12,
+    spiderfyOnMaxZoom: false,
+    maxClusterRadius: z => z >= 9 ? 50 : 70,
+    iconCreateFunction: clusterIconByDominantCoverage,
+    chunkedLoading: true,
+    chunkInterval: 50,
+    chunkDelay: 25
+  });
+  const plainMarkers = L.layerGroup();
+  const targetLayer    = L.layerGroup().addTo(map);
+  const ringLayer      = L.layerGroup().addTo(map);
+  const highlightLayer = L.layerGroup().addTo(map);
+  const hubLayer       = L.layerGroup().addTo(map);
+  const heatLayerHolder = { layer: null };
+  map.addLayer(markers);
+
+  // UI refs
+  const STATUS = id('dataStatus'); const busy = id('busy');
+  const showConfirmed = id('showConfirmed');
+  const showPending   = id('showPending');
+  const showAcosta    = id('showAcosta');
+  const radius        = id('radius');  const radiusLbl = id('radiusLbl');
+  const tgHeat = id('tgHeat'), tgRings=id('tgRings'), tgOverlap=id('tgOverlap'), tgCompare=id('tgCompare'), tgWithin=id('tgWithin'), tgCluster=id('tgCluster');
+  const overlapKey = id('overlapKey');  // tiny legend for overlap mode
+    function syncLegends(){
+  // Safe lookup so it can be called before sidepanel is assigned
+  const panel = document.getElementById('sidepanel');
+  const open  = panel && panel.classList.contains('show');
+  const right = open ? 420 : 10; // match your panel width
+  document.querySelectorAll('.legend').forEach(el=>{
+    el.style.right = right + 'px';
+  });
+}
+
+
+
+  const covFilter = id('covFilter'); const covSearch = id('covSearch');
+  const rmFilter  = id('rmFilter');  const rmSearch  = id('rmSearch');
+  const amFilter  = id('amFilter');  const amSearch  = id('amSearch');
+  const hubFilter = id('hubFilter'); const hubSearch = id('hubSearch');
+  const k = { pa:id('k_pa'), p:id('k_p'), a:id('k_a'), u:id('k_u'), total:id('k_total'), confirmed:id('k_confirmed'), pending:id('k_pending'), inView:id('inView') };
+
+  // Side panel refs
+  const sidepanel = id('sidepanel');
+  const spTitle = id('spTitle'); const spMeta = id('spMeta'); const spCounts = id('spCounts');
+  // Legends now safe to sync because sidepanel exists
+window.addEventListener('resize', syncLegends);
+syncLegends();
+  const spRowsEl = id('spRows'); const spSearch = id('spSearch');
+  const spLink = id('spLink');
+  const spClose = id('spClose'); const spExport = id('spExport'); const spPinBtn = id('spPinBtn'); const spPrint = id('spPrint'); const spOnlyUncovEl = id('spOnlyUncov'); const spCollapse = id('spCollapse');
+  let spHub = null; let spRows = []; let spFilter = ''; let spOnlyUncov = false;
+
+  // UX/analysis globals
+  let compareMode = false;
+  let pinnedHubs = [];
+  let lastFilterChanged = null;
+  const debouncedRun = (() => { let t; return () => { clearTimeout(t); t = setTimeout(runFilter, 90); }; })();
+
+  const getName = r => String(
+    r.CandidateName ?? r.Candidate ?? r.RepName ?? r.repName ??
+    r.TrainerName ?? r['Trainer Name'] ??
+    r.Premium_Trainer ?? r.PremiumTrainer ??
+    r.name ?? r.Name ?? ''
+  ).trim();
+
+  setTimeout(()=> map.invalidateSize(), 120);
+
+  // Event wiring — visibility affects coverage
+  showConfirmed.onchange = handleHubVisibilityChange;
+  showPending.onchange   = handleHubVisibilityChange;
+  showAcosta.onchange    = handleHubVisibilityChange;
+
+  on('input', radius,   ()=>{
+    radiusLbl.textContent = radius.value;
+    // classification fixed at 75; only rings/lists/compare update on radius change
+    debouncedRun();
+    updateRings();
+    buildHubFilterOptions();
+    if (tgOverlap.checked) drawOverlap();
+    if (sandboxMarker) refreshSandbox();
+    if (spHub) openSidepanel(spHub);
+    refreshComparePanel();
+    saveState();
+  });
+
+  on('input', covSearch, ()=> filterSelect(covFilter, covSearch.value));
+  on('input', rmSearch,  ()=> filterSelect(rmFilter,  rmSearch.value));
+  on('input', amSearch,  ()=> filterSelect(amFilter,  amSearch.value));
+  on('input', hubSearch, ()=> filterSelect(hubFilter, hubSearch.value));
+
+  on('change', rmFilter,  ()=>{
+    lastFilterChanged='rmFilter';
+    cascadeAM();
+    buildHubFilterOptions();
+    runFilter(); fitToResults(); saveState(); renderChips();
+  });
+  rebuildAMOptionsWithCounts();
+  on('change', amFilter,  ()=>{
+    lastFilterChanged='amFilter';
+    cascadeRM();
+    buildHubFilterOptions();
+    runFilter(); fitToResults(); saveState(); renderChips();
+  });
+  on('change', covFilter, ()=>{
+    lastFilterChanged='covFilter';
+    cascadeRM();
+    cascadeAM();
+    buildHubFilterOptions();
+    runFilter(); saveState(); renderChips();
+  });
+  on('change', hubFilter, ()=>{ lastFilterChanged='hubFilter'; runFilter(); fitToResults(); saveState(); renderChips(); });
+
+  id('fitBtn').onclick  = ()=>{ fitToResults(); saveState(); };
+  id('homeBtn').onclick = ()=>{ map.setView(HOME_VIEW.center, HOME_VIEW.zoom); };
+  id('resetBtn').onclick= ()=>{ resetAll(); runFilter(); saveState(); renderChips(); };
+
+  // Dropdowns & views
+  const exportDrop = id('exportDrop'); const menu = exportDrop.querySelector('.dropdown-menu');
+  exportDrop.querySelector('button').onclick = ()=> toggleDropdown(menu);
+  on('click', document.body, (e)=>{ if (!exportDrop.contains(e.target)) menu.style.display='none'; }, true);
+  id('exportStores').onclick  = ()=>{ exportStoresCsv(); if(AUTO_RESET()) { resetAll(); runFilter(); renderChips(); } };
+
+  const viewsDrop = id('viewsDrop'); const viewsMenu = id('viewsMenu'); const viewList = id('viewList');
+  viewsDrop.querySelector('button').onclick = ()=> toggleDropdown(viewsMenu);
+  on('click', document.body, (e)=>{ if (!viewsDrop.contains(e.target)) viewsMenu.style.display='none'; }, true);
+  id('viewSave').onclick = saveCurrentView;
+  rebuildViewsMenu();
+
+  // Floating toggles
+  tgHeat.onchange   = ()=>{ if (tgHeat.checked) updateHeat(); else clearHeat(); saveState(); };
+  tgRings.onchange  = ()=>{ updateRings(); saveState(); };
+  tgOverlap.onchange = () => {
+  if (tgOverlap.checked){
+    drawOverlap();
+    if (overlapKey?.style) overlapKey.style.display = 'block';
+  } else {
+    highlightLayer.clearLayers();
+    if (overlapKey?.style) overlapKey.style.display = 'none';
+  }
+  saveState();
+};
+
+  tgCompare.onchange= ()=>{ compareMode = tgCompare.checked; pinnedHubs=[]; highlightLayer.clearLayers(); refreshComparePanel(); alert(compareMode ? 'Compare mode on: click hub markers to pin them.' : 'Compare mode off.'); saveState(); };
+  tgWithin.onchange = ()=>{ lastFilterChanged='tgWithin'; runFilter(); fitToResults(); saveState(); };
+tgCluster.onchange = ()=>{ refreshLayerMode(); saveState(); };
+
+
+  // Keyboard
+  const searchBox = id('searchBox'), searchBadge = id('searchBadge'), searchResults = id('searchResults');
+  const searchWrap = document.querySelector('.searchbox');
+  id('searchClear').onclick = ()=>{ searchBox.value=''; localStorage.removeItem(LS_LAST_QUERY); searchBadge.classList.remove('show'); hideResults(); clearTarget(); runFilter(); };
+  window.addEventListener('keydown',(e)=>{
+    if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); searchBox.focus(); searchBox.select(); }
+    if (e.key.toLowerCase() === 'h'){ map.setView(HOME_VIEW.center, HOME_VIEW.zoom); }
+    if (e.key.toLowerCase() === 'f' && sidepanel.classList.contains('show')){ spSearch.focus(); spSearch.select(); }
+  });
+
+  // Side panel actions
+  spClose.onclick = ()=> hideSidepanel();
+  spCollapse.onclick = ()=> hideSidepanel();
+  spSearch.addEventListener('input', ()=>{ spFilter = spSearch.value.trim().toLowerCase(); renderSidepanelList(); });
+  // Copy-address delegate for the side-panel list
+spRowsEl.addEventListener('click', (e)=>{
+  const btn = e.target.closest('button.mini');
+  if (!btn) return;
+  navigator.clipboard?.writeText(btn.dataset.copy || '');
+  const old = btn.textContent;
+  btn.textContent = 'Copied!';
+  setTimeout(()=> btn.textContent = old, 800);
+});
+
+  spExport.onclick = ()=>{ exportSidepanelCsv(); if(AUTO_RESET()){ resetAll(); runFilter(); renderChips(); } };
+  spPrint.onclick  = ()=>{ printSidepanelList();  if(AUTO_RESET()){ resetAll(); runFilter(); renderChips(); } };
+  spPinBtn.onclick = ()=> togglePinFromPanel();
+  spOnlyUncovEl.onchange = ()=>{ spOnlyUncov = spOnlyUncovEl.checked; renderSidepanelList(); };
+  document.querySelectorAll('.sp-quick .btn[data-r]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      radius.value = b.dataset.r; radiusLbl.textContent=b.dataset.r;
+      runFilter(); updateRings(); if (spHub) openSidepanel(spHub); refreshComparePanel(); saveState();
+    });
+  });
+
+  // Map events
+  markers.on('clustermouseover', (e)=>{
+    const cts = coverageCounts(e.layer.getAllChildMarkers());
+    const total = Object.values(cts).reduce((a,b)=>a+b,0)||1;
+    const pct = k => Math.round((cts[k]||0)*100/total);
+    const html = `
+      <div style="font-size:12px">
+        <div><b>${total}</b> stores</div>
+        <div><span class="dot" style="background:${COLORS["Premium + Acosta"]}"></span> P+A: <b>${cts["Premium + Acosta"]||0}</b> (${pct("Premium + Acosta")}%)</div>
+        <div><span class="dot" style="background:${COLORS["Premium Only"]}"></span> Premium: <b>${cts["Premium Only"]||0}</b> (${pct("Premium Only")}%)</div>
+        <div><span class="dot" style="background:${COLORS["Acosta Only"]}"></span> Acosta: <b>${cts["Acosta Only"]||0}</b> (${pct("Acosta Only")}%)</div>
+        <div><span class="dot" style="background:${COLORS["Uncovered"]}"></span> Uncovered: <b>${cts["Uncovered"]||0}</b> (${pct("Uncovered")}%)</div>
+      </div>`;
+    e.layer.bindTooltip(html, {direction:'top', offset:[0,-12], opacity:0.95, sticky:true}).openTooltip();
+  });
+  markers.on('clustermouseout', (e)=>{ e.layer.closeTooltip(); });
+  markers.on('clusterclick', (e)=>{ map.fitBounds(e.layer.getBounds()); });
+  map.on('moveend zoomend', ()=>{
+    updateInViewCount();
+    if (id('tgHeat').checked) requestIdleCallback?.(updateHeat) ?? updateHeat();
+    saveState();
+  });
+
+  // ---------- Load data ----------
+  showBusy(true); let spinnerFailSafe = setTimeout(()=>showBusy(false), 7000);
+  try {
+    // STORES
+    STATUS.textContent = `Loading ${DATA_URL} …`;
+    let storeRaw = null;
+    try{
+      const resp = await fetch(DATA_URL, { cache:'no-store' });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const text = await resp.text();
+      storeRaw = JSON.parse(text.replace(/^\uFEFF/,''));
+      if (!Array.isArray(storeRaw)) throw new Error('store_data.json must be a JSON array');
+    }catch(fetchErr){
+      console.warn('Data fetch failed, using fallback stores:', fetchErr);
+      STATUS.innerHTML = `<span style="color:#a15b00;font-weight:600">Loaded fallback test data</span> — place <code>store_data.json</code> next to this file to load real data.`;
+      storeRaw = FALLBACK_STORES;
+    }
+    allStores = normalizeStores(storeRaw);
+    STATUS.textContent += `  |  ${allStores.length.toLocaleString()} stores ready`;
+
+    populateRM(allStores); populateAM(allStores);
+
+    // ACOSTA
+    try {
+      const aResp = await fetch(ACOSTA_URL, { cache: 'no-store' });
+      if (!aResp.ok) throw new Error(`HTTP ${aResp.status} for ${ACOSTA_URL}`);
+      const aJson = await aResp.json();
+      const rows = Array.isArray(aJson) ? aJson : [];
+      acostaHubs = rows
+        .map(r => ({
+          lat: Number(r.Latitude ?? r.latitude ?? r.lat),
+          lng: Number(r.Longitude ?? r.longitude ?? r.lng),
+          name: String(r.RepName ?? r.name ?? 'Acosta Rep'),
+          city: String(r.City ?? ''), state: String(r.State ?? '')
+        }))
+        .filter(r => Number.isFinite(r.lat) && Number.isFinite(r.lng))
+        .map(r => ({
+          id: 'ac_' + slug(`${r.name}-${r.city}-${r.state}`),
+          name: r.name, fullName: `${r.name} — ${r.city}, ${r.state}`,
+          coords: [r.lat, r.lng], status: 'acosta'
+        }));
+      STATUS.textContent += `  |  Acosta hubs: ${acostaHubs.length}`;
+    } catch (e) {
+      STATUS.innerHTML += `  |  <span style="color:#b42318">Acosta failed</span>`;
+      console.error('Acosta load error:', e);
+      acostaHubs = [];
+    }
+
+   // PREMIUM hubs (confirmed + pending)
+try {
+  const PREMIUM_URL = './premium_trainers_master.json?v=' + Date.now();
+
+  const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
+  if (!pResp.ok) throw new Error(`HTTP ${pResp.status} for ${PREMIUM_URL}`);
+
+  const pJson = await pResp.json();
+  const rows = Array.isArray(pJson)
+    ? pJson
+    : [ ...(pJson.confirmed || []), ...(pJson.pending || []) ];
+
+  // --- helpers -------------------------------------------------
+  const txt = v => String(v ?? '').toLowerCase();
+  const statusText = r => {
+    const fields = [
+      r.Status, r.status, r.HubStatus, r.Hub_Status,
+      r.TrainerStatus, r.Trainer_Status, r.CandidateStatus, r.AssignmentStatus
+    ];
+    return fields.map(txt).find(Boolean) || '';
+  };
+  const getCity = r => String(
+    r.City ?? r.city ?? r.Hub_City ?? r['Hub City'] ??
+    r.ProposedCity ?? r['Proposed City'] ??
+    r.TargetCity ?? r['Target City'] ??
+    r.CandidateCity ?? r['Candidate City'] ??
+    r.HubCity ?? ''
+  ).trim();
+  const getState = r => String(
+    r.State ?? r.state ?? r.Hub_State ?? r['Hub State'] ??
+    r.ProposedState ?? r['Proposed State'] ??
+    r.TargetState ?? r['Target State'] ??
+    r.CandidateState ?? r['Candidate State'] ??
+    r.HubState ?? ''
+  ).trim();
+  const getCoords = r => {
+    const lat = Number(r.Latitude  ?? r.latitude  ?? r.lat ?? r.Lat ?? r.lat_dd ?? r.Latitude__c);
+    const lng = Number(r.Longitude ?? r.longitude ?? r.lng ?? r.Lon ?? r.lng_dd ?? r.Longitude__c);
+    return (Number.isFinite(lat) && Number.isFinite(lng)) ? [lat, lng] : null;
+  };
+
+  const toHub = (r) => {
+    const coords = getCoords(r);
+    if (!coords) return null;
+
+    const city  = getCity(r);
+    const state = getState(r);
+    const name  = String(
+      r.CandidateName ?? r.Candidate ?? r.RepName ?? r.repName ??
+      r.TrainerName ?? r['Trainer Name'] ??
+      r.Premium_Trainer ?? r.PremiumTrainer ??
+      r.name ?? r.Name ?? ''
+    ).trim();
+
+    const s = statusText(r);
+    const status = (name && !/(offer|propos|recruit|pend)/i.test(s)) ? 'confirmed' : 'pending';
+    const statusSub =
+      /(offer)/i.test(s) ? 'pending_offer' :
+      /(propos|plan|target)/i.test(s) ? 'proposed' :
+      /(recruit|open|tbd|no\s*app|no\s*applicant|no\s*apps?)/i.test(s) ? 'open' :
+      (status === 'confirmed' ? 'confirmed' : 'pending');
+
+    const statusLabel = ({
+      confirmed:'Confirmed', pending_offer:'Pending Offer',
+      pending:'Pending', proposed:'Proposed', open:'Open'
+    }[statusSub]) || 'Pending';
+
+    const label = `${city && state ? `${city}, ${state}` : (city || state || '')} (${statusLabel}${name ? ` — ${name}` : ''})`;
+
+    return {
+      id: `${status[0]}_${slug(`${city||''}-${state||''}-${coords[0].toFixed(3)}-${coords[1].toFixed(3)}-${name||''}`)}`,
+      name: name || 'Proposed',
+      fullName: label,
+      coords,
+      status, statusSub, statusLabel,
+      city, state
+    };
+  };
+
+  const hubs = rows.map(toHub);
+  const good  = hubs.filter(Boolean);
+  const bad   = hubs.map((h,i)=>h?null:rows[i]).filter(Boolean).slice(0,2);
+
+  premiumConfirmed = good.filter(h => h.status === 'confirmed');
+  premiumPending   = good.filter(h => h.status === 'pending');
+
+  console.log(`[Premium] rows: ${rows.length}, mapped: ${good.length}, confirmed: ${premiumConfirmed.length}, pending: ${premiumPending.length}`);
+  if (bad.length) console.warn('[Premium] example unmapped rows (missing/invalid lat/lng/city/state?):', bad);
+
+  STATUS.textContent += `  |  Premium hubs: ${good.length}`;
+
+} catch (e) {
+  console.warn('Premium file missing/invalid', e);
+  STATUS.innerHTML += `  |  <span style="color:#b42318">Premium failed</span>`;
+  premiumConfirmed = [];
+  premiumPending   = [];
+}
+
+
+    // Build initial UI state
+    buildSearchIndex();
+    buildHubFilterOptions();
+
+    if (!tryLoadSnapshot()){ tryLoadLocal(); }
+
+    // Compute coverage (offloaded to worker)
+    await recomputeCoverage();
+
+    // Draw
+    runFilter(); renderChips(); renderHubs(); updateRings();
+
+    // Dataset badge (simple fingerprints)
+    const storesFp  = `stores:${allStores.length}`;
+    const premiumFp = `premium:${premiumConfirmed.length + premiumPending.length}`;
+    const acostaFp  = `acosta:${acostaHubs.length}`;
+    updateDatasetBadge(storesFp, premiumFp, acostaFp);
+
+  } catch(err){
+    STATUS.innerHTML = `<span style="color:#b42318;font-weight:600">Init error:</span> ${escape(err?.message || String(err))}`;
+    console.error(err);
+  } finally { clearTimeout(spinnerFailSafe); showBusy(false); }
+
+  if (PENDING_PIN_IDS.length){
+    pinnedHubs = visibleHubs().filter(h => PENDING_PIN_IDS.includes(h.id));
+    if (tgOverlap.checked) drawOverlap();
+  }
+  if (PENDING_OPEN_HUB_ID){
+    const h = visibleHubs().find(x => x.id === PENDING_OPEN_HUB_ID);
+    if (h) openSidepanel(h);
+    PENDING_OPEN_HUB_ID = null;
+  }
+
+  // ---------- Search ----------
+  var searchIdx = []; let resIndex = -1; let targetPin=null; const targetIcon = L.divIcon({className:'', html:'<div style="background:#2f71ff;border:2px solid #fff;border-radius:50%;width:18px;height:18px;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>', iconSize:[18,18], iconAnchor:[9,9]});
+  const hoverIcon  = L.divIcon({className:'', html:'<div class="hl"></div>', iconSize:[22,22], iconAnchor:[11,11]});
+  let hoverMarker=null;
+
+  function buildSearchIndex(){
+    searchIdx = allStores.map(s => ({
+      kind:'STORE', store:s, lat:s.lat, lng:s.lng,
+      text: (`store ${s.storeNumberStr} ${s.storeName||''} ${s.address||''} ${s.city} ${s.state} ${s.coverageType||''} ${managerLabel(s.areaManager)} ${managerLabel(s.regionalManager)}`).toLowerCase()
+    }));
+  }
+  function showHover(lat,lng){ if(hoverMarker) highlightLayer.removeLayer(hoverMarker); hoverMarker=L.marker([lat,lng],{icon:hoverIcon}).addTo(highlightLayer); }
+  function hideHover(){ if(hoverMarker){ highlightLayer.removeLayer(hoverMarker); hoverMarker=null; } }
+  function clearTarget(){ if (targetPin){ targetLayer.removeLayer(targetPin); targetPin=null; } }
+  function hideResults(){ searchResults.classList.remove('show'); searchResults.innerHTML=''; searchResults._data=[]; resIndex=-1; }
+
+  function showResults(list){
+    if (!list.length){ hideResults(); return; }
+    searchResults.innerHTML = list.map((r,i)=>`
+      <div class="res" data-i="${i}" role="option" title="Open this result">
+        <div class="kind">${r.kind}</div>
+        <div class="text">
+          <div>${escape(r.label)}</div>
+          ${r.kind==='STORE'
+            ? `<div class="sub">${escape(r.store.address||'')} · ${escape(r.store.city||'')}, ${escape(r.store.state||'')} · ${escape(r.store.coverageType||'')}</div>`
+            : (r.kind==='NEAR' ? `<div class="sub">${escape(r.store.address||'')} · ${escape(r.store.city||'')}, ${escape(r.store.state||'')}</div>` : '')
+          }
         </div>
+      </div>`).join('');
+    searchResults.classList.add('show');
+    Array.from(searchResults.querySelectorAll('.res')).forEach(el=>{
+      el.addEventListener('mouseenter', ()=>{ const d = searchResults._data[Number(el.dataset.i)]; if(d && d.lat) showHover(d.lat,d.lng); });
+      el.addEventListener('mouseleave', hideHover);
+      el.addEventListener('click', ()=>{ const d = searchResults._data[Number(el.dataset.i)]; selectResult(d); });
+    });
+    searchResults._data = list; resIndex=-1;
+  }
+
+  function toResFromStore(s,score,kind='STORE'){ return { kind, store:s, label:`Store ${s.storeNumberStr} — ${s.storeName||''}, ${s.city}, ${s.state}`, lat:s.lat, lng:s.lng, score }; }
+  function toCityRes(city,state,lat,lng,score){ return { kind:'CITY', label:`${city}, ${state}`, lat, lng, score }; }
+
+  function smartNearest(center,limit=8){
+    return allStores.map(s => [distMiles(center.lat,center.lng,s.lat,s.lng), s]).sort((a,b)=>a[0]-b[0]).slice(0,limit).map((x,i)=>toResFromStore(x[1], 80-i,'NEAR'));
+  }
+
+  // --- Fuzzy helpers + “near <city>” ---
+  function fuzzyScore(hay, needle){
+    hay = (hay||'').toLowerCase(); needle = (needle||'').toLowerCase().trim();
+    if (!needle) return 0;
+    if (hay.includes(needle)) return 100;
+    const toks = needle.split(/\s+/).filter(Boolean);
+    if (!toks.length) return 0;
+    const hits = toks.reduce((a,t)=>a + (hay.includes(t)?1:0), 0);
+    return hits ? 60 + hits*10 : 0;
+  }
+  function findCityCenter(query){
+    const m = (query||'').match(/^\s*(.+?)(?:,\s*([A-Za-z]{2}))?\s*$/);
+    if (!m) return null;
+    const qCity  = (m[1]||'').toLowerCase();
+    const qState = (m[2]||'').toUpperCase();
+    const groups = new Map();
+    allStores.forEach(s=>{
+      const city = (s.city||'').toLowerCase();
+      const st   = (s.state||'').toUpperCase();
+      const cityHit  = city === qCity || city.includes(qCity);
+      const stateHit = !qState || st === qState;
+      if (cityHit && stateHit){
+        const key = `${city}|${st}`;
+        const g = groups.get(key) || {city:s.city, state:s.state, lat:0, lng:0, n:0};
+        g.lat += s.lat; g.lng += s.lng; g.n += 1; groups.set(key, g);
+      }
+    });
+    if (!groups.size) return null;
+    const best = Array.from(groups.values()).sort((a,b)=>b.n-a.n)[0];
+    return { city: best.city, state: best.state, lat: best.lat/best.n, lng: best.lng/best.n, n: best.n };
+  }
+
+  function highlightResult(){
+    Array.from(searchResults.querySelectorAll('.res')).forEach((el,i)=>{
+      el.classList.toggle('active', i===resIndex);
+      if(i===resIndex){
+        el.scrollIntoView({block:'nearest'});
+        const d=searchResults._data[i]; if(d && d.lat) showHover(d.lat,d.lng);
+      }
+    });
+  }
+  function selectResult(d){
+    hideResults(); hideHover();
+    if(!d) return;
+    if(d.kind==='STORE' || d.kind==='NEAR'){ openStorePopup(d.store); return; }
+    if(d.kind==='CITY' || d.kind==='HUB'){
+      const latlng = [d.lat,d.lng];
+      showPinPopup(latlng, `
+        <div style="font-size:13px;line-height:1.35;min-width:220px">
+          <div style="font-weight:800;margin-bottom:4px">${escape(d.label)}</div>
+          <div style="color:var(--muted)">Lat: ${Number(d.lat).toFixed(4)}, Lng: ${Number(d.lng).toFixed(4)}</div>
+        </div>
+      `);
+      map.panInside(latlng, { paddingTopLeft:[20,20], paddingBottomRight:[20,20] });
+      return;
+    }
+  }
+  function showPinPopup(latlng, html){
+    if(!targetPin){ targetPin = L.marker(latlng,{icon:targetIcon}).addTo(targetLayer); }
+    else { targetPin.setLatLng(latlng); }
+    const p = L.popup({autoClose:true, closeOnClick:true, maxWidth:320}).setLatLng(latlng).setContent(html);
+    p.openOn(map);
+  }
+
+  // Upgraded search input (fuzzy + near <city>)
+  function handleSearchInput(){
+    if (!allStores.length){ hideResults(); return; }
+    const qraw = (searchBox.value||'').trim();
+    const q = qraw.toLowerCase();
+    localStorage.setItem(LS_LAST_QUERY, qraw);
+
+    const nearCity = q.match(/^near\s+(.+)$/i);
+
+    if (!q || q === 'near' || q === 'near me'){
+      searchBadge.textContent = 'NEAR';
+      searchBadge.classList.add('show');
+      showResults(smartNearest(map.getCenter(), 8));
+      return;
+    }
+    if (nearCity){
+      const center = findCityCenter(nearCity[1]);
+      if (center){
+        map.setView([center.lat, center.lng], Math.max(map.getZoom(), 8));
+        showResults(smartNearest({lat:center.lat, lng:center.lng}, 8));
+        searchBadge.textContent = 'NEAR'; searchBadge.classList.add('show');
+        showPinPopup([center.lat, center.lng], `
+          <div style="font-size:13px;line-height:1.35;min-width:220px">
+            <div style="font-weight:800;margin-bottom:4px">Near ${escape(center.city)}, ${escape(center.state)}</div>
+            <div style="color:var(--muted)">${center.n} reference stores • ${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}</div>
+          </div>`);
+        return;
+      }
+    }
+
+    const items = [];
+   const numInside = q.match(/\b(\d{1,6})\b/); // allow 1–6 digits so “62” works
+
+    if (numInside){
+      const s = allStores.find(x => x.storeNumberStr === numInside[1]);
+      if (s) items.push(toResFromStore(s, 120));
+    }
+
+    const cityHits = new Map();
+    allStores.forEach(s=>{
+      const score = fuzzyScore(`${s.city}, ${s.state}`, q);
+      if (score>=70){
+        const key = `${s.city}|${s.state}`;
+        const v = cityHits.get(key) || { city:s.city, state:s.state, lat:0, lng:0, n:0, score };
+        v.lat += s.lat; v.lng += s.lng; v.n += 1; v.score = Math.max(v.score, score);
+        cityHits.set(key, v);
+      }
+    });
+    Array.from(cityHits.values())
+      .sort((a,b)=> b.score - a.score || b.n - a.n)
+      .slice(0,8)
+      .forEach(c => items.push(toCityRes(c.city, c.state, c.lat/c.n, c.lng/c.n, 85)));
+
+    searchIdx.forEach(it => {
+      const score = fuzzyScore(it.text, q);
+      if (score >= 70) items.push(toResFromStore(it.store, score));
+    });
+
+    visibleHubs().forEach(h=>{
+      const score = fuzzyScore(h.fullName||h.name, q);
+      if (score>=70) items.push({ kind:'HUB', label:h.fullName||h.name, lat:h.coords[0], lng:h.coords[1], score });
+    });
+
+    const seen=new Set(), out=[];
+    items.sort((a,b)=>b.score-a.score).forEach(it=>{
+      const k=it.kind+'|'+it.label+'|'+it.lat+'|'+it.lng;
+      if(!seen.has(k)){ seen.add(k); out.push(it); }
+    });
+
+    if (out.length) { searchBadge.textContent = 'SEARCH'; searchBadge.classList.add('show'); }
+    else { searchBadge.classList.remove('show'); }
+    showResults(out.slice(0,60));
+  }
+
+  searchBox.addEventListener('input', handleSearchInput);
+  searchBox.addEventListener('keydown', (e)=>{
+    const items = searchResults._data || [];
+    if (e.key === 'ArrowDown'){ e.preventDefault(); resIndex = Math.min(items.length-1,resIndex+1); highlightResult(); }
+    if (e.key === 'ArrowUp'){ e.preventDefault(); resIndex = Math.max(0,resIndex-1); highlightResult(); }
+      if (e.key === 'Enter'){
+    e.preventDefault();
+    // NEW: if nothing highlighted yet, pick the first result
+    const i = (resIndex >= 0) ? resIndex : 0;
+    if (items[i]) { selectResult(items[i]); }
+  }
+
+    if (e.key === 'Escape'){ hideResults(); }
+  });
+  document.addEventListener('click', (e)=>{ if (!searchWrap.contains(e.target)) hideResults(); });
+
+  // ---------- Filtering & markers ----------
+  function storeFilter(s){
+    const covSel = selectedValues(covFilter);
+    const covOK  = covSel.includes('All') || covSel.length === 0 || covSel.includes(s.coverageType || '');
+
+    const rmSel = selectedValues(rmFilter);
+    const amSel = selectedValues(amFilter);
+    const rmOK  = regionalSelectionMatches(s, rmSel);
+    const amOK  = areaSelectionMatches(s, amSel, rmSel);
+
+    // Hubs (value = hub IDs)
+    const hubSel = selectedValues(hubFilter).filter(Boolean);
+    let hubOK = true;
+    if (hubSel.length){
+      const r = Number(radius.value) || DEFAULT_RADIUS;
+    // Use active/current hubs only for filtering.
+// Pending/future hubs are display-only and should not affect coverage or gap analysis.
+const hubsNow = [...premiumConfirmed, ...acostaHubs];
+      const selHubs = hubsNow.filter(h => hubSel.includes(h.id));
+      hubOK = selHubs.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+    }
+
+    // “Within hubs” toggle
+    let withinOK = true;
+    if (tgWithin.checked){
+      const r = Number(radius.value) || DEFAULT_RADIUS;
+      const activeHubsNow = [
+  ...(showConfirmed.checked ? premiumConfirmed : []),
+  ...(showAcosta.checked ? acostaHubs : [])
+];
+
+withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+    }
+
+    return covOK && rmOK && amOK && hubOK && withinOK;
+  }
+
+  function runFilter(){
+    markerByStore.clear();
+    if(tgCluster.checked){ markers.clearLayers(); } else { plainMarkers.clearLayers(); }
+
+    filteredStores = allStores.filter(storeFilter);
+
+    const ms = filteredStores.map(s=>{
+      const m = L.circleMarker([s.lat,s.lng], {
+        radius:5, weight:1, fillOpacity:.9, color:'#fff',
+        fillColor: COLORS[s.coverageType] || '#999'
+      });
+      m.store = s;
+      m.bindPopup(storePopupHTML(s));
+      markerByStore.set(s.storeNumberStr, m);
+      return m;
+    });
+
+    if (tgCluster.checked){ markers.addLayers(ms); }
+    else { plainMarkers.addLayer(L.layerGroup(ms)); }
+
+    updateCounts();
+    rebuildRMOptionsWithCounts();
+    rebuildAMOptionsWithCounts();
+    buildHubFilterOptions();
+
+    updateInViewCount();
+    if (id('tgHeat').checked) updateHeat();
+    if (id('tgRings').checked) updateRings();
+
+    // Empty state overlay
+    id('emptyState').hidden = filteredStores.length !== 0;
+  }
+
+  function updateCounts(){
+    const total = filteredStores.length;
+    const by = { 'Premium + Acosta':0, 'Premium Only':0, 'Acosta Only':0, 'Uncovered':0 };
+    filteredStores.forEach(s => { by[s.coverageType] = (by[s.coverageType] || 0) + 1; });
+    const pct = (n) => total ? Math.round(n * 100 / total) + '%' : '0%';
+const paCount = by['Premium + Acosta'] || 0;
+const premiumOnlyCount = by['Premium Only'] || 0;
+const acostaOnlyCount = by['Acosta Only'] || 0;
+const uncoveredCount = by['Uncovered'] || 0;
+
+const premiumCoverageCount = paCount + premiumOnlyCount;
+const acostaCoverageCount = paCount + acostaOnlyCount;
+const combinedCoverageCount = paCount + premiumOnlyCount + acostaOnlyCount;
+
+k.pa.textContent = `${combinedCoverageCount} (${pct(combinedCoverageCount)})`;
+k.p.textContent  = `${premiumCoverageCount} (${pct(premiumCoverageCount)})`;
+k.a.textContent  = `${acostaCoverageCount} (${pct(acostaCoverageCount)})`;
+k.u.textContent  = `${uncoveredCount} (${pct(uncoveredCount)})`;
+
+k.total.textContent     = total;
+k.confirmed.textContent = premiumConfirmed.length;
+k.pending.textContent   = premiumPending.length;
+  }
+
+  function updateInViewCount(){
+    const b=map.getBounds();
+    const inV=filteredStores.filter(s=>b.contains([s.lat,s.lng])).length;
+    k.inView.textContent=`In view: ${inV}`;
+  }
+
+  function refreshLayerMode(){
+    if (tgCluster.checked){
+      if (map.hasLayer(plainMarkers)) map.removeLayer(plainMarkers);
+      if (!map.hasLayer(markers)) map.addLayer(markers);
+    } else {
+      if (map.hasLayer(markers)) map.removeLayer(markers);
+      if (!map.hasLayer(plainMarkers)) map.addLayer(plainMarkers);
+    }
+    runFilter();
+  }
+
+  // ---------- Hubs ----------
+  function visibleHubs(){
+    const out = [];
+    if (showConfirmed.checked) out.push(...premiumConfirmed);
+    if (showPending.checked)   out.push(...premiumPending);
+    if (showAcosta.checked)    out.push(...acostaHubs);
+    return out;
+  }
+function hubDisplay(h){
+  if (h.fullName && /[A-Za-z]/.test(h.fullName)) return h.fullName;
+  const city = (h.city || h.City || '').trim();
+  const st   = (h.state || h.State || '').trim();
+  if (city && st) return `${city}, ${st}`;
+  if (city) return city;
+  if (st)   return st;
+  return h.name || h.label || 'Proposed';
+}
+
+
+
+
+
+  function copyHubLink(){
+    if(!spHub) return;
+    saveState();
+    const st = JSON.parse(localStorage.getItem(LS_STATE) || '{}');
+    st.openHubId     = spHub.id;
+    st.pinnedHubIds  = pinnedHubs.map(h => h.id);
+    const hash = btoa(unescape(encodeURIComponent(JSON.stringify(st))));
+    const url  = `${location.origin}${location.pathname}#${hash}`;
+    navigator.clipboard?.writeText(url);
+    alert('Hub link copied to clipboard.');
+  }
+  spLink.onclick = copyHubLink;
+
+  function renderHubs(){
+  // clear current markers
+  hubLayer.clearLayers();
+
+  // get the hubs that should be visible under current filters
+  const vis = visibleHubs();
+  vis.forEach(h => {
+    // base class by status
+    const base =
+      h.status === 'confirmed' ? 'confirmed' :
+      h.status === 'pending'   ? 'pending'   : 'acosta';
+
+    // pinned state class
+    const isPinned = pinnedHubs.some(x => x.id === h.id);
+    const cls = `hub ${base}${isPinned ? ' pinned' : ''}`;
+
+    // marker icon
+    const icon = L.divIcon({
+      className: '',
+      html: `<div class="${cls}"></div>`,
+      iconSize: [20, 20],
+      iconAnchor: [10, 10]
+    });
+
+    // create marker
+    const m = L.marker(h.coords, { icon, title: hubDisplay(h), pane: 'hubPane' }).addTo(hubLayer);
+    m.hub = h;
+
+    // left-click: open panel or toggle pin in compare mode
+    m.on('click', () => compareMode ? togglePin(h) : openSidepanel(h));
+
+    // hover tooltip
+    m.on('mouseover', () => m.bindTooltip(hubDisplay(h), { direction: 'top', offset: [0, -8] }).openTooltip());
+    m.on('mouseout',  () => m.closeTooltip());
+
+    // right-click: edit menu (only acts if editMode is ON in showHubMenu)
+    m.on('contextmenu', (e) => showHubMenu(e, h, m));
+  });
+}
+
+
+  function updateRings(){
+    ringLayer.clearLayers();
+    if(!tgRings.checked) return;
+    const r = Number(radius.value) || DEFAULT_RADIUS;
+    visibleHubs().forEach(h=>{
+      ringLayer.addLayer(L.circle(h.coords,{radius:r*1609,color:'#333',weight:1,fill:false,opacity:.4}));
+    });
+  }
+  function drawOverlap(){
+    highlightLayer.clearLayers();
+    if (overlapKey?.style) overlapKey.style.display = tgOverlap.checked ? 'block' : 'none';
+
+    if(!tgOverlap.checked) return;
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const vis = visibleHubs();
+    filteredStores.forEach(s=>{
+      let cnt = 0;
+      vis.forEach(h => { if (distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r) cnt++; });
+      if (cnt >= 2){
+        highlightLayer.addLayer(L.circleMarker([s.lat,s.lng],{radius:7,color:'#111',weight:2,fillOpacity:0.2}));
+      }
+    });
+  }
+  function togglePin(h){
+    const i = pinnedHubs.findIndex(x=>x.id===h.id);
+    if (i>=0){ pinnedHubs.splice(i,1); } else { pinnedHubs.push(h); }
+    renderHubs(); // refresh marker outlines when (un)pinned
+
+    drawOverlap();
+    refreshComparePanel();
+  }
+  function togglePinFromPanel(){
+    if (!spHub) return;
+    togglePin(spHub);
+    spPinBtn.textContent = pinnedHubs.some(x => x.id === spHub.id) ? 'Unpin' : 'Pin';
+  }
+
+  // ---------- Coverage (Web Worker) ----------
+  async function recomputeCoverage(){
+  const msg = {
+  action:'classify',
+  radius: CLASSIFY_RADIUS,
+  stores: allStores.map(s => ({ id:s.storeNumberStr, lat:s.lat, lng:s.lng })),
+
+  // IMPORTANT:
+  // Only confirmed/active Premium RTS hubs should count toward real coverage.
+  // Pending/future hiring hubs remain visible on the map if toggled on,
+  // but they do NOT classify stores as covered.
+  premium: premiumConfirmed.map(h=>({ lat:h.coords[0], lng:h.coords[1] })),
+
+  acosta: acostaHubs.map(h=>({ lat:h.coords[0], lng:h.coords[1] }))
+};
+    const res = await callWorker(msg);
+    // apply coverage
+    const mapC = new Map(res.coverage); // [[id,'Premium Only'], ...]
+    allStores.forEach(s => { s.coverageType = mapC.get(s.storeNumberStr) || 'Uncovered'; });
+  }
+
+  // ---------- Sidepanel ----------
+
+function rowHTML(s){
+  const addr = `${s.address||''}, ${s.city||''}, ${s.state||''}`.replace(/\s+/g,' ').trim();
+  const coverage = s.coverageType || 'Uncovered';
+  const covClass =
+    coverage === 'Premium + Acosta' ? 'cov-pa' :
+    coverage === 'Premium Only'     ? 'cov-p'  :
+    coverage === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
+
+  const dist = (s._distMiles != null) ? `${s._distMiles.toFixed(1)} mi` : '';
+
+  return `
+    <div class="row" data-id="${s.storeNumberStr}">
+      <div class="num">#${s.storeNumberStr}</div>
+      <div style="flex:1;min-width:0">
+        <div class="title">${escape(s.storeName || 'Walmart')}</div>
+        <div class="addr">
+          ${escape(addr)}
+          <button class="mini" data-copy="${escape(addr)}" title="Copy address">Copy</button>
+        </div>
+      </div>
+      <div style="margin-left:auto;text-align:right">
+        <div class="cov-badge ${covClass}">${escape(coverage)}</div>
+        <div class="muted" style="margin-top:6px">${escape(dist)}</div>
+      </div>
+    </div>`;
+}
+
+
+
+
+  function openSidepanel(h){
+    spHub = h;
+    sidepanel.classList.add('show');
+    spTitle.textContent = hubDisplay(h);
+    renderSidepanelMeta();
+    renderSidepanelList(true);
+    const padRight = 420;
+    map.panInside(h.coords, { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] });
+        syncLegends(); // NEW
+
+    spPinBtn.textContent = pinnedHubs.some(x=>x.id===h.id) ? 'Unpin' : 'Pin';
+  }
+
+ function rowTemplate(s){
+  return `
+    <div class="row" onclick="focusStore(${s.id})">
+      <div class="num">#${s.id}</div>
+      <div>
+        <div class="title">${escape(s.name)}</div>
+        <div class="addr">${escape(s.addr)}<br>${escape(s.city)}, ${s.state}</div>
+        <div class="chip" style="border-color:${COLORS[s.coverageType]}">
+          ${s.coverageType}
+        </div>
+      </div>
+      <div class="dist">${s.dist.toFixed(1)} mi</div>
+      <div class="hint">›</div> <!-- clickable cue -->
+    </div>
+  `;
+}
+
+  function hideSidepanel(){
+  sidepanel.classList.remove('show'); spHub=null; spRows=[]; spRowsEl.innerHTML='';
+  syncLegends(); // NEW
+}
+
+
+  function renderSidepanelMeta(){
+  if(!spHub) return;
+  const r = Number(radius.value)||DEFAULT_RADIUS;
+  // Pending/future hubs are planning-only.
+// Show nearby stores for reference, but do not imply they count toward current coverage.
+const stores = storesWithin(spHub.coords, r);
+const isFutureHub = spHub.status === 'pending';
+  const [hlat, hlng] = spHub.coords;
+  const gHub = `https://www.google.com/maps?q=${encodeURIComponent(hlat+','+hlng)}`;
+  const aHub = `http://maps.apple.com/?ll=${encodeURIComponent(hlat+','+hlng)}`;
+
+  const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
+  stores.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0) + 1; });
+
+const statusChip = isFutureHub
+  ? `<span class="sp-chip" style="border-color:#9ea3a8"><b>Status:</b> Future / display-only — not counted in coverage</span>`
+  : (spHub.statusLabel
+      ? `<span class="sp-chip"><b>Status:</b> ${escape(spHub.statusLabel)}</span>`
+      : '');
+
+  // What-if 50/75/100mi (classification stays fixed at 75)
+  const whatIfR = [50,75,100].map(rr=>{
+    const n = storesWithin(spHub.coords, rr).length;
+    return `<span class="sp-chip"><b>${rr}mi:</b> ${n}</span>`;
+  }).join('');
+
+  // Base chips/meta
+  spMeta.innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      ${statusChip}
+      <span class="sp-chip"><b>Maps:</b> <a target="_blank" rel="noopener" href="${gHub}">Google</a> • <a target="_blank" rel="noopener" href="${aHub}">Apple</a></span>
+      <span class="sp-chip"><b>Radius:</b> ${r} mi</span>
+      ${whatIfR}
+    </div>
+    <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
+      <span class="sp-chip">Total: <b>${stores.length}</b></span>
+    </div>
+  `;
+
+  // ➜ Append the mini-bars AFTER innerHTML is set
+  const totalN = stores.length || 1;
+  const asPct = n => Math.round((n*100)/totalN);
+  const barsHTML = `
+    <div class="sp-bars">
+      <div class="sp-bar pa"><div class="label">Premium + Acosta</div><div class="bar"><div class="fill" style="width:${asPct(totals['Premium + Acosta']||0)}%"></div></div></div>
+      <div class="sp-bar p"><div class="label">Premium Only</div><div class="bar"><div class="fill" style="width:${asPct(totals['Premium Only']||0)}%"></div></div></div>
+      <div class="sp-bar a"><div class="label">Acosta Only</div><div class="bar"><div class="fill" style="width:${asPct(totals['Acosta Only']||0)}%"></div></div></div>
+      <div class="sp-bar u"><div class="label">Uncovered</div><div class="bar"><div class="fill" style="width:${asPct(totals['Uncovered']||0)}%"></div></div></div>
+    </div>`;
+  spMeta.insertAdjacentHTML('beforeend', barsHTML);
+}
+
+  // Virtualized list
+  let virt = null;
+function renderSidepanelList(force=false){
+  if (!spHub) return;
+
+  // build source list
+  const r = Number(radius.value) || DEFAULT_RADIUS;
+  let list = storesWithin(spHub.coords, r).map(s => {
+    // cache distance for sorting / display
+    const d = distMiles(spHub.coords[0], spHub.coords[1], s.lat, s.lng);
+    return Object.assign({}, s, { _distMiles: d });
+  });
+
+  // panel “Uncovered only”
+  if (spOnlyUncov) list = list.filter(s => (s.coverageType||'') === 'Uncovered');
+
+  // panel search filter
+  if (spFilter){
+    const q = spFilter.toLowerCase();
+    list = list.filter(s =>
+      (`${s.storeNumberStr} ${s.storeName||''} ${s.address||''} ${s.city||''} ${s.state||''} ${s.coverageType||''}`)
+        .toLowerCase()
+        .includes(q)
+    );
+  }
+
+  // sort by distance
+list.sort((a,b)=> (a._distMiles||0) - (b._distMiles||0));
+
+// stash and render
+spRows = list;
+spRowsEl.innerHTML = list.map(rowHTML).join('');
+
+// row click -> open popup/zoom
+const rows = Array.from(spRowsEl.querySelectorAll('.row'));
+rows.forEach((el, i) => {
+  const s = list[i];
+  el.addEventListener('click', () => openStorePopup(s));
+});
+
+// Copy address button inside rows (use event delegation)
+spRowsEl.addEventListener('click', (e)=>{
+  const btn = e.target.closest('button.mini');
+  if (!btn) return;
+  e.stopPropagation(); // don't trigger the row click
+  const txt = btn.dataset.copy || '';
+  navigator.clipboard?.writeText(txt);
+  const old = btn.textContent;
+  btn.textContent = 'Copied!';
+  setTimeout(()=> btn.textContent = old || 'Copy', 800);
+});
+}
+
+
+
+  // ---------- Compare / Venn ----------
+  id('cmpClear').onclick = ()=>{ pinnedHubs=[]; refreshComparePanel(); };
+  id('cmpExport').onclick = ()=> exportCompareCsv();
+
+  function refreshComparePanel(){
+    const panel = id('comparePanel');
+    if (!compareMode || pinnedHubs.length !== 2){ panel.classList.remove('show'); id('compareBody').innerHTML=''; return; }
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const [A,B] = pinnedHubs;
+
+    const Aset = new Set(storesWithin(A.coords, r).map(s=>s.storeNumberStr));
+    const Bset = new Set(storesWithin(B.coords, r).map(s=>s.storeNumberStr));
+    const onlyA = [...Aset].filter(x=>!Bset.has(x));
+    const onlyB = [...Bset].filter(x=>!Aset.has(x));
+    const both  = [...Aset].filter(x=>Bset.has(x));
+    const union = onlyA.length + onlyB.length + both.length;
+
+    const pct = n => union ? Math.round(n*100/union)+'%' : '0%';
+
+  // Replace your existing innerHTML assignment with this:
+  id('compareBody').innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <span class="chip">Net-new for <b>${escape(hubDisplay(A))}</b>: <b>${onlyA.length}</b></span>
+      <span class="chip">Overlap: <b>${both.length}</b></span>
+      <span class="chip">Net-new for <b>${escape(hubDisplay(B))}</b>: <b>${onlyB.length}</b></span>
+    </div>
+    <div class="compare-grid">
+      <div><b>${escape(hubDisplay(A))}</b></div><div></div>
+      <div>Only A</div><div><b>${onlyA.length}</b> (${pct(onlyA.length)})</div>
+      <div>Overlap</div><div><b>${both.length}</b> (${pct(both.length)})</div>
+      <div>Only B</div><div><b>${onlyB.length}</b> (${pct(onlyB.length)})</div>
+      <div><b>${escape(hubDisplay(B))}</b></div><div></div>
+    </div>
+  `;
+
+    panel.classList.add('show');
+  }
+
+  function exportCompareCsv(){
+    if (pinnedHubs.length!==2) { alert('Pin exactly 2 hubs.'); return; }
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const [A,B] = pinnedHubs;
+    const Aset = new Set(storesWithin(A.coords, r).map(s=>s.storeNumberStr));
+    const Bset = new Set(storesWithin(B.coords, r).map(s=>s.storeNumberStr));
+
+    const rows = [['Bucket','Store #','Name','Address','City','State','Coverage','AM','RM','Lat','Lng']];
+    const pushList = (label, ids)=>{
+      ids.forEach(id=>{
+        const s = (filteredStores.find(x=>x.storeNumberStr===id) || allStores.find(x=>x.storeNumberStr===id));
+        if (!s) return;
+        rows.push([label, s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'', s.coverageType||'', managerLabel(s.areaManager), managerLabel(s.regionalManager), s.lat, s.lng]);
+      });
+    };
+    pushList('Only A', [...Aset].filter(x=>!Bset.has(x)));
+    pushList('Overlap', [...Aset].filter(x=>Bset.has(x)));
+    pushList('Only B', [...Bset].filter(x=>!Aset.has(x)));
+    exportCsvWithToast(rows, `compare_${slug(hubDisplay(A))}_vs_${slug(hubDisplay(B))}.csv`);
+  }
+
+  // ---------- Export/print helpers with toast ----------
+  function exportStoresCsv(){
+    const rows = [
+      ['Store #','Name','Address','City','State','Coverage','Area Manager','Regional Manager','Lat','Lng'],
+      ...filteredStores.map(s => [
+        s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'',
+        s.coverageType||'', managerLabel(s.areaManager), managerLabel(s.regionalManager), s.lat, s.lng
+      ])
+    ];
+    exportCsvWithToast(rows, `filtered_stores_${Date.now()}.csv`);
+  }
+  function exportSidepanelCsv(){
+    if(!spHub){ alert('Open a hub panel first.'); return; }
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const [clat, clng] = spHub.coords;
+    const rows = [
+      ['Hub','Radius(mi)','Distance(mi)','Store #','Name','Address','City','State','Coverage','Area Manager','Regional Manager','Lat','Lng'],
+      ...spRows.map(s=>{
+        const d = (typeof s.__d === 'number') ? s.__d : distMiles(clat, clng, s.lat, s.lng);
+        return [
+          spHub.fullName || spHub.name, r, d.toFixed(1),
+          s.storeNumberStr, s.storeName||'', s.address||'', s.city||'', s.state||'',
+          s.coverageType||'', managerLabel(s.areaManager), managerLabel(s.regionalManager), s.lat, s.lng
+        ];
+      })
+    ];
+    exportCsvWithToast(rows, `${slug(spHub.name)}_${r}mi_${Date.now()}.csv`);
+  }
+  function exportCsvWithToast(rows, filename){
+    const t = makeToast('Preparing CSV…', true);
+    const chunk = 4000;
+    let i = 0, canceled = false, csvParts = [];
+    t.onCancel(()=>{ canceled = true; t.done('Canceled'); });
+
+    (function step(){
+      if (canceled) return;
+      const end = Math.min(rows.length, i+chunk);
+      const slice = rows.slice(i,end)
+        .map(r => r.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
+      csvParts.push(slice);
+      i = end;
+      t.progress(i/rows.length, `Writing ${i.toLocaleString()}/${rows.length.toLocaleString()} rows…`);
+      if (i < rows.length) { setTimeout(step, 0); }
+      else {
+        const csv = csvParts.join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        t.done('Downloaded');
+      }
+    })();
+  }
+function printSidepanelList() {
+  if (!spHub) { alert('Open a hub first.'); return; }
+
+  const rows = currentPanelStores();                 // your helper
+  const [hlat, hlng] = spHub.coords;
+  const title = hubDisplay(spHub);
+  const r = Number(radius.value) || DEFAULT_RADIUS;  // show current ring
+  const fmtMi = n => (Math.round(n * 10) / 10).toFixed(1);
+
+  const htmlRows = rows.map(s => {
+    const d = fmtMi(distMiles(hlat, hlng, s.lat, s.lng));
+    const addr = [s.address, `${s.city}, ${s.state}`].filter(Boolean).join(' · ');
+    return `
+      <tr>
+        <td style="text-align:right">${s.storeNumberStr || s.storeNumber || ''}</td>
+        <td>${escape(s.storeName || '')}</td>
+        <td>${escape(addr || '')}</td>
+        <td>${escape(s.coverageType || '')}</td>
+        <td>${escape(s.areaManager || '')}</td>
+        <td>${escape(s.regionalManager || '')}</td>
+        <td style="text-align:right">${d}</td>
+      </tr>`;
+  }).join('');
+
+  const w = window.open('', '_blank');
+  if (!w) { alert('Pop-up blocked. Please allow pop-ups for this site and try again.'); return; }
+
+  w.document.write(`<!DOCTYPE html>
+  <html><head>
+    <meta charset="utf-8">
+    <title>Store list — ${escape(title)}</title>
+    <style>
+      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:24px;color:#111}
+      h1{font-size:18px;margin:0 0 10px 0}
+      .meta{color:#555;margin-bottom:12px}
+      table{width:100%;border-collapse:collapse;font-size:12.5px}
+      th,td{border-bottom:1px solid #e5e7eb;padding:6px 8px;vertical-align:top}
+      th{background:#f8fafc;text-align:left}
+      @media print { body{margin:8mm} table{font-size:11.5px} }
+    </style>
+  </head><body>
+    <h1>${escape(title)}</h1>
+    <div class="meta">
+      Radius: ${r} mi · ${spOnlyUncov ? 'Uncovered only · ' : ''}Total: ${rows.length}
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:70px;text-align:right">Store #</th>
+          <th style="width:180px">Name</th>
+          <th>Address</th>
+          <th style="width:140px">Coverage</th>
+          <th style="width:140px">Area Mgr</th>
+          <th style="width:160px">Regional Mgr</th>
+          <th style="width:70px;text-align:right">Miles</th>
+        </tr>
+      </thead>
+      <tbody>${htmlRows}</tbody>
+    </table>
+    <script>window.addEventListener('load',()=>{ setTimeout(()=>{ window.print(); }, 60); });<\/script>
+  </body></html>`);
+  w.document.close();
+}
+
+
+    // ---- Sidepanel printing ----
+function currentPanelStores() {
+  if (!spHub) return [];
+  const r = Number(radius.value) || DEFAULT_RADIUS;
+  let list = storesWithin(spHub.coords, r);
+
+  // match sidepanel toggles/filters
+  if (spOnlyUncov) list = list.filter(s => (s.coverageType || '') === 'Uncovered');
+  if (spFilter && spFilter.trim()) {
+    const q = spFilter.trim().toLowerCase();
+    list = list.filter(s =>
+      (`${s.storeNumberStr} ${s.storeName||''} ${s.address||''} ${s.city||''} ${s.state||''}`).toLowerCase().includes(q)
+    );
+  }
+  return list;
+}
+
+function printSidepanelList() {
+  if (!spHub) { alert('Open a hub first.'); return; }
+
+  const rows = currentPanelStores();
+  const [hlat, hlng] = spHub.coords;
+  const title = hubDisplay(spHub);
+  const fmtMi = n => (Math.round(n * 10) / 10).toFixed(1);
+
+  const htmlRows = rows.map(s => {
+    const d = fmtMi(distMiles(hlat, hlng, s.lat, s.lng));
+    const addr = [s.address, `${s.city}, ${s.state}`].filter(Boolean).join(' · ');
+    return `
+      <tr>
+        <td style="text-align:right">${s.storeNumberStr || s.storeNumber || ''}</td>
+        <td>${escape(s.storeName || '')}</td>
+        <td>${escape(addr || '')}</td>
+        <td>${escape(s.coverageType || '')}</td>
+        <td style="text-align:right">${d}</td>
+      </tr>`;
+  }).join('');
+
+  const w = window.open('', '_blank');
+  if (!w) { alert('Pop-up blocked. Please allow pop-ups for this site and try again.'); return; }
+
+  w.document.write(`<!DOCTYPE html>
+  <html><head>
+    <meta charset="utf-8">
+    <title>Store list — ${escape(title)}</title>
+    <style>
+      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:24px;color:#111}
+      h1{font-size:18px;margin:0 0 10px 0}
+      .meta{color:#555;margin-bottom:12px}
+      table{width:100%;border-collapse:collapse;font-size:12.5px}
+      th,td{border-bottom:1px solid #e5e7eb;padding:6px 8px;vertical-align:top}
+      th{background:#f8fafc;text-align:left}
+      @media print { body{margin:8mm} table{font-size:11.5px} }
+    </style>
+  </head><body>
+    <h1>${escape(title)}</h1>
+    <div class="meta">
+      Radius: ${Number(radius.value)||DEFAULT_RADIUS} mi ·
+      ${spOnlyUncov ? 'Uncovered only · ' : ''}Total: ${rows.length}
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:70px;text-align:right">Store #</th>
+          <th style="width:180px">Name</th>
+          <th>Address</th>
+          <th style="width:140px">Coverage</th>
+          <th style="width:70px;text-align:right">Miles</th>
+        </tr>
+      </thead>
+      <tbody>${htmlRows}</tbody>
+    </table>
+    <script>window.addEventListener('load',()=>{ setTimeout(()=>{ window.print(); }, 50); });<\/script>
+  </body></html>`);
+  w.document.close();
+}
+
+
+  // Dataset badge revision helpers
+  function getRevs(){ try{return JSON.parse(localStorage.getItem(REV_KEY)||'{}')}catch{ return {}; } }
+  function setRevs(x){ localStorage.setItem(REV_KEY, JSON.stringify(x)); }
+  function bumpRevision(name, fingerprint){
+    const r = getRevs();
+    const cur = r[name] || { rev:0, fp:'' };
+    if (cur.fp !== fingerprint){ cur.rev = (cur.rev||0)+1; cur.fp = fingerprint; }
+    r[name] = cur; setRevs(r); return cur.rev;
+  }
+  function updateDatasetBadge(storesFp, premiumFp, acostaFp){
+    const badge = id('datasetBadge');
+    if (!badge) return;
+    const today = new Date().toISOString().slice(0,10);
+    const pRev = bumpRevision('premium', premiumFp);
+    const aRev = bumpRevision('acosta',  acostaFp);
+    badge.innerHTML =
+      `<span class="chip">Stores v${today}</span>`+
+      ` <span class="chip">Premium v${pRev}</span>`+
+      ` <span class="chip">Acosta v${aRev}</span>`;
+  }
+// ---------- Current Gap Finder ----------
+const gapModal = id('gapModal');
+id('gapBtn').onclick = ()=> {
+  activeGapContext = null;
+  gapModal.classList.add('show');
+  runGapFinder();
+};
+id('gapClose').onclick  = ()=> gapModal.classList.remove('show');
+id('gapRun').onclick    = runGapFinder;
+id('gapExport').onclick = ()=> exportGapCsv();
+id('gapUseFilters').onchange = runGapFinder;
+
+let lastGap = [];
+  let activeGapContext = null;
+
+// ONE source of truth for data universe
+function getUniverse(useFilters){
+  return useFilters ? filteredStores : allStores;
+}
+
+function storesWithinUniverse(center, rMiles, useFilters){
+  const [lat,lng] = Array.isArray(center) ? center : [center.lat, center.lng];
+  const src = getUniverse(useFilters);
+  return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= rMiles);
+}
+
+// Delegated click for "Sandbox here" buttons
+const gapResultsEl = id('gapResults');
+if (gapResultsEl && !gapResultsEl._wiredSandbox) {
+  gapResultsEl.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.gap-sbx');
+    if (!btn) return;
+    e.preventDefault();
+
+    const lat = parseFloat(btn.dataset.lat);
+    const lng = parseFloat(btn.dataset.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    gapModal.classList.remove('show');
+
+    setTimeout(()=>{
+      openSandboxAt(lat, lng);
+
+      if (gapHighlightMarker) {
+        map.removeLayer(gapHighlightMarker);
+        gapHighlightMarker = null;
+      }
+
+      gapHighlightMarker = L.circleMarker([lat, lng], {
+        radius: 11,
+        color: '#111',
+        weight: 3,
+        fillColor: '#ffcc00',
+        fillOpacity: 1
+      }).addTo(map);
+
+      gapHighlightMarker
+        .bindPopup('<b>Selected Gap Area</b><br>Sandbox ring placed here.')
+        .openPopup();
+
+      map.setView([lat, lng], 8);
+      map.invalidateSize();
+    }, 0);
+  });
+
+  gapResultsEl._wiredSandbox = true;
+}
+
+function buildManagerScorecard(universe){
+  if (!activeGapContext) return '';
+
+  const stores = universe || [];
+  if (!stores.length) return '';
+
+  const total = stores.length;
+
+  const paCount = stores.filter(s => s.coverageType === 'Premium + Acosta').length;
+  const premiumOnlyCount = stores.filter(s => s.coverageType === 'Premium Only').length;
+  const acostaOnlyCount = stores.filter(s => s.coverageType === 'Acosta Only').length;
+  const uncovered = stores.filter(s => (s.coverageType || '') === 'Uncovered').length;
+
+  const premiumCovered = paCount + premiumOnlyCount;
+  const acostaCovered = paCount + acostaOnlyCount;
+  const combinedCovered = paCount + premiumOnlyCount + acostaOnlyCount;
+
+  const pct = n => total ? Math.round((n / total) * 100) : 0;
+  const gapPct = pct(uncovered);
+
+const severity =
+  gapPct <= 15 ? { label:'Healthy', bg:'#ecfdf5', border:'#10b981' } :
+  gapPct <= 30 ? { label:'Watch', bg:'#fffbeb', border:'#f59e0b' } :
+                 { label:'High Gap', bg:'#fef2f2', border:'#ef4444' };
+
+return `
+  <div style="margin-bottom:10px;padding:10px;border:2px solid ${severity.border};border-radius:10px;background:${severity.bg}">
+    
+    <div style="font-weight:800;margin-bottom:6px">
+      ${escape(activeGapContext.label)}: ${escape(activeGapContext.managerName)}
+      
+      <span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;border:1px solid ${severity.border};font-size:12px">
+        ${severity.label}
+      </span>
     </div>
 
-    <!-- Map Section -->
-    <div id="mapContainer">
-        <!-- Your map will be embedded here -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:13px">
+        <div><b>Total Stores:</b> ${total}</div>
+        <div><b>Covered Combined:</b> ${combinedCovered} (${pct(combinedCovered)}%)</div>
+        <div><b>Current Gap:</b> ${uncovered} (${pct(uncovered)}%)</div>
+
+        <div><b>Premium Coverage:</b> ${premiumCovered} (${pct(premiumCovered)}%)</div>
+        <div><b>Acosta Coverage:</b> ${acostaCovered} (${pct(acostaCovered)}%)</div>
+        <div><b>Shared P+A Coverage:</b> ${paCount} (${pct(paCount)}%)</div>
+      </div>
+    </div>
+  `;
+}
+
+function runGapFinder(){
+  const minUncov = Math.max(1, Number(id('gapMin').value)   || 10);
+  const radiusMi = Math.max(1, Number(id('gapMiles').value) || 50);
+  const useFilt  = !!id('gapUseFilters')?.checked;
+
+  const universe = getUniverse(useFilt);
+  const scorecard = buildManagerScorecard(universe);
+  const base = universe.filter(s => (s.coverageType || '') === 'Uncovered');
+
+  const byCity = new Map();
+
+  base.forEach(s=>{
+    const key = `${(s.city||'').toLowerCase()}|${(s.state||'').toUpperCase()}`;
+    const g = byCity.get(key) || {
+      city:s.city,
+      state:s.state,
+      lat:0,
+      lng:0,
+      n:0,
+      am:new Set(),
+      rm:new Set(),
+      stores:[]
+    };
+
+    g.lat += s.lat;
+    g.lng += s.lng;
+    g.n += 1;
+
+    asManagerArray(s.areaManager).forEach(x => g.am.add(x));
+    asManagerArray(s.regionalManager).forEach(x => g.rm.add(x));
+    g.stores.push(s);
+
+    byCity.set(key, g);
+  });
+
+  const rows = [];
+  const activeHubs = [...premiumConfirmed, ...acostaHubs];
+
+  byCity.forEach(g=>{
+    const center = { lat: g.lat/g.n, lng: g.lng/g.n };
+
+    const uncoveredNearby = storesWithinUniverse([center.lat, center.lng], radiusMi, useFilt)
+      .filter(s => (s.coverageType || '') === 'Uncovered');
+
+    const count = uncoveredNearby.length;
+
+    if (count >= minUncov){
+      let nearestHub = null;
+      let nearestMiles = Infinity;
+
+      activeHubs.forEach(h=>{
+        const d = distMiles(center.lat, center.lng, h.coords[0], h.coords[1]);
+        if (d < nearestMiles) {
+          nearestMiles = d;
+          nearestHub = h;
+        }
+      });
+
+      rows.push({
+        city:g.city,
+        state:g.state,
+        rm:[...g.rm].filter(Boolean).join('; '),
+        am:[...g.am].filter(Boolean).join('; '),
+        count,
+        center,
+        storeCountInCity:g.n,
+        nearestHubName: nearestHub ? hubDisplay(nearestHub) : '',
+        nearestHubMiles: Number.isFinite(nearestMiles) ? nearestMiles : null,
+        priorityScore: count + Math.round((Number.isFinite(nearestMiles) ? nearestMiles : 0) / 10)
+      });
+    }
+  });
+
+
+rows.sort((a,b)=>
+  b.priorityScore - a.priorityScore ||
+  b.count - a.count ||
+  String(a.state).localeCompare(String(b.state)) ||
+  String(a.city).localeCompare(String(b.city))
+);
+
+  const consolidated = [];
+
+  rows.forEach(r=>{
+    const existing = consolidated.find(x =>
+      distMiles(r.center.lat, r.center.lng, x.center.lat, x.center.lng) <= radiusMi
+    );
+
+    if (existing) {
+ existing.nearbyAreas.push({
+  label: `${r.city}, ${r.state}`,
+  count: r.count
+});
+existing.altCount = (existing.altCount || 0) + 1;
+
+      existing.rm = uniqueStrings([
+        ...existing.rm.split('; ').filter(Boolean),
+        ...r.rm.split('; ').filter(Boolean)
+      ]).join('; ');
+
+      existing.am = uniqueStrings([
+        ...existing.am.split('; ').filter(Boolean),
+        ...r.am.split('; ').filter(Boolean)
+      ]).join('; ');
+    } else {
+      consolidated.push({
+        ...r,
+        nearbyAreas: [],
+        altCount: 0
+      });
+    }
+  });
+
+  lastGap = consolidated.slice();
+  const rowsToShow = consolidated;
+
+  const contextHeader = activeGapContext
+  ? `<div style="margin-bottom:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#f8fafc">
+      <b>Gap Summary for ${escape(activeGapContext.label)}:</b> ${escape(activeGapContext.managerName)}
+    </div>`
+  : '';
+
+const html = rowsToShow.length ? `
+  ${contextHeader}
+  ${scorecard}
+    <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
+ <b>How to use:</b> This list ranks current uncovered clusters using active/confirmed RTS coverage only.
+Higher-ranked locations are stronger candidates for future RTS hiring or repositioning.
+<br><br>
+<b>Priority Score:</b> Current gap stores + distance bonus. The distance bonus adds 1 point for every 10 miles from the nearest active RTS.
+<br>
+<b>Nearby Areas Rolled In:</b> Nearby city-level gaps within the selected radius that were consolidated into the same recommended posting area.
+    </div>
+    
+
+    <table style="border-collapse:collapse;width:100%">
+      <thead>
+        <tr>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Rank</th>
+          <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Recommended Area</th>
+          <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">State</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Current Gap Stores<br><span style="font-weight:400;color:var(--muted)">≤ ${radiusMi} mi</span></th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Priority Score</th>
+          <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Nearest Active RTS</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Miles from RTS</th>
+          <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Nearby Areas Rolled In</th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsToShow.map((r,i)=>`
+          <tr>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>#${i+1}</b></td>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0"><b>${escape(r.city||'')}</b></td>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.state||'')}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.count}</b></td>
+<td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.priorityScore}</b></td>
+<td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.nearestHubName || '—')}</td>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.nearestHubMiles == null ? '—' : Math.round(r.nearestHubMiles)}</td>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0;color:var(--muted);font-size:12px">
+              ${r.nearbyAreas.length ? escape(r.nearbyAreas
+  .sort((a,b)=> b.count - a.count)
+  .slice(0,4)
+  .map(x => `${x.label} (${x.count})`)
+  .join('; ')) + (r.nearbyAreas.length > 4 ? '…' : '') : '—'}
+            </td>
+            <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">
+              <button type="button" class="mini gap-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox here</button>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  ` : '<div style="color:var(--muted)">No current gaps found using the selected settings.</div>';
+
+  id('gapResults').innerHTML = html;
+}
+
+function exportGapCsv(){
+  if (!lastGap.length){ alert('Run the gap finder first.'); return; }
+
+  const radiusMi = Math.max(1, Number(id('gapMiles').value)||50);
+
+  const rows = [[
+    'Rank',
+    'Recommended Area',
+    'State',
+    'Regional Manager(s)',
+    'Area Manager(s)',
+  `Current Gap Stores (≤ ${radiusMi} mi)`,
+'Priority Score',
+'Nearest Active RTS',
+'Miles from RTS',
+'Nearby Areas Rolled In',
+'Center Lat',
+'Center Lng'
+  ]];
+
+  lastGap.forEach((r,i)=> rows.push([
+    i + 1,
+    r.city,
+    r.state,
+    r.rm,
+    r.am,
+   r.count,
+r.priorityScore,
+r.nearestHubName || '',
+r.nearestHubMiles == null ? '' : Math.round(r.nearestHubMiles),
+(r.nearbyAreas || []).map(x => typeof x === 'string' ? x : `${x.label} (${x.count})`).join('; '),
+r.center.lat,
+r.center.lng
+  ]));
+
+  exportCsvWithToast(rows, `current_gap_finder_${Date.now()}.csv`);
+}
+// ---------- /Current Gap Finder ----------
+  // ---------- Rollups (RM/AM) ----------
+  const rollModal = id('rollupModal'); id('rollupBtn').onclick = ()=>{ rollModal.classList.add('show'); buildRollups(); }; id('rollupClose').onclick = ()=> rollModal.classList.remove('show');
+  id('rollByRM').onchange = buildRollups; id('rollByAM').onchange = buildRollups;
+id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
+
+  let lastRoll = { rows:[], by:'RM' };
+
+ function buildRollups(){
+  const by = id('rollByAM').checked ? 'AM' : 'RM';
+  const managerListFor = s => by === 'RM' ? asManagerArray(s.regionalManager) : asManagerArray(s.areaManager);
+  const byMap = new Map();
+
+  filteredStores.forEach(s=>{
+    const keys = managerListFor(s);
+    (keys.length ? keys : ['(Blank)']).forEach(k=>{
+      const g = byMap.get(k) || {
+        key:k,
+        combinedCoverage:0,
+        premiumCoverage:0,
+        acostaCoverage:0,
+        uncovered:0,
+        total:0
+      };
+
+      if (s.coverageType === 'Premium + Acosta') {
+        g.combinedCoverage++;
+        g.premiumCoverage++;
+        g.acostaCoverage++;
+      } else if (s.coverageType === 'Premium Only') {
+        g.combinedCoverage++;
+        g.premiumCoverage++;
+      } else if (s.coverageType === 'Acosta Only') {
+        g.combinedCoverage++;
+        g.acostaCoverage++;
+      } else {
+        g.uncovered++;
+      }
+
+      g.total++;
+      byMap.set(k,g);
+    });
+  });
+
+  const rows = Array.from(byMap.values()).sort((a,b)=> b.total - a.total || String(a.key).localeCompare(String(b.key)));
+  lastRoll = { rows, by };
+
+  const pct = (n,t)=> t? (Math.round(n*1000/t)/10)+'%':'0%';
+  const groupLabel = by === 'RM' ? 'Regional Manager' : 'Area Manager';
+
+  const html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead>
+      <tr>
+        <th style="padding:6px;text-align:left">${groupLabel}</th>
+        <th style="padding:6px;text-align:right">Combined Coverage</th>
+        <th style="padding:6px;text-align:right">Combined %</th>
+        <th style="padding:6px;text-align:right">Premium Coverage</th>
+        <th style="padding:6px;text-align:right">Premium %</th>
+        <th style="padding:6px;text-align:right">Acosta Coverage</th>
+        <th style="padding:6px;text-align:right">Acosta %</th>
+        <th style="padding:6px;text-align:right">Current Gap</th>
+        <th style="padding:6px;text-align:right">Gap %</th>
+        <th style="padding:6px;text-align:right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map(r=>`
+        <tr>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0">
+            <button
+              type="button"
+              class="btn link roll-drill"
+              data-rollby="${by}"
+              data-manager="${escape(r.key)}"
+              style="padding:0;font-weight:700;text-align:left"
+              title="Filter map to this manager and open gap summary"
+            >
+              ${escape(r.key)}
+            </button>
+          </td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.combinedCoverage}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.combinedCoverage,r.total)}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.premiumCoverage}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.premiumCoverage,r.total)}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.acostaCoverage}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.acostaCoverage,r.total)}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.uncovered}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.uncovered,r.total)}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.total}</b></td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>`;
+
+  id('rollTable').innerHTML = html || '<div style="color:var(--muted)">No data.</div>';
+}
+
+// Click a manager in Rollups to filter the map and open that manager's current gap summary.
+id('rollTable').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.roll-drill');
+  if (!btn) return;
+
+  const rollBy = btn.dataset.rollby;
+  const managerName = btn.dataset.manager;
+  if (!managerName) return;
+
+  drillIntoManager(rollBy, managerName);
+});
+
+function drillIntoManager(rollBy, managerName){
+  rollModal.classList.remove('show');
+
+  setMulti(rmFilter, ['All']);
+  setMulti(amFilter, ['All']);
+
+  if (rollBy === 'RM') {
+    setMulti(rmFilter, [managerName]);
+    cascadeAM();
+  } else {
+    setMulti(amFilter, [managerName]);
+    cascadeRM();
+  }
+
+  activeGapContext = {
+    rollBy,
+    managerName,
+    label: rollBy === 'RM' ? 'Regional Manager' : 'Area Manager'
+  };
+
+  lastFilterChanged = rollBy === 'RM' ? 'rmFilter' : 'amFilter';
+
+  buildHubFilterOptions();
+  runFilter();
+  fitToResults();
+  renderChips();
+  saveState();
+
+  gapModal.classList.add('show');
+  id('gapUseFilters').checked = true;
+  runGapFinder();
+}
+
+  
+
+function exportRollupsCsv(by, rows){
+  const groupLabel = by === 'RM' ? 'Regional Manager' : 'Area Manager';
+
+  const header = [
+    groupLabel,
+    'Combined Coverage','Combined %',
+    'Premium Coverage','Premium %',
+    'Acosta Coverage','Acosta %',
+    'Current Gap','Gap %',
+    'Total'
+  ];
+
+  const pct = (n,t)=> t? (Math.round(n*1000/t)/10)+'%':'0%';
+
+  const data = rows.map(r=>[
+    r.key,
+    r.combinedCoverage, pct(r.combinedCoverage,r.total),
+    r.premiumCoverage,  pct(r.premiumCoverage,r.total),
+    r.acostaCoverage,   pct(r.acostaCoverage,r.total),
+    r.uncovered,        pct(r.uncovered,r.total),
+    r.total
+  ]);
+
+  const csv = [header, ...data]
+    .map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','))
+    .join('\n');
+
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `rollups_by_${by.toLowerCase()}_${Date.now()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(a.href);
+  a.remove();
+}
+
+
+// ---------- Suggest RTS City ----------
+const suggestModal = id('suggestModal');
+const suggestResults = id('suggestResults');
+let lastSuggestRows = [];
+
+if (id('suggestRtsBtn')) {
+  id('suggestRtsBtn').onclick = ()=>{
+    if (id('suggestUseFilters')) id('suggestUseFilters').checked = hasActiveStoreFilters();
+    suggestModal.classList.add('show');
+    runSuggestRtsCity();
+  };
+}
+
+if (id('suggestClose')) id('suggestClose').onclick = ()=> suggestModal.classList.remove('show');
+if (id('suggestRun')) id('suggestRun').onclick = runSuggestRtsCity;
+if (id('suggestUseFilters')) id('suggestUseFilters').onchange = runSuggestRtsCity;
+if (id('suggestExport')) id('suggestExport').onclick = exportSuggestRtsCsv;
+
+if (suggestResults && !suggestResults._wiredSuggestSandbox) {
+  suggestResults.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.suggest-sbx');
+    if (!btn) return;
+    const lat = parseFloat(btn.dataset.lat);
+    const lng = parseFloat(btn.dataset.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    suggestModal.classList.remove('show');
+    setTimeout(()=> openSandboxAt(lat, lng), 0);
+  });
+  suggestResults._wiredSuggestSandbox = true;
+}
+
+function hasActiveStoreFilters(){
+  const cov = selectedValues(covFilter).filter(v => v && v !== 'All');
+  const rm  = selectedValues(rmFilter).filter(v => v && v !== 'All');
+  const am  = selectedValues(amFilter).filter(v => v && v !== 'All');
+  const hub = selectedValues(hubFilter).filter(Boolean);
+  return !!(cov.length || rm.length || am.length || hub.length || tgWithin.checked);
+}
+
+function activeHubsForPlanning(){
+  return [...premiumConfirmed, ...acostaHubs];
+}
+
+function nearestActiveHubTo(lat, lng){
+  let best = null;
+  let miles = Infinity;
+  activeHubsForPlanning().forEach(h=>{
+    const d = distMiles(lat, lng, h.coords[0], h.coords[1]);
+    if (d < miles){
+      miles = d;
+      best = h;
+    }
+  });
+  return best ? { hub: best, miles } : null;
+}
+
+function buildSuggestRtsRows(){
+  const minUncov = Math.max(1, Number(id('suggestMin')?.value) || 25);
+  const radiusMi = Math.max(1, Number(id('suggestMiles')?.value) || 75);
+  const useFilt  = !!id('suggestUseFilters')?.checked;
+
+  const universe = (useFilt && filteredStores?.length) ? filteredStores : allStores;
+  const clusters = topGapClustersForStores(universe, radiusMi, minUncov);
+
+  const rows = clusters.map(c=>{
+    const nearbyUncovered = universe
+      .filter(s => (s.coverageType || '') === 'Uncovered')
+      .filter(s => distMiles(c.center.lat, c.center.lng, s.lat, s.lng) <= radiusMi);
+
+    const nearest = nearestActiveHubTo(c.center.lat, c.center.lng);
+    const nearestMiles = nearest ? nearest.miles : null;
+
+    const nearbyAreas = (c.nearbyAreas || [])
+      .slice()
+      .sort((a,b)=> b.count - a.count)
+      .slice(0,4)
+      .map(x => `${x.label} (${x.count})`)
+      .join('; ');
+
+    const projectedCoveredNow = allStores.filter(s => (s.coverageType || '') !== 'Uncovered').length;
+    const projectedCoveredAfter = projectedCoveredNow + nearbyUncovered.length;
+    const projectedPct = allStores.length ? Math.round(projectedCoveredAfter * 1000 / allStores.length) / 10 : 0;
+
+    return {
+      city: c.city,
+      state: c.state,
+      center: c.center,
+      estimatedNewStores: nearbyUncovered.length,
+      nearestHubName: nearest ? hubDisplay(nearest.hub) : '',
+      nearestHubMiles: nearestMiles,
+      priorityScore: nearbyUncovered.length + Math.round((nearestMiles || 0) / 10),
+      nearbyAreas,
+      projectedCoveragePct: projectedPct
+    };
+  });
+
+  rows.sort((a,b)=>
+    b.estimatedNewStores - a.estimatedNewStores ||
+    b.priorityScore - a.priorityScore ||
+    String(a.state).localeCompare(String(b.state)) ||
+    String(a.city).localeCompare(String(b.city))
+  );
+
+  return rows;
+}
+
+function runSuggestRtsCity(){
+  if (!suggestResults) return;
+  const rows = buildSuggestRtsRows();
+  lastSuggestRows = rows;
+  const radiusMi = Math.max(1, Number(id('suggestMiles')?.value) || 75);
+  const useFilt  = !!id('suggestUseFilters')?.checked;
+  const sourceLabel = useFilt ? 'current filters' : 'all stores';
+
+  const top3 = rows.slice(0,3);
+
+  if (!rows.length){
+    suggestResults.innerHTML = `<div style="color:var(--muted)">No RTS city suggestions found. Try lowering the minimum uncovered count or widening the radius.</div>`;
+    return;
+  }
+
+  suggestResults.innerHTML = `
+    <div class="priority-card">
+      <b>Top RTS Posting Suggestions</b>
+      <span style="color:var(--muted);margin-left:8px">Using ${escape(sourceLabel)} • Radius ${radiusMi} mi • Top 3 shown first</span>
     </div>
 
-    <!-- Script to manage RTS optimization and modal logic -->
-    <script>
-        // ---------- Helper Functions ----------
-        function distMiles(lat1, lon1, lat2, lon2) {
-            const R = 3959; // Radius of Earth in miles
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c;
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:10px;margin-bottom:12px">
+      ${top3.map((r,i)=>`
+        <div style="border:1px solid var(--border);border-radius:12px;padding:10px;background:#f8fafc">
+          <div style="font-weight:900;margin-bottom:4px">#${i+1} ${escape(r.city)}, ${escape(r.state)}</div>
+          <div><b>Projected gain:</b> ${r.estimatedNewStores} stores</div>
+          <div><b>Nearest RTS:</b> ${escape(r.nearestHubName || '—')}</div>
+          <div><b>Miles:</b> ${r.nearestHubMiles == null ? '—' : Math.round(r.nearestHubMiles)}</div>
+          <button type="button" class="btn suggest-sbx" style="margin-top:8px" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox here</button>
+        </div>
+      `).join('')}
+    </div>
+
+    <table class="priority-table">
+      <thead>
+        <tr>
+          <th style="text-align:right">Rank</th>
+          <th style="text-align:left">Suggested RTS Posting Area</th>
+          <th style="text-align:left">State</th>
+          <th style="text-align:right">Projected Net-New Stores</th>
+          <th style="text-align:right">Projected National Coverage</th>
+          <th style="text-align:left">Nearest Active RTS</th>
+          <th style="text-align:right">Miles from RTS</th>
+          <th style="text-align:left">Nearby Areas Rolled In</th>
+          <th style="text-align:right">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map((r,i)=>`
+          <tr>
+            <td style="text-align:right"><b>#${i+1}</b></td>
+            <td><b>${escape(r.city || '')}</b></td>
+            <td>${escape(r.state || '')}</td>
+            <td style="text-align:right"><b>${r.estimatedNewStores}</b></td>
+            <td style="text-align:right">${r.projectedCoveragePct}%</td>
+            <td>${escape(r.nearestHubName || '—')}</td>
+            <td style="text-align:right">${r.nearestHubMiles == null ? '—' : Math.round(r.nearestHubMiles)}</td>
+            <td style="color:var(--muted);font-size:12px">${escape(r.nearbyAreas || '—')}</td>
+            <td style="text-align:right">
+              <button type="button" class="mini suggest-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox here</button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function exportSuggestRtsCsv(){
+  const rows = lastSuggestRows.length ? lastSuggestRows : buildSuggestRtsRows();
+  if (!rows.length){ alert('Run Suggest RTS City first.'); return; }
+  const data = [[
+    'Rank','Suggested RTS Posting Area','State','Projected Net-New Stores','Projected National Coverage %',
+    'Nearest Active RTS','Miles from RTS','Nearby Areas Rolled In','Center Lat','Center Lng'
+  ]];
+
+  rows.forEach((r,i)=>data.push([
+    i+1,
+    r.city,
+    r.state,
+    r.estimatedNewStores,
+    `${r.projectedCoveragePct}%`,
+    r.nearestHubName || '',
+    r.nearestHubMiles == null ? '' : Math.round(r.nearestHubMiles),
+    r.nearbyAreas || '',
+    r.center.lat,
+    r.center.lng
+  ]));
+
+  exportCsvWithToast(data, `suggest_rts_city_${Date.now()}.csv`);
+}
+// ---------- /Suggest RTS City ----------
+
+
+// ---------- Coverage Priorities ----------
+const coverageModal = id('coverageModal');
+const coverageBtn = id('coverageBtn');
+const coverageClose = id('coverageClose');
+const coverageTable = id('coverageTable');
+const coverageByRM = id('coverageByRM');
+const coverageByAM = id('coverageByAM');
+const coverageUseFilters = id('coverageUseFilters');
+const coverageExport = id('coverageExport');
+let lastCoveragePriorityRows = [];
+
+if (coverageBtn) coverageBtn.onclick = ()=>{
+  coverageModal.classList.add('show');
+  buildCoveragePriorities();
+};
+if (coverageClose) coverageClose.onclick = ()=> coverageModal.classList.remove('show');
+if (coverageByRM) coverageByRM.onchange = buildCoveragePriorities;
+if (coverageByAM) coverageByAM.onchange = buildCoveragePriorities;
+if (coverageUseFilters) coverageUseFilters.onchange = buildCoveragePriorities;
+if (coverageExport) coverageExport.onclick = exportCoveragePrioritiesCsv;
+
+if (coverageTable && !coverageTable._wiredDrill) {
+  coverageTable.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.coverage-drill');
+    if (!btn) return;
+    const rollBy = btn.dataset.rollby;
+    const managerName = btn.dataset.manager;
+    if (!rollBy || !managerName) return;
+    coverageModal.classList.remove('show');
+    drillIntoManager(rollBy, managerName);
+  });
+  coverageTable._wiredDrill = true;
+}
+
+function severityForGapPct(gapPct){
+  return gapPct <= 15 ? { label:'Healthy', bg:'#ecfdf5', border:'#10b981' } :
+         gapPct <= 30 ? { label:'Watch', bg:'#fffbeb', border:'#f59e0b' } :
+                        { label:'High Gap', bg:'#fef2f2', border:'#ef4444' };
+}
+
+function managerNamesForStore(s, by){
+  const paths = managerPathsForStore(s);
+  const names = uniqueStrings(paths.map(p => by === 'RM' ? p.regionalManager : p.areaManager));
+  if (names.length) return names;
+  return by === 'RM' ? asManagerArray(s.regionalManager) : asManagerArray(s.areaManager);
+}
+
+function topGapClustersForStores(stores, radiusMi=75, minUncov=25){
+  const base = (stores || []).filter(s => (s.coverageType || '') === 'Uncovered');
+  const byCity = new Map();
+
+  base.forEach(s=>{
+    const key = `${(s.city||'').toLowerCase()}|${(s.state||'').toUpperCase()}`;
+    const g = byCity.get(key) || { city:s.city, state:s.state, lat:0, lng:0, n:0 };
+    g.lat += s.lat;
+    g.lng += s.lng;
+    g.n += 1;
+    byCity.set(key, g);
+  });
+
+  const rows = [];
+  byCity.forEach(g=>{
+    const center = { lat:g.lat/g.n, lng:g.lng/g.n };
+    const count = base.filter(s => distMiles(center.lat, center.lng, s.lat, s.lng) <= radiusMi).length;
+    if (count >= minUncov){
+      rows.push({ city:g.city, state:g.state, center, count, nearbyAreas:[] });
+    }
+  });
+
+  rows.sort((a,b)=> b.count - a.count || String(a.state).localeCompare(String(b.state)) || String(a.city).localeCompare(String(b.city)));
+
+  const consolidated = [];
+  rows.forEach(r=>{
+    const existing = consolidated.find(x => distMiles(r.center.lat, r.center.lng, x.center.lat, x.center.lng) <= radiusMi);
+    if (existing){
+      existing.nearbyAreas.push({ label:`${r.city}, ${r.state}`, count:r.count });
+    } else {
+      consolidated.push({ ...r });
+    }
+  });
+
+  return consolidated.sort((a,b)=> b.count - a.count);
+}
+
+function buildCoveragePriorityRows(){
+  const by = coverageByAM?.checked ? 'AM' : 'RM';
+  const source = (coverageUseFilters?.checked && filteredStores?.length) ? filteredStores : (allStores?.length ? allStores : []);
+  const byMap = new Map();
+
+  source.forEach(s=>{
+    const names = managerNamesForStore(s, by);
+    (names.length ? names : ['(Blank)']).forEach(name=>{
+      const key = String(name || '(Blank)').trim() || '(Blank)';
+      const g = byMap.get(key) || {
+        key,
+        stores:[],
+        total:0,
+        combinedCoverage:0,
+        premiumCoverage:0,
+        acostaCoverage:0,
+        paCount:0,
+        uncovered:0
+      };
+
+      g.stores.push(s);
+      g.total++;
+
+      if (s.coverageType === 'Premium + Acosta') {
+        g.combinedCoverage++;
+        g.premiumCoverage++;
+        g.acostaCoverage++;
+        g.paCount++;
+      } else if (s.coverageType === 'Premium Only') {
+        g.combinedCoverage++;
+        g.premiumCoverage++;
+      } else if (s.coverageType === 'Acosta Only') {
+        g.combinedCoverage++;
+        g.acostaCoverage++;
+      } else {
+        g.uncovered++;
+      }
+
+      byMap.set(key, g);
+    });
+  });
+
+  const rows = Array.from(byMap.values()).map(g=>{
+    const pct = n => g.total ? Math.round(n * 1000 / g.total) / 10 : 0;
+    const gapPct = pct(g.uncovered);
+    const combinedPct = pct(g.combinedCoverage);
+    const premiumPct = pct(g.premiumCoverage);
+    const acostaPct = pct(g.acostaCoverage);
+    const severity = severityForGapPct(gapPct);
+    const clusters = topGapClustersForStores(g.stores, 75, 25);
+    const bestCluster = clusters[0] || null;
+    const estimatedRtsNeeded = clusters.length;
+    const suggestedFocus = bestCluster
+      ? `${bestCluster.city}, ${bestCluster.state} (${bestCluster.count})`
+      : (g.uncovered > 0 ? 'Small scattered gaps' : 'Maintain coverage');
+
+    return {
+      by,
+      key:g.key,
+      total:g.total,
+      combinedCoverage:g.combinedCoverage,
+      combinedPct,
+      premiumCoverage:g.premiumCoverage,
+      premiumPct,
+      acostaCoverage:g.acostaCoverage,
+      acostaPct,
+      uncovered:g.uncovered,
+      gapPct,
+      severity,
+      estimatedRtsNeeded,
+      addOneOpportunity: bestCluster ? bestCluster.count : 0,
+      suggestedFocus,
+      clusters
+    };
+  });
+
+  rows.sort((a,b)=>
+    b.gapPct - a.gapPct ||
+    b.uncovered - a.uncovered ||
+    b.addOneOpportunity - a.addOneOpportunity ||
+    String(a.key).localeCompare(String(b.key))
+  );
+
+  return rows;
+}
+
+function buildCoveragePriorities(){
+  if (!coverageTable) return;
+  const rows = buildCoveragePriorityRows();
+  lastCoveragePriorityRows = rows;
+  const by = coverageByAM?.checked ? 'AM' : 'RM';
+  const groupLabel = by === 'RM' ? 'Regional Manager' : 'Area Manager';
+  const sourceLabel = coverageUseFilters?.checked ? 'current filters' : 'all stores';
+
+  const html = rows.length ? `
+    <div class="priority-card">
+      <b>${escape(groupLabel)} coverage priority ranking</b>
+      <span style="color:var(--muted);margin-left:8px">Using ${escape(sourceLabel)} • Click a manager to drill into their map/gap summary.</span>
+    </div>
+    <table class="priority-table">
+      <thead>
+        <tr>
+          <th style="text-align:right">Rank</th>
+          <th style="text-align:left">${escape(groupLabel)}</th>
+          <th style="text-align:right">Current Gap %</th>
+          <th style="text-align:right">Current Gap</th>
+          <th style="text-align:right">Combined %</th>
+          <th style="text-align:right">Premium %</th>
+          <th style="text-align:right">Acosta %</th>
+          <th style="text-align:right">Total Stores</th>
+          <th style="text-align:right">Est. RTS Needed</th>
+          <th style="text-align:right">Add 1 RTS Opportunity</th>
+          <th style="text-align:left">Suggested Focus</th>
+          <th style="text-align:left">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map((r,i)=>`
+          <tr style="background:${r.severity.bg}">
+            <td style="text-align:right"><b>#${i+1}</b></td>
+            <td>
+              <button type="button" class="btn link coverage-drill" data-rollby="${r.by}" data-manager="${escape(r.key)}" style="padding:0;font-weight:800;text-align:left" title="Filter map and open Gap Finder for this manager">
+                ${escape(r.key)}
+              </button>
+            </td>
+            <td style="text-align:right"><b>${r.gapPct}%</b></td>
+            <td style="text-align:right">${r.uncovered}</td>
+            <td style="text-align:right">${r.combinedPct}%</td>
+            <td style="text-align:right">${r.premiumPct}%</td>
+            <td style="text-align:right">${r.acostaPct}%</td>
+            <td style="text-align:right">${r.total}</td>
+            <td style="text-align:right"><b>${r.estimatedRtsNeeded}</b></td>
+            <td style="text-align:right">${r.addOneOpportunity}</td>
+            <td>${escape(r.suggestedFocus)}</td>
+            <td><span class="severity-chip" style="border:1px solid ${r.severity.border}">${escape(r.severity.label)}</span></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  ` : '<div style="color:var(--muted)">No manager coverage data found.</div>';
+
+  coverageTable.innerHTML = html;
+}
+
+function exportCoveragePrioritiesCsv(){
+  const rows = lastCoveragePriorityRows.length ? lastCoveragePriorityRows : buildCoveragePriorityRows();
+  if (!rows.length){ alert('Open Coverage Priorities first.'); return; }
+  const by = coverageByAM?.checked ? 'AM' : 'RM';
+  const groupLabel = by === 'RM' ? 'Regional Manager' : 'Area Manager';
+  const data = [[
+    'Rank', groupLabel, 'Current Gap %', 'Current Gap', 'Combined Coverage %', 'Premium Coverage %', 'Acosta Coverage %',
+    'Total Stores', 'Estimated RTS Needed', 'Add 1 RTS Opportunity', 'Suggested Focus', 'Status'
+  ]];
+
+  rows.forEach((r,i)=> data.push([
+    i+1,
+    r.key,
+    `${r.gapPct}%`,
+    r.uncovered,
+    `${r.combinedPct}%`,
+    `${r.premiumPct}%`,
+    `${r.acostaPct}%`,
+    r.total,
+    r.estimatedRtsNeeded,
+    r.addOneOpportunity,
+    r.suggestedFocus,
+    r.severity.label
+  ]));
+
+  exportCsvWithToast(data, `coverage_priorities_by_${by.toLowerCase()}_${Date.now()}.csv`);
+}
+// ---------- /Coverage Priorities ----------
+
+
+
+
+  // ---------- Helpers ----------
+  function id(x){ return document.getElementById(x); }
+  function on(ev,el,fn,capture){ el.addEventListener(ev,fn,capture||false); }
+  function showBusy(v){ if (busy) busy.hidden = !v; }
+  function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function escape(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+  function htmlEscape(s){ return (s ?? "").toString().replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
+  function distMiles(lat1,lng1,lat2,lng2){ const R=3958.8; const toRad=d=>d*Math.PI/180; const dLat=toRad(lat2-lat1); const dLon=toRad(lng2-lng1); const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2; return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); }
+  function coverageCounts(markersArr){ const out={}; markersArr.forEach(m=>{ const s=m?.store; if(!s) return; out[s.coverageType]=(out[s.coverageType]||0)+1; }); return out; }
+  function toggleDropdown(menu){ menu.style.display=menu.style.display==='block'?'none':'block'; }
+  function setMulti(sel,arr){ Array.from(sel.options).forEach(o=>{o.selected=arr.includes(o.value);}); }
+  function rebuildRMOptionsWithCounts(){
+    const prev = new Set(selectedValues(rmFilter));
+    const amSel = selectedActiveManagers(amFilter);
+
+    const by = {};
+
+    allStores.forEach(s => {
+      if (!coverageSelectionAllows(s)) return;
+
+      managerPathsForStore(s).forEach(p => {
+        const rm = String(p.regionalManager || '').trim();
+        const am = String(p.areaManager || '').trim();
+        if (!rm) return;
+
+        // KEY FIX: if an AM is selected, only list/count RMs from the same managerPath rows.
+        if (amSel.length && !amSel.includes(am)) return;
+
+        by[rm] = (by[rm] || 0) + 1;
+      });
+    });
+
+    const names = Object.keys(by).sort((a,b)=>String(a).localeCompare(String(b)));
+
+    rmFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
+      `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
+    )].join('');
+
+    const sel = names.filter(n => prev.has(n));
+    setMulti(rmFilter, sel.length ? sel : ['All']);
+    filterSelect(rmFilter, rmSearch.value);
+  }
+
+  function rebuildAMOptionsWithCounts(){
+    const prev = new Set(selectedValues(amFilter));
+    const rmSel = selectedActiveManagers(rmFilter);
+
+    const by = {};
+
+    allStores.forEach(s => {
+      if (!coverageSelectionAllows(s)) return;
+
+      managerPathsForStore(s).forEach(p => {
+        const rm = String(p.regionalManager || '').trim();
+        const am = String(p.areaManager || '').trim();
+        if (!am) return;
+
+        // KEY FIX: if an RM is selected, only list/count AMs from the same managerPath rows.
+        if (rmSel.length && !rmSel.includes(rm)) return;
+
+        by[am] = (by[am] || 0) + 1;
+      });
+    });
+
+    const names = Object.keys(by).sort((a,b)=>String(a).localeCompare(String(b)));
+
+    amFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
+      `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
+    )].join('');
+
+    const sel = names.filter(n => prev.has(n));
+    setMulti(amFilter, sel.length ? sel : ['All']);
+    filterSelect(amFilter, amSearch.value);
+  }
+
+  function filterSelect(selectEl, q){
+    const query = (q||'').toLowerCase();
+    Array.from(selectEl.options).forEach(opt=>{
+      if (opt.value === 'All') { opt.hidden = false; return; }
+      const txt = (opt.textContent||'').toLowerCase();
+      opt.hidden = query && !txt.includes(query);
+    });
+  }
+  function clusterIconByDominantCoverage(cluster){
+    const children = cluster.getAllChildMarkers();
+    const counts = { 'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0 };
+    children.forEach(m=>{ const s = m.store; if(!s) return; counts[s.coverageType] = (counts[s.coverageType] || 0) + 1; });
+    const domKey = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'Uncovered';
+    const cls =
+      domKey === 'Premium + Acosta' ? 'marker-pa' :
+      domKey === 'Premium Only'     ? 'marker-p'  :
+      domKey === 'Acosta Only'      ? 'marker-a'  : 'marker-u';
+    const total = children.length;
+    const html = `<div><span>${total}</span></div>`;
+    return L.divIcon({ html, className: `marker-cluster ${cls}`, iconSize: L.point(40, 40) });
+  }
+  function slug(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
+  function storesWithin(center, r){
+    const [lat, lng] = Array.isArray(center) ? center : [center.lat, center.lng];
+    const src = filteredStores.length ? filteredStores : allStores;
+    return src.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
+  }
+  // Always use the full universe — for sandbox parity with Gap Finder
+function storesWithinAll(center, r){
+  const [lat, lng] = Array.isArray(center) ? center : [center.lat, center.lng];
+  return allStores.filter(s => distMiles(lat, lng, s.lat, s.lng) <= r);
+}
+
+
+
+
+function buildHubFilterOptions(){
+  // visible hubs only (respect toggles)
+// Hub Filter should only include active/current RTS hubs.
+// Pending/future hubs remain visible on the map if toggled on,
+// but they should not affect operational filtering.
+let hubs = [];
+if (showConfirmed?.checked) hubs = hubs.concat(premiumConfirmed || []);
+if (showAcosta?.checked)    hubs = hubs.concat(acostaHubs       || []);
+
+  // dedupe by id
+  const seen = new Set();
+  hubs = hubs.filter(h => h && !seen.has(h.id) && seen.add(h.id));
+
+  const rMi = Number(radius.value) || DEFAULT_RADIUS;
+
+  // upstream store filters
+  const covSel = selectedValues(covFilter);
+  const rmSel  = selectedValues(rmFilter);
+  const amSel  = selectedValues(amFilter);
+  const withinOnly = !!(tgWithin && tgWithin.checked);
+
+  const covAll = covSel.includes('All') || covSel.length===0;
+  const rmAll  = rmSel.includes('All')  || rmSel.length===0;
+  const amAll  = amSel.includes('All')  || amSel.length===0;
+
+  const storeOK = (s)=>{
+    if (!covAll && !covSel.includes(s.coverageType||'')) return false;
+    if (!regionalSelectionMatches(s, rmSel)) return false;
+    if (!areaSelectionMatches(s, amSel, rmSel)) return false;
+    return true;
+  };
+
+  // count matching stores per hub, honoring radius/within
+  const rows = hubs.map(h=>{
+    let n = 0;
+    for (const s of allStores){
+      if (!storeOK(s)) continue;
+      const d = distMiles(s.lat, s.lng, h.coords[0], h.coords[1]);
+      if (d <= rMi) n++;
+    }
+    return { value: h.id, label: hubDisplay(h), count: n };
+  });
+
+  const upstreamActive = !(covAll && rmAll && amAll && !withinOnly);
+  const filtered = upstreamActive ? rows.filter(r => r.count > 0) : rows;
+
+  // rebuild select
+  const prev = new Set(Array.from(hubFilter.selectedOptions).map(o => o.value));
+  hubFilter.innerHTML = '';
+  const optAll = document.createElement('option'); optAll.value = ''; optAll.textContent = 'All';
+  hubFilter.appendChild(optAll);
+
+  filtered
+    .sort((a,b)=> a.label.localeCompare(b.label))
+    .forEach(({value,label,count})=>{
+      const o = document.createElement('option');
+      o.value = value;
+      o.textContent = `${label} — ${count}`;
+      if (prev.has(value)) o.selected = true;
+      hubFilter.appendChild(o);
+    });
+
+  // reapply search text
+  if (typeof filterSelect === 'function') {
+    filterSelect(hubFilter, hubSearch?.value || '');
+  }
+}
+
+
+function asManagerArray(value){
+    if (Array.isArray(value)) {
+      return value
+        .flatMap(v => asManagerArray(v))
+        .map(v => String(v || '').trim())
+        .filter(Boolean);
+    }
+    if (value && typeof value === 'object') {
+      return asManagerArray(value.name ?? value.value ?? value.areaManager ?? value.regionalManager ?? '');
+    }
+    return String(value || '')
+      .split('|')
+      .map(v => v.trim())
+      .filter(Boolean);
+  }
+
+  function uniqueStrings(arr){
+    return Array.from(new Set((arr || []).map(v => String(v || '').trim()).filter(Boolean)));
+  }
+
+  function normalizeManagerPaths(value){
+    let raw = [];
+
+    if (Array.isArray(value)) raw = value;
+    else if (typeof value === 'string' && value.trim()) {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) raw = parsed;
+      } catch(e) {
+        raw = [];
+      }
+    }
+
+    return raw.map(p => {
+      if (!p || typeof p !== 'object') return null;
+      const teamId = String(p.teamId ?? p.teamID ?? p.managementGroupId ?? p['Mngnt Grp Id'] ?? '').trim();
+      const teamName = String(p.teamName ?? p.team ?? p.managementGroupName ?? p['Mngnt Grp Name'] ?? '').trim();
+      const regionalManager = String(p.regionalManager ?? p.rm ?? p['Regional Manager'] ?? p['Mgr 4 Name'] ?? p['Mgr 3 Name'] ?? '').trim();
+      const areaManager = String(p.areaManager ?? p.am ?? p['Area Manager'] ?? p['Mgr 2 Name'] ?? p['Mgr 1 Name'] ?? '').trim();
+      if (!regionalManager && !areaManager) return null;
+      return { teamId, teamName, regionalManager, areaManager };
+    }).filter(Boolean);
+  }
+
+  function managerPathsForStore(s){
+    const paths = normalizeManagerPaths(s.managerPaths);
+    if (paths.length) return paths;
+
+    // Fallback for older JSON without managerPaths. This is less precise, but prevents the map from breaking.
+    const rms = asManagerArray(s.regionalManager);
+    const ams = asManagerArray(s.areaManager);
+    const out = [];
+    rms.forEach(rm => ams.forEach(am => out.push({ teamId:'', teamName:'', regionalManager:rm, areaManager:am })));
+    return out;
+  }
+
+  function managerLabel(value){
+    return asManagerArray(value).join(' | ');
+  }
+
+  function hasAnyManager(fieldValue, selectedValues){
+    const selected = Array.isArray(selectedValues)
+      ? selectedValues
+      : Array.from(selectedValues || []);
+
+    if (!selected.length || selected.includes('All')) return true;
+
+    const managers = asManagerArray(fieldValue);
+    return selected.some(v => managers.includes(v));
+  }
+
+  function addManagerCounts(mapObj, managerField){
+    asManagerArray(managerField).forEach(name => {
+      if (name) mapObj[name] = (mapObj[name] || 0) + 1;
+    });
+  }
+
+  function managerText(value){
+    return asManagerArray(value).join(' | ');
+  }
+
+  function selectedValues(selectEl){
+    return Array.from(selectEl.selectedOptions || []).map(o => o.value).filter(v => v !== '');
+  }
+
+  function selectedActiveManagers(selectEl){
+    return selectedValues(selectEl).filter(v => v && v !== 'All');
+  }
+
+  function coverageSelectionAllows(s){
+    const covSel = selectedValues(covFilter);
+    return covSel.includes('All') || covSel.length === 0 || covSel.includes(s.coverageType || '');
+  }
+
+  function regionalSelectionMatches(s, rmSel){
+    const selected = (Array.isArray(rmSel) ? rmSel : Array.from(rmSel || [])).filter(v => v && v !== 'All');
+    if (!selected.length) return true;
+    return managerPathsForStore(s).some(p => selected.includes(String(p.regionalManager || '').trim()));
+  }
+
+  function areaManagersForRegionalSelection(s, rmSel){
+    const selectedRM = (Array.isArray(rmSel) ? rmSel : Array.from(rmSel || [])).filter(v => v && v !== 'All');
+    const paths = managerPathsForStore(s);
+
+    return uniqueStrings(paths
+      .filter(p => !selectedRM.length || selectedRM.includes(String(p.regionalManager || '').trim()))
+      .map(p => p.areaManager));
+  }
+
+  function regionalManagersForAreaSelection(s, amSel){
+    const selectedAM = (Array.isArray(amSel) ? amSel : Array.from(amSel || [])).filter(v => v && v !== 'All');
+    const paths = managerPathsForStore(s);
+
+    return uniqueStrings(paths
+      .filter(p => !selectedAM.length || selectedAM.includes(String(p.areaManager || '').trim()))
+      .map(p => p.regionalManager));
+  }
+
+  function areaSelectionMatches(s, amSel, rmSel){
+    const selectedAM = (Array.isArray(amSel) ? amSel : Array.from(amSel || [])).filter(v => v && v !== 'All');
+    const selectedRM = (Array.isArray(rmSel) ? rmSel : Array.from(rmSel || [])).filter(v => v && v !== 'All');
+    if (!selectedAM.length) return true;
+
+    return managerPathsForStore(s).some(p => {
+      const rmOK = !selectedRM.length || selectedRM.includes(String(p.regionalManager || '').trim());
+      const amOK = selectedAM.includes(String(p.areaManager || '').trim());
+      return rmOK && amOK;
+    });
+  }
+
+  function managerPathSelectionMatches(s, rmSel, amSel){
+    const selectedRM = (Array.isArray(rmSel) ? rmSel : Array.from(rmSel || [])).filter(v => v && v !== 'All');
+    const selectedAM = (Array.isArray(amSel) ? amSel : Array.from(amSel || [])).filter(v => v && v !== 'All');
+    if (!selectedRM.length && !selectedAM.length) return true;
+
+    return managerPathsForStore(s).some(p => {
+      const rmOK = !selectedRM.length || selectedRM.includes(String(p.regionalManager || '').trim());
+      const amOK = !selectedAM.length || selectedAM.includes(String(p.areaManager || '').trim());
+      return rmOK && amOK;
+    });
+  }
+
+  function uniqSorted(arr){
+    const set = new Set();
+
+    arr.forEach(v => {
+      asManagerArray(v).forEach(name => {
+        if (name) set.add(name);
+      });
+    });
+
+    return Array.from(set).sort((a,b) => String(a).localeCompare(String(b)));
+  }
+
+  function normalizeStores(arr){
+    return arr.map(o=>{
+      const s = { ...o };
+      s.storeNumberStr = String(o.storeNumberStr ?? o.Store ?? o.storeNumber ?? o['Store #'] ?? '').trim();
+      s.storeName  = o.storeName ?? o.Name ?? o['Store Name'] ?? 'Walmart';
+      s.address    = o.address ?? o.Address ?? '';
+      s.city       = o.city ?? o.City ?? '';
+      s.state      = o.state ?? o.State ?? '';
+      s.coverageType = o.coverageType ?? o.Coverage_Type ?? o.Covered_By ?? 'Uncovered';
+
+      s.managerPaths = normalizeManagerPaths(o.managerPaths ?? o.ManagerPaths ?? o.manager_paths ?? []);
+
+      const pathAMs = uniqueStrings(s.managerPaths.map(p => p.areaManager));
+      const pathRMs = uniqueStrings(s.managerPaths.map(p => p.regionalManager));
+
+      s.areaManager = pathAMs.length
+        ? pathAMs
+        : asManagerArray(o.areaManager ?? o.AreaMgr ?? o['Area Mgr'] ?? o['Area Manager'] ?? '');
+
+      s.regionalManager = pathRMs.length
+        ? pathRMs
+        : asManagerArray(o.regionalManager ?? o.RegMgr ?? o['Regional Manager'] ?? '');
+
+      s.premiumManagers = asManagerArray(o.premiumManagers ?? '');
+      s.acostaCoreManagers = asManagerArray(o.acostaCoreManagers ?? '');
+      s.pgManagers = asManagerArray(o.pgManagers ?? '');
+      s.unileverManagers = asManagerArray(o.unileverManagers ?? '');
+      s.tysonManagers = asManagerArray(o.tysonManagers ?? '');
+      s.acostaRtsSupportedManagers = asManagerArray(o.acostaRtsSupportedManagers ?? '');
+
+      s.premiumRegionalManagers = asManagerArray(o.premiumRegionalManagers ?? '');
+      s.acostaCoreRegionalManagers = asManagerArray(o.acostaCoreRegionalManagers ?? '');
+      s.pgRegionalManagers = asManagerArray(o.pgRegionalManagers ?? '');
+      s.unileverRegionalManagers = asManagerArray(o.unileverRegionalManagers ?? '');
+      s.tysonRegionalManagers = asManagerArray(o.tysonRegionalManagers ?? '');
+      s.acostaRtsSupportedRegionalManagers = asManagerArray(o.acostaRtsSupportedRegionalManagers ?? '');
+
+      s.trainerCity  = o.trainerCity ?? o.Assigned_Premium ?? o['Trainer City'] ?? '';
+      s.lat = Number(o.lat ?? o.Lat ?? o.latitude ?? o.Latitude);
+      s.lng = Number(o.lng ?? o.Lon ?? o.Lng ?? o.longitude ?? o.Longitude);
+      return s;
+    }).filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+  }
+
+  // Coverage-aware popup
+  function storePopupHTML(s){
+    const nearestOf = (hubs) => {
+      let best=null, dmin=Infinity;
+      hubs.forEach(h=>{
+        const d = distMiles(s.lat, s.lng, h.coords[0], h.coords[1]);
+        if (d < dmin){ dmin = d; best = h; }
+      });
+      return best ? { hub: best, d: dmin } : null;
+    };
+
+    // Nearest Premium should reflect active/current RTS coverage only.
+// Pending/future hubs are intentionally excluded.
+const np = nearestOf(premiumConfirmed);
+const na = nearestOf(acostaHubs);
+
+    const badge = `<span style="padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:${COLORS[s.coverageType]||'#eee'}22">${escape(s.coverageType||'')}</span>`;
+
+    return `
+      <div style="font-size:13px;line-height:1.35;min-width:240px">
+        <div style="font-weight:800;margin-bottom:4px">Store ${escape(s.storeNumberStr)} — ${escape(s.storeName||'')}</div>
+        <div>${escape(s.address||'')}</div>
+        <div>${escape(s.city||'')}, ${escape(s.state||'')}</div>
+        <div style="margin:6px 0">${badge}</div>
+        <div><b>Trainer City:</b> ${escape(s.trainerCity||'')}</div>
+        <div><b>Area Manager:</b> ${escape(managerLabel(s.areaManager))}</div>
+        <div><b>Regional Manager:</b> ${escape(managerLabel(s.regionalManager))}</div>
+        ${np ? `<div style="margin-top:6px"><b>Nearest Premium:</b> ${escape(hubDisplay(np.hub))} • ${np.d.toFixed(1)} mi</div>` : ''}
+        ${na ? `<div><b>Nearest Acosta:</b> ${escape(na.hub.label || na.hub.fullName || na.hub.name)} • ${na.d.toFixed(1)} mi</div>` : ''}
+        <div style="color:var(--muted);margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
+        <div style="margin-top:6px">
+          <b>Maps:</b>
+          <a target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(s.lat+','+s.lng)}">Google</a>
+          •
+          <a target="_blank" rel="noopener" href="http://maps.apple.com/?ll=${encodeURIComponent(s.lat+','+s.lng)}">Apple</a>
+        </div>
+      </div>`;
+  }
+
+  function ensureMarkerForStore(store){
+    let m = markerByStore.get(store.storeNumberStr);
+    if (!m){
+      m = L.circleMarker([store.lat, store.lng], {
+        radius: 5, weight: 1, fillOpacity: .9, color: '#fff',
+        fillColor: COLORS[store.coverageType] || '#999'
+      });
+      m.store = store;
+      m.bindPopup(storePopupHTML(store));
+      markerByStore.set(store.storeNumberStr, m);
+      if (tgCluster.checked) markers.addLayer(m);
+      else {
+        let g = plainMarkers.getLayers()[0];
+        if (!g){ g = L.layerGroup().addTo(plainMarkers); }
+        g.addLayer(m);
+      }
+    }
+    return m;
+  }
+  function openStorePopup(store){
+    const m = ensureMarkerForStore(store);
+    const padRight = sidepanel.classList.contains('show') ? 420 : 20;
+    const pan = () => map.panInside(m.getLatLng(), { paddingTopLeft:[20,20], paddingBottomRight:[padRight,20] });
+    const open = () => {
+      if (!m.getPopup()) m.bindPopup(storePopupHTML(store));
+      m.openPopup();
+    };
+    if (tgCluster.checked) {
+      markers.zoomToShowLayer(m, () => {
+        pan();
+        requestAnimationFrame(() => requestAnimationFrame(open));
+      });
+    } else {
+      pan();
+      requestAnimationFrame(open);
+    }
+  }
+
+  // ---------- Views / Snapshots / State ----------
+  function saveState(){
+    const state = {
+      map: { center: map.getCenter(), zoom: map.getZoom() },
+      toggles: {
+        heat: tgHeat.checked, rings: tgRings.checked, overlap: tgOverlap.checked,
+        compare: tgCompare.checked, within: tgWithin.checked, cluster: tgCluster.checked
+      },
+      filters: {
+        cov: Array.from(covFilter.selectedOptions).map(o=>o.value),
+        rm: Array.from(rmFilter.selectedOptions).map(o=>o.value),
+        am: Array.from(amFilter.selectedOptions).map(o=>o.value),
+        hub: Array.from(hubFilter.selectedOptions).map(o=>o.value)
+      },
+      radius: Number(radius.value)||DEFAULT_RADIUS,
+      showConfirmed: showConfirmed.checked,
+      showPending:   showPending.checked,
+      showAcosta:    showAcosta.checked
+    };
+    localStorage.setItem(LS_STATE, JSON.stringify(state));
+      // NEW: write linkable state to URL
+  try {
+    const hash = encodeURIComponent(JSON.stringify(state));
+    if (location.hash !== '#'+hash) history.replaceState(null, '', '#'+hash);
+  } catch (e) { console.warn('State→hash failed', e); }
+
+  }
+function tryLoadLocal(){
+  // 1) NEW: try URL hash first
+  try{
+    if (location.hash && location.hash.length > 1){
+      const fromHash = JSON.parse(decodeURIComponent(location.hash.slice(1)));
+      if (fromHash && typeof fromHash === 'object'){
+        applyStateObject(fromHash);
+        return true;
+      }
+    }
+  }catch(e){ console.warn('Hash→state failed', e); }
+
+  // 2) NEW: try saved default view
+  try{
+    const def = localStorage.getItem('default_view_v2');
+    if (def){
+      applyStateObject(JSON.parse(def));
+      return true;
+    }
+  }catch(e){ console.warn('Default view parse failed', e); }
+
+  // 3) Fallback: LS_STATE (your existing behavior)
+  const raw = localStorage.getItem(LS_STATE);
+  if (!raw) return false;
+  try{
+    const st = JSON.parse(raw);
+    applyStateObject(st);
+    return true;
+  }catch(e){
+    console.warn('Bad saved state', e);
+    return false;
+  }
+}
+
+function applyStateObject(st){
+  if (st.map){
+    map.setView([st.map.center.lat, st.map.center.lng], st.map.zoom);
+  }
+  if (st.toggles){
+    tgHeat.checked   = !!st.toggles.heat;
+    tgRings.checked  = !!st.toggles.rings;
+    tgOverlap.checked= !!st.toggles.overlap;
+    tgCompare.checked= !!st.toggles.compare; compareMode = tgCompare.checked;
+    tgWithin.checked = !!st.toggles.within;
+    tgCluster.checked= !!st.toggles.cluster;
+  }
+  if (st.filters){
+    setMulti(covFilter, st.filters.cov || ['All']);
+    setMulti(rmFilter,  st.filters.rm  || ['All']); cascadeAM();
+    setMulti(amFilter,  st.filters.am  || ['All']);
+    setMulti(hubFilter, st.filters.hub || []);
+  }
+  if (st.radius){
+    radius.value = st.radius;
+    radiusLbl.textContent = st.radius;
+  }
+  if ('showConfirmed' in st) showConfirmed.checked = !!st.showConfirmed;
+  if ('showPending'   in st) showPending.checked   = !!st.showPending;
+  if ('showAcosta'    in st) showAcosta.checked    = !!st.showAcosta;
+
+  // If you added heat options in Chunk 2B, restore them here:
+  if (st.heat){
+    if (id('heatInt')) id('heatInt').value = String(st.heat.intensity ?? 1);
+    if (id('heatRad')) id('heatRad').value = String(st.heat.radius ?? 25);
+    tgHeat.checked = !!st.heat.on;
+  }
+}
+
+  function saveCurrentView(){
+    const name = prompt('Name this view:');
+    if(!name) return;
+    const views = JSON.parse(localStorage.getItem(LS_VIEWS) || '[]');
+    const state = JSON.parse(localStorage.getItem(LS_STATE) || '{}');
+    const b = map.getBounds();
+    const bounds = { south:b.getSouth(), west:b.getWest(), north:b.getNorth(), east:b.getEast() };
+    views.push({ id: Date.now(), name, state, bounds });
+    localStorage.setItem(LS_VIEWS, JSON.stringify(views));
+    rebuildViewsMenu();
+  }
+
+  function drawViewThumb(canvas, v){
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    const US = { west:-125, east:-66, south:24, north:50 };
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#f3f4f6'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle = '#d1d5db'; ctx.strokeRect(0.5,0.5,W-1,H-1);
+
+    function pxFromLng(l){ return ( (l - US.west) / (US.east - US.west) ) * W; }
+    function pxFromLat(a){ return ( 1 - (a - US.south) / (US.north - US.south) ) * H; }
+
+    const b = v.bounds || (()=>{
+      const c = v.state?.map?.center || {lat:39.5, lng:-98.35}; const z = v.state?.map?.zoom || 5;
+      const spanLon = 360 / (2**z) * 2; const spanLat = spanLon * 0.6;
+      return { south:c.lat-spanLat/2, north:c.lat+spanLat/2, west:c.lng-spanLon/2, east:c.lng+spanLon/2 };
+    })();
+
+    const x1 = Math.max(0, Math.min(W, pxFromLng(b.west)));
+    const x2 = Math.max(0, Math.min(W, pxFromLng(b.east)));
+    const y1 = Math.max(0, Math.min(H, pxFromLat(b.north)));
+    const y2 = Math.max(0, Math.min(H, pxFromLat(b.south)));
+
+    ctx.fillStyle = '#dbeafe';
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 1;
+    ctx.fillRect(Math.min(x1,x2), Math.min(y1,y2), Math.abs(x2-x1), Math.abs(y2-y1));
+    ctx.strokeRect(Math.min(x1,x2)+0.5, Math.min(y1,y2)+0.5, Math.abs(x2-x1)-1, Math.abs(y2-y1)-1);
+
+    const cLat = (b.south + b.north)/2, cLng = (b.west + b.east)/2;
+    ctx.beginPath();
+    ctx.arc(pxFromLng(cLng), pxFromLat(cLat), 2, 0, Math.PI*2);
+    ctx.fillStyle = '#111'; ctx.fill();
+  }
+
+  function rebuildViewsMenu(){
+  const views = JSON.parse(localStorage.getItem(LS_VIEWS) || '[]');
+  const viewList = id('viewList');
+
+  // NEW: actions header always present
+  const actions = `
+    <div class="view-actions" style="display:flex;gap:8px;flex-wrap:wrap; padding:6px; border-bottom:1px solid #eee; margin-bottom:6px">
+      <button class="btn link" id="viewMakeDefault">Make current view default</button>
+      <button class="btn link" id="viewCopyLink">Copy link to this view</button>
+    </div>
+  `;
+
+  if (!views.length){
+    viewList.innerHTML = actions + '<div style="color:var(--muted);padding:6px">No saved views yet.</div>';
+  } else {
+    viewList.innerHTML = actions + views.map(v=>`
+      <div class="view-row">
+        <canvas class="view-thumb" width="96" height="64" data-id="${v.id}"></canvas>
+        <button class="btn" data-id="${v.id}" style="flex:1;text-align:left">${escape(v.name)}</button>
+        <button class="btn link del" data-id="${v.id}" title="Delete">Delete</button>
+      </div>
+    `).join('');
+  }
+
+  // Wire action buttons
+  id('viewMakeDefault').onclick = ()=>{
+    const raw = localStorage.getItem(LS_STATE) || '{}';
+    localStorage.setItem('default_view_v2', raw);
+    toast('Saved as default view');
+  };
+  id('viewCopyLink').onclick = ()=>{
+    saveState(); // ensure hash is up to date
+    navigator.clipboard?.writeText(location.href);
+    toast('Link copied to clipboard');
+  };
+
+
+    Array.from(viewList.querySelectorAll('button.btn[data-id]')).forEach(b=>{
+      b.addEventListener('click', ()=>{
+        if (b.classList.contains('del')) return;
+        const idv = Number(b.getAttribute('data-id'));
+        const vs = JSON.parse(localStorage.getItem(LS_VIEWS) || '[]');
+        const v = vs.find(x=>x.id===idv);
+        if (!v) return;
+        localStorage.setItem(LS_STATE, JSON.stringify(v.state));
+        tryLoadLocal();
+        recomputeCoverage().then(()=>{ runFilter(); renderChips(); renderHubs(); updateRings(); fitToResults(); });
+
+        if (sandboxOpen && id('sandboxUseFilters')?.checked) {
+  refreshSandbox();
+}
+      });
+    });
+    Array.from(viewList.querySelectorAll('button.del')).forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const idv = Number(b.getAttribute('data-id'));
+        const vs = JSON.parse(localStorage.getItem(LS_VIEWS) || '[]').filter(x=>x.id!==idv);
+        localStorage.setItem(LS_VIEWS, JSON.stringify(vs));
+        rebuildViewsMenu();
+      });
+    });
+
+    // paint thumbnails
+    const canvases = Array.from(viewList.querySelectorAll('canvas.view-thumb'));
+    canvases.forEach(cv=>{
+      const idv = Number(cv.getAttribute('data-id'));
+      const v = views.find(x=>x.id===idv);
+      drawViewThumb(cv, v);
+    });
+  }
+
+  // --- small helpers ---
+function wireBtn(id, fn){
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', fn, false);
+}
+function showModal(el){ if (el) el.classList.add('show'); }
+function hideModal(el){ if (el) el.classList.remove('show'); }
+
+// HELP
+wireBtn('helpBtn',  ()=> showModal(document.getElementById('helpModal')));
+wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
+
+// optional: close on backdrop click / Esc
+(() => {
+  const modal = document.getElementById('helpModal');
+  if (!modal) return;
+  modal.addEventListener('click', (e)=>{ if (e.target === modal) hideModal(modal); });
+  window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') hideModal(modal); });
+})();
+
+
+  function saveSnapshot(){
+    const st = JSON.parse(localStorage.getItem(LS_STATE) || '{}');
+    const hash = btoa(unescape(encodeURIComponent(JSON.stringify(st))));
+    const url = `${location.origin}${location.pathname}#${hash}`;
+    navigator.clipboard?.writeText(url);
+    alert('Snapshot link copied to clipboard.');
+  }
+  id('snapBtn').onclick = saveSnapshot;
+
+  // Chips with counts
+  function renderChips(){
+    const chips = [];
+    const cov = Array.from(covFilter.selectedOptions).map(o=>o.value).filter(v=>v!=='All');
+    const rm  = Array.from(rmFilter.selectedOptions).map(o=>o.value).filter(v=>v!=='All');
+    const am  = Array.from(amFilter.selectedOptions).map(o=>o.value).filter(v=>v!=='All');
+    const hb  = Array.from(hubFilter.selectedOptions).map(o=>o.textContent);
+
+    if (cov.length) chips.push(`<span class="chip">Coverage: <b>${cov.length}</b> selected</span>`);
+    if (rm.length)  chips.push(`<span class="chip">RM: <b>${rm.length}</b> selected</span>`);
+    if (am.length)  chips.push(`<span class="chip">AM: <b>${am.length}</b> selected</span>`);
+    if (hb.length)  chips.push(`<span class="chip">Hubs: <b>${hb.length}</b> selected</span>`);
+    if (tgWithin.checked) chips.push(`<span class="chip">Within hubs</span>`);
+
+    id('activeChips').innerHTML = chips.join('') || '<span class="muted" style="margin-left:10px">No active chips</span>';
+  }
+
+  function resetAll(){
+    tgHeat.checked = false; clearHeat();
+    tgRings.checked = false; updateRings();
+    tgOverlap.checked = false; highlightLayer.clearLayers();
+    tgCompare.checked = false; compareMode=false; pinnedHubs=[];
+    tgWithin.checked = false;
+    tgCluster.checked = true;
+    showConfirmed.checked = true; showPending.checked = true; showAcosta.checked = false;
+    radius.value = DEFAULT_RADIUS; radiusLbl.textContent = DEFAULT_RADIUS;
+    setMulti(covFilter, ['All']);
+    setMulti(rmFilter, ['All']); setMulti(amFilter, ['All']);
+    setMulti(hubFilter, []);
+    const searchBox = id('searchBox');
+    searchBox.value=''; localStorage.removeItem(LS_LAST_QUERY); hideResults(); clearTarget();
+    map.setView(HOME_VIEW.center, HOME_VIEW.zoom);
+    recomputeCoverage().then(()=> runFilter());
+  }
+
+  function handleHubVisibilityChange(){
+    lastFilterChanged = 'visibility';
+    renderHubs();
+        buildHubFilterOptions(); // NEW: rebuild the hub list to match toggles
+
+    updateRings();
+    recomputeCoverage().then(()=>{
+      if (tgOverlap.checked) drawOverlap();
+      if (tgWithin.checked){ runFilter(); fitToResults(); } else { runFilter(); }
+      if (spHub && !visibleHubs().some(h => h.id === spHub.id)) hideSidepanel();
+      refreshComparePanel();
+      saveState();
+    });
+  }
+
+ // ---------- Sandbox ----------
+// ---------- Sandbox ----------
+let sandboxOpen = false;
+let sandboxCircle = null;
+let sandboxMarker = null;
+let gapHighlightMarker = null;
+
+// Open/close the sandbox panel
+id('sandboxBtn').addEventListener('click', ()=>{
+  sandboxOpen = !sandboxOpen;
+
+  // Create panel once
+  let pn = id('sandboxPanel');
+  if (!pn){
+    const d = document.createElement('div');
+    d.className='sandbox';
+    d.id='sandboxPanel';
+    d.innerHTML = `
+    <h4>Simulate New RTS</h4>
+<div>
+  Click the map or use Gap Finder → Sandbox here to test a possible new RTS location.
+ This is a simulation only. Use Copy JSON, then update your source JSON file to make it permanent.
+</div>
+
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <input id="sandboxAddr" type="text" placeholder="e.g. 33.52,-86.80"
+          style="flex:1;min-width:260px;border:1px solid var(--border);border-radius:8px;padding:6px 8px"/>
+        <button id="sandboxGeocode" class="btn" type="button">Use coords</button>
+      </div>
+      <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
+
+      <div style="margin-top:10px">
+        <b>Radius:</b>
+        <input id="sandboxR" type="range" min="25" max="150" step="5" value="${DEFAULT_RADIUS}">
+        <b id="sandboxRlbl">${DEFAULT_RADIUS}</b> mi
+      </div>
+
+      <div id="sandboxStats" style="margin-top:8px;font-size:13px"></div>
+      <button id="sandboxListBtn" class="btn" type="button" style="margin-top:8px">View stores in radius</button>
+
+      <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
+        <button id="sandboxCopyJson" class="btn" type="button">Copy JSON for This Location</button>
+      </div>
+      <div id="sandboxAddMsg" style="margin-top:6px; font-size:12px; color:var(--muted)"></div>`;
+    document.querySelector('.mapwrap').appendChild(d);
+    pn = d;
+  }
+
+  // Show/hide
+  pn.style.display = sandboxOpen ? 'block' : 'none';
+
+  // Tear down layers on close
+  if (!sandboxOpen){
+    if (sandboxCircle) ringLayer.removeLayer(sandboxCircle), sandboxCircle=null;
+    if (sandboxMarker) highlightLayer.removeLayer(sandboxMarker), sandboxMarker=null;
+    map.off('click.__sandbox');
+    return;
+  }
+
+  // Initial placement at current map center
+  const c0 = map.getCenter();
+  placeSandbox([c0.lat, c0.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+
+  // --- wiring (re)done each open ---
+  id('sandboxR').addEventListener('input', ()=>{
+    id('sandboxRlbl').textContent = id('sandboxR').value;
+    refreshSandbox();
+  });
+
+  id('sandboxGeocode').onclick = ()=>{
+    const s = id('sandboxAddr').value.trim();
+    const out = id('sandboxGeoMsg');
+    const m = s.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+    if (!m){ out.textContent='Enter coordinates like "33.52,-86.80".'; return; }
+    const lat = parseFloat(m[1]), lng = parseFloat(m[2]);
+    if (lat<-90||lat>90||lng<-180||lng>180){ out.textContent='Out of range.'; return; }
+    out.textContent='';
+    placeSandbox([lat,lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+    map.panInside([lat,lng], { paddingTopLeft:[20,20], paddingBottomRight:[20,20] });
+  };
+
+  // Move ring on map click while open
+  map.off('click.__sandbox');
+  map.on('click.__sandbox', (e)=>{
+    if (!sandboxOpen) return;
+    placeSandbox([e.latlng.lat, e.latlng.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+  });
+
+   // Copy ready-to-paste JSON for this simulated RTS location
+   // Copy ready-to-paste JSON for this simulated RTS location
+  // Auto-fills city/state from nearest store and includes projected impact.
+  id('sandboxCopyJson').onclick = ()=>{
+    const msg = id('sandboxAddMsg');
+
+    if (!sandboxMarker) {
+      msg.textContent = 'Place the simulator first by clicking the map or using Gap Finder → Sandbox here.';
+      return;
+    }
+
+    const ll = sandboxMarker.getLatLng?.();
+    if (!ll) {
+      msg.textContent = 'Simulator marker is missing coordinates.';
+      return;
+    }
+
+    // 20B: Auto-fill city/state using nearest Walmart store to the simulated location
+    const nearestStore = allStores
+      .map(s => ({
+        store: s,
+        miles: distMiles(ll.lat, ll.lng, s.lat, s.lng)
+      }))
+      .sort((a,b)=>a.miles-b.miles)[0];
+
+    const city = nearestStore?.store?.city || "REPLACE_CITY";
+    const state = nearestStore?.store?.state || "REPLACE_STATE";
+
+    // Impact calculation
+    const rMiles = Number(id('sandboxR')?.value) || DEFAULT_RADIUS;
+    const useFilt = !!id('gapUseFilters')?.checked;
+
+    const inRadius = storesWithinUniverse([ll.lat, ll.lng], rMiles, useFilt);
+    const uncoveredList = inRadius.filter(s => (s.coverageType || '') === 'Uncovered');
+
+    const estimatedNewStores = uncoveredList.length;
+    const currentCoveredTotal = allStores.filter(s => (s.coverageType || '') !== 'Uncovered').length;
+    const projectedCoveredTotal = currentCoveredTotal + estimatedNewStores;
+    const projectedCoveragePct = allStores.length
+      ? Math.round(projectedCoveredTotal * 1000 / allStores.length) / 10
+      : 0;
+
+    const json = {
+      city: city,
+      state: state,
+      lat: Number(ll.lat.toFixed(6)),
+      lng: Number(ll.lng.toFixed(6)),
+      status: "confirmed",
+
+      // Planning-only notes; safe to remove before final production use if desired
+      estimated_new_stores: estimatedNewStores,
+      projected_covered_stores: projectedCoveredTotal,
+      projected_coverage_pct: projectedCoveragePct,
+      simulation_radius_miles: rMiles,
+      nearest_reference_store: nearestStore
+        ? `Store ${nearestStore.store.storeNumberStr} - ${nearestStore.store.city}, ${nearestStore.store.state} (${nearestStore.miles.toFixed(1)} mi)`
+        : ""
+    };
+
+    const text = JSON.stringify(json, null, 2);
+
+    navigator.clipboard.writeText(text).then(()=>{
+      msg.textContent = `JSON copied for ${city}, ${state}. Estimated net-new stores: ${estimatedNewStores}.`;
+    }).catch(()=>{
+      msg.textContent = 'Copy failed. Manually copy from the alert.';
+      alert('Copy failed — manually copy this:\n\n' + text);
+    });
+  };
+});
+
+// Create/move ring + marker then refresh
+function placeSandbox(center, rMiles){
+  // circle
+  if (sandboxCircle){ ringLayer.removeLayer(sandboxCircle); sandboxCircle=null; }
+  sandboxCircle = L.circle(center, { radius: rMiles*1609.344, color: getCSS('--blue'), weight: 2, fill:false, opacity:.6 }).addTo(ringLayer);
+
+  // marker
+  if (sandboxMarker){ highlightLayer.removeLayer(sandboxMarker); sandboxMarker=null; }
+  const icon = L.divIcon({className:'', html:'<div style="width:18px;height:18px;border-radius:50%;background:'+getCSS('--blue')+';border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>', iconSize:[18,18], iconAnchor:[9,9]});
+  sandboxMarker = L.marker(center, { icon, draggable:false }).addTo(highlightLayer);
+
+  refreshSandbox();
+}
+
+// Use **the same universe & radius rules as Gap Finder**
+function refreshSandbox(){
+  if (!sandboxOpen) return;
+
+  const rMiles = Number(id('sandboxR')?.value) || DEFAULT_RADIUS;
+  const c = sandboxMarker?.getLatLng?.(); if (!c) return;
+
+  if (sandboxCircle){ sandboxCircle.setLatLng(c); sandboxCircle.setRadius(rMiles*1609.344); }
+
+  // sandbox follows Gap Finder's "Use current filters" so both always match
+  const useFilt = !!id('gapUseFilters')?.checked;
+  const inRadius = storesWithinUniverse([c.lat, c.lng], rMiles, useFilt);
+const uncoveredList = inRadius.filter(s => (s.coverageType||'') === 'Uncovered');
+
+// Net-new impact = stores currently uncovered that would become covered
+// if an active RTS were placed at this simulated location.
+const netNewCovered = uncoveredList.length;
+const currentCoveredTotal = allStores.filter(s => (s.coverageType||'') !== 'Uncovered').length;
+const projectedCoveredTotal = currentCoveredTotal + netNewCovered;
+const projectedCoveragePct = allStores.length
+  ? Math.round(projectedCoveredTotal * 1000 / allStores.length) / 10
+  : 0;
+
+  const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
+  inRadius.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0)+1; });
+
+  id('sandboxStats').innerHTML = `
+ <div><b>Projected net-new coverage:</b> ${netNewCovered} stores</div>
+<div><b>Projected national coverage:</b> ${projectedCoveredTotal} / ${allStores.length} stores (${projectedCoveragePct}%)</div>
+<div style="color:var(--muted);margin-top:4px">${uncoveredList.length} currently uncovered stores within <b>${rMiles} mi</b> of this simulated RTS location.</div>
+    <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
+    </div>`;
+
+  id('sandboxListBtn').onclick = ()=>{
+    const rows = inRadius
+      .map(s => ({...s, __d: distMiles(c.lat,c.lng,s.lat,s.lng)}))
+      .sort((a,b)=>a.__d-b.__d)
+      .map(s=>`
+        <tr>
+          <td>#${htmlEscape(s.storeNumberStr)}</td>
+          <td>${htmlEscape(s.storeName||'')}</td>
+          <td>${htmlEscape(s.address||'')}, ${htmlEscape(s.city||'')}, ${htmlEscape(s.state||'')}</td>
+          <td>${htmlEscape(s.coverageType||'')}</td>
+          <td style="text-align:right">${s.__d.toFixed(1)}</td>
+          <td>${htmlEscape(managerLabel(s.areaManager))}</td>
+          <td>${htmlEscape(managerLabel(s.regionalManager))}</td>
+        </tr>`).join('');
+    const win = window.open('', '_blank');
+   win.document.write(`
+      <html><head><title>Simulate New RTS — ${rMiles}mi</title>
+      <style>
+        body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px}
+        table{border-collapse:collapse;width:100%}
+        th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
+        th{background:#f3f4f6;text-align:left}
+        td:nth-child(5){text-align:right}
+        h2{margin:0 0 8px}
+        .meta{color:#555;margin-bottom:10px}
+      </style></head><body>
+        <h2>Simulate New RTS</h2>
+        <div class="meta">Center: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)} • Radius: <b>${rMiles} mi</b> • Stores shown: <b>${inRadius.length}</b></div>
+        <table>
+          <thead><tr><th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>Distance (mi)</th><th>AM</th><th>RM</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <script>window.print()<\\/script>
+      </body></html>`);
+    win.document.close();
+  };
+}
+
+// Clicking a row in Gap Finder calls this
+function openSandboxAt(lat, lng){
+  const c = L.latLng(lat, lng);
+
+  // Close modal if open
+  const gm = id('gapModal'); if (gm) gm.classList.remove('show');
+
+  // Ensure sandbox UI is open
+  if (!sandboxOpen) { const btn = id('sandboxBtn'); if (btn) btn.click(); sandboxOpen = true; }
+
+  // Sync sandbox radius to Gap Finder radius if set
+  const gfR = Number(id('gapMiles')?.value);
+  if (Number.isFinite(gfR) && id('sandboxR')){
+    id('sandboxR').value = String(gfR);
+    const lbl = id('sandboxRlbl'); if (lbl) lbl.textContent = String(gfR);
+  }
+
+  // Ensure marker + circle exist at correct spot/radius
+  const rMiles = Number(id('sandboxR')?.value) || DEFAULT_RADIUS;
+  const rMeters = rMiles * 1609.344;
+
+  if (!sandboxMarker){
+    const icon = L.divIcon({className:'', html:'<div style="width:18px;height:18px;border-radius:50%;background:'+getCSS('--blue')+';border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>', iconSize:[18,18], iconAnchor:[9,9]});
+    sandboxMarker = L.marker(c, { icon }).addTo(highlightLayer);
+  } else sandboxMarker.setLatLng(c);
+
+  if (!sandboxCircle){
+    sandboxCircle = L.circle(c, { radius:rMeters, color: getCSS('--blue'), weight:2, fill:false, opacity:.6 }).addTo(ringLayer);
+  } else sandboxCircle.setLatLng(c).setRadius(rMeters);
+
+  map.panTo(c);
+  refreshSandbox();
+}
+// ---------- /Sandbox ----------
+
+
+  // ---------- Heatmap ----------
+  function updateHeat(){
+    const pts = filteredStores.map(s => [s.lat, s.lng, 0.6]);
+    if (!heatLayerHolder.layer){
+      heatLayerHolder.layer = L.heatLayer(pts, { radius: 25, blur: 18 });
+      map.addLayer(heatLayerHolder.layer);
+    }else{
+      heatLayerHolder.layer.setLatLngs(pts);
+    }
+  }
+  function clearHeat(){
+    if (heatLayerHolder.layer){
+      map.removeLayer(heatLayerHolder.layer);
+      heatLayerHolder.layer = null;
+    }
+  }
+
+  // ---------- Cascade AM by RM ----------
+  function populateRM(stores){
+    const arr = uniqSorted(stores.map(s => s.regionalManager));
+    rmFilter.innerHTML = ['<option value="All" selected>All</option>', ...arr.map(v=>`<option value="${escape(v)}">${escape(v)}</option>`)].join('');
+  }
+
+  function populateAM(stores){
+    const arr = uniqSorted(stores.map(s => s.areaManager));
+    amFilter.innerHTML = ['<option value="All" selected>All</option>', ...arr.map(v=>`<option value="${escape(v)}">${escape(v)}</option>`)].join('');
+  }
+
+  function cascadeAM(){
+    rebuildAMOptionsWithCounts();
+  }
+
+  function cascadeRM(){
+    rebuildRMOptionsWithCounts();
+  }
+
+  // ---------- Fit to results ----------
+  function fitToResults(){
+    const r = Number(radius.value)||DEFAULT_RADIUS;
+    const b = L.latLngBounds();
+    let added = false;
+
+    if (tgWithin.checked){
+      visibleHubs().forEach(h=>{
+        const lat = h.coords[0], lng = h.coords[1];
+        const dLat = (r/69);
+        const dLng = (r/(Math.cos(lat*Math.PI/180)*69));
+        b.extend([lat-dLat, lng-dLng]);
+        b.extend([lat+dLat, lng+dLng]);
+        added = true;
+      });
+    }
+
+    filteredStores.forEach(s=>{ b.extend([s.lat,s.lng]); added = true; });
+
+    if (!added){ visibleHubs().forEach(h=> b.extend(h.coords)); }
+
+    if (b.isValid()){
+      map.fitBounds(b.pad(0.12), { animate:true });
+    } else {
+      map.setView(HOME_VIEW.center, HOME_VIEW.zoom);
+    }
+  }
+
+  // ---------- Snapshot loader ----------
+  function tryLoadSnapshot(){
+    if (!location.hash || location.hash.length < 2) return false;
+    try{
+      const raw = decodeURIComponent(window.escape(atob(location.hash.slice(1))));
+      const st = JSON.parse(raw);
+      if (st.openHubId)    PENDING_OPEN_HUB_ID = st.openHubId;
+      if (Array.isArray(st.pinnedHubIds)) PENDING_PIN_IDS = st.pinnedHubIds.slice();
+      localStorage.setItem(LS_STATE, JSON.stringify(st));
+      tryLoadLocal();
+      history.replaceState(null, '', location.pathname + location.search);
+      return true;
+    }catch(e){
+      console.warn('Bad snapshot in hash', e);
+      return false;
+    }
+  }
+
+  // Ensure first search selection opens popup even if cluster hasn't rendered yet
+  const originalOpenStorePopup = openStorePopup;
+  openStorePopup = function(store){
+    requestAnimationFrame(()=> originalOpenStorePopup(store));
+  };
+
+  // Empty-state actions
+  id('clearLastFilter').onclick = ()=>{
+    switch (lastFilterChanged){
+      case 'covFilter': setMulti(covFilter, ['All']); break;
+      case 'rmFilter':  setMulti(rmFilter,  ['All']); cascadeAM(); break;
+      case 'amFilter':  setMulti(amFilter,  ['All']); break;
+      case 'hubFilter': setMulti(hubFilter, []); break;
+      case 'tgWithin':  tgWithin.checked = false; break;
+      case 'visibility': showConfirmed.checked = true; showPending.checked = true; showAcosta.checked = false; break;
+      default: resetAll(); break;
+    }
+    runFilter(); renderChips(); saveState();
+  };
+  id('emptyReset').onclick = ()=>{ resetAll(); runFilter(); renderChips(); saveState(); };
+
+  // ---------- Tiny virtualization helper ----------
+  function mountVirtual(container, items, rowH, renderHTML, afterMount){
+    const wrap = container;
+    wrap.innerHTML = '';
+    let topPad = document.createElement('div');
+    let botPad = document.createElement('div');
+    topPad.style.height = '0px'; botPad.style.height = Math.max(0, items.length*rowH)+'px';
+    wrap.appendChild(topPad); wrap.appendChild(botPad);
+    const viewport = wrap.parentElement; // .sp-list
+    function paint(){
+      const scrollTop = viewport.scrollTop;
+      const h = viewport.clientHeight;
+      const start = Math.max(0, Math.floor(scrollTop / rowH) - 8);
+      const end = Math.min(items.length, Math.ceil((scrollTop+h)/rowH) + 8);
+      // clear existing rows
+      Array.from(wrap.querySelectorAll('.row')).forEach(n=> n.remove());
+      topPad.style.height = (start*rowH)+'px';
+      botPad.style.height = Math.max(0,(items.length - end)*rowH)+'px';
+      for(let i=start;i<end;i++){
+        const s = items[i];
+        const el = document.createElement('div');
+        el.className='row';
+        el.style.top = (i*rowH)+'px';
+        el.style.height = rowH+'px';
+        el.innerHTML = renderHTML(s);
+        wrap.appendChild(el);
+        afterMount?.(el, s, i);
+      }
+    }
+    viewport.onscroll = paint;
+    paint();
+  }
+
+  // Simple toast helper for saved view actions
+  function toast(msg){
+    const t = makeToast(msg || 'Done');
+    t.done(msg || 'Done');
+  }
+
+  // ---------- Toasts ----------
+  function makeToast(msg, cancellable=false){
+    const host = id('toasts');
+    const el = document.createElement('div');
+    el.className='toast';
+    el.innerHTML = `
+      <div class="row"><div>${escape(msg)}</div>${cancellable?'<button>Cancel</button>':''}</div>
+      <div class="bar"><div></div></div>
+    `;
+    host.appendChild(el);
+    const bar = el.querySelector('.bar>div'); const btn = el.querySelector('button');
+    let onCancelCb = null;
+    if (btn){ btn.onclick = ()=> onCancelCb?.(); }
+    return {
+      progress(p, txt){ bar.style.width = Math.max(1,Math.floor(p*100))+'%'; if (txt) el.querySelector('.row>div').textContent = txt; },
+      done(txt){ if (txt) el.querySelector('.row>div').textContent = txt; setTimeout(()=> el.remove(), 900); },
+      onCancel(cb){ onCancelCb = cb; }
+    };
+  }
+
+  // ---------- Worker plumbing ----------
+  function makeCoverageWorker(){
+    const code = `
+      self.onmessage = (e)=>{
+        const { action, radius, stores, premium, acosta } = e.data || {};
+        if (action !== 'classify') return;
+        const R = 3958.8;
+        const toRad = d=>d*Math.PI/180;
+        function dmi(a,b){
+          const dLat = toRad(b.lat-a.lat), dLon = toRad(b.lng-a.lng);
+          const s = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLon/2)**2;
+          return 2*R*Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
         }
-
-        // ---------- Coverage Priorities ----------
-        const coverageModal = document.getElementById('coverageModal');
-        const coverageBtn = document.getElementById('coverageBtn');
-        const coverageClose = document.getElementById('coverageClose');
-        const coverageTable = document.getElementById('coverageTable');
-        const coverageByRM = document.getElementById('coverageByRM');
-        const coverageByAM = document.getElementById('coverageByAM');
-        const coverageUseFilters = document.getElementById('coverageUseFilters');
-        const coverageExport = document.getElementById('coverageExport');
-        let lastCoveragePriorityRows = [];
-
-        if (coverageBtn) coverageBtn.onclick = () => {
-            coverageModal.classList.add('show');
-            buildCoveragePriorities();
-        };
-
-        if (coverageClose) coverageClose.onclick = () => coverageModal.classList.remove('show');
-        if (coverageByRM) coverageByRM.onchange = buildCoveragePriorities;
-        if (coverageByAM) coverageByAM.onchange = buildCoveragePriorities;
-        if (coverageUseFilters) coverageUseFilters.onchange = buildCoveragePriorities;
-        if (coverageExport) coverageExport.onclick = exportCoveragePrioritiesCsv;
-
-        function buildCoveragePriorities() {
-            const by = coverageByAM?.checked ? 'AM' : 'RM';
-            const source = coverageUseFilters?.checked ? filteredStores : allStores;
-            const byMap = new Map();
-
-            source.forEach(s => {
-                const names = managerNamesForStore(s, by);
-                (names.length ? names : ['(Blank)']).forEach(name => {
-                    const key = String(name || '(Blank)').trim() || '(Blank)';
-                    const g = byMap.get(key) || {
-                        key,
-                        stores: [],
-                        total: 0,
-                        combinedCoverage: 0,
-                        premiumCoverage: 0,
-                        acostaCoverage: 0,
-                        paCount: 0,
-                        uncovered: 0
-                    };
-
-                    g.stores.push(s);
-                    g.total++;
-
-                    if (s.coverageType === 'Premium + Acosta') {
-                        g.combinedCoverage++;
-                        g.premiumCoverage++;
-                        g.acostaCoverage++;
-                        g.paCount++;
-                    } else if (s.coverageType === 'Premium Only') {
-                        g.combinedCoverage++;
-                        g.premiumCoverage++;
-                    } else if (s.coverageType === 'Acosta Only') {
-                        g.combinedCoverage++;
-                        g.acostaCoverage++;
-                    } else {
-                        g.uncovered++;
-                    }
-
-                    byMap.set(key, g);
-                });
-            });
-
-            const rows = Array.from(byMap.values()).map(g => {
-                const pct = n => g.total ? Math.round(n * 1000 / g.total) / 10 : 0;
-                const gapPct = pct(g.uncovered);
-                const combinedPct = pct(g.combinedCoverage);
-                const premiumPct = pct(g.premiumCoverage);
-                const acostaPct = pct(g.acostaCoverage);
-                const severity = severityForGapPct(gapPct);
-                const clusters = topGapClustersForStores(g.stores, 75, 25);
-                const bestCluster = clusters[0] || null;
-                const estimatedRtsNeeded = clusters.length;
-                const suggestedFocus = bestCluster
-                    ? `${bestCluster.city}, ${bestCluster.state} (${bestCluster.count})`
-                    : (g.uncovered > 0 ? 'Small scattered gaps' : 'Maintain coverage');
-
-                return {
-                    by,
-                    key: g.key,
-                    total: g.total,
-                    combinedCoverage: g.combinedCoverage,
-                    combinedPct,
-                    premiumCoverage: g.premiumCoverage,
-                    premiumPct,
-                    acostaCoverage: g.acostaCoverage,
-                    acostaPct,
-                    uncovered: g.uncovered,
-                    gapPct,
-                    severity,
-                    estimatedRtsNeeded,
-                    addOneOpportunity: bestCluster ? bestCluster.count : 0,
-                    suggestedFocus,
-                    clusters
-                };
-            });
-
-            rows.sort((a, b) =>
-                b.gapPct - a.gapPct ||
-                b.uncovered - a.uncovered ||
-                b.addOneOpportunity - a.addOneOpportunity ||
-                String(a.key).localeCompare(String(b.key))
-            );
-
-            const html = rows.length ? `
-                <div class="priority-card">
-                    <b>${escape(by === 'RM' ? 'Regional Manager' : 'Area Manager')} coverage priority ranking</b>
-                    <span style="color:var(--muted);margin-left:8px">Using ${escape(coverageUseFilters?.checked ? 'current filters' : 'all stores')} • Click a manager to drill into their map/gap summary.</span>
-                </div>
-                <table class="priority-table">
-                    <thead>
-                        <tr>
-                            <th style="text-align:right">Rank</th>
-                            <th style="text-align:left">${escape(by === 'RM' ? 'Regional Manager' : 'Area Manager')}</th>
-                            <th style="text-align:right">Current Gap %</th>
-                            <th style="text-align:right">Current Gap</th>
-                            <th style="text-align:right">Combined %</th>
-                            <th style="text-align:right">Premium %</th>
-                            <th style="text-align:right">Acosta %</th>
-                            <th style="text-align:right">Total Stores</th>
-                            <th style="text-align:right">Est. RTS Needed</th>
-                            <th style="text-align:right">Add 1 RTS Opportunity</th>
-                            <th style="text-align:left">Suggested Focus</th>
-                            <th style="text-align:left">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rows.map((r, i) => `
-                            <tr style="background:${r.severity.bg}">
-                                <td style="text-align:right"><b>#${i+1}</b></td>
-                                <td>
-                                    <button type="button" class="btn link coverage-drill" data-rollby="${r.by}" data-manager="${escape(r.key)}" style="padding:0;font-weight:800;text-align:left" title="Filter map and open Gap Finder for this manager">
-                                        ${escape(r.key)}
-                                    </button>
-                                </td>
-                                <td style="text-align:right"><b>${r.gapPct}%</b></td>
-                                <td style="text-align:right">${r.uncovered}</td>
-                                <td style="text-align:right">${r.combinedPct}%</td>
-                                <td style="text-align:right">${r.premiumPct}%</td>
-                                <td style="text-align:right">${r.acostaPct}%</td>
-                                <td style="text-align:right">${r.total}</td>
-                                <td style="text-align:right"><b>${r.estimatedRtsNeeded}</b></td>
-                                <td style="text-align:right">${r.addOneOpportunity}</td>
-                                <td>${escape(r.suggestedFocus)}</td>
-                                <td><span class="severity-chip" style="border:1px solid ${r.severity.border}">${escape(r.severity.label)}</span></td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            ` : '<div style="color:var(--muted)">No manager coverage data found.</div>';
-
-            coverageTable.innerHTML = html;
+        const out = [];
+        for (let i=0;i<stores.length;i++){
+          const s = stores[i];
+          let nearPrem=false, nearAco=false;
+          for (let j=0;j<premium.length;j++){ if (dmi(s, premium[j]) <= radius){ nearPrem=true; break; } }
+          for (let k=0;k<acosta.length;k++){ if (dmi(s, acosta[k])  <= radius){ nearAco=true; break; } }
+          let cov = 'Uncovered';
+          if (nearPrem && nearAco) cov = 'Premium + Acosta';
+          else if (nearPrem) cov = 'Premium Only';
+          else if (nearAco) cov = 'Acosta Only';
+          out.push([s.id, cov]);
         }
+        postMessage({ coverage: out });
+      };
+    `;
+    const blob = new Blob([code], { type: 'text/javascript' });
+    const url = URL.createObjectURL(blob);
+    return new Worker(url);
+  }
+  function callWorker(payload){
+    return new Promise(res=>{
+      const handler = (ev)=>{ coverageWorker.removeEventListener('message', handler); res(ev.data); };
+      coverageWorker.addEventListener('message', handler);
+      coverageWorker.postMessage(payload);
+    });
+  }
 
-        function exportCoveragePrioritiesCsv() {
-            const rows = lastCoveragePriorityRows.length ? lastCoveragePriorityRows : buildCoveragePriorityRows();
-            if (!rows.length) {
-                alert('Open Coverage Priorities first.');
-                return;
-            }
-
-            const by = coverageByAM?.checked ? 'AM' : 'RM';
-            const groupLabel = by === 'RM' ? 'Regional Manager' : 'Area Manager';
-            const data = [
-                ['Rank', groupLabel, 'Current Gap %', 'Current Gap', 'Combined Coverage %', 'Premium Coverage %', 'Acosta Coverage %', 'Total Stores', 'Estimated RTS Needed', 'Add 1 RTS Opportunity', 'Suggested Focus', 'Status']
-            ];
-
-            rows.forEach((r, i) => data.push([
-                i + 1,
-                r.key,
-                `${r.gapPct}%`,
-                r.uncovered,
-                `${r.combinedPct}%`,
-                `${r.premiumPct}%`,
-                `${r.acostaPct}%`,
-                r.total,
-                r.estimatedRtsNeeded,
-                r.addOneOpportunity,
-                r.suggestedFocus,
-                r.severity.label
-            ]));
-
-            exportCsvWithToast(data, `coverage_priorities_by_${by.toLowerCase()}_${Date.now()}.csv`);
-        }
-    </script>
+})();
+</script>
 </body>
 </html>
