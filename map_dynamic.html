@@ -212,6 +212,16 @@
   .toast .row{display:flex;align-items:center;gap:8px}
   .toast button{margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:8px;padding:4px 8px;cursor:pointer}
 
+
+
+  /* Coverage Priorities */
+  .priority-card{border:1px solid var(--border);border-radius:12px;padding:10px;background:#f8fafc;margin-bottom:10px}
+  .priority-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  .priority-table{width:100%;border-collapse:collapse;font-size:13px}
+  .priority-table th{position:sticky;top:0;background:#f8fafc;z-index:1}
+  .priority-table th,.priority-table td{border-bottom:1px solid #eef0f3;padding:7px 8px;vertical-align:top}
+  .severity-chip{display:inline-block;padding:2px 8px;border-radius:999px;font-weight:700;font-size:12px;background:#fff}
+
   @media (max-width:720px){ .card .body{grid-template-columns:1fr;} }
   @media (max-width: 1100px){ .filters{grid-template-columns:repeat(2,minmax(220px,1fr));} }
   @media (max-width: 640px){ .filters{grid-template-columns:1fr;} }
@@ -271,6 +281,7 @@
   <!-- Analysis buttons -->
   <button id="gapBtn" class="btn" type="button" title="Find current uncovered store clusters based on active RTS coverage only">Current Gap Finder</button>
   <button id="rollupBtn" class="btn" type="button" title="Totals by RM/AM">Rollups</button>
+  <button id="coverageBtn" class="btn" type="button" title="Rank managers by current coverage gaps and opportunity">Coverage Priorities</button>
 
   <button id="helpBtn" class="btn" type="button" title="Quick tips and shortcuts">Help</button>
 </div>
@@ -480,6 +491,33 @@
     </div>
   </div>
 </div>
+
+<!-- Coverage Priorities modal -->
+<div class="modal" id="coverageModal" aria-modal="true" role="dialog">
+  <div class="card" style="max-width:1100px;width:94vw">
+    <header>
+      <h3>Coverage Priorities by Manager</h3>
+      <button id="coverageClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body" style="grid-template-columns:1fr;">
+      <div class="priority-tools">
+        <label class="toggle"><input type="radio" name="coverageBy" id="coverageByRM" checked> By Regional Manager</label>
+        <label class="toggle"><input type="radio" name="coverageBy" id="coverageByAM"> By Area Manager</label>
+        <label class="toggle" title="When checked, ranking uses the stores currently visible after filters. When unchecked, it ranks against all stores.">
+          <input id="coverageUseFilters" type="checkbox"> Use current filters
+        </label>
+        <button id="coverageExport" class="btn" type="button">Export CSV</button>
+      </div>
+      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
+        <b>How to use:</b> This ranks managers by current RTS coverage gap. Click a manager name to filter the map and open their Gap Finder summary.
+        <br><b>Estimated RTS Needed:</b> Count of consolidated 75-mile gap clusters with at least 25 uncovered stores. This is a planning estimate, not a staffing commitment.
+        <br><b>Add 1 RTS Opportunity:</b> Largest consolidated current gap cluster for that manager — a rough estimate of the best single placement opportunity.
+      </div>
+      <div id="coverageTable" style="max-height:65vh;overflow:auto"></div>
+    </div>
+  </div>
+</div>
+
 
 <div id="busy" class="busy" hidden><div class="spin"></div></div>
 <div id="toasts" class="toasts"></div>
@@ -2412,6 +2450,264 @@ function exportRollupsCsv(by, rows){
   a.remove();
 }
 
+// ---------- Coverage Priorities ----------
+const coverageModal = id('coverageModal');
+const coverageBtn = id('coverageBtn');
+const coverageClose = id('coverageClose');
+const coverageTable = id('coverageTable');
+const coverageByRM = id('coverageByRM');
+const coverageByAM = id('coverageByAM');
+const coverageUseFilters = id('coverageUseFilters');
+const coverageExport = id('coverageExport');
+let lastCoveragePriorityRows = [];
+
+if (coverageBtn) coverageBtn.onclick = ()=>{
+  coverageModal.classList.add('show');
+  buildCoveragePriorities();
+};
+if (coverageClose) coverageClose.onclick = ()=> coverageModal.classList.remove('show');
+if (coverageByRM) coverageByRM.onchange = buildCoveragePriorities;
+if (coverageByAM) coverageByAM.onchange = buildCoveragePriorities;
+if (coverageUseFilters) coverageUseFilters.onchange = buildCoveragePriorities;
+if (coverageExport) coverageExport.onclick = exportCoveragePrioritiesCsv;
+
+if (coverageTable && !coverageTable._wiredDrill) {
+  coverageTable.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.coverage-drill');
+    if (!btn) return;
+    const rollBy = btn.dataset.rollby;
+    const managerName = btn.dataset.manager;
+    if (!rollBy || !managerName) return;
+    coverageModal.classList.remove('show');
+    drillIntoManager(rollBy, managerName);
+  });
+  coverageTable._wiredDrill = true;
+}
+
+function severityForGapPct(gapPct){
+  return gapPct <= 15 ? { label:'Healthy', bg:'#ecfdf5', border:'#10b981' } :
+         gapPct <= 30 ? { label:'Watch', bg:'#fffbeb', border:'#f59e0b' } :
+                        { label:'High Gap', bg:'#fef2f2', border:'#ef4444' };
+}
+
+function managerNamesForStore(s, by){
+  const paths = managerPathsForStore(s);
+  const names = uniqueStrings(paths.map(p => by === 'RM' ? p.regionalManager : p.areaManager));
+  if (names.length) return names;
+  return by === 'RM' ? asManagerArray(s.regionalManager) : asManagerArray(s.areaManager);
+}
+
+function topGapClustersForStores(stores, radiusMi=75, minUncov=25){
+  const base = (stores || []).filter(s => (s.coverageType || '') === 'Uncovered');
+  const byCity = new Map();
+
+  base.forEach(s=>{
+    const key = `${(s.city||'').toLowerCase()}|${(s.state||'').toUpperCase()}`;
+    const g = byCity.get(key) || { city:s.city, state:s.state, lat:0, lng:0, n:0 };
+    g.lat += s.lat;
+    g.lng += s.lng;
+    g.n += 1;
+    byCity.set(key, g);
+  });
+
+  const rows = [];
+  byCity.forEach(g=>{
+    const center = { lat:g.lat/g.n, lng:g.lng/g.n };
+    const count = base.filter(s => distMiles(center.lat, center.lng, s.lat, s.lng) <= radiusMi).length;
+    if (count >= minUncov){
+      rows.push({ city:g.city, state:g.state, center, count, nearbyAreas:[] });
+    }
+  });
+
+  rows.sort((a,b)=> b.count - a.count || String(a.state).localeCompare(String(b.state)) || String(a.city).localeCompare(String(b.city)));
+
+  const consolidated = [];
+  rows.forEach(r=>{
+    const existing = consolidated.find(x => distMiles(r.center.lat, r.center.lng, x.center.lat, x.center.lng) <= radiusMi);
+    if (existing){
+      existing.nearbyAreas.push({ label:`${r.city}, ${r.state}`, count:r.count });
+    } else {
+      consolidated.push({ ...r });
+    }
+  });
+
+  return consolidated.sort((a,b)=> b.count - a.count);
+}
+
+function buildCoveragePriorityRows(){
+  const by = coverageByAM?.checked ? 'AM' : 'RM';
+  const source = coverageUseFilters?.checked ? filteredStores : allStores;
+  const byMap = new Map();
+
+  source.forEach(s=>{
+    const names = managerNamesForStore(s, by);
+    (names.length ? names : ['(Blank)']).forEach(name=>{
+      const key = String(name || '(Blank)').trim() || '(Blank)';
+      const g = byMap.get(key) || {
+        key,
+        stores:[],
+        total:0,
+        combinedCoverage:0,
+        premiumCoverage:0,
+        acostaCoverage:0,
+        paCount:0,
+        uncovered:0
+      };
+
+      g.stores.push(s);
+      g.total++;
+
+      if (s.coverageType === 'Premium + Acosta') {
+        g.combinedCoverage++;
+        g.premiumCoverage++;
+        g.acostaCoverage++;
+        g.paCount++;
+      } else if (s.coverageType === 'Premium Only') {
+        g.combinedCoverage++;
+        g.premiumCoverage++;
+      } else if (s.coverageType === 'Acosta Only') {
+        g.combinedCoverage++;
+        g.acostaCoverage++;
+      } else {
+        g.uncovered++;
+      }
+
+      byMap.set(key, g);
+    });
+  });
+
+  const rows = Array.from(byMap.values()).map(g=>{
+    const pct = n => g.total ? Math.round(n * 1000 / g.total) / 10 : 0;
+    const gapPct = pct(g.uncovered);
+    const combinedPct = pct(g.combinedCoverage);
+    const premiumPct = pct(g.premiumCoverage);
+    const acostaPct = pct(g.acostaCoverage);
+    const severity = severityForGapPct(gapPct);
+    const clusters = topGapClustersForStores(g.stores, 75, 25);
+    const bestCluster = clusters[0] || null;
+    const estimatedRtsNeeded = clusters.length;
+    const suggestedFocus = bestCluster
+      ? `${bestCluster.city}, ${bestCluster.state} (${bestCluster.count})`
+      : (g.uncovered > 0 ? 'Small scattered gaps' : 'Maintain coverage');
+
+    return {
+      by,
+      key:g.key,
+      total:g.total,
+      combinedCoverage:g.combinedCoverage,
+      combinedPct,
+      premiumCoverage:g.premiumCoverage,
+      premiumPct,
+      acostaCoverage:g.acostaCoverage,
+      acostaPct,
+      uncovered:g.uncovered,
+      gapPct,
+      severity,
+      estimatedRtsNeeded,
+      addOneOpportunity: bestCluster ? bestCluster.count : 0,
+      suggestedFocus,
+      clusters
+    };
+  });
+
+  rows.sort((a,b)=>
+    b.gapPct - a.gapPct ||
+    b.uncovered - a.uncovered ||
+    b.addOneOpportunity - a.addOneOpportunity ||
+    String(a.key).localeCompare(String(b.key))
+  );
+
+  return rows;
+}
+
+function buildCoveragePriorities(){
+  if (!coverageTable) return;
+  const rows = buildCoveragePriorityRows();
+  lastCoveragePriorityRows = rows;
+  const by = coverageByAM?.checked ? 'AM' : 'RM';
+  const groupLabel = by === 'RM' ? 'Regional Manager' : 'Area Manager';
+  const sourceLabel = coverageUseFilters?.checked ? 'current filters' : 'all stores';
+
+  const html = rows.length ? `
+    <div class="priority-card">
+      <b>${escape(groupLabel)} coverage priority ranking</b>
+      <span style="color:var(--muted);margin-left:8px">Using ${escape(sourceLabel)} • Click a manager to drill into their map/gap summary.</span>
+    </div>
+    <table class="priority-table">
+      <thead>
+        <tr>
+          <th style="text-align:right">Rank</th>
+          <th style="text-align:left">${escape(groupLabel)}</th>
+          <th style="text-align:right">Current Gap %</th>
+          <th style="text-align:right">Current Gap</th>
+          <th style="text-align:right">Combined %</th>
+          <th style="text-align:right">Premium %</th>
+          <th style="text-align:right">Acosta %</th>
+          <th style="text-align:right">Total Stores</th>
+          <th style="text-align:right">Est. RTS Needed</th>
+          <th style="text-align:right">Add 1 RTS Opportunity</th>
+          <th style="text-align:left">Suggested Focus</th>
+          <th style="text-align:left">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map((r,i)=>`
+          <tr style="background:${r.severity.bg}">
+            <td style="text-align:right"><b>#${i+1}</b></td>
+            <td>
+              <button type="button" class="btn link coverage-drill" data-rollby="${r.by}" data-manager="${escape(r.key)}" style="padding:0;font-weight:800;text-align:left" title="Filter map and open Gap Finder for this manager">
+                ${escape(r.key)}
+              </button>
+            </td>
+            <td style="text-align:right"><b>${r.gapPct}%</b></td>
+            <td style="text-align:right">${r.uncovered}</td>
+            <td style="text-align:right">${r.combinedPct}%</td>
+            <td style="text-align:right">${r.premiumPct}%</td>
+            <td style="text-align:right">${r.acostaPct}%</td>
+            <td style="text-align:right">${r.total}</td>
+            <td style="text-align:right"><b>${r.estimatedRtsNeeded}</b></td>
+            <td style="text-align:right">${r.addOneOpportunity}</td>
+            <td>${escape(r.suggestedFocus)}</td>
+            <td><span class="severity-chip" style="border:1px solid ${r.severity.border}">${escape(r.severity.label)}</span></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  ` : '<div style="color:var(--muted)">No manager coverage data found.</div>';
+
+  coverageTable.innerHTML = html;
+}
+
+function exportCoveragePrioritiesCsv(){
+  const rows = lastCoveragePriorityRows.length ? lastCoveragePriorityRows : buildCoveragePriorityRows();
+  if (!rows.length){ alert('Open Coverage Priorities first.'); return; }
+  const by = coverageByAM?.checked ? 'AM' : 'RM';
+  const groupLabel = by === 'RM' ? 'Regional Manager' : 'Area Manager';
+  const data = [[
+    'Rank', groupLabel, 'Current Gap %', 'Current Gap', 'Combined Coverage %', 'Premium Coverage %', 'Acosta Coverage %',
+    'Total Stores', 'Estimated RTS Needed', 'Add 1 RTS Opportunity', 'Suggested Focus', 'Status'
+  ]];
+
+  rows.forEach((r,i)=> data.push([
+    i+1,
+    r.key,
+    `${r.gapPct}%`,
+    r.uncovered,
+    `${r.combinedPct}%`,
+    `${r.premiumPct}%`,
+    `${r.acostaPct}%`,
+    r.total,
+    r.estimatedRtsNeeded,
+    r.addOneOpportunity,
+    r.suggestedFocus,
+    r.severity.label
+  ]));
+
+  exportCsvWithToast(data, `coverage_priorities_by_${by.toLowerCase()}_${Date.now()}.csv`);
+}
+// ---------- /Coverage Priorities ----------
+
+
 
 
   // ---------- Helpers ----------
@@ -3579,6 +3875,12 @@ function openSandboxAt(lat, lng){
     }
     viewport.onscroll = paint;
     paint();
+  }
+
+  // Simple toast helper for saved view actions
+  function toast(msg){
+    const t = makeToast(msg || 'Done');
+    t.done(msg || 'Done');
   }
 
   // ---------- Toasts ----------
