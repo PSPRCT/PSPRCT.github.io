@@ -2114,8 +2114,9 @@ function exportGapCsv(){
     'Regional Manager(s)',
     'Area Manager(s)',
     `Current Gap Stores (≤ ${radiusMi} mi)`,
-    'Center Lat',
-    'Center Lng'
+'Nearby Areas Rolled In',
+'Center Lat',
+'Center Lng'
   ]];
 
   lastGap.forEach((r,i)=> rows.push([
@@ -2125,8 +2126,9 @@ function exportGapCsv(){
     r.rm,
     r.am,
     r.count,
-    r.center.lat,
-    r.center.lng
+(r.nearbyAreas || []).join('; '),
+r.center.lat,
+r.center.lng
   ]));
 
   exportCsvWithToast(rows, `current_gap_finder_${Date.now()}.csv`);
