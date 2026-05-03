@@ -2236,7 +2236,18 @@ id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
     <tbody>
       ${rows.map(r=>`
         <tr>
-          <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.key)}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0">
+            <button
+              type="button"
+              class="btn link roll-drill"
+              data-rollby="${by}"
+              data-manager="${escape(r.key)}"
+              style="padding:0;font-weight:700;text-align:left"
+              title="Filter map to this manager and open gap summary"
+            >
+              ${escape(r.key)}
+            </button>
+          </td>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.combinedCoverage}</td>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${pct(r.combinedCoverage,r.total)}</td>
           <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.premiumCoverage}</td>
@@ -2252,6 +2263,51 @@ id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
   </table>`;
 
   id('rollTable').innerHTML = html || '<div style="color:var(--muted)">No data.</div>';
+}
+
+// Click a manager in Rollups to filter the map and open that manager's current gap summary.
+id('rollTable').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.roll-drill');
+  if (!btn) return;
+
+  const rollBy = btn.dataset.rollby;
+  const managerName = btn.dataset.manager;
+  if (!managerName) return;
+
+  drillIntoManager(rollBy, managerName);
+});
+
+function drillIntoManager(rollBy, managerName){
+  // Close Rollups so the map + Gap Finder can take over.
+  rollModal.classList.remove('show');
+
+  // Reset manager filters before applying the selected manager.
+  setMulti(rmFilter, ['All']);
+  setMulti(amFilter, ['All']);
+
+  if (rollBy === 'RM') {
+    setMulti(rmFilter, [managerName]);
+    cascadeAM();
+  } else {
+    setMulti(amFilter, [managerName]);
+    cascadeRM();
+  }
+
+  lastFilterChanged = rollBy === 'RM' ? 'rmFilter' : 'amFilter';
+
+  buildHubFilterOptions();
+  runFilter();
+  fitToResults();
+  renderChips();
+  saveState();
+
+  // Open Gap Finder using the manager-filtered store universe.
+  gapModal.classList.add('show');
+  id('gapUseFilters').checked = true;
+  runGapFinder();
+
+  const label = rollBy === 'RM' ? 'Regional Manager' : 'Area Manager';
+  alert(`Showing gap summary for ${label}: ${managerName}`);
 }
 
 function exportRollupsCsv(by, rows){
