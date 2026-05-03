@@ -544,7 +544,7 @@
       </div>
       <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
         <b>How to use:</b> This ranks the best current RTS posting areas using active/confirmed RTS coverage only.
-        It tests current uncovered clusters and estimates how many currently uncovered stores a single RTS could cover within the selected radius.
+        It tests current uncovered clusters, searches nearby placement points, estimates how many currently uncovered stores one RTS could cover, and removes duplicate suggestions within the selected radius.
         <br><b>Important:</b> This is a planning recommendation. It does not add a permanent RTS until you update your source JSON.
       </div>
       <div id="suggestResults" style="max-height:65vh;overflow:auto"></div>
@@ -2663,6 +2663,21 @@ function suggestBestRtsPlacement(cluster, universe, radiusMi){
   return best;
 }
 
+
+function dedupePlacementRows(rows, minMiles){
+  const kept = [];
+
+  rows.forEach(r=>{
+    const tooClose = kept.some(k =>
+      distMiles(r.center.lat, r.center.lng, k.center.lat, k.center.lng) <= minMiles
+    );
+
+    if (!tooClose) kept.push(r);
+  });
+
+  return kept;
+}
+
 function buildSuggestRtsRows(){
   const minUncov = Math.max(1, Number(id('suggestMin')?.value) || 25);
   const radiusMi = Math.max(1, Number(id('suggestMiles')?.value) || 75);
@@ -2711,7 +2726,10 @@ function buildSuggestRtsRows(){
     String(a.suggestedArea).localeCompare(String(b.suggestedArea))
   );
 
-  return rows;
+  // Metro-level dedupe:
+  // Keep only the strongest placement within one selected radius so Houston-area
+  // recommendations like Cypress/Spring/Kingwood do not all show separately.
+  return dedupePlacementRows(rows, radiusMi);
 }
 
 function runSuggestRtsCity(){
@@ -2731,7 +2749,7 @@ function runSuggestRtsCity(){
   suggestResults.innerHTML = `
     <div class="priority-card">
       <b>Top Optimized RTS Placement Suggestions</b>
-      <span style="color:var(--muted);margin-left:8px">Using ${escape(sourceLabel)} • Radius ${radiusMi} mi • Tests cluster centers, city centroids, and nearby adjusted points.</span>
+      <span style="color:var(--muted);margin-left:8px">Using ${escape(sourceLabel)} • Radius ${radiusMi} mi • Tests cluster centers, city centroids, and nearby adjusted points, then keeps one best result per metro area.</span>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:10px;margin-bottom:12px">
