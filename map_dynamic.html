@@ -3054,6 +3054,8 @@ id('sandboxBtn').addEventListener('click', ()=>{
   });
 
    // Copy ready-to-paste JSON for this simulated RTS location
+   // Copy ready-to-paste JSON for this simulated RTS location
+  // Auto-fills city/state from nearest store and includes projected impact.
   id('sandboxCopyJson').onclick = ()=>{
     const msg = id('sandboxAddMsg');
 
@@ -3068,20 +3070,54 @@ id('sandboxBtn').addEventListener('click', ()=>{
       return;
     }
 
+    // 20B: Auto-fill city/state using nearest Walmart store to the simulated location
+    const nearestStore = allStores
+      .map(s => ({
+        store: s,
+        miles: distMiles(ll.lat, ll.lng, s.lat, s.lng)
+      }))
+      .sort((a,b)=>a.miles-b.miles)[0];
+
+    const city = nearestStore?.store?.city || "REPLACE_CITY";
+    const state = nearestStore?.store?.state || "REPLACE_STATE";
+
+    // Impact calculation
+    const rMiles = Number(id('sandboxR')?.value) || DEFAULT_RADIUS;
+    const useFilt = !!id('gapUseFilters')?.checked;
+
+    const inRadius = storesWithinUniverse([ll.lat, ll.lng], rMiles, useFilt);
+    const uncoveredList = inRadius.filter(s => (s.coverageType || '') === 'Uncovered');
+
+    const estimatedNewStores = uncoveredList.length;
+    const currentCoveredTotal = allStores.filter(s => (s.coverageType || '') !== 'Uncovered').length;
+    const projectedCoveredTotal = currentCoveredTotal + estimatedNewStores;
+    const projectedCoveragePct = allStores.length
+      ? Math.round(projectedCoveredTotal * 1000 / allStores.length) / 10
+      : 0;
+
     const json = {
-      city: "REPLACE_CITY",
-      state: "REPLACE_STATE",
+      city: city,
+      state: state,
       lat: Number(ll.lat.toFixed(6)),
       lng: Number(ll.lng.toFixed(6)),
-      status: "confirmed"
+      status: "confirmed",
+
+      // Planning-only notes; safe to remove before final production use if desired
+      estimated_new_stores: estimatedNewStores,
+      projected_covered_stores: projectedCoveredTotal,
+      projected_coverage_pct: projectedCoveragePct,
+      simulation_radius_miles: rMiles,
+      nearest_reference_store: nearestStore
+        ? `Store ${nearestStore.store.storeNumberStr} - ${nearestStore.store.city}, ${nearestStore.store.state} (${nearestStore.miles.toFixed(1)} mi)`
+        : ""
     };
 
     const text = JSON.stringify(json, null, 2);
 
     navigator.clipboard.writeText(text).then(()=>{
-      msg.textContent = 'JSON copied. Paste it into premium_trainers_master.json, then replace city/state if needed.';
+      msg.textContent = `JSON copied for ${city}, ${state}. Estimated net-new stores: ${estimatedNewStores}.`;
     }).catch(()=>{
-      msg.textContent = 'Copy failed. Open console or manually copy from alert.';
+      msg.textContent = 'Copy failed. Manually copy from the alert.';
       alert('Copy failed — manually copy this:\n\n' + text);
     });
   };
