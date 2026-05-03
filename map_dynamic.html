@@ -2322,9 +2322,7 @@ function drillIntoManager(rollBy, managerName){
   runGapFinder();
 }
 
-  const label = rollBy === 'RM' ? 'Regional Manager' : 'Area Manager';
-  alert(`Showing gap summary for ${label}: ${managerName}`);
-}
+  
 
 function exportRollupsCsv(by, rows){
   const groupLabel = by === 'RM' ? 'Regional Manager' : 'Area Manager';
