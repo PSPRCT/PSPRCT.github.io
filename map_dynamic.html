@@ -445,10 +445,10 @@
 </div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
   <label class="toggle" title="Only show clusters at least this big">Min uncovered
-    <input id="gapMin" type="number" value="10" style="width:80px;margin-left:8px">
+    <input id="gapMin" type="number" value="25" style="width:80px;margin-left:8px">
   </label>
   <label class="toggle" title="Radius around each city center">Radius (mi)
-    <input id="gapMiles" type="number" value="50" style="width:80px;margin-left:8px">
+    <input id="gapMiles" type="number" value="75" style="width:80px;margin-left:8px">
   </label>
   <button id="gapRun" class="btn" type="button">Run</button>
   <button id="gapExport" class="btn" type="button">Export CSV</button>
@@ -2084,8 +2084,6 @@ function runGapFinder(){
           <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Rank</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Recommended Area</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">State</th>
-          <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">RM</th>
-          <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">AM</th>
           <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Current Gap Stores<br><span style="font-weight:400;color:var(--muted)">≤ ${radiusMi} mi</span></th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Nearest Active RTS</th>
           <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Miles from RTS</th>
@@ -2099,8 +2097,6 @@ function runGapFinder(){
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>#${i+1}</b></td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0"><b>${escape(r.city||'')}</b></td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.state||'')}</td>
-            <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.rm||'')}</td>
-            <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.am||'')}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.count}</b></td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.nearestHubName || '—')}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.nearestHubMiles == null ? '—' : Math.round(r.nearestHubMiles)}</td>
