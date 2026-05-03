@@ -2029,7 +2029,8 @@ function runGapFinder(){
         center,
         storeCountInCity:g.n,
         nearestHubName: nearestHub ? hubDisplay(nearestHub) : '',
-        nearestHubMiles: Number.isFinite(nearestMiles) ? nearestMiles : null
+        nearestHubMiles: Number.isFinite(nearestMiles) ? nearestMiles : null,
+        gapScore: count - Math.round(Number.isFinite(nearestMiles) ? nearestMiles : 0)
       });
     }
   });
