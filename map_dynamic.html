@@ -3053,35 +3053,38 @@ id('sandboxBtn').addEventListener('click', ()=>{
     placeSandbox([e.latlng.lat, e.latlng.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
   });
 
-  // Add hub helpers
-  const msg = id('sandboxAddMsg');
-  function addFromSandboxWithPrompts(status){
-    if (!sandboxMarker){ msg.textContent = 'Place the sandbox marker first (click the map).'; return; }
-    const ll = sandboxMarker.getLatLng?.(); if (!ll){ msg.textContent='Sandbox marker missing coordinates.'; return; }
+   // Copy ready-to-paste JSON for this simulated RTS location
+  id('sandboxCopyJson').onclick = ()=>{
+    const msg = id('sandboxAddMsg');
 
-    const city  = (prompt('City for this hub?', '')||'').trim();
-    const state = (prompt('State (2 letters)?', '')||'').trim().toUpperCase();
-    const name  = (prompt('Trainer name (optional)', '')||'').trim();
-    if (state && !/^[A-Z]{2}$/.test(state)){ alert('State must be two letters (e.g., AL, TX).'); return; }
+    if (!sandboxMarker) {
+      msg.textContent = 'Place the simulator first by clicking the map or using Gap Finder → Sandbox here.';
+      return;
+    }
 
-    const hub = {
-      id: (status==='confirmed'?'c_':'p_') + Math.random().toString(36).slice(2,9),
-      status,
-      statusLabel: status==='confirmed' ? 'Confirmed' : 'Pending',
-      name: name || (status==='confirmed' ? 'Confirmed' : 'Proposed'),
-      fullName: [city, state].filter(Boolean).join(', ') || (name || 'New hub'),
-      city, state,
-      coords: [ll.lat, ll.lng]
+    const ll = sandboxMarker.getLatLng?.();
+    if (!ll) {
+      msg.textContent = 'Simulator marker is missing coordinates.';
+      return;
+    }
+
+    const json = {
+      city: "REPLACE_CITY",
+      state: "REPLACE_STATE",
+      lat: Number(ll.lat.toFixed(6)),
+      lng: Number(ll.lng.toFixed(6)),
+      status: "confirmed"
     };
 
-    if (status === 'confirmed') premiumConfirmed.push(hub); else premiumPending.push(hub);
-    renderHubs(); updateRings?.();
-    (typeof recomputeCoverage === 'function' ? recomputeCoverage() : Promise.resolve()).then(()=> runFilter?.());
-    msg.textContent = `Added ${hub.statusLabel} hub at ${ll.lat.toFixed(4)}, ${ll.lng.toFixed(4)}${city||state?` — ${hub.fullName}`:''}.`;
-  }
-  id('sandboxAddPending').onclick  = ()=> addFromSandboxWithPrompts('pending');
-  id('sandboxAddConfirmed').onclick= ()=> addFromSandboxWithPrompts('confirmed');
-});
+    const text = JSON.stringify(json, null, 2);
+
+    navigator.clipboard.writeText(text).then(()=>{
+      msg.textContent = 'JSON copied. Paste it into premium_trainers_master.json, then replace city/state if needed.';
+    }).catch(()=>{
+      msg.textContent = 'Copy failed. Open console or manually copy from alert.';
+      alert('Copy failed — manually copy this:\n\n' + text);
+    });
+  };
 
 // Create/move ring + marker then refresh
 function placeSandbox(center, rMiles){
