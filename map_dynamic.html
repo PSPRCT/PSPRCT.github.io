@@ -2008,17 +2008,30 @@ function runGapFinder(){
     const count = uncoveredNearby.length;
 
     if (count >= minUncov){
-      rows.push({
-        city:g.city,
-        state:g.state,
-        rm:[...g.rm].filter(Boolean).join('; '),
-        am:[...g.am].filter(Boolean).join('; '),
-        count,
-        center,
-        storeCountInCity:g.n
-      });
-    }
-  });
+const activeHubs = [...premiumConfirmed, ...acostaHubs];
+
+let nearestHub = null;
+let nearestMiles = Infinity;
+
+activeHubs.forEach(h=>{
+  const d = distMiles(center.lat, center.lng, h.coords[0], h.coords[1]);
+  if (d < nearestMiles) {
+    nearestMiles = d;
+    nearestHub = h;
+  }
+});
+
+rows.push({
+  city:g.city,
+  state:g.state,
+  rm:[...g.rm].filter(Boolean).join('; '),
+  am:[...g.am].filter(Boolean).join('; '),
+  count,
+  center,
+  storeCountInCity:g.n,
+  nearestHubName: nearestHub ? hubDisplay(nearestHub) : '',
+  nearestHubMiles: Number.isFinite(nearestMiles) ? nearestMiles : null
+});
 
   // Rank biggest current gaps first.
    // Rank biggest current gaps first.
@@ -2074,7 +2087,9 @@ function runGapFinder(){
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">State</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">RM</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">AM</th>
-          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Current Gap Stores<br><span style="font-weight:400;color:var(--muted)">≤ ${radiusMi} mi</span></th>
+        <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Current Gap Stores<br><span style="font-weight:400;color:var(--muted)">≤ ${radiusMi} mi</span></th>
+<th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Nearest Active RTS</th>
+<th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Miles from RTS</th>
 <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Nearby Areas Rolled In</th>
 <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Action</th>
         </tr>
@@ -2088,6 +2103,10 @@ function runGapFinder(){
             <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.rm||'')}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.am||'')}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.count}</b></td>
+<td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.nearestHubName || '—')}</td>
+<td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">
+  ${r.nearestHubMiles == null ? '—' : Math.round(r.nearestHubMiles)}
+</td>
 <td style="padding:6px;border-bottom:1px solid #f0f0f0;color:var(--muted);font-size:12px">
   ${r.nearbyAreas.length ? escape(r.nearbyAreas.slice(0,6).join('; ')) + (r.nearbyAreas.length > 6 ? '…' : '') : '—'}
 </td>
