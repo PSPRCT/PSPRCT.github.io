@@ -2035,8 +2035,8 @@ function runGapFinder(){
     }
   });
 
-  rows.sort((a,b)=>
-    b.count - a.count ||
+
+    rows.sort((a,b)=> b.gapScore - a.gapScore || b.count - a.count
     String(a.state).localeCompare(String(b.state)) ||
     String(a.city).localeCompare(String(b.city))
   );
@@ -2089,6 +2089,7 @@ existing.altCount = (existing.altCount || 0) + 1;
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Recommended Area</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">State</th>
           <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Current Gap Stores<br><span style="font-weight:400;color:var(--muted)">≤ ${radiusMi} mi</span></th>
+          <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Gap Score</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Nearest Active RTS</th>
           <th style="text-align:right;border-bottom:1px solid #ddd;padding:6px">Miles from RTS</th>
           <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px">Nearby Areas Rolled In</th>
@@ -2101,8 +2102,9 @@ existing.altCount = (existing.altCount || 0) + 1;
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>#${i+1}</b></td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0"><b>${escape(r.city||'')}</b></td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.state||'')}</td>
-            <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.count}</b></td>
-            <td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.nearestHubName || '—')}</td>
+          <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.count}</b></td>
+<td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right"><b>${r.gapScore}</b></td>
+<td style="padding:6px;border-bottom:1px solid #f0f0f0">${escape(r.nearestHubName || '—')}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;text-align:right">${r.nearestHubMiles == null ? '—' : Math.round(r.nearestHubMiles)}</td>
             <td style="padding:6px;border-bottom:1px solid #f0f0f0;color:var(--muted);font-size:12px">
               ${r.nearbyAreas.length ? escape(r.nearbyAreas
