@@ -2490,6 +2490,9 @@ function exportRollupsCsv(by, rows){
 const suggestModal = id('suggestModal');
 const suggestResults = id('suggestResults');
 let lastSuggestRows = [];
+let lockedPlacements = [];
+let excludedMetros = new Set();
+let lastAuto50Mode = false;
 let placementMarker = null;
 let placementCircle = null;
 
@@ -2511,6 +2514,12 @@ if (suggestResults && !suggestResults._wiredSuggestActions) {
   suggestResults.addEventListener('click', (e)=>{
     const sandboxBtn = e.target.closest('.suggest-sbx');
     const placeBtn = e.target.closest('.suggest-place');
+    const lockBtn = e.target.closest('.suggest-lock');
+    const unlockBtn = e.target.closest('.suggest-unlock');
+    const excludeBtn = e.target.closest('.suggest-exclude');
+    const unexcludeBtn = e.target.closest('.suggest-unexclude');
+    const regenBtn = e.target.closest('.suggest-regenerate');
+    const resetBtn = e.target.closest('.suggest-reset-plan');
 
     if (sandboxBtn){
       const lat = parseFloat(sandboxBtn.dataset.lat);
@@ -2527,6 +2536,39 @@ if (suggestResults && !suggestResults._wiredSuggestActions) {
       if (!row) return;
       showPlacementResult(row);
       suggestModal.classList.remove('show');
+      return;
+    }
+
+    if (lockBtn){
+      lockAuto50Placement(Number(lockBtn.dataset.idx));
+      return;
+    }
+
+    if (unlockBtn){
+      unlockAuto50Placement(unlockBtn.dataset.key || '');
+      return;
+    }
+
+    if (excludeBtn){
+      excludeAuto50Placement(Number(excludeBtn.dataset.idx));
+      return;
+    }
+
+    if (unexcludeBtn){
+      unexcludeAuto50Metro(unexcludeBtn.dataset.metro || '');
+      return;
+    }
+
+    if (regenBtn){
+      runAuto50PlacementGenerator();
+      return;
+    }
+
+    if (resetBtn){
+      lockedPlacements = [];
+      excludedMetros = new Set();
+      runAuto50PlacementGenerator();
+      return;
     }
   });
   suggestResults._wiredSuggestActions = true;
@@ -2878,6 +2920,89 @@ function runSuggestRtsCity(){
 }
 
 
+function auto50RowKey(r){
+  const label = String(r?.placementLabel || r?.suggestedArea || '').trim();
+  const hub = String(r?.recommendedHub || '').trim();
+  const lat = Number(r?.center?.lat);
+  const lng = Number(r?.center?.lng);
+  return `${label}|${hub}|${Number.isFinite(lat)?lat.toFixed(4):''}|${Number.isFinite(lng)?lng.toFixed(4):''}`;
+}
+
+function auto50MetroKey(r){
+  return String(r?.placementLabel || r?.suggestedArea || '').trim();
+}
+
+function cloneAuto50RowForLock(r){
+  return JSON.parse(JSON.stringify({
+    ...r,
+    locked: true,
+    key: auto50RowKey(r),
+    metroKey: auto50MetroKey(r)
+  }));
+}
+
+function calculateCoverageImpact(rows){
+  const currentCovered = allStores.filter(s => (s.coverageType || '') !== 'Uncovered').length;
+  const totalStores = allStores.length || 1;
+  const currentPct = Math.round(currentCovered * 1000 / totalStores) / 10;
+  const projectedNewStores = rows.reduce((a,r)=>a + (Number(r.estimatedNewStores) || 0), 0);
+  const projectedCovered = currentCovered + projectedNewStores;
+  const projectedPct = Math.round(projectedCovered * 1000 / totalStores) / 10;
+
+  return {
+    currentCovered,
+    totalStores,
+    currentPct,
+    projectedNewStores,
+    projectedCovered,
+    projectedPct,
+    liftPctPoints: Math.round((projectedPct - currentPct) * 10) / 10,
+    openSlots: Math.max(0, 50 - lockedPlacements.length),
+    lockedCount: lockedPlacements.length,
+    excludedCount: excludedMetros.size
+  };
+}
+
+function makeAuto50CandidateFromCluster(c, baseUniverse, virtualUniverse, remainingUncovered, radiusMi, minUncov){
+  const best = suggestBestRtsPlacement(c, virtualUniverse, radiusMi);
+  if (!best || best.netGain < minUncov) return null;
+
+  const totalReachStores = storesWithinList(baseUniverse, [best.lat, best.lng], radiusMi);
+  const netNewIds = totalReachStores
+    .filter(s => remainingUncovered.has(s.storeNumberStr))
+    .map(s => s.storeNumberStr);
+
+  if (netNewIds.length < minUncov) return null;
+
+  const nearbyAreas = (c.nearbyAreas || [])
+    .slice()
+    .sort((a,b)=> b.count - a.count)
+    .slice(0,4)
+    .map(x => `${x.label} (${x.count})`)
+    .join('; ');
+
+  const nearest = nearestActiveHubTo(best.lat, best.lng);
+  const row = {
+    originalClusterCity: c.city,
+    originalClusterState: c.state,
+    suggestedArea: best.label,
+    recommendedHub: best.label,
+    sourceLabel: best.sourceLabel,
+    center: { lat: best.lat, lng: best.lng },
+    estimatedNewStores: netNewIds.length,
+    totalReach: totalReachStores.length,
+    overlap: totalReachStores.length - netNewIds.length,
+    nearestHubName: nearest ? hubDisplay(nearest.hub) : '',
+    nearestHubMiles: nearest ? nearest.miles : null,
+    nearbyAreas,
+    netNewIds
+  };
+  row.placementLabel = metroPlacementLabel(row);
+  row.key = auto50RowKey(row);
+  row.metroKey = auto50MetroKey(row);
+  return row;
+}
+
 function buildAuto50PlacementRows(){
   const maxPlacements = 50;
   const minUncov = Math.max(1, Number(id('suggestMin')?.value) || 25);
@@ -2888,9 +3013,23 @@ function buildAuto50PlacementRows(){
   const baseCovered = new Set(allStores.filter(s => (s.coverageType || '') !== 'Uncovered').map(s => s.storeNumberStr));
   const remainingUncovered = new Set(baseUniverse.filter(s => (s.coverageType || '') === 'Uncovered').map(s => s.storeNumberStr));
   const selected = [];
-  const selectedCovered = new Set();
 
-  for (let pick=1; pick<=maxPlacements; pick++){
+  // Start with locked placements. They count against the 50 cap and consume their net-new stores first.
+  lockedPlacements.forEach(lock => {
+    if (selected.length >= maxPlacements) return;
+    const lockedRow = cloneAuto50RowForLock(lock);
+    const inRadius = storesWithinList(baseUniverse, [lockedRow.center.lat, lockedRow.center.lng], radiusMi);
+    lockedRow.totalReach = inRadius.length;
+    lockedRow.netNewIds = inRadius
+      .filter(s => remainingUncovered.has(s.storeNumberStr))
+      .map(s => s.storeNumberStr);
+    lockedRow.estimatedNewStores = lockedRow.netNewIds.length;
+    lockedRow.overlap = lockedRow.totalReach - lockedRow.estimatedNewStores;
+    selected.push(lockedRow);
+    lockedRow.netNewIds.forEach(id => remainingUncovered.delete(id));
+  });
+
+  for (let pick=selected.length + 1; pick<=maxPlacements; pick++){
     const virtualUniverse = baseUniverse.map(s => ({
       ...s,
       coverageType: remainingUncovered.has(s.storeNumberStr) ? 'Uncovered' : 'Already Covered'
@@ -2899,41 +3038,9 @@ function buildAuto50PlacementRows(){
     const clusters = topGapClustersForStores(virtualUniverse, radiusMi, minUncov);
     if (!clusters.length) break;
 
-    const candidates = clusters.map(c=>{
-      const best = suggestBestRtsPlacement(c, virtualUniverse, radiusMi);
-      if (!best || best.netGain < minUncov) return null;
-
-      const totalReachStores = storesWithinList(baseUniverse, [best.lat, best.lng], radiusMi);
-      const netNewIds = totalReachStores
-        .filter(s => remainingUncovered.has(s.storeNumberStr))
-        .map(s => s.storeNumberStr);
-
-      const nearbyAreas = (c.nearbyAreas || [])
-        .slice()
-        .sort((a,b)=> b.count - a.count)
-        .slice(0,4)
-        .map(x => `${x.label} (${x.count})`)
-        .join('; ');
-
-      const nearest = nearestActiveHubTo(best.lat, best.lng);
-      const row = {
-        originalClusterCity: c.city,
-        originalClusterState: c.state,
-        suggestedArea: best.label,
-        recommendedHub: best.label,
-        sourceLabel: best.sourceLabel,
-        center: { lat: best.lat, lng: best.lng },
-        estimatedNewStores: netNewIds.length,
-        totalReach: totalReachStores.length,
-        overlap: totalReachStores.length - netNewIds.length,
-        nearestHubName: nearest ? hubDisplay(nearest.hub) : '',
-        nearestHubMiles: nearest ? nearest.miles : null,
-        nearbyAreas,
-        netNewIds
-      };
-      row.placementLabel = metroPlacementLabel(row);
-      return row;
-    }).filter(Boolean);
+    const candidates = clusters.map(c => makeAuto50CandidateFromCluster(c, baseUniverse, virtualUniverse, remainingUncovered, radiusMi, minUncov))
+      .filter(Boolean)
+      .filter(c => !excludedMetros.has(c.metroKey));
 
     candidates.sort((a,b)=>
       b.estimatedNewStores - a.estimatedNewStores ||
@@ -2943,63 +3050,144 @@ function buildAuto50PlacementRows(){
     );
 
     const chosen = candidates.find(c => !selected.some(x =>
+      (x.metroKey && x.metroKey === c.metroKey) ||
       (x.placementLabel && x.placementLabel === c.placementLabel) ||
       distMiles(x.center.lat, x.center.lng, c.center.lat, c.center.lng) <= radiusMi
     ));
 
     if (!chosen) break;
 
-    chosen.rank = selected.length + 1;
-    chosen.runningNewStores = chosen.netNewIds.length + selected.reduce((a,x)=>a+x.estimatedNewStores,0);
-    chosen.projectedCoveredStores = baseCovered.size + chosen.runningNewStores;
-    chosen.projectedCoveragePct = allStores.length ? Math.round(chosen.projectedCoveredStores * 1000 / allStores.length) / 10 : 0;
     selected.push(chosen);
-
-    chosen.netNewIds.forEach(id => {
-      remainingUncovered.delete(id);
-      selectedCovered.add(id);
-    });
+    chosen.netNewIds.forEach(id => remainingUncovered.delete(id));
   }
+
+  let runningNew = 0;
+  selected.forEach((row, idx)=>{
+    row.rank = idx + 1;
+    row.key = auto50RowKey(row);
+    row.metroKey = auto50MetroKey(row);
+    row.locked = lockedPlacements.some(l => auto50RowKey(l) === row.key || auto50MetroKey(l) === row.metroKey);
+    runningNew += Number(row.estimatedNewStores) || 0;
+    row.runningNewStores = runningNew;
+    row.projectedCoveredStores = baseCovered.size + runningNew;
+    row.projectedCoveragePct = allStores.length ? Math.round(row.projectedCoveredStores * 1000 / allStores.length) / 10 : 0;
+    const previousCovered = baseCovered.size + runningNew - (Number(row.estimatedNewStores) || 0);
+    row.coverageImpactPctPoints = allStores.length
+      ? Math.round(((row.projectedCoveredStores - previousCovered) * 1000 / allStores.length)) / 10
+      : 0;
+  });
 
   return selected;
 }
 
-function runAuto50PlacementGenerator(){
-  if (!suggestResults) return;
-  const rows = buildAuto50PlacementRows();
-  lastSuggestRows = rows;
+function lockAuto50Placement(index){
+  const row = lastSuggestRows[index];
+  if (!row) return;
+  const key = auto50RowKey(row);
+  if (!lockedPlacements.some(x => auto50RowKey(x) === key || auto50MetroKey(x) === auto50MetroKey(row))){
+    lockedPlacements.push(cloneAuto50RowForLock(row));
+  }
+  runAuto50PlacementGenerator();
+}
+
+function unlockAuto50Placement(key){
+  lockedPlacements = lockedPlacements.filter(x => auto50RowKey(x) !== key && auto50MetroKey(x) !== key);
+  runAuto50PlacementGenerator();
+}
+
+function excludeAuto50Placement(index){
+  const row = lastSuggestRows[index];
+  if (!row) return;
+  const metro = auto50MetroKey(row);
+  if (metro) excludedMetros.add(metro);
+  lockedPlacements = lockedPlacements.filter(x => auto50MetroKey(x) !== metro);
+  runAuto50PlacementGenerator();
+}
+
+function unexcludeAuto50Metro(metro){
+  if (metro) excludedMetros.delete(metro);
+  runAuto50PlacementGenerator();
+}
+
+function renderExcludedMetroChips(){
+  const metros = Array.from(excludedMetros);
+  if (!metros.length) return '<span style="color:var(--muted);font-size:12px">No excluded metros.</span>';
+  return metros.map(m => `
+    <span class="chip" style="background:#fff">
+      ${escape(m)}
+      <button type="button" class="mini suggest-unexclude" data-metro="${escape(m)}" style="margin-left:6px">Undo</button>
+    </span>
+  `).join('');
+}
+
+function renderAuto50Results(rows){
   const radiusMi = Math.max(1, Number(id('suggestMiles')?.value) || 75);
   const useFilt  = !!id('suggestUseFilters')?.checked;
   const sourceLabel = useFilt ? 'current filters' : 'all stores';
-  const totalNew = rows.reduce((a,r)=>a+r.estimatedNewStores,0);
-  const finalPct = rows.length ? rows[rows.length-1].projectedCoveragePct : 0;
+  const impact = calculateCoverageImpact(rows);
 
   if (!rows.length){
-    suggestResults.innerHTML = `<div style="color:var(--muted)">No Top 50 placements found. Try lowering Min uncovered or widening the radius.</div>`;
+    suggestResults.innerHTML = `
+      <div class="priority-card">
+        <b>Auto 50 RTS Placement Generator</b>
+        <div style="color:var(--muted);margin-top:6px">No Top 50 placements found. Try lowering Min uncovered, widening the radius, or clearing excluded metros.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button type="button" class="btn suggest-regenerate">Regenerate Remaining Slots</button>
+          <button type="button" class="btn suggest-reset-plan">Clear Locks + Exclusions</button>
+        </div>
+      </div>`;
     return;
   }
 
   suggestResults.innerHTML = `
     <div class="priority-card">
       <b>Auto 50 RTS Placement Generator</b>
-      <span style="color:var(--muted);margin-left:8px">Using ${escape(sourceLabel)} • Radius ${radiusMi} mi • Greedy non-overlap model • Stops early if no placement meets the minimum.</span>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-        <span class="chip"><b>Placements:</b> ${rows.length}</span>
-        <span class="chip"><b>Projected net-new stores:</b> ${totalNew}</span>
-        <span class="chip"><b>Projected national coverage:</b> ${finalPct}%</span>
+      <span style="color:var(--muted);margin-left:8px">Using ${escape(sourceLabel)} • Radius ${radiusMi} mi • Greedy non-overlap model • Locked placements are kept first.</span>
+
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:8px;margin-top:10px">
+        <span class="chip"><b>Locked:</b> ${impact.lockedCount}</span>
+        <span class="chip"><b>Excluded:</b> ${impact.excludedCount}</span>
+        <span class="chip"><b>Open Slots:</b> ${impact.openSlots}</span>
+        <span class="chip"><b>Placements Shown:</b> ${rows.length}</span>
+      </div>
+
+      <div style="margin-top:10px;padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff">
+        <div style="font-weight:900;margin-bottom:6px">Coverage Impact Engine</div>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:8px;font-size:13px">
+          <div><b>Current Coverage:</b><br>${impact.currentCovered} / ${impact.totalStores} (${impact.currentPct}%)</div>
+          <div><b>Projected New Stores:</b><br>${impact.projectedNewStores}</div>
+          <div><b>Projected Coverage:</b><br>${impact.projectedCovered} / ${impact.totalStores} (${impact.projectedPct}%)</div>
+          <div><b>Coverage Lift:</b><br>+${impact.liftPctPoints} pts</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button type="button" class="btn suggest-regenerate">Regenerate Remaining Slots</button>
+        <button type="button" class="btn suggest-reset-plan">Clear Locks + Exclusions</button>
+        <button type="button" class="btn" onclick="exportSuggestRtsCsv()">Export Final CSV</button>
+      </div>
+
+      <div style="margin-top:8px">
+        <b>Excluded metros:</b>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${renderExcludedMetroChips()}</div>
       </div>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:10px;margin-bottom:12px">
       ${rows.slice(0,3).map((r,i)=>`
-        <div style="border:1px solid var(--border);border-radius:12px;padding:10px;background:#f8fafc">
-          <div style="font-weight:900;margin-bottom:4px">#${i+1} Optimal RTS Placement:</div>
+        <div style="border:1px solid var(--border);border-radius:12px;padding:10px;background:${r.locked ? '#ecfdf5' : '#f8fafc'}">
+          <div style="font-weight:900;margin-bottom:4px">#${i+1} Optimal RTS Placement:${r.locked ? ' 🔒' : ''}</div>
           <div style="font-weight:900;font-size:15px;margin-bottom:4px">${escape(r.placementLabel || r.suggestedArea)}</div>
           <div style="color:var(--muted);font-size:12px;margin-bottom:6px">Recommended Hub: <b>${escape(r.recommendedHub || r.suggestedArea || '')}</b><br>Running coverage after this pick: ${r.projectedCoveragePct}%</div>
           <div><b>Net new stores:</b> ${r.estimatedNewStores}</div>
+          <div><b>Coverage impact:</b> +${r.coverageImpactPctPoints || 0} pts</div>
           <div><b>Total reach:</b> ${r.totalReach}</div>
           <div><b>Overlap/already covered:</b> ${r.overlap}</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+            ${r.locked
+              ? `<button type="button" class="btn suggest-unlock" data-key="${escape(r.key)}">Unlock</button>`
+              : `<button type="button" class="btn suggest-lock" data-idx="${i}">Lock</button>`}
+            <button type="button" class="btn suggest-exclude" data-idx="${i}">Exclude</button>
             <button type="button" class="btn suggest-place" data-idx="${i}">Show on map</button>
             <button type="button" class="btn suggest-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox here</button>
           </div>
@@ -3014,6 +3202,7 @@ function runAuto50PlacementGenerator(){
           <th style="text-align:left">Optimal RTS Placement</th>
           <th style="text-align:left">Recommended Hub</th>
           <th style="text-align:right">Net New Stores</th>
+          <th style="text-align:right">Coverage Impact</th>
           <th style="text-align:right">Total Reach</th>
           <th style="text-align:right">Overlap</th>
           <th style="text-align:right">Running New Stores</th>
@@ -3021,16 +3210,17 @@ function runAuto50PlacementGenerator(){
           <th style="text-align:left">Nearest Active RTS</th>
           <th style="text-align:right">Miles</th>
           <th style="text-align:left">Nearby Areas Rolled In</th>
-          <th style="text-align:right">Action</th>
+          <th style="text-align:right">Actions</th>
         </tr>
       </thead>
       <tbody>
         ${rows.map((r,i)=>`
-          <tr>
+          <tr style="background:${r.locked ? '#ecfdf5' : 'transparent'}">
             <td style="text-align:right"><b>#${i+1}</b></td>
-            <td><b>${escape(r.placementLabel || r.suggestedArea || '')}</b><br><span style="color:var(--muted);font-size:12px">Based on ${escape(r.originalClusterCity || '')}, ${escape(r.originalClusterState || '')}</span></td>
+            <td><b>${escape(r.placementLabel || r.suggestedArea || '')}</b>${r.locked ? ' 🔒' : ''}<br><span style="color:var(--muted);font-size:12px">Based on ${escape(r.originalClusterCity || '')}, ${escape(r.originalClusterState || '')}</span></td>
             <td>${escape(r.recommendedHub || r.suggestedArea || '')}</td>
             <td style="text-align:right"><b>${r.estimatedNewStores}</b></td>
+            <td style="text-align:right">+${r.coverageImpactPctPoints || 0} pts</td>
             <td style="text-align:right">${r.totalReach}</td>
             <td style="text-align:right">${r.overlap}</td>
             <td style="text-align:right">${r.runningNewStores}</td>
@@ -3039,6 +3229,10 @@ function runAuto50PlacementGenerator(){
             <td style="text-align:right">${r.nearestHubMiles == null ? '—' : Math.round(r.nearestHubMiles)}</td>
             <td style="color:var(--muted);font-size:12px">${escape(r.nearbyAreas || '—')}</td>
             <td style="text-align:right;white-space:nowrap">
+              ${r.locked
+                ? `<button type="button" class="mini suggest-unlock" data-key="${escape(r.key)}">Unlock</button>`
+                : `<button type="button" class="mini suggest-lock" data-idx="${i}">Lock</button>`}
+              <button type="button" class="mini suggest-exclude" data-idx="${i}">Exclude</button>
               <button type="button" class="mini suggest-place" data-idx="${i}">Map</button>
               <button type="button" class="mini suggest-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox</button>
             </td>
@@ -3047,6 +3241,14 @@ function runAuto50PlacementGenerator(){
       </tbody>
     </table>
   `;
+}
+
+function runAuto50PlacementGenerator(){
+  if (!suggestResults) return;
+  lastAuto50Mode = true;
+  const rows = buildAuto50PlacementRows();
+  lastSuggestRows = rows;
+  renderAuto50Results(rows);
 }
 
 function showPlacementResult(r){
