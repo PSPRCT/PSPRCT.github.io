@@ -2680,28 +2680,55 @@ function dedupePlacementRows(rows, minMiles){
 
 
 function metroPlacementLabel(r){
-  const city = String(r.city || '').trim();
-  const state = String(r.state || '').trim();
-
-  const nearbyText = String(r.nearbyAreas || '').toLowerCase();
-  const cityLower = city.toLowerCase();
+  // Display-only label for Suggest RTS City.
+  // This prevents the top cards from showing a single suburb like Cypress/Spring
+  // when the recommendation is really a larger metro-area placement.
+  const suggested = String(r.suggestedArea || '').trim();
+  const original = `${r.originalClusterCity || ''}, ${r.originalClusterState || ''}`;
+  const nearby = String(r.nearbyAreas || '');
+  const text = `${suggested} ${original} ${nearby}`.toLowerCase();
 
   const metroRules = [
-    { state:'TX', names:['cypress','spring','kingwood','houston','sugar land','richmond','tomball','crosby','new caney','baytown','humble','pearland','katy'], label:'Houston Metro' },
-    { state:'CO', names:['aurora','denver','centennial','commerce city','evergreen','castle rock','lakewood','englewood','littleton','parker'], label:'Denver Metro' },
-    { state:'FL', names:['boca raton','delray beach','boynton beach','coral springs','deerfield beach','pompano beach','fort lauderdale','miami','hollywood'], label:'South Florida' },
-    { state:'AL', names:['semmes','mobile','daphne','fairhope','robertsdale','bay minette','saraland'], label:'Mobile / Gulf Coast' },
-    { state:'PA', names:['uniontown','connellsville','greensburg','latrobe','mechanicsburg','camp hill','carlisle','harrisburg','johnstown'], label:'Western / Central PA' },
-    { state:'MI', names:['monroe','southgate','canton','trenton','oregon','lapeer','flint','owosso','clio','sandusky'], label:'Southeast / Mid Michigan' }
+    {
+      state:'TX',
+      names:['cypress','spring','the woodlands','woodlands','kingwood','houston','tomball','humble','new caney','katy','pearland','sugar land','richmond','baytown','crosby'],
+      label:'Houston Metro (North / Spring / Woodlands)'
+    },
+    {
+      state:'CO',
+      names:['aurora','denver','centennial','commerce city','lakewood','englewood','littleton','parker','castle rock'],
+      label:'Denver Metro (SE / Aurora Region)'
+    },
+    {
+      state:'FL',
+      names:['boca raton','delray beach','boynton beach','coral springs','deerfield beach','pompano beach','fort lauderdale','miami','hollywood'],
+      label:'South Florida Metro'
+    },
+    {
+      state:'AL',
+      names:['semmes','mobile','daphne','fairhope','robertsdale','bay minette','saraland'],
+      label:'Mobile / Gulf Coast Region'
+    },
+    {
+      state:'PA',
+      names:['uniontown','connellsville','greensburg','latrobe','mechanicsburg','camp hill','carlisle','harrisburg','johnstown'],
+      label:'Western / Central Pennsylvania Region'
+    },
+    {
+      state:'MI',
+      names:['monroe','southgate','canton','trenton','oregon','lapeer','flint','owosso','clio','sandusky'],
+      label:'Southeast / Mid Michigan Region'
+    }
   ];
 
+  const stateMatch = String(r.originalClusterState || suggested.split(',').pop() || '').trim().toUpperCase();
   const match = metroRules.find(rule =>
-    rule.state === state &&
-    rule.names.some(n => cityLower.includes(n) || nearbyText.includes(n))
+    (!stateMatch || rule.state === stateMatch || text.includes(` ${rule.state.toLowerCase()} `)) &&
+    rule.names.some(n => text.includes(n))
   );
 
-  if (match) return `${match.label} — ${city}, ${state}`;
-  return `${city}, ${state}`;
+  if (match) return match.label;
+  return suggested || original.replace(/^,\s*|,\s*$/g,'') || 'Optimized RTS Placement';
 }
 
 function buildSuggestRtsRows(){
@@ -2751,7 +2778,7 @@ function buildSuggestRtsRows(){
     b.estimatedNewStores - a.estimatedNewStores ||
     a.overlap - b.overlap ||
     b.totalReach - a.totalReach ||
-    String(a.suggestedArea).localeCompare(String(b.suggestedArea))
+    String(a.placementLabel || a.suggestedArea).localeCompare(String(b.placementLabel || b.suggestedArea))
   );
 
   // Metro-level dedupe:
@@ -2783,7 +2810,8 @@ function runSuggestRtsCity(){
     <div style="display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:10px;margin-bottom:12px">
       ${top3.map((r,i)=>`
         <div style="border:1px solid var(--border);border-radius:12px;padding:10px;background:#f8fafc">
-          <div style="font-weight:900;margin-bottom:4px">#${i+1} ${escape(r.suggestedArea)}</div>
+          <div style="font-weight:900;margin-bottom:4px">#${i+1} Optimal RTS Placement:</div>
+          <div style="font-weight:900;font-size:15px;margin-bottom:4px">${escape(r.placementLabel || r.suggestedArea)}</div>
           <div style="color:var(--muted);font-size:12px;margin-bottom:6px">Based on cluster: ${escape(r.originalClusterCity)}, ${escape(r.originalClusterState)} • ${escape(r.sourceLabel)}</div>
           <div><b>Net new stores:</b> ${r.estimatedNewStores}</div>
           <div><b>Total reach:</b> ${r.totalReach}</div>
@@ -2818,7 +2846,7 @@ function runSuggestRtsCity(){
         ${rows.map((r,i)=>`
           <tr>
             <td style="text-align:right"><b>#${i+1}</b></td>
-            <td><b>${escape(r.suggestedArea || '')}</b><br><span style="color:var(--muted);font-size:12px">${escape(r.sourceLabel || '')}</span></td>
+            <td><b>${escape(r.placementLabel || r.suggestedArea || '')}</b><br><span style="color:var(--muted);font-size:12px">${escape(r.sourceLabel || '')}</span></td>
             <td>${escape(r.originalClusterCity || '')}, ${escape(r.originalClusterState || '')}</td>
             <td style="text-align:right"><b>${r.estimatedNewStores}</b></td>
             <td style="text-align:right">${r.totalReach}</td>
@@ -2870,7 +2898,7 @@ function showPlacementResult(r){
 
   placementMarker.bindPopup(`
     <b>Optimal RTS Placement</b><br>
-    ${escape(r.suggestedArea || '')}<br><br>
+    ${escape(r.placementLabel || r.suggestedArea || '')}<br><br>
     <b>Net New Stores:</b> ${r.estimatedNewStores}<br>
     <b>Total Reach:</b> ${r.totalReach}<br>
     <b>Overlap / Already Covered:</b> ${r.overlap}<br>
@@ -2891,7 +2919,7 @@ function exportSuggestRtsCsv(){
 
   rows.forEach((r,i)=>data.push([
     i+1,
-    r.suggestedArea,
+    r.placementLabel || r.suggestedArea,
     `${r.originalClusterCity}, ${r.originalClusterState}`,
     r.sourceLabel || '',
     r.estimatedNewStores,
