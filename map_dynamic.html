@@ -540,6 +540,7 @@
           <input id="suggestUseFilters" type="checkbox"> Use current filters
         </label>
         <button id="suggestRun" class="btn" type="button">Run</button>
+        <button id="auto50Run" class="btn" type="button" title="Greedy-generate up to 50 non-overlapping RTS placements from current gaps">Auto-generate Top 50</button>
         <button id="suggestExport" class="btn" type="button">Export CSV</button>
       </div>
       <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
@@ -2504,6 +2505,7 @@ if (id('suggestClose')) id('suggestClose').onclick = ()=> suggestModal.classList
 if (id('suggestRun')) id('suggestRun').onclick = runSuggestRtsCity;
 if (id('suggestUseFilters')) id('suggestUseFilters').onchange = runSuggestRtsCity;
 if (id('suggestExport')) id('suggestExport').onclick = exportSuggestRtsCsv;
+if (id('auto50Run')) id('auto50Run').onclick = runAuto50PlacementGenerator;
 
 if (suggestResults && !suggestResults._wiredSuggestActions) {
   suggestResults.addEventListener('click', (e)=>{
@@ -2759,6 +2761,7 @@ function buildSuggestRtsRows(){
       originalClusterCity: c.city,
       originalClusterState: c.state,
       suggestedArea: best.label,
+      recommendedHub: best.label,
       sourceLabel: best.sourceLabel,
       center: { lat: best.lat, lng: best.lng },
       estimatedNewStores: best.netGain,
@@ -2774,6 +2777,7 @@ function buildSuggestRtsRows(){
 
   rows.forEach(r => r.placementLabel = metroPlacementLabel(r));
 
+  // TRUE VALUE sort: rank actual expansion first, then avoid overlap-heavy placements.
   rows.sort((a,b)=>
     b.estimatedNewStores - a.estimatedNewStores ||
     a.overlap - b.overlap ||
@@ -2781,10 +2785,17 @@ function buildSuggestRtsRows(){
     String(a.placementLabel || a.suggestedArea).localeCompare(String(b.placementLabel || b.suggestedArea))
   );
 
-  // Metro-level dedupe:
-  // Keep only the strongest placement within one selected radius so Houston-area
-  // recommendations like Cypress/Spring/Kingwood do not all show separately.
-  return dedupePlacementRows(rows, radiusMi);
+  // Step 3: metro-level dedupe. Keep one strongest recommendation per metro/area label,
+  // then also prevent duplicate placements that are within the selected radius.
+  const seenLabels = new Set();
+  const labelUnique = rows.filter(r=>{
+    const label = r.placementLabel || r.suggestedArea || '';
+    if (seenLabels.has(label)) return false;
+    seenLabels.add(label);
+    return true;
+  });
+
+  return dedupePlacementRows(labelUnique, radiusMi);
 }
 
 function runSuggestRtsCity(){
@@ -2804,7 +2815,7 @@ function runSuggestRtsCity(){
   suggestResults.innerHTML = `
     <div class="priority-card">
       <b>Top Optimized RTS Placement Suggestions</b>
-      <span style="color:var(--muted);margin-left:8px">Using ${escape(sourceLabel)} • Radius ${radiusMi} mi • Tests cluster centers, city centroids, and nearby adjusted points, then keeps one best result per metro area.</span>
+      <span style="color:var(--muted);margin-left:8px">Using ${escape(sourceLabel)} • Radius ${radiusMi} mi • Ranks by true net-new stores, labels metro areas, and removes duplicate metro placements.</span>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:10px;margin-bottom:12px">
@@ -2812,7 +2823,7 @@ function runSuggestRtsCity(){
         <div style="border:1px solid var(--border);border-radius:12px;padding:10px;background:#f8fafc">
           <div style="font-weight:900;margin-bottom:4px">#${i+1} Optimal RTS Placement:</div>
           <div style="font-weight:900;font-size:15px;margin-bottom:4px">${escape(r.placementLabel || r.suggestedArea)}</div>
-          <div style="color:var(--muted);font-size:12px;margin-bottom:6px">Based on cluster: ${escape(r.originalClusterCity)}, ${escape(r.originalClusterState)} • ${escape(r.sourceLabel)}</div>
+          <div style="color:var(--muted);font-size:12px;margin-bottom:6px">Recommended Hub: <b>${escape(r.recommendedHub || r.suggestedArea || '')}</b><br>Based on cluster: ${escape(r.originalClusterCity)}, ${escape(r.originalClusterState)} • ${escape(r.sourceLabel)}</div>
           <div><b>Net new stores:</b> ${r.estimatedNewStores}</div>
           <div><b>Total reach:</b> ${r.totalReach}</div>
           <div><b>Overlap/already covered:</b> ${r.overlap}</div>
@@ -2846,11 +2857,183 @@ function runSuggestRtsCity(){
         ${rows.map((r,i)=>`
           <tr>
             <td style="text-align:right"><b>#${i+1}</b></td>
-            <td><b>${escape(r.placementLabel || r.suggestedArea || '')}</b><br><span style="color:var(--muted);font-size:12px">${escape(r.sourceLabel || '')}</span></td>
+            <td><b>${escape(r.placementLabel || r.suggestedArea || '')}</b><br><span style="color:var(--muted);font-size:12px">Recommended Hub: ${escape(r.recommendedHub || r.suggestedArea || '')}<br>${escape(r.sourceLabel || '')}</span></td>
             <td>${escape(r.originalClusterCity || '')}, ${escape(r.originalClusterState || '')}</td>
             <td style="text-align:right"><b>${r.estimatedNewStores}</b></td>
             <td style="text-align:right">${r.totalReach}</td>
             <td style="text-align:right">${r.overlap}</td>
+            <td style="text-align:right">${r.projectedCoveragePct}%</td>
+            <td>${escape(r.nearestHubName || '—')}</td>
+            <td style="text-align:right">${r.nearestHubMiles == null ? '—' : Math.round(r.nearestHubMiles)}</td>
+            <td style="color:var(--muted);font-size:12px">${escape(r.nearbyAreas || '—')}</td>
+            <td style="text-align:right;white-space:nowrap">
+              <button type="button" class="mini suggest-place" data-idx="${i}">Map</button>
+              <button type="button" class="mini suggest-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox</button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+
+function buildAuto50PlacementRows(){
+  const maxPlacements = 50;
+  const minUncov = Math.max(1, Number(id('suggestMin')?.value) || 25);
+  const radiusMi = Math.max(1, Number(id('suggestMiles')?.value) || 75);
+  const useFilt  = !!id('suggestUseFilters')?.checked;
+  const baseUniverse = (useFilt && filteredStores?.length) ? filteredStores : allStores;
+
+  const baseCovered = new Set(allStores.filter(s => (s.coverageType || '') !== 'Uncovered').map(s => s.storeNumberStr));
+  const remainingUncovered = new Set(baseUniverse.filter(s => (s.coverageType || '') === 'Uncovered').map(s => s.storeNumberStr));
+  const selected = [];
+  const selectedCovered = new Set();
+
+  for (let pick=1; pick<=maxPlacements; pick++){
+    const virtualUniverse = baseUniverse.map(s => ({
+      ...s,
+      coverageType: remainingUncovered.has(s.storeNumberStr) ? 'Uncovered' : 'Already Covered'
+    }));
+
+    const clusters = topGapClustersForStores(virtualUniverse, radiusMi, minUncov);
+    if (!clusters.length) break;
+
+    const candidates = clusters.map(c=>{
+      const best = suggestBestRtsPlacement(c, virtualUniverse, radiusMi);
+      if (!best || best.netGain < minUncov) return null;
+
+      const totalReachStores = storesWithinList(baseUniverse, [best.lat, best.lng], radiusMi);
+      const netNewIds = totalReachStores
+        .filter(s => remainingUncovered.has(s.storeNumberStr))
+        .map(s => s.storeNumberStr);
+
+      const nearbyAreas = (c.nearbyAreas || [])
+        .slice()
+        .sort((a,b)=> b.count - a.count)
+        .slice(0,4)
+        .map(x => `${x.label} (${x.count})`)
+        .join('; ');
+
+      const nearest = nearestActiveHubTo(best.lat, best.lng);
+      const row = {
+        originalClusterCity: c.city,
+        originalClusterState: c.state,
+        suggestedArea: best.label,
+        recommendedHub: best.label,
+        sourceLabel: best.sourceLabel,
+        center: { lat: best.lat, lng: best.lng },
+        estimatedNewStores: netNewIds.length,
+        totalReach: totalReachStores.length,
+        overlap: totalReachStores.length - netNewIds.length,
+        nearestHubName: nearest ? hubDisplay(nearest.hub) : '',
+        nearestHubMiles: nearest ? nearest.miles : null,
+        nearbyAreas,
+        netNewIds
+      };
+      row.placementLabel = metroPlacementLabel(row);
+      return row;
+    }).filter(Boolean);
+
+    candidates.sort((a,b)=>
+      b.estimatedNewStores - a.estimatedNewStores ||
+      a.overlap - b.overlap ||
+      b.totalReach - a.totalReach ||
+      String(a.placementLabel || a.suggestedArea).localeCompare(String(b.placementLabel || b.suggestedArea))
+    );
+
+    const chosen = candidates.find(c => !selected.some(x =>
+      (x.placementLabel && x.placementLabel === c.placementLabel) ||
+      distMiles(x.center.lat, x.center.lng, c.center.lat, c.center.lng) <= radiusMi
+    ));
+
+    if (!chosen) break;
+
+    chosen.rank = selected.length + 1;
+    chosen.runningNewStores = chosen.netNewIds.length + selected.reduce((a,x)=>a+x.estimatedNewStores,0);
+    chosen.projectedCoveredStores = baseCovered.size + chosen.runningNewStores;
+    chosen.projectedCoveragePct = allStores.length ? Math.round(chosen.projectedCoveredStores * 1000 / allStores.length) / 10 : 0;
+    selected.push(chosen);
+
+    chosen.netNewIds.forEach(id => {
+      remainingUncovered.delete(id);
+      selectedCovered.add(id);
+    });
+  }
+
+  return selected;
+}
+
+function runAuto50PlacementGenerator(){
+  if (!suggestResults) return;
+  const rows = buildAuto50PlacementRows();
+  lastSuggestRows = rows;
+  const radiusMi = Math.max(1, Number(id('suggestMiles')?.value) || 75);
+  const useFilt  = !!id('suggestUseFilters')?.checked;
+  const sourceLabel = useFilt ? 'current filters' : 'all stores';
+  const totalNew = rows.reduce((a,r)=>a+r.estimatedNewStores,0);
+  const finalPct = rows.length ? rows[rows.length-1].projectedCoveragePct : 0;
+
+  if (!rows.length){
+    suggestResults.innerHTML = `<div style="color:var(--muted)">No Top 50 placements found. Try lowering Min uncovered or widening the radius.</div>`;
+    return;
+  }
+
+  suggestResults.innerHTML = `
+    <div class="priority-card">
+      <b>Auto 50 RTS Placement Generator</b>
+      <span style="color:var(--muted);margin-left:8px">Using ${escape(sourceLabel)} • Radius ${radiusMi} mi • Greedy non-overlap model • Stops early if no placement meets the minimum.</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <span class="chip"><b>Placements:</b> ${rows.length}</span>
+        <span class="chip"><b>Projected net-new stores:</b> ${totalNew}</span>
+        <span class="chip"><b>Projected national coverage:</b> ${finalPct}%</span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:10px;margin-bottom:12px">
+      ${rows.slice(0,3).map((r,i)=>`
+        <div style="border:1px solid var(--border);border-radius:12px;padding:10px;background:#f8fafc">
+          <div style="font-weight:900;margin-bottom:4px">#${i+1} Optimal RTS Placement:</div>
+          <div style="font-weight:900;font-size:15px;margin-bottom:4px">${escape(r.placementLabel || r.suggestedArea)}</div>
+          <div style="color:var(--muted);font-size:12px;margin-bottom:6px">Recommended Hub: <b>${escape(r.recommendedHub || r.suggestedArea || '')}</b><br>Running coverage after this pick: ${r.projectedCoveragePct}%</div>
+          <div><b>Net new stores:</b> ${r.estimatedNewStores}</div>
+          <div><b>Total reach:</b> ${r.totalReach}</div>
+          <div><b>Overlap/already covered:</b> ${r.overlap}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+            <button type="button" class="btn suggest-place" data-idx="${i}">Show on map</button>
+            <button type="button" class="btn suggest-sbx" data-lat="${r.center.lat}" data-lng="${r.center.lng}">Sandbox here</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <table class="priority-table">
+      <thead>
+        <tr>
+          <th style="text-align:right">Rank</th>
+          <th style="text-align:left">Optimal RTS Placement</th>
+          <th style="text-align:left">Recommended Hub</th>
+          <th style="text-align:right">Net New Stores</th>
+          <th style="text-align:right">Total Reach</th>
+          <th style="text-align:right">Overlap</th>
+          <th style="text-align:right">Running New Stores</th>
+          <th style="text-align:right">Projected National Coverage</th>
+          <th style="text-align:left">Nearest Active RTS</th>
+          <th style="text-align:right">Miles</th>
+          <th style="text-align:left">Nearby Areas Rolled In</th>
+          <th style="text-align:right">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map((r,i)=>`
+          <tr>
+            <td style="text-align:right"><b>#${i+1}</b></td>
+            <td><b>${escape(r.placementLabel || r.suggestedArea || '')}</b><br><span style="color:var(--muted);font-size:12px">Based on ${escape(r.originalClusterCity || '')}, ${escape(r.originalClusterState || '')}</span></td>
+            <td>${escape(r.recommendedHub || r.suggestedArea || '')}</td>
+            <td style="text-align:right"><b>${r.estimatedNewStores}</b></td>
+            <td style="text-align:right">${r.totalReach}</td>
+            <td style="text-align:right">${r.overlap}</td>
+            <td style="text-align:right">${r.runningNewStores}</td>
             <td style="text-align:right">${r.projectedCoveragePct}%</td>
             <td>${escape(r.nearestHubName || '—')}</td>
             <td style="text-align:right">${r.nearestHubMiles == null ? '—' : Math.round(r.nearestHubMiles)}</td>
@@ -2913,18 +3096,20 @@ function exportSuggestRtsCsv(){
   const rows = lastSuggestRows.length ? lastSuggestRows : buildSuggestRtsRows();
   if (!rows.length){ alert('Run Suggest RTS City first.'); return; }
   const data = [[
-    'Rank','Optimal RTS Placement','Original Gap Label','Placement Source','Net New Stores','Total Reach','Overlap / Already Covered',
-    'Projected National Coverage %','Nearest Active RTS','Miles from RTS','Nearby Areas Rolled In','Center Lat','Center Lng'
+    'Rank','Optimal RTS Placement','Recommended Hub','Original Gap Label','Placement Source','Net New Stores','Total Reach','Overlap / Already Covered',
+    'Running New Stores','Projected National Coverage %','Nearest Active RTS','Miles from RTS','Nearby Areas Rolled In','Center Lat','Center Lng'
   ]];
 
   rows.forEach((r,i)=>data.push([
     i+1,
     r.placementLabel || r.suggestedArea,
+    r.recommendedHub || r.suggestedArea || '',
     `${r.originalClusterCity}, ${r.originalClusterState}`,
     r.sourceLabel || '',
     r.estimatedNewStores,
     r.totalReach,
     r.overlap,
+    r.runningNewStores || '',
     `${r.projectedCoveragePct}%`,
     r.nearestHubName || '',
     r.nearestHubMiles == null ? '' : Math.round(r.nearestHubMiles),
