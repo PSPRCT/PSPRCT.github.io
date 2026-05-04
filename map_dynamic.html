@@ -545,6 +545,7 @@
         <button id="suggestImpactExport" class="btn" type="button" title="Export the final 50 plus each covered/net-new/overlap store row">Export Final 50 + Store Impact</button>
         <button id="weakSwapBtn" class="btn" type="button" title="Find low-value placements and better swaps while keeping the 50-trainer cap">Weak-Pick / Swap Finder</button>
         <button id="leadershipSummaryBtn" class="btn" type="button" title="Create an executive summary of the current Auto 50 plan">Leadership Summary</button>
+        <button id="finalReviewBtn" class="btn" type="button" title="Review the current Auto 50 plan and mark each placement Approve, Maybe, or Replace">Final Plan Review Mode</button>
       </div>
       <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
         <b>How to use:</b> This ranks the best current RTS posting areas using active/confirmed RTS coverage only.
@@ -597,6 +598,28 @@
         <button id="leadershipSummaryExport" class="btn" type="button">Export Summary CSV</button>
       </div>
       <div id="leadershipSummaryResults" style="max-height:65vh;overflow:auto"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Final Plan Review Mode modal -->
+<div class="modal" id="finalReviewModal" aria-modal="true" role="dialog">
+  <div class="card" style="max-width:1200px;width:96vw">
+    <header>
+      <h3>Final Plan Review Mode</h3>
+      <button id="finalReviewClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body" style="grid-template-columns:1fr;">
+      <div class="priority-tools">
+        <button id="finalReviewRefresh" class="btn" type="button">Refresh Review</button>
+        <button id="finalReviewExport" class="btn" type="button">Export Review CSV</button>
+        <button id="finalReviewClear" class="btn" type="button">Clear Review Decisions</button>
+      </div>
+      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
+        Use this as the final placement meeting view. Mark each RTS placement as <b>Approve</b>, <b>Maybe</b>, or <b>Replace</b>, add notes, and export a leadership-ready review file while keeping the 50-trainer cap visible.
+      </div>
+      <div id="finalReviewResults" style="max-height:68vh;overflow:auto"></div>
     </div>
   </div>
 </div>
@@ -2543,6 +2566,7 @@ let lastAuto50Mode = false;
 let placementMarker = null;
 let placementCircle = null;
 let placementCoverageLayer = L.layerGroup().addTo(map);
+let finalPlanReviews = loadFinalPlanReviews();
 
 if (id('suggestRtsBtn')) {
   id('suggestRtsBtn').onclick = ()=>{
@@ -2566,6 +2590,11 @@ if (id('leadershipSummaryBtn')) id('leadershipSummaryBtn').onclick = openLeaders
 if (id('leadershipSummaryClose')) id('leadershipSummaryClose').onclick = ()=> id('leadershipSummaryModal')?.classList.remove('show');
 if (id('leadershipSummaryRefresh')) id('leadershipSummaryRefresh').onclick = renderLeadershipSummary;
 if (id('leadershipSummaryExport')) id('leadershipSummaryExport').onclick = exportLeadershipSummaryCsv;
+if (id('finalReviewBtn')) id('finalReviewBtn').onclick = openFinalPlanReview;
+if (id('finalReviewClose')) id('finalReviewClose').onclick = ()=> id('finalReviewModal')?.classList.remove('show');
+if (id('finalReviewRefresh')) id('finalReviewRefresh').onclick = renderFinalPlanReview;
+if (id('finalReviewExport')) id('finalReviewExport').onclick = exportFinalPlanReviewCsv;
+if (id('finalReviewClear')) id('finalReviewClear').onclick = clearFinalPlanReviews;
 
 if (suggestResults && !suggestResults._wiredSuggestActions) {
   suggestResults.addEventListener('click', (e)=>{
@@ -2638,6 +2667,40 @@ if (!document.body._wiredPlacementMapClear) {
     clearPlacementResult();
   });
   document.body._wiredPlacementMapClear = true;
+}
+
+const finalReviewResultsEl = id('finalReviewResults');
+if (finalReviewResultsEl && !finalReviewResultsEl._wiredFinalReview) {
+  finalReviewResultsEl.addEventListener('change', (e)=>{
+    const sel = e.target.closest('.final-review-decision');
+    if (!sel) return;
+    const key = sel.dataset.key || '';
+    if (!key) return;
+    const cur = finalPlanReviews[key] || {};
+    finalPlanReviews[key] = { ...cur, decision: sel.value };
+    saveFinalPlanReviews();
+    updateFinalReviewSummaryOnly();
+  });
+
+  finalReviewResultsEl.addEventListener('input', (e)=>{
+    const note = e.target.closest('.final-review-note');
+    if (!note) return;
+    const key = note.dataset.key || '';
+    if (!key) return;
+    const cur = finalPlanReviews[key] || {};
+    finalPlanReviews[key] = { ...cur, note: note.value };
+    saveFinalPlanReviews();
+  });
+
+  finalReviewResultsEl.addEventListener('click', (e)=>{
+    const mapBtn = e.target.closest('.final-review-map');
+    if (!mapBtn) return;
+    const idx = Number(mapBtn.dataset.idx);
+    const row = getCurrentAuto50Rows()[idx];
+    if (row) { showPlacementResult(row); id('finalReviewModal')?.classList.remove('show'); }
+  });
+
+  finalReviewResultsEl._wiredFinalReview = true;
 }
 
 function hasActiveStoreFilters(){
@@ -3479,6 +3542,179 @@ function exportFinal50StoreImpactCsv(){
 
   exportCsvWithToast(data, `final_50_store_impact_${Date.now()}.csv`);
 }
+
+
+// ---------- Final Plan Review Mode ----------
+const FINAL_REVIEW_KEY = 'prt_final_plan_reviews_v1';
+
+function loadFinalPlanReviews(){
+  try { return JSON.parse(localStorage.getItem(FINAL_REVIEW_KEY) || '{}') || {}; }
+  catch(e){ return {}; }
+}
+
+function saveFinalPlanReviews(){
+  try { localStorage.setItem(FINAL_REVIEW_KEY, JSON.stringify(finalPlanReviews || {})); }
+  catch(e){ console.warn('Could not save final plan reviews', e); }
+}
+
+function finalReviewForRow(row){
+  const key = row?.key || auto50RowKey(row || {});
+  return finalPlanReviews[key] || { decision:'Pending', note:'' };
+}
+
+function finalReviewCounts(rows){
+  const counts = { Approved:0, Maybe:0, Replace:0, Pending:0 };
+  (rows || []).forEach(r=>{
+    const d = finalReviewForRow(r).decision || 'Pending';
+    counts[d] = (counts[d] || 0) + 1;
+  });
+  return counts;
+}
+
+function finalReviewSummaryHtml(rows){
+  const impact = calculateCoverageImpact(rows || []);
+  const counts = finalReviewCounts(rows || []);
+  const capStatus = (rows || []).length === 50
+    ? '<span class="chip" style="border-color:#10b981;background:#ecfdf5"><b>50-trainer cap:</b> Full plan</span>'
+    : `<span class="chip" style="border-color:#f59e0b;background:#fffbeb"><b>50-trainer cap:</b> ${(rows || []).length}/50 selected</span>`;
+
+  return `
+    <div id="finalReviewSummary" class="priority-card">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        ${capStatus}
+        <span class="chip"><b>Approved:</b> ${counts.Approved || 0}</span>
+        <span class="chip"><b>Maybe:</b> ${counts.Maybe || 0}</span>
+        <span class="chip"><b>Replace:</b> ${counts.Replace || 0}</span>
+        <span class="chip"><b>Pending:</b> ${counts.Pending || 0}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:8px;margin-top:10px;font-size:13px">
+        <div><b>Current Coverage:</b><br>${impact.currentCovered} / ${impact.totalStores} (${impact.currentPct}%)</div>
+        <div><b>Projected New Stores:</b><br>${impact.projectedNewStores}</div>
+        <div><b>Projected Coverage:</b><br>${impact.projectedCovered} / ${impact.totalStores} (${impact.projectedPct}%)</div>
+        <div><b>Coverage Lift:</b><br>+${impact.liftPctPoints} pts</div>
+      </div>
+    </div>`;
+}
+
+function updateFinalReviewSummaryOnly(){
+  const rows = getCurrentAuto50Rows();
+  const existing = id('finalReviewSummary');
+  if (existing) existing.outerHTML = finalReviewSummaryHtml(rows);
+}
+
+function openFinalPlanReview(){
+  const rows = getCurrentAuto50Rows();
+  lastSuggestRows = rows;
+  lastAuto50Mode = true;
+  id('finalReviewModal')?.classList.add('show');
+  renderFinalPlanReview();
+}
+
+function renderFinalPlanReview(){
+  const el = id('finalReviewResults');
+  if (!el) return;
+  const rows = getCurrentAuto50Rows();
+
+  if (!rows.length){
+    el.innerHTML = `<div class="priority-card"><b>No final plan rows yet.</b><div style="color:var(--muted);margin-top:6px">Run Auto-generate Top 50 first, then reopen Final Plan Review Mode.</div></div>`;
+    return;
+  }
+
+  const decisionOptions = ['Pending','Approved','Maybe','Replace'];
+  const optionHtml = (selected)=> decisionOptions.map(v => `<option value="${v}" ${v === selected ? 'selected' : ''}>${v}</option>`).join('');
+
+  el.innerHTML = `
+    ${finalReviewSummaryHtml(rows)}
+    <table class="priority-table">
+      <thead>
+        <tr>
+          <th style="text-align:right">Rank</th>
+          <th style="text-align:left">Optimal RTS Placement</th>
+          <th style="text-align:left">Recommended Hub</th>
+          <th style="text-align:right">Net New</th>
+          <th style="text-align:right">Overlap</th>
+          <th style="text-align:right">Running Coverage</th>
+          <th style="text-align:left">Review Decision</th>
+          <th style="text-align:left">Notes</th>
+          <th style="text-align:right">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map((r,i)=>{
+          const key = r.key || auto50RowKey(r);
+          const review = finalReviewForRow(r);
+          const rowBg = review.decision === 'Approved' ? '#ecfdf5' : review.decision === 'Replace' ? '#fef2f2' : review.decision === 'Maybe' ? '#fffbeb' : '#fff';
+          return `
+            <tr style="background:${rowBg}">
+              <td style="text-align:right"><b>#${i+1}</b></td>
+              <td><b>${escape(r.placementLabel || r.suggestedArea || '')}</b>${r.locked ? '<br><span style="color:#059669;font-size:12px">Locked</span>' : ''}</td>
+              <td>${escape(r.recommendedHub || r.suggestedArea || '')}</td>
+              <td style="text-align:right"><b>${r.estimatedNewStores || 0}</b></td>
+              <td style="text-align:right">${r.overlap || 0}</td>
+              <td style="text-align:right">${r.projectedCoveragePct || 0}%</td>
+              <td>
+                <select class="final-review-decision" data-key="${escape(key)}" style="border:1px solid var(--border);border-radius:8px;padding:5px 8px;background:var(--panel);color:var(--fg)">
+                  ${optionHtml(review.decision || 'Pending')}
+                </select>
+              </td>
+              <td>
+                <input class="final-review-note" data-key="${escape(key)}" value="${escape(review.note || '')}" placeholder="Add note for leadership / swap review..." style="width:100%;min-width:260px;border:1px solid var(--border);border-radius:8px;padding:6px 8px;background:var(--panel);color:var(--fg)" />
+              </td>
+              <td style="text-align:right;white-space:nowrap">
+                <button type="button" class="mini final-review-map" data-idx="${i}">Map</button>
+              </td>
+            </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+function exportFinalPlanReviewCsv(){
+  const rows = getCurrentAuto50Rows();
+  if (!rows.length){ alert('Run Auto-generate Top 50 first.'); return; }
+  const impact = calculateCoverageImpact(rows);
+  const counts = finalReviewCounts(rows);
+
+  const data = [[
+    'Section','Rank','Optimal RTS Placement','Recommended Hub','Review Decision','Review Notes','Locked','Net New Stores','Overlap / Already Covered','Total Reach','Coverage Impact Pts','Running New Stores','Projected Coverage %','Nearest Active RTS','Miles from RTS','Nearby Areas Rolled In','Center Lat','Center Lng'
+  ]];
+
+  data.push(['Plan Summary','','','','','','',impact.projectedNewStores,'','',impact.liftPctPoints,'',`${impact.projectedPct}%`,'','','','', '']);
+  data.push(['Review Counts','','','',`Approved: ${counts.Approved || 0}; Maybe: ${counts.Maybe || 0}; Replace: ${counts.Replace || 0}; Pending: ${counts.Pending || 0}`,'','','','','','','','','','','','','']);
+
+  rows.forEach((r,i)=>{
+    const review = finalReviewForRow(r);
+    data.push([
+      'Placement Review', i+1,
+      r.placementLabel || r.suggestedArea || '',
+      r.recommendedHub || r.suggestedArea || '',
+      review.decision || 'Pending',
+      review.note || '',
+      r.locked ? 'Yes' : 'No',
+      r.estimatedNewStores || 0,
+      r.overlap || 0,
+      r.totalReach || 0,
+      r.coverageImpactPctPoints || 0,
+      r.runningNewStores || '',
+      `${r.projectedCoveragePct || 0}%`,
+      r.nearestHubName || '',
+      r.nearestHubMiles == null ? '' : Math.round(r.nearestHubMiles),
+      r.nearbyAreas || '',
+      r.center?.lat || '',
+      r.center?.lng || ''
+    ]);
+  });
+
+  exportCsvWithToast(data, `final_50_review_decisions_${Date.now()}.csv`);
+}
+
+function clearFinalPlanReviews(){
+  if (!confirm('Clear all Final Plan Review decisions and notes?')) return;
+  finalPlanReviews = {};
+  saveFinalPlanReviews();
+  renderFinalPlanReview();
+}
+// ---------- /Final Plan Review Mode ----------
 
 let lastWeakSwapRows = [];
 
