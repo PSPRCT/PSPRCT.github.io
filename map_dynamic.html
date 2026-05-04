@@ -542,6 +542,9 @@
         <button id="suggestRun" class="btn" type="button">Run</button>
         <button id="auto50Run" class="btn" type="button" title="Greedy-generate up to 50 non-overlapping RTS placements from current gaps">Auto-generate Top 50</button>
         <button id="suggestExport" class="btn" type="button">Export CSV</button>
+        <button id="suggestImpactExport" class="btn" type="button" title="Export the final 50 plus each covered/net-new/overlap store row">Export Final 50 + Store Impact</button>
+        <button id="weakSwapBtn" class="btn" type="button" title="Find low-value placements and better swaps while keeping the 50-trainer cap">Weak-Pick / Swap Finder</button>
+        <button id="leadershipSummaryBtn" class="btn" type="button" title="Create an executive summary of the current Auto 50 plan">Leadership Summary</button>
       </div>
       <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
         <b>How to use:</b> This ranks the best current RTS posting areas using active/confirmed RTS coverage only.
@@ -553,6 +556,50 @@
   </div>
 </div>
 
+
+
+<!-- Weak Pick / Swap Finder modal -->
+<div class="modal" id="weakSwapModal" aria-modal="true" role="dialog">
+  <div class="card" style="max-width:1150px;width:95vw">
+    <header>
+      <h3>Weak-Pick / Swap Finder</h3>
+      <button id="weakSwapClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body" style="grid-template-columns:1fr;">
+      <div class="priority-tools">
+        <label class="toggle" title="Only flag placements at or below this net-new store count">Weak if net-new ≤
+          <input id="weakNetNew" type="number" value="25" style="width:80px;margin-left:8px">
+        </label>
+        <label class="toggle" title="A swap is shown only if the replacement beats the weak pick by this many net-new stores">Minimum gain
+          <input id="weakMinGain" type="number" value="5" style="width:80px;margin-left:8px">
+        </label>
+        <button id="weakSwapRun" class="btn" type="button">Run</button>
+        <button id="weakSwapExport" class="btn" type="button">Export CSV</button>
+      </div>
+      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
+        This keeps the 50-trainer cap by identifying lower-value placements in the current Auto 50 plan and suggesting one-for-one replacements from remaining uncovered gap areas.
+      </div>
+      <div id="weakSwapResults" style="max-height:65vh;overflow:auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Leadership Summary modal -->
+<div class="modal" id="leadershipSummaryModal" aria-modal="true" role="dialog">
+  <div class="card" style="max-width:1150px;width:95vw">
+    <header>
+      <h3>Leadership Summary</h3>
+      <button id="leadershipSummaryClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body" style="grid-template-columns:1fr;">
+      <div class="priority-tools">
+        <button id="leadershipSummaryRefresh" class="btn" type="button">Refresh Summary</button>
+        <button id="leadershipSummaryExport" class="btn" type="button">Export Summary CSV</button>
+      </div>
+      <div id="leadershipSummaryResults" style="max-height:65vh;overflow:auto"></div>
+    </div>
+  </div>
+</div>
 
 <div id="busy" class="busy" hidden><div class="spin"></div></div>
 <div id="toasts" class="toasts"></div>
@@ -2509,7 +2556,16 @@ if (id('suggestClose')) id('suggestClose').onclick = ()=> suggestModal.classList
 if (id('suggestRun')) id('suggestRun').onclick = runSuggestRtsCity;
 if (id('suggestUseFilters')) id('suggestUseFilters').onchange = runSuggestRtsCity;
 if (id('suggestExport')) id('suggestExport').onclick = exportSuggestRtsCsv;
+if (id('suggestImpactExport')) id('suggestImpactExport').onclick = exportFinal50StoreImpactCsv;
 if (id('auto50Run')) id('auto50Run').onclick = runAuto50PlacementGenerator;
+if (id('weakSwapBtn')) id('weakSwapBtn').onclick = openWeakSwapFinder;
+if (id('weakSwapClose')) id('weakSwapClose').onclick = ()=> id('weakSwapModal')?.classList.remove('show');
+if (id('weakSwapRun')) id('weakSwapRun').onclick = renderWeakSwapFinder;
+if (id('weakSwapExport')) id('weakSwapExport').onclick = exportWeakSwapCsv;
+if (id('leadershipSummaryBtn')) id('leadershipSummaryBtn').onclick = openLeadershipSummary;
+if (id('leadershipSummaryClose')) id('leadershipSummaryClose').onclick = ()=> id('leadershipSummaryModal')?.classList.remove('show');
+if (id('leadershipSummaryRefresh')) id('leadershipSummaryRefresh').onclick = renderLeadershipSummary;
+if (id('leadershipSummaryExport')) id('leadershipSummaryExport').onclick = exportLeadershipSummaryCsv;
 
 if (suggestResults && !suggestResults._wiredSuggestActions) {
   suggestResults.addEventListener('click', (e)=>{
@@ -3360,6 +3416,287 @@ function showPlacementResult(r){
   } else {
     map.setView([r.center.lat, r.center.lng], 8);
   }
+}
+
+
+function getCurrentAuto50Rows(){
+  if (lastAuto50Mode && lastSuggestRows && lastSuggestRows.length) return lastSuggestRows;
+  const rows = buildAuto50PlacementRows();
+  lastSuggestRows = rows;
+  lastAuto50Mode = true;
+  return rows;
+}
+
+function storeImpactRowsForPlacement(row, rank, radiusMi, useFilt){
+  const universe = (useFilt && filteredStores?.length) ? filteredStores : allStores;
+  return storesWithinList(universe, [row.center.lat, row.center.lng], radiusMi)
+    .map(s => ({
+      rank,
+      placementLabel: row.placementLabel || row.suggestedArea || '',
+      recommendedHub: row.recommendedHub || row.suggestedArea || '',
+      placementLat: row.center.lat,
+      placementLng: row.center.lng,
+      bucket: (s.coverageType || '') === 'Uncovered' ? 'Net New' : 'Overlap / Already Covered',
+      distance: distMiles(row.center.lat, row.center.lng, s.lat, s.lng),
+      store: s
+    }))
+    .sort((a,b)=> a.rank-b.rank || a.distance-b.distance);
+}
+
+function exportFinal50StoreImpactCsv(){
+  const rows = getCurrentAuto50Rows();
+  if (!rows.length){ alert('Run Auto-generate Top 50 first.'); return; }
+  const radiusMi = Math.max(1, Number(id('suggestMiles')?.value) || 75);
+  const useFilt  = !!id('suggestUseFilters')?.checked;
+  const impact = calculateCoverageImpact(rows);
+
+  const data = [[
+    'Section','Rank','Optimal RTS Placement','Recommended Hub','Net New Stores','Total Reach','Overlap / Already Covered',
+    'Running New Stores','Coverage Impact Pts','Projected Coverage %','Store Impact Bucket','Store #','Store Name','Address','City','State','Coverage Before','Distance Miles','Area Manager','Regional Manager','Placement Lat','Placement Lng'
+  ]];
+
+  rows.forEach((r,i)=>{
+    data.push([
+      'Placement Summary', i+1, r.placementLabel || r.suggestedArea || '', r.recommendedHub || r.suggestedArea || '',
+      r.estimatedNewStores, r.totalReach, r.overlap, r.runningNewStores || '', r.coverageImpactPctPoints || 0,
+      `${r.projectedCoveragePct}%`, '', '', '', '', '', '', '', '', '', '', r.center.lat, r.center.lng
+    ]);
+
+    storeImpactRowsForPlacement(r, i+1, radiusMi, useFilt).forEach(x=>{
+      const st = x.store;
+      data.push([
+        'Store Impact', x.rank, x.placementLabel, x.recommendedHub,
+        '', '', '', '', '', '', x.bucket,
+        st.storeNumberStr, st.storeName || '', st.address || '', st.city || '', st.state || '', st.coverageType || '',
+        x.distance.toFixed(1), managerLabel(st.areaManager), managerLabel(st.regionalManager), x.placementLat, x.placementLng
+      ]);
+    });
+  });
+
+  data.push(['Plan Totals','','','','','','','','','','','','','','','','','','','','','']);
+  data.push(['Current Coverage','','','','','','','','', `${impact.currentPct}%`, '', '', '', '', '', '', '', '', '', '', '', '']);
+  data.push(['Projected Coverage','','', '', impact.projectedNewStores, '', '', '', impact.liftPctPoints, `${impact.projectedPct}%`, '', '', '', '', '', '', '', '', '', '', '', '']);
+
+  exportCsvWithToast(data, `final_50_store_impact_${Date.now()}.csv`);
+}
+
+let lastWeakSwapRows = [];
+
+function candidatePoolForSwaps(currentRows){
+  const radiusMi = Math.max(1, Number(id('suggestMiles')?.value) || 75);
+  const minUncov = Math.max(1, Number(id('suggestMin')?.value) || 25);
+  const useFilt  = !!id('suggestUseFilters')?.checked;
+  const baseUniverse = (useFilt && filteredStores?.length) ? filteredStores : allStores;
+  const selectedMetros = new Set((currentRows || []).map(r => auto50MetroKey(r)));
+  const remainingUncovered = new Set(baseUniverse.filter(s => (s.coverageType || '') === 'Uncovered').map(s => s.storeNumberStr));
+
+  // Remove current plan net-new stores so replacement candidates are measured against remaining opportunity.
+  (currentRows || []).forEach(r => (r.netNewIds || []).forEach(id => remainingUncovered.delete(id)));
+
+  const clusters = topGapClustersForStores(baseUniverse, radiusMi, minUncov);
+  return clusters
+    .map(c => makeAuto50CandidateFromCluster(c, baseUniverse, baseUniverse, remainingUncovered, radiusMi, minUncov))
+    .filter(Boolean)
+    .filter(c => !selectedMetros.has(auto50MetroKey(c)))
+    .filter(c => !excludedMetros.has(auto50MetroKey(c)))
+    .sort((a,b)=>
+      b.estimatedNewStores - a.estimatedNewStores ||
+      a.overlap - b.overlap ||
+      b.totalReach - a.totalReach ||
+      String(a.placementLabel || a.suggestedArea).localeCompare(String(b.placementLabel || b.suggestedArea))
+    );
+}
+
+function buildWeakSwapRows(){
+  const rows = getCurrentAuto50Rows();
+  const weakMax = Math.max(0, Number(id('weakNetNew')?.value) || 25);
+  const minGain = Math.max(0, Number(id('weakMinGain')?.value) || 5);
+  const weakRows = rows
+    .filter(r => !r.locked)
+    .filter(r => (Number(r.estimatedNewStores) || 0) <= weakMax)
+    .sort((a,b)=> (a.estimatedNewStores||0) - (b.estimatedNewStores||0) || (b.overlap||0) - (a.overlap||0));
+
+  const pool = candidatePoolForSwaps(rows);
+  const usedReplacementMetros = new Set();
+
+  return weakRows.map(w=>{
+    const repl = pool.find(c =>
+      !usedReplacementMetros.has(auto50MetroKey(c)) &&
+      (Number(c.estimatedNewStores) || 0) >= (Number(w.estimatedNewStores) || 0) + minGain
+    );
+    if (repl) usedReplacementMetros.add(auto50MetroKey(repl));
+    return {
+      weak: w,
+      replacement: repl || null,
+      gain: repl ? ((Number(repl.estimatedNewStores)||0) - (Number(w.estimatedNewStores)||0)) : 0,
+      note: repl ? 'Recommended one-for-one swap' : 'No stronger replacement found with current settings'
+    };
+  });
+}
+
+function openWeakSwapFinder(){
+  id('weakSwapModal')?.classList.add('show');
+  renderWeakSwapFinder();
+}
+
+function renderWeakSwapFinder(){
+  const rows = buildWeakSwapRows();
+  lastWeakSwapRows = rows;
+  const el = id('weakSwapResults');
+  if (!el) return;
+  if (!rows.length){
+    el.innerHTML = `<div class="priority-card"><b>No weak picks found.</b><div style="color:var(--muted);margin-top:6px">Try raising the weak net-new threshold, or run Auto-generate Top 50 first.</div></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="priority-card">
+      <b>Swap recommendations</b>
+      <span style="color:var(--muted);margin-left:8px">Locked placements are protected. Suggested replacements keep the total at 50 by replacing one weak pick with one stronger candidate.</span>
+    </div>
+    <table class="priority-table">
+      <thead>
+        <tr>
+          <th style="text-align:right">Current Rank</th>
+          <th style="text-align:left">Weak Pick</th>
+          <th style="text-align:right">Current Net New</th>
+          <th style="text-align:right">Current Overlap</th>
+          <th style="text-align:left">Suggested Replacement</th>
+          <th style="text-align:right">Replacement Net New</th>
+          <th style="text-align:right">Net Gain</th>
+          <th style="text-align:left">Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(x=>`
+          <tr style="background:${x.replacement ? '#ecfdf5' : '#fff7ed'}">
+            <td style="text-align:right">#${x.weak.rank || ''}</td>
+            <td><b>${escape(x.weak.placementLabel || x.weak.suggestedArea || '')}</b><br><span style="color:var(--muted);font-size:12px">${escape(x.weak.recommendedHub || '')}</span></td>
+            <td style="text-align:right"><b>${x.weak.estimatedNewStores || 0}</b></td>
+            <td style="text-align:right">${x.weak.overlap || 0}</td>
+            <td>${x.replacement ? `<b>${escape(x.replacement.placementLabel || x.replacement.suggestedArea || '')}</b><br><span style="color:var(--muted);font-size:12px">${escape(x.replacement.recommendedHub || '')}</span>` : '—'}</td>
+            <td style="text-align:right">${x.replacement ? `<b>${x.replacement.estimatedNewStores}</b>` : '—'}</td>
+            <td style="text-align:right">${x.replacement ? `+${x.gain}` : '—'}</td>
+            <td>${escape(x.note)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function exportWeakSwapCsv(){
+  const rows = lastWeakSwapRows.length ? lastWeakSwapRows : buildWeakSwapRows();
+  if (!rows.length){ alert('No weak-pick swaps to export.'); return; }
+  const data = [[
+    'Current Rank','Weak Pick','Weak Recommended Hub','Weak Net New','Weak Overlap','Suggested Replacement','Replacement Hub','Replacement Net New','Replacement Overlap','Net Gain','Reason','Replacement Lat','Replacement Lng'
+  ]];
+  rows.forEach(x=>data.push([
+    x.weak.rank || '', x.weak.placementLabel || x.weak.suggestedArea || '', x.weak.recommendedHub || '',
+    x.weak.estimatedNewStores || 0, x.weak.overlap || 0,
+    x.replacement ? (x.replacement.placementLabel || x.replacement.suggestedArea || '') : '',
+    x.replacement ? (x.replacement.recommendedHub || '') : '',
+    x.replacement ? x.replacement.estimatedNewStores : '',
+    x.replacement ? x.replacement.overlap : '',
+    x.replacement ? x.gain : '',
+    x.note,
+    x.replacement ? x.replacement.center.lat : '',
+    x.replacement ? x.replacement.center.lng : ''
+  ]));
+  exportCsvWithToast(data, `weak_pick_swap_finder_${Date.now()}.csv`);
+}
+
+let lastLeadershipSummary = null;
+
+function buildLeadershipSummary(){
+  const rows = getCurrentAuto50Rows();
+  const impact = calculateCoverageImpact(rows);
+  const top10 = rows.slice().sort((a,b)=>(b.estimatedNewStores||0)-(a.estimatedNewStores||0)).slice(0,10);
+  const weak10 = rows.slice().sort((a,b)=>(a.estimatedNewStores||0)-(b.estimatedNewStores||0) || (b.overlap||0)-(a.overlap||0)).slice(0,10);
+
+  const managerRows = buildCoveragePriorityRows()
+    .filter(r => r.uncovered > 0)
+    .sort((a,b)=> b.gapPct-a.gapPct || b.uncovered-a.uncovered)
+    .slice(0,10);
+
+  const byState = new Map();
+  allStores.forEach(s=>{
+    const st = s.state || '(Blank)';
+    const g = byState.get(st) || { state:st, total:0, uncovered:0 };
+    g.total++;
+    if ((s.coverageType || '') === 'Uncovered') g.uncovered++;
+    byState.set(st,g);
+  });
+  const undercoveredStates = Array.from(byState.values())
+    .map(g => ({ ...g, gapPct: g.total ? Math.round(g.uncovered*1000/g.total)/10 : 0 }))
+    .filter(g => g.uncovered > 0)
+    .sort((a,b)=> b.gapPct-a.gapPct || b.uncovered-a.uncovered)
+    .slice(0,10);
+
+  return { rows, impact, top10, weak10, managerRows, undercoveredStates };
+}
+
+function openLeadershipSummary(){
+  id('leadershipSummaryModal')?.classList.add('show');
+  renderLeadershipSummary();
+}
+
+function renderLeadershipSummary(){
+  const summary = buildLeadershipSummary();
+  lastLeadershipSummary = summary;
+  const el = id('leadershipSummaryResults');
+  if (!el) return;
+  const { impact, top10, weak10, managerRows, undercoveredStates } = summary;
+  el.innerHTML = `
+    <div class="priority-card">
+      <b>Executive Coverage Summary</b>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:8px;margin-top:10px;font-size:13px">
+        <div><b>Current Coverage</b><br>${impact.currentCovered} / ${impact.totalStores} (${impact.currentPct}%)</div>
+        <div><b>Projected Coverage</b><br>${impact.projectedCovered} / ${impact.totalStores} (${impact.projectedPct}%)</div>
+        <div><b>Coverage Lift</b><br>+${impact.liftPctPoints} pts</div>
+        <div><b>Net-New Stores</b><br>${impact.projectedNewStores}</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="priority-card">
+        <b>Top 10 strongest hubs</b>
+        <table class="priority-table"><thead><tr><th>Rank</th><th>Placement</th><th style="text-align:right">Net New</th><th style="text-align:right">Overlap</th></tr></thead><tbody>
+          ${top10.map((r,i)=>`<tr><td>#${i+1}</td><td>${escape(r.placementLabel || r.suggestedArea || '')}</td><td style="text-align:right"><b>${r.estimatedNewStores||0}</b></td><td style="text-align:right">${r.overlap||0}</td></tr>`).join('')}
+        </tbody></table>
+      </div>
+      <div class="priority-card">
+        <b>10 weakest hubs / swap review</b>
+        <table class="priority-table"><thead><tr><th>Rank</th><th>Placement</th><th style="text-align:right">Net New</th><th style="text-align:right">Overlap</th></tr></thead><tbody>
+          ${weak10.map((r,i)=>`<tr><td>#${r.rank || i+1}</td><td>${escape(r.placementLabel || r.suggestedArea || '')}</td><td style="text-align:right"><b>${r.estimatedNewStores||0}</b></td><td style="text-align:right">${r.overlap||0}</td></tr>`).join('')}
+        </tbody></table>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <div class="priority-card">
+        <b>Regions/managers still undercovered</b>
+        <table class="priority-table"><thead><tr><th>Manager</th><th style="text-align:right">Gap %</th><th style="text-align:right">Gap Stores</th><th>Suggested Focus</th></tr></thead><tbody>
+          ${managerRows.map(r=>`<tr><td>${escape(r.key)}</td><td style="text-align:right"><b>${r.gapPct}%</b></td><td style="text-align:right">${r.uncovered}</td><td>${escape(r.suggestedFocus || '')}</td></tr>`).join('')}
+        </tbody></table>
+      </div>
+      <div class="priority-card">
+        <b>States still undercovered</b>
+        <table class="priority-table"><thead><tr><th>State</th><th style="text-align:right">Gap %</th><th style="text-align:right">Uncovered</th><th style="text-align:right">Total</th></tr></thead><tbody>
+          ${undercoveredStates.map(r=>`<tr><td>${escape(r.state)}</td><td style="text-align:right"><b>${r.gapPct}%</b></td><td style="text-align:right">${r.uncovered}</td><td style="text-align:right">${r.total}</td></tr>`).join('')}
+        </tbody></table>
+      </div>
+    </div>`;
+}
+
+function exportLeadershipSummaryCsv(){
+  const summary = lastLeadershipSummary || buildLeadershipSummary();
+  const { impact, top10, weak10, managerRows, undercoveredStates } = summary;
+  const data = [['Section','Rank','Name','Metric 1','Metric 2','Metric 3','Notes']];
+  data.push(['Executive Summary','','Current Coverage',impact.currentCovered,`${impact.currentPct}%`,impact.totalStores,'']);
+  data.push(['Executive Summary','','Projected Coverage',impact.projectedCovered,`${impact.projectedPct}%`,impact.totalStores,`Lift +${impact.liftPctPoints} pts; Net-new ${impact.projectedNewStores}`]);
+  top10.forEach((r,i)=>data.push(['Top 10 Strongest Hubs',i+1,r.placementLabel||r.suggestedArea||'',r.estimatedNewStores||0,r.overlap||0,`${r.projectedCoveragePct||''}%`,r.recommendedHub||'']));
+  weak10.forEach((r,i)=>data.push(['Weakest Hubs / Swap Review',r.rank||i+1,r.placementLabel||r.suggestedArea||'',r.estimatedNewStores||0,r.overlap||0,`${r.projectedCoveragePct||''}%`,r.recommendedHub||'']));
+  managerRows.forEach((r,i)=>data.push(['Undercovered Managers',i+1,r.key,`${r.gapPct}%`,r.uncovered,r.total,r.suggestedFocus||'']));
+  undercoveredStates.forEach((r,i)=>data.push(['Undercovered States',i+1,r.state,`${r.gapPct}%`,r.uncovered,r.total,'']));
+  exportCsvWithToast(data, `leadership_summary_${Date.now()}.csv`);
 }
 
 function exportSuggestRtsCsv(){
