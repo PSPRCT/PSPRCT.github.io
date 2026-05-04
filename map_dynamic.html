@@ -546,6 +546,10 @@
         <button id="weakSwapBtn" class="btn" type="button" title="Find low-value placements and better swaps while keeping the 50-trainer cap">Weak-Pick / Swap Finder</button>
         <button id="leadershipSummaryBtn" class="btn" type="button" title="Create an executive summary of the current Auto 50 plan">Leadership Summary</button>
         <button id="finalReviewBtn" class="btn" type="button" title="Review the current Auto 50 plan and mark each placement Approve, Maybe, or Replace">Final Plan Review Mode</button>
+        <button id="savePlanBtn" class="btn" type="button" title="Save the current generated plan and review decisions in this browser">Save Plan Snapshot</button>
+        <button id="comparePlansBtn" class="btn" type="button" title="Compare two saved final plans side by side">Compare Saved Plans</button>
+        <button id="gapSummaryBtn" class="btn" type="button" title="Summarize remaining gaps by state and manager/region after the current plan">State/Region Gap Summary</button>
+        <button id="replaceSwapBtn" class="btn" type="button" title="Recommend swaps only for items marked Replace in Final Plan Review Mode">Replace-Marked Swaps</button>
       </div>
       <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
         <b>How to use:</b> This ranks the best current RTS posting areas using active/confirmed RTS coverage only.
@@ -620,6 +624,74 @@
         Use this as the final placement meeting view. Mark each RTS placement as <b>Approve</b>, <b>Maybe</b>, or <b>Replace</b>, add notes, and export a leadership-ready review file while keeping the 50-trainer cap visible.
       </div>
       <div id="finalReviewResults" style="max-height:68vh;overflow:auto"></div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- Saved Plans / Compare modal -->
+<div class="modal" id="comparePlansModal" aria-modal="true" role="dialog">
+  <div class="card" style="max-width:1200px;width:96vw">
+    <header>
+      <h3>Compare Saved Plans</h3>
+      <button id="comparePlansClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body" style="grid-template-columns:1fr;">
+      <div class="priority-tools">
+        <button id="comparePlansRefresh" class="btn" type="button">Refresh</button>
+        <button id="comparePlansExport" class="btn" type="button">Export Compare CSV</button>
+      </div>
+      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
+        Save plan snapshots after each major version, then compare projected coverage, net-new stores, approved/replacement decisions, and placement differences.
+      </div>
+      <div id="comparePlansResults" style="max-height:65vh;overflow:auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- State / Region Gap Summary modal -->
+<div class="modal" id="gapSummaryModal" aria-modal="true" role="dialog">
+  <div class="card" style="max-width:1200px;width:96vw">
+    <header>
+      <h3>State / Region Gap Summary</h3>
+      <button id="gapSummaryClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body" style="grid-template-columns:1fr;">
+      <div class="priority-tools">
+        <label class="toggle"><input type="radio" name="gapSummaryBy" id="gapSummaryByState" checked> By State</label>
+        <label class="toggle"><input type="radio" name="gapSummaryBy" id="gapSummaryByRM"> By Regional Manager</label>
+        <label class="toggle"><input type="radio" name="gapSummaryBy" id="gapSummaryByAM"> By Area Manager</label>
+        <button id="gapSummaryRefresh" class="btn" type="button">Refresh</button>
+        <button id="gapSummaryExport" class="btn" type="button">Export CSV</button>
+      </div>
+      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
+        This estimates what remains uncovered after the active confirmed hubs plus the current proposed plan are applied. Existing confirmed Premium and Acosta hubs are counted as already filled/active before new proposed spots are added.
+      </div>
+      <div id="gapSummaryResults" style="max-height:65vh;overflow:auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Replace-marked swaps modal -->
+<div class="modal" id="replaceSwapModal" aria-modal="true" role="dialog">
+  <div class="card" style="max-width:1200px;width:96vw">
+    <header>
+      <h3>Replace-Marked Swap Recommendations</h3>
+      <button id="replaceSwapClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body" style="grid-template-columns:1fr;">
+      <div class="priority-tools">
+        <label class="toggle" title="Only show replacements that improve net-new count by at least this much">Minimum gain
+          <input id="replaceMinGain" type="number" value="1" style="width:80px;margin-left:8px">
+        </label>
+        <button id="replaceSwapRun" class="btn" type="button">Run</button>
+        <button id="replaceSwapExport" class="btn" type="button">Export CSV</button>
+      </div>
+      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
+        Mark placements as <b>Replace</b> in Final Plan Review Mode first. This protects Approved/Maybe/Pending rows and suggests one-for-one swaps only for those Replace-marked hubs, keeping the total cap intact.
+      </div>
+      <div id="replaceSwapResults" style="max-height:65vh;overflow:auto"></div>
     </div>
   </div>
 </div>
@@ -2595,6 +2667,22 @@ if (id('finalReviewClose')) id('finalReviewClose').onclick = ()=> id('finalRevie
 if (id('finalReviewRefresh')) id('finalReviewRefresh').onclick = renderFinalPlanReview;
 if (id('finalReviewExport')) id('finalReviewExport').onclick = exportFinalPlanReviewCsv;
 if (id('finalReviewClear')) id('finalReviewClear').onclick = clearFinalPlanReviews;
+if (id('savePlanBtn')) id('savePlanBtn').onclick = saveCurrentPlanSnapshot;
+if (id('comparePlansBtn')) id('comparePlansBtn').onclick = openComparePlans;
+if (id('comparePlansClose')) id('comparePlansClose').onclick = ()=> id('comparePlansModal')?.classList.remove('show');
+if (id('comparePlansRefresh')) id('comparePlansRefresh').onclick = renderComparePlans;
+if (id('comparePlansExport')) id('comparePlansExport').onclick = exportComparePlansCsv;
+if (id('gapSummaryBtn')) id('gapSummaryBtn').onclick = openGapSummary;
+if (id('gapSummaryClose')) id('gapSummaryClose').onclick = ()=> id('gapSummaryModal')?.classList.remove('show');
+if (id('gapSummaryRefresh')) id('gapSummaryRefresh').onclick = renderGapSummary;
+if (id('gapSummaryExport')) id('gapSummaryExport').onclick = exportGapSummaryCsv;
+if (id('gapSummaryByState')) id('gapSummaryByState').onchange = renderGapSummary;
+if (id('gapSummaryByRM')) id('gapSummaryByRM').onchange = renderGapSummary;
+if (id('gapSummaryByAM')) id('gapSummaryByAM').onchange = renderGapSummary;
+if (id('replaceSwapBtn')) id('replaceSwapBtn').onclick = openReplaceMarkedSwaps;
+if (id('replaceSwapClose')) id('replaceSwapClose').onclick = ()=> id('replaceSwapModal')?.classList.remove('show');
+if (id('replaceSwapRun')) id('replaceSwapRun').onclick = renderReplaceMarkedSwaps;
+if (id('replaceSwapExport')) id('replaceSwapExport').onclick = exportReplaceMarkedSwapsCsv;
 
 if (suggestResults && !suggestResults._wiredSuggestActions) {
   suggestResults.addEventListener('click', (e)=>{
@@ -3070,6 +3158,34 @@ function cloneAuto50RowForLock(r){
   }));
 }
 
+
+const TOTAL_RTS_CAP = 50;
+const SAVED_PLAN_KEY = 'prt_saved_final_plans_v1';
+let lastGapSummaryRows = [];
+let lastReplaceSwapRows = [];
+let lastComparePlanRows = [];
+
+function activeConfirmedHubCountForCap(){
+  // Existing confirmed Premium hubs and Acosta hubs are already active/filled and count before proposed new placements.
+  return (premiumConfirmed?.length || 0) + (acostaHubs?.length || 0);
+}
+
+function availableNewPlacementSlots(){
+  return Math.max(0, TOTAL_RTS_CAP - activeConfirmedHubCountForCap());
+}
+
+function totalPlanCount(rows){
+  return activeConfirmedHubCountForCap() + (rows || []).length;
+}
+
+function capStatusObject(rows){
+  const active = activeConfirmedHubCountForCap();
+  const proposed = (rows || []).length;
+  const total = active + proposed;
+  const remaining = Math.max(0, TOTAL_RTS_CAP - total);
+  return { active, proposed, total, remaining, cap: TOTAL_RTS_CAP, availableNew: availableNewPlacementSlots() };
+}
+
 function calculateCoverageImpact(rows){
   const currentCovered = allStores.filter(s => (s.coverageType || '') !== 'Uncovered').length;
   const totalStores = allStores.length || 1;
@@ -3086,9 +3202,12 @@ function calculateCoverageImpact(rows){
     projectedCovered,
     projectedPct,
     liftPctPoints: Math.round((projectedPct - currentPct) * 10) / 10,
-    openSlots: Math.max(0, 50 - lockedPlacements.length),
+    openSlots: Math.max(0, availableNewPlacementSlots() - lockedPlacements.length),
     lockedCount: lockedPlacements.length,
-    excludedCount: excludedMetros.size
+    excludedCount: excludedMetros.size,
+    activeConfirmedCount: activeConfirmedHubCountForCap(),
+    availableNewSlots: availableNewPlacementSlots(),
+    totalPlanCount: totalPlanCount(rows)
   };
 }
 
@@ -3133,7 +3252,7 @@ function makeAuto50CandidateFromCluster(c, baseUniverse, virtualUniverse, remain
 }
 
 function buildAuto50PlacementRows(){
-  const maxPlacements = 50;
+  const maxPlacements = availableNewPlacementSlots();
   const minUncov = Math.max(1, Number(id('suggestMin')?.value) || 25);
   const radiusMi = Math.max(1, Number(id('suggestMiles')?.value) || 75);
   const useFilt  = !!id('suggestUseFilters')?.checked;
@@ -3254,12 +3373,13 @@ function renderAuto50Results(rows){
   const useFilt  = !!id('suggestUseFilters')?.checked;
   const sourceLabel = useFilt ? 'current filters' : 'all stores';
   const impact = calculateCoverageImpact(rows);
+  const cap = capStatusObject(rows);
 
   if (!rows.length){
     suggestResults.innerHTML = `
       <div class="priority-card">
         <b>Auto 50 RTS Placement Generator</b>
-        <div style="color:var(--muted);margin-top:6px">No Top 50 placements found. Try lowering Min uncovered, widening the radius, or clearing excluded metros.</div>
+        <div style="color:var(--muted);margin-top:6px">Existing confirmed hubs already fill ${cap.active}/${cap.cap} spots, leaving ${cap.availableNew} new proposed placement slots. No new placements were found with the current settings.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
           <button type="button" class="btn suggest-regenerate">Regenerate Remaining Slots</button>
           <button type="button" class="btn suggest-reset-plan">Clear Locks + Exclusions</button>
@@ -3274,10 +3394,12 @@ function renderAuto50Results(rows){
       <span style="color:var(--muted);margin-left:8px">Using ${escape(sourceLabel)} • Radius ${radiusMi} mi • Greedy non-overlap model • Locked placements are kept first.</span>
 
       <div style="display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:8px;margin-top:10px">
+        <span class="chip" title="Confirmed Premium + Acosta hubs already active/filled"><b>Existing confirmed hubs:</b> ${cap.active}</span>
+        <span class="chip"><b>Proposed new:</b> ${cap.proposed}/${cap.availableNew}</span>
+        <span class="chip"><b>Total cap used:</b> ${cap.total}/${cap.cap}</span>
+        <span class="chip"><b>Remaining spots:</b> ${cap.remaining}</span>
         <span class="chip"><b>Locked:</b> ${impact.lockedCount}</span>
         <span class="chip"><b>Excluded:</b> ${impact.excludedCount}</span>
-        <span class="chip"><b>Open Slots:</b> ${impact.openSlots}</span>
-        <span class="chip"><b>Placements Shown:</b> ${rows.length}</span>
       </div>
 
       <div style="margin-top:10px;padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff">
@@ -3574,14 +3696,17 @@ function finalReviewCounts(rows){
 function finalReviewSummaryHtml(rows){
   const impact = calculateCoverageImpact(rows || []);
   const counts = finalReviewCounts(rows || []);
-  const capStatus = (rows || []).length === 50
-    ? '<span class="chip" style="border-color:#10b981;background:#ecfdf5"><b>50-trainer cap:</b> Full plan</span>'
-    : `<span class="chip" style="border-color:#f59e0b;background:#fffbeb"><b>50-trainer cap:</b> ${(rows || []).length}/50 selected</span>`;
+  const cap = capStatusObject(rows || []);
+  const capStatus = cap.total >= cap.cap
+    ? `<span class="chip" style="border-color:#10b981;background:#ecfdf5"><b>50-trainer cap:</b> ${cap.total}/${cap.cap} filled</span>`
+    : `<span class="chip" style="border-color:#f59e0b;background:#fffbeb"><b>50-trainer cap:</b> ${cap.total}/${cap.cap} filled</span>`;
 
   return `
     <div id="finalReviewSummary" class="priority-card">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         ${capStatus}
+        <span class="chip"><b>Existing confirmed:</b> ${cap.active}</span>
+        <span class="chip"><b>Proposed new:</b> ${cap.proposed}/${cap.availableNew}</span>
         <span class="chip"><b>Approved:</b> ${counts.Approved || 0}</span>
         <span class="chip"><b>Maybe:</b> ${counts.Maybe || 0}</span>
         <span class="chip"><b>Replace:</b> ${counts.Replace || 0}</span>
@@ -3714,6 +3839,181 @@ function clearFinalPlanReviews(){
   saveFinalPlanReviews();
   renderFinalPlanReview();
 }
+
+
+// ---------- Saved Plans / Compare / Gap Summary / Replace-Marked Swaps ----------
+function loadSavedPlans(){
+  try { return JSON.parse(localStorage.getItem(SAVED_PLAN_KEY) || '[]') || []; }
+  catch(e){ return []; }
+}
+function saveSavedPlans(plans){
+  try { localStorage.setItem(SAVED_PLAN_KEY, JSON.stringify(plans || [])); }
+  catch(e){ console.warn('Could not save plan snapshots', e); }
+}
+function planSnapshotFromCurrent(name){
+  const rows = getCurrentAuto50Rows();
+  const impact = calculateCoverageImpact(rows);
+  const counts = finalReviewCounts(rows);
+  return {
+    id: Date.now(),
+    name: name || `Plan ${new Date().toLocaleString()}`,
+    createdAt: new Date().toISOString(),
+    cap: capStatusObject(rows),
+    impact,
+    counts,
+    rows: rows.map(r=>({
+      rank:r.rank, key:r.key || auto50RowKey(r), metroKey:r.metroKey || auto50MetroKey(r),
+      placementLabel:r.placementLabel || r.suggestedArea || '', recommendedHub:r.recommendedHub || r.suggestedArea || '',
+      estimatedNewStores:r.estimatedNewStores || 0, overlap:r.overlap || 0, totalReach:r.totalReach || 0,
+      runningNewStores:r.runningNewStores || 0, projectedCoveragePct:r.projectedCoveragePct || 0,
+      center:r.center, nearestHubName:r.nearestHubName || '', nearestHubMiles:r.nearestHubMiles,
+      review: finalReviewForRow(r)
+    }))
+  };
+}
+function saveCurrentPlanSnapshot(){
+  const rows = getCurrentAuto50Rows();
+  if (!rows.length){ alert('Run Auto-generate Top 50 first.'); return; }
+  const name = prompt('Name this plan snapshot:', `Plan ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`);
+  if (!name) return;
+  const plans = loadSavedPlans();
+  plans.push(planSnapshotFromCurrent(name));
+  saveSavedPlans(plans);
+  alert('Plan snapshot saved.');
+}
+function openComparePlans(){ id('comparePlansModal')?.classList.add('show'); renderComparePlans(); }
+function renderComparePlans(){
+  const el = id('comparePlansResults'); if (!el) return;
+  const plans = loadSavedPlans();
+  lastComparePlanRows = plans;
+  if (!plans.length){ el.innerHTML = '<div class="priority-card"><b>No saved plans yet.</b><div style="color:var(--muted);margin-top:6px">Use Save Plan Snapshot from Suggest RTS City after generating a plan.</div></div>'; return; }
+  const latestTwo = plans.slice(-2).map(p=>p.id);
+  el.innerHTML = `
+    <div class="priority-card"><b>Saved plan snapshots</b><div style="color:var(--muted);margin-top:6px">Select two plans below to compare placement differences.</div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <label class="toggle">Plan A <select id="comparePlanA" style="margin-left:8px">${plans.map(p=>`<option value="${p.id}" ${p.id===latestTwo[0]?'selected':''}>${escape(p.name)}</option>`).join('')}</select></label>
+      <label class="toggle">Plan B <select id="comparePlanB" style="margin-left:8px">${plans.map(p=>`<option value="${p.id}" ${p.id===latestTwo[1]?'selected':''}>${escape(p.name)}</option>`).join('')}</select></label>
+      <button type="button" class="btn" id="comparePlansRunInline">Compare Selected</button>
+    </div>
+    <div id="comparePlansInline"></div>`;
+  id('comparePlansRunInline').onclick = renderComparePlansInline;
+  renderComparePlansInline();
+}
+function renderComparePlansInline(){
+  const plans = loadSavedPlans();
+  const a = plans.find(p=>String(p.id)===String(id('comparePlanA')?.value));
+  const b = plans.find(p=>String(p.id)===String(id('comparePlanB')?.value));
+  const el = id('comparePlansInline'); if (!el || !a || !b) return;
+  const aKeys = new Set((a.rows||[]).map(r=>r.metroKey || r.placementLabel));
+  const bKeys = new Set((b.rows||[]).map(r=>r.metroKey || r.placementLabel));
+  const onlyA = (a.rows||[]).filter(r=>!bKeys.has(r.metroKey || r.placementLabel));
+  const onlyB = (b.rows||[]).filter(r=>!aKeys.has(r.metroKey || r.placementLabel));
+  const both = (a.rows||[]).filter(r=>bKeys.has(r.metroKey || r.placementLabel));
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:8px;margin-bottom:10px">
+      <span class="chip"><b>A Projected:</b> ${a.impact?.projectedPct || 0}%</span>
+      <span class="chip"><b>B Projected:</b> ${b.impact?.projectedPct || 0}%</span>
+      <span class="chip"><b>Shared placements:</b> ${both.length}</span>
+      <span class="chip"><b>Different:</b> ${onlyA.length + onlyB.length}</span>
+    </div>
+    <table class="priority-table">
+      <thead><tr><th>Bucket</th><th>Placement</th><th>Recommended Hub</th><th style="text-align:right">Net New</th><th style="text-align:right">Projected %</th></tr></thead>
+      <tbody>
+        ${onlyA.map(r=>`<tr><td>Only in A</td><td><b>${escape(r.placementLabel)}</b></td><td>${escape(r.recommendedHub)}</td><td style="text-align:right">${r.estimatedNewStores}</td><td style="text-align:right">${r.projectedCoveragePct}%</td></tr>`).join('')}
+        ${onlyB.map(r=>`<tr><td>Only in B</td><td><b>${escape(r.placementLabel)}</b></td><td>${escape(r.recommendedHub)}</td><td style="text-align:right">${r.estimatedNewStores}</td><td style="text-align:right">${r.projectedCoveragePct}%</td></tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+function exportComparePlansCsv(){
+  const plans = loadSavedPlans();
+  if (!plans.length){ alert('No saved plans to export.'); return; }
+  const data = [['Plan','Created','Section','Placement','Recommended Hub','Net New','Projected %','Decision','Notes']];
+  plans.forEach(p=>{
+    data.push([p.name,p.createdAt,'Plan Summary','','',p.impact?.projectedNewStores||0,`${p.impact?.projectedPct||0}%`,'','']);
+    (p.rows||[]).forEach(r=>data.push([p.name,p.createdAt,'Placement',r.placementLabel,r.recommendedHub,r.estimatedNewStores,`${r.projectedCoveragePct}%`,r.review?.decision||'Pending',r.review?.note||'']));
+  });
+  exportCsvWithToast(data, `saved_plan_compare_${Date.now()}.csv`);
+}
+function proposedCoverageSet(rows){
+  const radiusMi = Math.max(1, Number(id('suggestMiles')?.value) || 75);
+  const covered = new Set(allStores.filter(s => (s.coverageType || '') !== 'Uncovered').map(s=>s.storeNumberStr));
+  (rows || []).forEach(r=>storesWithinList(allStores, [r.center.lat, r.center.lng], radiusMi).forEach(s=>covered.add(s.storeNumberStr)));
+  return covered;
+}
+function openGapSummary(){ id('gapSummaryModal')?.classList.add('show'); renderGapSummary(); }
+function buildGapSummaryRows(){
+  const rows = getCurrentAuto50Rows();
+  const covered = proposedCoverageSet(rows);
+  const by = id('gapSummaryByAM')?.checked ? 'AM' : id('gapSummaryByRM')?.checked ? 'RM' : 'State';
+  const mapRows = new Map();
+  allStores.forEach(s=>{
+    let keys;
+    if (by === 'State') keys = [s.state || '(Blank)'];
+    else keys = managerNamesForStore(s, by).length ? managerNamesForStore(s, by) : ['(Blank)'];
+    keys.forEach(key=>{
+      const g = mapRows.get(key) || { by, key, total:0, coveredAfter:0, remainingGap:0, currentGap:0 };
+      g.total++;
+      if ((s.coverageType||'') === 'Uncovered') g.currentGap++;
+      if (covered.has(s.storeNumberStr)) g.coveredAfter++; else g.remainingGap++;
+      mapRows.set(key,g);
+    });
+  });
+  return Array.from(mapRows.values()).map(g=>({
+    ...g,
+    currentGapPct: g.total ? Math.round(g.currentGap*1000/g.total)/10 : 0,
+    remainingGapPct: g.total ? Math.round(g.remainingGap*1000/g.total)/10 : 0,
+    projectedCoveredPct: g.total ? Math.round(g.coveredAfter*1000/g.total)/10 : 0
+  })).sort((a,b)=> b.remainingGap - a.remainingGap || b.remainingGapPct - a.remainingGapPct || String(a.key).localeCompare(String(b.key)));
+}
+function renderGapSummary(){
+  const el = id('gapSummaryResults'); if (!el) return;
+  const rows = buildGapSummaryRows(); lastGapSummaryRows = rows;
+  const label = rows[0]?.by || 'State';
+  el.innerHTML = `
+    <div class="priority-card"><b>Remaining gap by ${escape(label)}</b><span style="color:var(--muted);margin-left:8px">After active confirmed hubs plus current proposed plan.</span></div>
+    <table class="priority-table">
+      <thead><tr><th style="text-align:left">${escape(label)}</th><th style="text-align:right">Total Stores</th><th style="text-align:right">Current Gap</th><th style="text-align:right">Current Gap %</th><th style="text-align:right">Projected Covered</th><th style="text-align:right">Projected Covered %</th><th style="text-align:right">Remaining Gap</th><th style="text-align:right">Remaining Gap %</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr><td><b>${escape(r.key)}</b></td><td style="text-align:right">${r.total}</td><td style="text-align:right">${r.currentGap}</td><td style="text-align:right">${r.currentGapPct}%</td><td style="text-align:right">${r.coveredAfter}</td><td style="text-align:right">${r.projectedCoveredPct}%</td><td style="text-align:right"><b>${r.remainingGap}</b></td><td style="text-align:right"><b>${r.remainingGapPct}%</b></td></tr>`).join('')}</tbody>
+    </table>`;
+}
+function exportGapSummaryCsv(){
+  const rows = lastGapSummaryRows.length ? lastGapSummaryRows : buildGapSummaryRows();
+  if (!rows.length){ alert('No gap summary to export.'); return; }
+  const data = [['Group Type','Group','Total Stores','Current Gap','Current Gap %','Projected Covered','Projected Covered %','Remaining Gap','Remaining Gap %']];
+  rows.forEach(r=>data.push([r.by,r.key,r.total,r.currentGap,`${r.currentGapPct}%`,r.coveredAfter,`${r.projectedCoveredPct}%`,r.remainingGap,`${r.remainingGapPct}%`]));
+  exportCsvWithToast(data, `state_region_gap_summary_${Date.now()}.csv`);
+}
+function openReplaceMarkedSwaps(){ id('replaceSwapModal')?.classList.add('show'); renderReplaceMarkedSwaps(); }
+function buildReplaceMarkedSwapRows(){
+  const rows = getCurrentAuto50Rows();
+  const minGain = Math.max(0, Number(id('replaceMinGain')?.value) || 1);
+  const replaceRows = rows.filter(r => (finalReviewForRow(r).decision || 'Pending') === 'Replace');
+  const pool = candidatePoolForSwaps(rows);
+  const used = new Set();
+  return replaceRows.map(w=>{
+    const repl = pool.find(c => !used.has(auto50MetroKey(c)) && ((Number(c.estimatedNewStores)||0) >= (Number(w.estimatedNewStores)||0) + minGain));
+    if (repl) used.add(auto50MetroKey(repl));
+    return { weak:w, replacement:repl || null, gain:repl ? (Number(repl.estimatedNewStores||0) - Number(w.estimatedNewStores||0)) : 0, note: repl ? 'Replacement for review-marked hub' : 'No better replacement found with current settings' };
+  });
+}
+function renderReplaceMarkedSwaps(){
+  const el = id('replaceSwapResults'); if (!el) return;
+  const rows = buildReplaceMarkedSwapRows(); lastReplaceSwapRows = rows;
+  if (!rows.length){ el.innerHTML = '<div class="priority-card"><b>No Replace-marked placements found.</b><div style="color:var(--muted);margin-top:6px">Open Final Plan Review Mode and mark one or more placements as Replace.</div></div>'; return; }
+  el.innerHTML = `
+    <div class="priority-card"><b>Replace-marked swap recommendations</b><span style="color:var(--muted);margin-left:8px">Approved/Maybe/Pending placements are protected.</span></div>
+    <table class="priority-table"><thead><tr><th style="text-align:right">Rank</th><th>Replace-Marked Hub</th><th style="text-align:right">Current Net New</th><th>Suggested Replacement</th><th style="text-align:right">Replacement Net New</th><th style="text-align:right">Net Gain</th><th>Reason</th></tr></thead>
+    <tbody>${rows.map(x=>`<tr style="background:${x.replacement ? '#ecfdf5' : '#fff7ed'}"><td style="text-align:right">#${x.weak.rank||''}</td><td><b>${escape(x.weak.placementLabel||'')}</b><br><span style="color:var(--muted);font-size:12px">${escape(x.weak.recommendedHub||'')}</span></td><td style="text-align:right"><b>${x.weak.estimatedNewStores||0}</b></td><td>${x.replacement?`<b>${escape(x.replacement.placementLabel||'')}</b><br><span style="color:var(--muted);font-size:12px">${escape(x.replacement.recommendedHub||'')}</span>`:'—'}</td><td style="text-align:right">${x.replacement?`<b>${x.replacement.estimatedNewStores}</b>`:'—'}</td><td style="text-align:right">${x.replacement?`+${x.gain}`:'—'}</td><td>${escape(x.note)}</td></tr>`).join('')}</tbody></table>`;
+}
+function exportReplaceMarkedSwapsCsv(){
+  const rows = lastReplaceSwapRows.length ? lastReplaceSwapRows : buildReplaceMarkedSwapRows();
+  if (!rows.length){ alert('No Replace-marked swaps to export.'); return; }
+  const data = [['Current Rank','Replace-Marked Placement','Current Hub','Current Net New','Replacement Placement','Replacement Hub','Replacement Net New','Net Gain','Reason','Replacement Lat','Replacement Lng']];
+  rows.forEach(x=>data.push([x.weak.rank||'',x.weak.placementLabel||'',x.weak.recommendedHub||'',x.weak.estimatedNewStores||0,x.replacement?.placementLabel||'',x.replacement?.recommendedHub||'',x.replacement?.estimatedNewStores||'',x.replacement?x.gain:'',x.note,x.replacement?.center?.lat||'',x.replacement?.center?.lng||'']));
+  exportCsvWithToast(data, `replace_marked_swaps_${Date.now()}.csv`);
+}
+// ---------- /Saved Plans / Compare / Gap Summary / Replace-Marked Swaps ----------
+
 // ---------- /Final Plan Review Mode ----------
 
 let lastWeakSwapRows = [];
