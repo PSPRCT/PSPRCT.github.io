@@ -540,12 +540,12 @@
           <input id="suggestUseFilters" type="checkbox"> Use current filters
         </label>
         <button id="suggestRun" class="btn" type="button">Run</button>
-        <button id="auto50Run" class="btn" type="button" title="Greedy-generate up to 50 non-overlapping RTS placements from current gaps">Auto-generate Top 50</button>
+        <button id="auto50Run" class="btn" type="button" title="Greedy-generate up to 100 non-overlapping RTS placements from current gaps">Auto-generate Top 100</button>
         <button id="suggestExport" class="btn" type="button">Export CSV</button>
-        <button id="suggestImpactExport" class="btn" type="button" title="Export the final 50 plus each covered/net-new/overlap store row">Export Final 50 + Store Impact</button>
-        <button id="weakSwapBtn" class="btn" type="button" title="Find low-value placements and better swaps while keeping the 50-trainer cap">Weak-Pick / Swap Finder</button>
-        <button id="leadershipSummaryBtn" class="btn" type="button" title="Create an executive summary of the current Auto 50 plan">Leadership Summary</button>
-        <button id="finalReviewBtn" class="btn" type="button" title="Review the current Auto 50 plan and mark each placement Approve, Maybe, or Replace">Final Plan Review Mode</button>
+        <button id="suggestImpactExport" class="btn" type="button" title="Export the final 100 plus each covered/net-new/overlap store row">Export Final 100 + Store Impact</button>
+        <button id="weakSwapBtn" class="btn" type="button" title="Find low-value placements and better swaps while keeping the 100-trainer cap">Weak-Pick / Swap Finder</button>
+        <button id="leadershipSummaryBtn" class="btn" type="button" title="Create an executive summary of the current Auto 100 plan">Leadership Summary</button>
+        <button id="finalReviewBtn" class="btn" type="button" title="Review the current Auto 100 plan and mark each placement Approve, Maybe, or Replace">Final Plan Review Mode</button>
         <button id="savePlanBtn" class="btn" type="button" title="Save the current generated plan and review decisions in this browser">Save Plan Snapshot</button>
         <button id="comparePlansBtn" class="btn" type="button" title="Compare two saved final plans side by side">Compare Saved Plans</button>
         <button id="gapSummaryBtn" class="btn" type="button" title="Summarize remaining gaps by state and manager/region after the current plan">State/Region Gap Summary</button>
@@ -582,7 +582,7 @@
         <button id="weakSwapExport" class="btn" type="button">Export CSV</button>
       </div>
       <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
-        This keeps the 50-trainer cap by identifying lower-value placements in the current Auto 50 plan and suggesting one-for-one replacements from remaining uncovered gap areas.
+        This keeps the 100-trainer cap by identifying lower-value placements in the current Auto 100 plan and suggesting one-for-one replacements from remaining uncovered gap areas.
       </div>
       <div id="weakSwapResults" style="max-height:65vh;overflow:auto"></div>
     </div>
@@ -621,7 +621,7 @@
         <button id="finalReviewClear" class="btn" type="button">Clear Review Decisions</button>
       </div>
       <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
-        Use this as the final placement meeting view. Mark each RTS placement as <b>Approve</b>, <b>Maybe</b>, or <b>Replace</b>, add notes, and export a leadership-ready review file while keeping the 50-trainer cap visible.
+        Use this as the final placement meeting view. Mark each RTS placement as <b>Approve</b>, <b>Maybe</b>, or <b>Replace</b>, add notes, and export a leadership-ready review file while keeping the 100-trainer cap visible.
       </div>
       <div id="finalReviewResults" style="max-height:68vh;overflow:auto"></div>
     </div>
@@ -689,7 +689,7 @@
         <button id="replaceSwapExport" class="btn" type="button">Export CSV</button>
       </div>
       <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
-        Mark placements as <b>Replace</b> in Final Plan Review Mode first. This protects Approved/Maybe/Pending rows and suggests one-for-one swaps only for those Replace-marked hubs, keeping the total cap intact.
+        Mark placements as <b>Replace</b> in Final Plan Review Mode first. This protects Approved/Maybe/Pending rows and suggests one-for-one swaps only for those Replace-marked hubs, keeping the total 100-slot cap intact.
       </div>
       <div id="replaceSwapResults" style="max-height:65vh;overflow:auto"></div>
     </div>
@@ -3159,7 +3159,7 @@ function cloneAuto50RowForLock(r){
 }
 
 
-const TOTAL_RTS_CAP = 50;
+const TOTAL_RTS_CAP = 100;
 const SAVED_PLAN_KEY = 'prt_saved_final_plans_v1';
 let lastGapSummaryRows = [];
 let lastReplaceSwapRows = [];
@@ -3262,7 +3262,7 @@ function buildAuto50PlacementRows(){
   const remainingUncovered = new Set(baseUniverse.filter(s => (s.coverageType || '') === 'Uncovered').map(s => s.storeNumberStr));
   const selected = [];
 
-  // Start with locked placements. They count against the 50 cap and consume their net-new stores first.
+  // Start with locked placements. They count against the 100 cap and consume their net-new stores first.
   lockedPlacements.forEach(lock => {
     if (selected.length >= maxPlacements) return;
     const lockedRow = cloneAuto50RowForLock(lock);
@@ -3378,7 +3378,7 @@ function renderAuto50Results(rows){
   if (!rows.length){
     suggestResults.innerHTML = `
       <div class="priority-card">
-        <b>Auto 50 RTS Placement Generator</b>
+        <b>Auto 100 RTS Placement Generator</b>
         <div style="color:var(--muted);margin-top:6px">Existing confirmed hubs already fill ${cap.active}/${cap.cap} spots, leaving ${cap.availableNew} new proposed placement slots. No new placements were found with the current settings.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
           <button type="button" class="btn suggest-regenerate">Regenerate Remaining Slots</button>
@@ -3390,7 +3390,7 @@ function renderAuto50Results(rows){
 
   suggestResults.innerHTML = `
     <div class="priority-card">
-      <b>Auto 50 RTS Placement Generator</b>
+      <b>Auto 100 RTS Placement Generator</b>
       <span style="color:var(--muted);margin-left:8px">Using ${escape(sourceLabel)} • Radius ${radiusMi} mi • Greedy non-overlap model • Locked placements are kept first.</span>
 
       <div style="display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:8px;margin-top:10px">
@@ -3630,7 +3630,7 @@ function storeImpactRowsForPlacement(row, rank, radiusMi, useFilt){
 
 function exportFinal50StoreImpactCsv(){
   const rows = getCurrentAuto50Rows();
-  if (!rows.length){ alert('Run Auto-generate Top 50 first.'); return; }
+  if (!rows.length){ alert('Run Auto-generate Top 100 first.'); return; }
   const radiusMi = Math.max(1, Number(id('suggestMiles')?.value) || 75);
   const useFilt  = !!id('suggestUseFilters')?.checked;
   const impact = calculateCoverageImpact(rows);
@@ -3662,7 +3662,7 @@ function exportFinal50StoreImpactCsv(){
   data.push(['Current Coverage','','','','','','','','', `${impact.currentPct}%`, '', '', '', '', '', '', '', '', '', '', '', '']);
   data.push(['Projected Coverage','','', '', impact.projectedNewStores, '', '', '', impact.liftPctPoints, `${impact.projectedPct}%`, '', '', '', '', '', '', '', '', '', '', '', '']);
 
-  exportCsvWithToast(data, `final_50_store_impact_${Date.now()}.csv`);
+  exportCsvWithToast(data, `final_100_store_impact_${Date.now()}.csv`);
 }
 
 
@@ -3698,8 +3698,8 @@ function finalReviewSummaryHtml(rows){
   const counts = finalReviewCounts(rows || []);
   const cap = capStatusObject(rows || []);
   const capStatus = cap.total >= cap.cap
-    ? `<span class="chip" style="border-color:#10b981;background:#ecfdf5"><b>50-trainer cap:</b> ${cap.total}/${cap.cap} filled</span>`
-    : `<span class="chip" style="border-color:#f59e0b;background:#fffbeb"><b>50-trainer cap:</b> ${cap.total}/${cap.cap} filled</span>`;
+    ? `<span class="chip" style="border-color:#10b981;background:#ecfdf5"><b>100-trainer cap:</b> ${cap.total}/${cap.cap} filled</span>`
+    : `<span class="chip" style="border-color:#f59e0b;background:#fffbeb"><b>100-trainer cap:</b> ${cap.total}/${cap.cap} filled</span>`;
 
   return `
     <div id="finalReviewSummary" class="priority-card">
@@ -3741,7 +3741,7 @@ function renderFinalPlanReview(){
   const rows = getCurrentAuto50Rows();
 
   if (!rows.length){
-    el.innerHTML = `<div class="priority-card"><b>No final plan rows yet.</b><div style="color:var(--muted);margin-top:6px">Run Auto-generate Top 50 first, then reopen Final Plan Review Mode.</div></div>`;
+    el.innerHTML = `<div class="priority-card"><b>No final plan rows yet.</b><div style="color:var(--muted);margin-top:6px">Run Auto-generate Top 100 first, then reopen Final Plan Review Mode.</div></div>`;
     return;
   }
 
@@ -3796,7 +3796,7 @@ function renderFinalPlanReview(){
 
 function exportFinalPlanReviewCsv(){
   const rows = getCurrentAuto50Rows();
-  if (!rows.length){ alert('Run Auto-generate Top 50 first.'); return; }
+  if (!rows.length){ alert('Run Auto-generate Top 100 first.'); return; }
   const impact = calculateCoverageImpact(rows);
   const counts = finalReviewCounts(rows);
 
@@ -3830,7 +3830,7 @@ function exportFinalPlanReviewCsv(){
     ]);
   });
 
-  exportCsvWithToast(data, `final_50_review_decisions_${Date.now()}.csv`);
+  exportCsvWithToast(data, `final_100_review_decisions_${Date.now()}.csv`);
 }
 
 function clearFinalPlanReviews(){
@@ -3873,7 +3873,7 @@ function planSnapshotFromCurrent(name){
 }
 function saveCurrentPlanSnapshot(){
   const rows = getCurrentAuto50Rows();
-  if (!rows.length){ alert('Run Auto-generate Top 50 first.'); return; }
+  if (!rows.length){ alert('Run Auto-generate Top 100 first.'); return; }
   const name = prompt('Name this plan snapshot:', `Plan ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`);
   if (!name) return;
   const plans = loadSavedPlans();
@@ -4081,13 +4081,13 @@ function renderWeakSwapFinder(){
   const el = id('weakSwapResults');
   if (!el) return;
   if (!rows.length){
-    el.innerHTML = `<div class="priority-card"><b>No weak picks found.</b><div style="color:var(--muted);margin-top:6px">Try raising the weak net-new threshold, or run Auto-generate Top 50 first.</div></div>`;
+    el.innerHTML = `<div class="priority-card"><b>No weak picks found.</b><div style="color:var(--muted);margin-top:6px">Try raising the weak net-new threshold, or run Auto-generate Top 100 first.</div></div>`;
     return;
   }
   el.innerHTML = `
     <div class="priority-card">
       <b>Swap recommendations</b>
-      <span style="color:var(--muted);margin-left:8px">Locked placements are protected. Suggested replacements keep the total at 50 by replacing one weak pick with one stronger candidate.</span>
+      <span style="color:var(--muted);margin-left:8px">Locked placements are protected. Suggested replacements keep the total at 100 by replacing one weak pick with one stronger candidate.</span>
     </div>
     <table class="priority-table">
       <thead>
