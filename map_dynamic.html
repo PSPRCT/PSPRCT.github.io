@@ -2678,6 +2678,32 @@ function dedupePlacementRows(rows, minMiles){
   return kept;
 }
 
+
+function metroPlacementLabel(r){
+  const city = String(r.city || '').trim();
+  const state = String(r.state || '').trim();
+
+  const nearbyText = String(r.nearbyAreas || '').toLowerCase();
+  const cityLower = city.toLowerCase();
+
+  const metroRules = [
+    { state:'TX', names:['cypress','spring','kingwood','houston','sugar land','richmond','tomball','crosby','new caney','baytown','humble','pearland','katy'], label:'Houston Metro' },
+    { state:'CO', names:['aurora','denver','centennial','commerce city','evergreen','castle rock','lakewood','englewood','littleton','parker'], label:'Denver Metro' },
+    { state:'FL', names:['boca raton','delray beach','boynton beach','coral springs','deerfield beach','pompano beach','fort lauderdale','miami','hollywood'], label:'South Florida' },
+    { state:'AL', names:['semmes','mobile','daphne','fairhope','robertsdale','bay minette','saraland'], label:'Mobile / Gulf Coast' },
+    { state:'PA', names:['uniontown','connellsville','greensburg','latrobe','mechanicsburg','camp hill','carlisle','harrisburg','johnstown'], label:'Western / Central PA' },
+    { state:'MI', names:['monroe','southgate','canton','trenton','oregon','lapeer','flint','owosso','clio','sandusky'], label:'Southeast / Mid Michigan' }
+  ];
+
+  const match = metroRules.find(rule =>
+    rule.state === state &&
+    rule.names.some(n => cityLower.includes(n) || nearbyText.includes(n))
+  );
+
+  if (match) return `${match.label} — ${city}, ${state}`;
+  return `${city}, ${state}`;
+}
+
 function buildSuggestRtsRows(){
   const minUncov = Math.max(1, Number(id('suggestMin')?.value) || 25);
   const radiusMi = Math.max(1, Number(id('suggestMiles')?.value) || 75);
@@ -2718,6 +2744,8 @@ function buildSuggestRtsRows(){
       projectedCoveragePct: projectedPct
     };
   }).filter(Boolean);
+
+  rows.forEach(r => r.placementLabel = metroPlacementLabel(r));
 
   rows.sort((a,b)=>
     b.estimatedNewStores - a.estimatedNewStores ||
