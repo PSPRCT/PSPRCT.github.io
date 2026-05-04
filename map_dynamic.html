@@ -2495,6 +2495,7 @@ let excludedMetros = new Set();
 let lastAuto50Mode = false;
 let placementMarker = null;
 let placementCircle = null;
+let placementCoverageLayer = L.layerGroup().addTo(map);
 
 if (id('suggestRtsBtn')) {
   id('suggestRtsBtn').onclick = ()=>{
@@ -2572,6 +2573,15 @@ if (suggestResults && !suggestResults._wiredSuggestActions) {
     }
   });
   suggestResults._wiredSuggestActions = true;
+}
+
+if (!document.body._wiredPlacementMapClear) {
+  document.body.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.placement-clear-map');
+    if (!btn) return;
+    clearPlacementResult();
+  });
+  document.body._wiredPlacementMapClear = true;
 }
 
 function hasActiveStoreFilters(){
@@ -3251,9 +3261,7 @@ function runAuto50PlacementGenerator(){
   renderAuto50Results(rows);
 }
 
-function showPlacementResult(r){
-  if (!r) return;
-
+function clearPlacementResult(){
   if (placementMarker){
     map.removeLayer(placementMarker);
     placementMarker = null;
@@ -3262,36 +3270,96 @@ function showPlacementResult(r){
     map.removeLayer(placementCircle);
     placementCircle = null;
   }
+  if (placementCoverageLayer){
+    placementCoverageLayer.clearLayers();
+  }
+}
+
+function placementHighlightPopup(row, netNewCount, overlapCount, totalCount){
+  const lift = row.coverageImpactPctPoints != null ? `+${row.coverageImpactPctPoints} pts` : '—';
+  return `
+    <div style="font-size:13px;line-height:1.35;min-width:260px">
+      <div style="font-weight:900;margin-bottom:4px">Optimal RTS Placement</div>
+      <div style="font-weight:800">${escape(row.placementLabel || row.suggestedArea || '')}</div>
+      <div style="color:var(--muted);margin-bottom:6px">Recommended Hub: ${escape(row.recommendedHub || row.suggestedArea || '')}</div>
+      <div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#16a34a;margin-right:6px"></span><b>Net-new stores:</b> ${netNewCount}</div>
+      <div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;margin-right:6px"></span><b>Overlap/already covered:</b> ${overlapCount}</div>
+      <div><b>Total stores in radius:</b> ${totalCount}</div>
+      <div><b>Coverage impact:</b> ${lift}</div>
+      <div><b>Projected national coverage:</b> ${row.projectedCoveragePct || '—'}%</div>
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+        <button type="button" class="mini placement-clear-map">Clear highlight</button>
+        <button type="button" class="mini suggest-sbx" data-lat="${row.center.lat}" data-lng="${row.center.lng}">Sandbox here</button>
+      </div>
+    </div>`;
+}
+
+function showPlacementResult(r){
+  if (!r) return;
+
+  clearPlacementResult();
 
   const radiusMi = Math.max(1, Number(id('suggestMiles')?.value) || 75);
+  const useFilt  = !!id('suggestUseFilters')?.checked;
+  const universe = (useFilt && filteredStores?.length) ? filteredStores : allStores;
+  const storesInRadius = storesWithinList(universe, [r.center.lat, r.center.lng], radiusMi)
+    .map(s => ({ ...s, __placementDist: distMiles(r.center.lat, r.center.lng, s.lat, s.lng) }))
+    .sort((a,b)=>a.__placementDist-b.__placementDist);
+  const netNewStores = storesInRadius.filter(s => (s.coverageType || '') === 'Uncovered');
+  const overlapStores = storesInRadius.filter(s => (s.coverageType || '') !== 'Uncovered');
 
   placementCircle = L.circle([r.center.lat, r.center.lng], {
     radius: radiusMi * 1609.344,
     color: '#111',
     weight: 2,
     fill:false,
-    opacity:.55
+    opacity:.60
   }).addTo(ringLayer);
 
+  // Net-new store highlight = green, already-covered/overlap = amber.
+  // These are temporary planning markers and do not change store coverage classification.
+  netNewStores.forEach(s=>{
+    const m = L.circleMarker([s.lat, s.lng], {
+      radius: 7,
+      color: '#064e3b',
+      weight: 2,
+      fillColor: '#16a34a',
+      fillOpacity: .92
+    }).bindPopup(storePopupHTML(s));
+    placementCoverageLayer.addLayer(m);
+  });
+
+  overlapStores.forEach(s=>{
+    const m = L.circleMarker([s.lat, s.lng], {
+      radius: 6,
+      color: '#92400e',
+      weight: 2,
+      fillColor: '#f59e0b',
+      fillOpacity: .78
+    }).bindPopup(storePopupHTML(s));
+    placementCoverageLayer.addLayer(m);
+  });
+
   placementMarker = L.circleMarker([r.center.lat, r.center.lng], {
-    radius: 12,
+    radius: 13,
     color: '#111',
     weight: 3,
     fillColor: '#ffcc00',
     fillOpacity: 1
   }).addTo(map);
 
-  placementMarker.bindPopup(`
-    <b>Optimal RTS Placement</b><br>
-    ${escape(r.placementLabel || r.suggestedArea || '')}<br><br>
-    <b>Net New Stores:</b> ${r.estimatedNewStores}<br>
-    <b>Total Reach:</b> ${r.totalReach}<br>
-    <b>Overlap / Already Covered:</b> ${r.overlap}<br>
-    <b>Nearest RTS:</b> ${escape(r.nearestHubName || '—')}<br>
-    <b>Miles from RTS:</b> ${r.nearestHubMiles == null ? '—' : Math.round(r.nearestHubMiles)}
-  `).openPopup();
+  placementMarker.bindPopup(
+    placementHighlightPopup(r, netNewStores.length, overlapStores.length, storesInRadius.length),
+    { maxWidth: 360 }
+  ).openPopup();
 
-  map.setView([r.center.lat, r.center.lng], 8);
+  const bounds = L.latLngBounds([[r.center.lat, r.center.lng]]);
+  storesInRadius.forEach(s => bounds.extend([s.lat, s.lng]));
+  if (storesInRadius.length) {
+    map.fitBounds(bounds.pad(0.12), { maxZoom: 9, padding:[24,24] });
+  } else {
+    map.setView([r.center.lat, r.center.lng], 8);
+  }
 }
 
 function exportSuggestRtsCsv(){
@@ -4304,6 +4372,7 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
     tgHeat.checked = false; clearHeat();
     tgRings.checked = false; updateRings();
     tgOverlap.checked = false; highlightLayer.clearLayers();
+    if (typeof clearPlacementResult === 'function') clearPlacementResult();
     tgCompare.checked = false; compareMode=false; pinnedHubs=[];
     tgWithin.checked = false;
     tgCluster.checked = true;
