@@ -706,6 +706,7 @@
 (async function(){
   // ---------- CONFIG ----------
   const DATA_URL    = './store_data.json?v=' + Date.now();
+  const MANAGER_ROLLUP_URL = './manager_rollup.json?v=' + Date.now();
   const ACOSTA_URL  = './acosta_geocoded.json?v=' + Date.now();
 
 
@@ -811,6 +812,7 @@ function exportHubsJson(){
 
   // Stores
   let allStores = [];
+  let managerRollupByStore = new Map();
   let filteredStores = [];
   const markerByStore = new Map();
 
@@ -1053,6 +1055,21 @@ spRowsEl.addEventListener('click', (e)=>{
       storeRaw = FALLBACK_STORES;
     }
     allStores = normalizeStores(storeRaw);
+
+    // Optional manager rollup overlay. This lets you refresh manager alignment
+    // without rebuilding the full store_data.json file.
+    try {
+      const mResp = await fetch(MANAGER_ROLLUP_URL, { cache:'no-store' });
+      if (!mResp.ok) throw new Error(`HTTP ${mResp.status} for ${MANAGER_ROLLUP_URL}`);
+      const mText = await mResp.text();
+      const mJson = JSON.parse(mText.replace(/^\uFEFF/,''));
+      managerRollupByStore = buildManagerRollupMap(mJson);
+      applyManagerRollupToStores(allStores);
+      STATUS.textContent += `  |  manager rollup applied`;
+    } catch(mgrErr) {
+      console.warn('Manager rollup overlay not loaded; using manager data from store_data.json only:', mgrErr);
+    }
+
     STATUS.textContent += `  |  ${allStores.length.toLocaleString()} stores ready`;
 
     populateRM(allStores); populateAM(allStores);
@@ -4726,6 +4743,48 @@ function asManagerArray(value){
     return Array.from(new Set((arr || []).map(v => String(v || '').trim()).filter(Boolean)));
   }
 
+
+  function splitRollupText(value){
+    return String(value || '')
+      .split('|')
+      .map(v => String(v || '').trim())
+      .filter(v => v && v !== '—' && v.toLowerCase() !== 'null' && v.toLowerCase() !== 'undefined');
+  }
+
+  function buildManagerRollupMap(rows){
+    const map = new Map();
+    (Array.isArray(rows) ? rows : []).forEach(r => {
+      const key = String(r.StoreKey ?? r.storeKey ?? r.SStoreNo ?? r.storeNumber ?? '').trim();
+      if (!key) return;
+      map.set(key, {
+        areaManagers: uniqueStrings(splitRollupText(r.AreaManagers ?? r.areaManagers ?? r['Area Managers'])),
+        regionalManagers: uniqueStrings(splitRollupText(r.RegionalManagers ?? r.regionalManagers ?? r['Regional Managers'])),
+        teams: uniqueStrings(splitRollupText(r.Teams ?? r.teams ?? r.ManagementGroups ?? r['Management Groups']))
+      });
+    });
+    return map;
+  }
+
+  function applyManagerRollupToStores(stores){
+    stores.forEach(s => {
+      const key = String(s.storeNumberStr ?? s.storeNumber ?? '').trim();
+      const roll = managerRollupByStore.get(key);
+      if (!roll) return;
+
+      // Keep the original detailed managerPaths for older features, but overlay
+      // the popup/filter manager arrays with the freshest rollup source.
+      if (roll.areaManagers.length) s.areaManager = roll.areaManagers;
+      if (roll.regionalManagers.length) s.regionalManager = roll.regionalManagers;
+      if (roll.teams.length) s.managementGroupName = roll.teams;
+    });
+  }
+
+  function managerTeamsLabel(s){
+    const direct = asManagerArray(s.managementGroupName ?? s.managementGroups ?? s.Teams ?? '');
+    if (direct.length) return direct.join(' | ');
+    return uniqueStrings(managerPathsForStore(s).map(p => p.teamName)).join(' | ');
+  }
+
   function normalizeManagerPaths(value){
     let raw = [];
 
@@ -4929,6 +4988,7 @@ const na = nearestOf(acostaHubs);
         <div>${escape(s.city||'')}, ${escape(s.state||'')}</div>
         <div style="margin:6px 0">${badge}</div>
         <div><b>Trainer City:</b> ${escape(s.trainerCity||'')}</div>
+        <div><b>Teams:</b> ${escape(managerTeamsLabel(s))}</div>
         <div><b>Area Manager:</b> ${escape(managerLabel(s.areaManager))}</div>
         <div><b>Regional Manager:</b> ${escape(managerLabel(s.regionalManager))}</div>
         ${np ? `<div style="margin-top:6px"><b>Nearest Premium:</b> ${escape(hubDisplay(np.hub))} • ${np.d.toFixed(1)} mi</div>` : ''}
