@@ -706,7 +706,7 @@
 (async function(){
   // ---------- CONFIG ----------
   const DATA_URL    = './store_data.json?v=' + Date.now();
-  const MANAGER_ROLLUP_URL = './manager_rollup.json?v=' + Date.now();
+  const MANAGER_ROLLUP_URL = './manager_paths.json?v=' + Date.now();
   const ACOSTA_URL  = './acosta_geocoded.json?v=' + Date.now();
 
 
@@ -4757,30 +4757,41 @@ function asManagerArray(value){
       const key = String(r.StoreKey ?? r.storeKey ?? r.SStoreNo ?? r.storeNumber ?? '').trim();
       if (!key) return;
 
-      // IMPORTANT: keep manager/team values paired by position.
-      // Example: AM "OLSON, LINDSEY" should stay paired to RM "Shannon Falcon RAD",
-      // and AM "Lorenzano, Luis" should stay paired to RM "Roy Anders".
-      const areaManagers = splitRollupText(r.AreaManagers ?? r.areaManagers ?? r['Area Managers']);
-      const regionalManagers = String(r.RegionalManagers ?? r.regionalManagers ?? r['Regional Managers'] ?? '')
-        .split('|')
-        .map(v => String(v || '').trim())
-        .map(v => (v === '—' || v.toLowerCase() === 'null' || v.toLowerCase() === 'undefined') ? '' : v);
-      const teams = splitRollupText(r.Teams ?? r.teams ?? r.ManagementGroups ?? r['Management Groups']);
+      let paths = [];
 
-      const maxLen = Math.max(areaManagers.length, regionalManagers.length, teams.length);
-      const paths = [];
-      for (let i = 0; i < maxLen; i++) {
-        const teamName = teams[i] || '';
-        const regionalManager = regionalManagers[i] || '';
-        const areaManager = areaManagers[i] || '';
-        if (!teamName && !regionalManager && !areaManager) continue;
-        paths.push({
-          teamId: '',
-          teamName,
-          regionalManager,
-          areaManager
-        });
+      // Preferred source: manager_paths.json built from the raw alignment file.
+      // This keeps each row paired correctly: Team + Mgr 1 Name + Mgr 2 Name.
+      const explicitPaths = r.ManagerPaths ?? r.managerPaths ?? r.paths;
+      if (Array.isArray(explicitPaths) && explicitPaths.length) {
+        paths = normalizeManagerPaths(explicitPaths);
+      } else {
+        // Fallback for the older manager_rollup.json format.
+        // This is less reliable when blank RM values exist, so only use it if no explicit paths are present.
+        const areaManagers = splitRollupText(r.AreaManagers ?? r.areaManagers ?? r['Area Managers']);
+        const regionalManagers = String(r.RegionalManagers ?? r.regionalManagers ?? r['Regional Managers'] ?? '')
+          .split('|')
+          .map(v => String(v || '').trim())
+          .map(v => (v === '—' || v.toLowerCase() === 'null' || v.toLowerCase() === 'undefined') ? '' : v);
+        const teams = splitRollupText(r.Teams ?? r.teams ?? r.ManagementGroups ?? r['Management Groups']);
+
+        const maxLen = Math.max(areaManagers.length, regionalManagers.length, teams.length);
+        for (let i = 0; i < maxLen; i++) {
+          const teamName = teams[i] || '';
+          const regionalManager = regionalManagers[i] || '';
+          const areaManager = areaManagers[i] || '';
+          if (!teamName && !regionalManager && !areaManager) continue;
+          paths.push({ teamId: '', teamName, regionalManager, areaManager });
+        }
       }
+
+      // Deduplicate exact path rows only. Do NOT cross-pair AMs/RMs.
+      const seen = new Set();
+      paths = paths.filter(p => {
+        const sig = [p.teamId || '', p.teamName || '', p.regionalManager || '', p.areaManager || ''].join('|');
+        if (seen.has(sig)) return false;
+        seen.add(sig);
+        return true;
+      });
 
       map.set(key, {
         managerPaths: paths,
