@@ -4756,10 +4756,37 @@ function asManagerArray(value){
     (Array.isArray(rows) ? rows : []).forEach(r => {
       const key = String(r.StoreKey ?? r.storeKey ?? r.SStoreNo ?? r.storeNumber ?? '').trim();
       if (!key) return;
+
+      // IMPORTANT: keep manager/team values paired by position.
+      // Example: AM "OLSON, LINDSEY" should stay paired to RM "Shannon Falcon RAD",
+      // and AM "Lorenzano, Luis" should stay paired to RM "Roy Anders".
+      const areaManagers = splitRollupText(r.AreaManagers ?? r.areaManagers ?? r['Area Managers']);
+      const regionalManagers = String(r.RegionalManagers ?? r.regionalManagers ?? r['Regional Managers'] ?? '')
+        .split('|')
+        .map(v => String(v || '').trim())
+        .map(v => (v === '—' || v.toLowerCase() === 'null' || v.toLowerCase() === 'undefined') ? '' : v);
+      const teams = splitRollupText(r.Teams ?? r.teams ?? r.ManagementGroups ?? r['Management Groups']);
+
+      const maxLen = Math.max(areaManagers.length, regionalManagers.length, teams.length);
+      const paths = [];
+      for (let i = 0; i < maxLen; i++) {
+        const teamName = teams[i] || '';
+        const regionalManager = regionalManagers[i] || '';
+        const areaManager = areaManagers[i] || '';
+        if (!teamName && !regionalManager && !areaManager) continue;
+        paths.push({
+          teamId: '',
+          teamName,
+          regionalManager,
+          areaManager
+        });
+      }
+
       map.set(key, {
-        areaManagers: uniqueStrings(splitRollupText(r.AreaManagers ?? r.areaManagers ?? r['Area Managers'])),
-        regionalManagers: uniqueStrings(splitRollupText(r.RegionalManagers ?? r.regionalManagers ?? r['Regional Managers'])),
-        teams: uniqueStrings(splitRollupText(r.Teams ?? r.teams ?? r.ManagementGroups ?? r['Management Groups']))
+        managerPaths: paths,
+        areaManagers: uniqueStrings(paths.map(p => p.areaManager)),
+        regionalManagers: uniqueStrings(paths.map(p => p.regionalManager)),
+        teams: uniqueStrings(paths.map(p => p.teamName))
       });
     });
     return map;
@@ -4771,8 +4798,9 @@ function asManagerArray(value){
       const roll = managerRollupByStore.get(key);
       if (!roll) return;
 
-      // Keep the original detailed managerPaths for older features, but overlay
-      // the popup/filter manager arrays with the freshest rollup source.
+      // Replace the store's managerPaths with the fresh, paired rollup source.
+      // This prevents blank RM rows from shifting unrelated AMs under the wrong RM.
+      if (roll.managerPaths.length) s.managerPaths = roll.managerPaths;
       if (roll.areaManagers.length) s.areaManager = roll.areaManagers;
       if (roll.regionalManagers.length) s.regionalManager = roll.regionalManagers;
       if (roll.teams.length) s.managementGroupName = roll.teams;
@@ -4823,6 +4851,30 @@ function asManagerArray(value){
 
   function managerLabel(value){
     return asManagerArray(value).join(' | ');
+  }
+
+  function managerPathHtml(s){
+    const paths = managerPathsForStore(s)
+      .filter(p => p.teamName || p.areaManager || p.regionalManager);
+
+    if (!paths.length) {
+      return `
+        <div><b>Teams:</b> ${escape(managerTeamsLabel(s))}</div>
+        <div><b>Area Manager:</b> ${escape(managerLabel(s.areaManager))}</div>
+        <div><b>Regional Manager:</b> ${escape(managerLabel(s.regionalManager))}</div>`;
+    }
+
+    return `
+      <div style="margin-top:6px"><b>Manager Paths:</b></div>
+      <div style="margin-top:3px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+        ${paths.map(p => `
+          <div style="padding:5px 7px;border-bottom:1px solid var(--border);font-size:12px;line-height:1.3">
+            <div><b>${escape(p.teamName || 'Team')}</b></div>
+            <div>AM: ${escape(p.areaManager || '—')}</div>
+            <div>RM: ${escape(p.regionalManager || '—')}</div>
+          </div>
+        `).join('')}
+      </div>`;
   }
 
   function hasAnyManager(fieldValue, selectedValues){
@@ -4988,9 +5040,7 @@ const na = nearestOf(acostaHubs);
         <div>${escape(s.city||'')}, ${escape(s.state||'')}</div>
         <div style="margin:6px 0">${badge}</div>
         <div><b>Trainer City:</b> ${escape(s.trainerCity||'')}</div>
-        <div><b>Teams:</b> ${escape(managerTeamsLabel(s))}</div>
-        <div><b>Area Manager:</b> ${escape(managerLabel(s.areaManager))}</div>
-        <div><b>Regional Manager:</b> ${escape(managerLabel(s.regionalManager))}</div>
+        ${managerPathHtml(s)}
         ${np ? `<div style="margin-top:6px"><b>Nearest Premium:</b> ${escape(hubDisplay(np.hub))} • ${np.d.toFixed(1)} mi</div>` : ''}
         ${na ? `<div><b>Nearest Acosta:</b> ${escape(na.hub.label || na.hub.fullName || na.hub.name)} • ${na.d.toFixed(1)} mi</div>` : ''}
         <div style="color:var(--muted);margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
