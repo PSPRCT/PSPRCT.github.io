@@ -731,9 +731,7 @@ const RTS_URL = './onewalmart_rts_combined.json?v=' + Date.now();
   const REV_KEY = 'prt_dataset_revs_v1'; // for dataset badge versioning
 
   // Hub sets
-  let premiumConfirmed = [];
-  let premiumPending   = [];
-  let acostaHubs       = [];
+let combinedRTS = [];
 
   
 
@@ -1074,128 +1072,94 @@ spRowsEl.addEventListener('click', (e)=>{
 
     populateRM(allStores); populateAM(allStores);
 
-    // ACOSTA
-    try {
-      const aResp = await fetch(ACOSTA_URL, { cache: 'no-store' });
-      if (!aResp.ok) throw new Error(`HTTP ${aResp.status} for ${ACOSTA_URL}`);
-      const aJson = await aResp.json();
-      const rows = Array.isArray(aJson) ? aJson : [];
-      acostaHubs = rows
-        .map(r => ({
-          lat: Number(r.Latitude ?? r.latitude ?? r.lat),
-          lng: Number(r.Longitude ?? r.longitude ?? r.lng),
-          name: String(r.RepName ?? r.name ?? 'Acosta Rep'),
-          city: String(r.City ?? ''), state: String(r.State ?? '')
-        }))
-        .filter(r => Number.isFinite(r.lat) && Number.isFinite(r.lng))
-        .map(r => ({
-          id: 'ac_' + slug(`${r.name}-${r.city}-${r.state}`),
-          name: r.name, fullName: `${r.name} — ${r.city}, ${r.state}`,
-          coords: [r.lat, r.lng], status: 'acosta'
-        }));
-      STATUS.textContent += `  |  Acosta hubs: ${acostaHubs.length}`;
-    } catch (e) {
-      STATUS.innerHTML += `  |  <span style="color:#b42318">Acosta failed</span>`;
-      console.error('Acosta load error:', e);
-      acostaHubs = [];
-    }
-
-   // PREMIUM hubs (confirmed + pending)
+// ONE WALMART RTS HUBS
 try {
-  const PREMIUM_URL = './premium_trainers_master.json?v=' + Date.now();
 
-  const pResp = await fetch(PREMIUM_URL, { cache: 'no-store' });
-  if (!pResp.ok) throw new Error(`HTTP ${pResp.status} for ${PREMIUM_URL}`);
+  const RTS_URL = './combined_rts.json?v=' + Date.now();
 
-  const pJson = await pResp.json();
-  const rows = Array.isArray(pJson)
-    ? pJson
-    : [ ...(pJson.confirmed || []), ...(pJson.pending || []) ];
+  const rResp = await fetch(RTS_URL, { cache:'no-store' });
 
-  // --- helpers -------------------------------------------------
-  const txt = v => String(v ?? '').toLowerCase();
-  const statusText = r => {
-    const fields = [
-      r.Status, r.status, r.HubStatus, r.Hub_Status,
-      r.TrainerStatus, r.Trainer_Status, r.CandidateStatus, r.AssignmentStatus
-    ];
-    return fields.map(txt).find(Boolean) || '';
-  };
-  const getCity = r => String(
-    r.City ?? r.city ?? r.Hub_City ?? r['Hub City'] ??
-    r.ProposedCity ?? r['Proposed City'] ??
-    r.TargetCity ?? r['Target City'] ??
-    r.CandidateCity ?? r['Candidate City'] ??
-    r.HubCity ?? ''
-  ).trim();
-  const getState = r => String(
-    r.State ?? r.state ?? r.Hub_State ?? r['Hub State'] ??
-    r.ProposedState ?? r['Proposed State'] ??
-    r.TargetState ?? r['Target State'] ??
-    r.CandidateState ?? r['Candidate State'] ??
-    r.HubState ?? ''
-  ).trim();
-  const getCoords = r => {
-    const lat = Number(r.Latitude  ?? r.latitude  ?? r.lat ?? r.Lat ?? r.lat_dd ?? r.Latitude__c);
-    const lng = Number(r.Longitude ?? r.longitude ?? r.lng ?? r.Lon ?? r.lng_dd ?? r.Longitude__c);
-    return (Number.isFinite(lat) && Number.isFinite(lng)) ? [lat, lng] : null;
-  };
+  if (!rResp.ok) {
+    throw new Error(`HTTP ${rResp.status} for ${RTS_URL}`);
+  }
 
-  const toHub = (r) => {
-    const coords = getCoords(r);
-    if (!coords) return null;
+  const rJson = await rResp.json();
 
-    const city  = getCity(r);
-    const state = getState(r);
-    const name  = String(
-      r.CandidateName ?? r.Candidate ?? r.RepName ?? r.repName ??
-      r.TrainerName ?? r['Trainer Name'] ??
-      r.Premium_Trainer ?? r.PremiumTrainer ??
-      r.name ?? r.Name ?? ''
-    ).trim();
+  const rows = Array.isArray(rJson)
+    ? rJson
+    : [];
 
-    const s = statusText(r);
-    const status = (name && !/(offer|propos|recruit|pend)/i.test(s)) ? 'confirmed' : 'pending';
-    const statusSub =
-      /(offer)/i.test(s) ? 'pending_offer' :
-      /(propos|plan|target)/i.test(s) ? 'proposed' :
-      /(recruit|open|tbd|no\s*app|no\s*applicant|no\s*apps?)/i.test(s) ? 'open' :
-      (status === 'confirmed' ? 'confirmed' : 'pending');
+  combinedRTS = rows
+    .map(r => {
 
-    const statusLabel = ({
-      confirmed:'Confirmed', pending_offer:'Pending Offer',
-      pending:'Pending', proposed:'Proposed', open:'Open'
-    }[statusSub]) || 'Pending';
+      const lat = Number(
+        r.Latitude ??
+        r.latitude ??
+        r.lat ??
+        r.Lat
+      );
 
-    const label = `${city && state ? `${city}, ${state}` : (city || state || '')} (${statusLabel}${name ? ` — ${name}` : ''})`;
+      const lng = Number(
+        r.Longitude ??
+        r.longitude ??
+        r.lng ??
+        r.Lon
+      );
 
-    return {
-      id: `${status[0]}_${slug(`${city||''}-${state||''}-${coords[0].toFixed(3)}-${coords[1].toFixed(3)}-${name||''}`)}`,
-      name: name || 'Proposed',
-      fullName: label,
-      coords,
-      status, statusSub, statusLabel,
-      city, state
-    };
-  };
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return null;
+      }
 
-  const hubs = rows.map(toHub);
-  const good  = hubs.filter(Boolean);
-  const bad   = hubs.map((h,i)=>h?null:rows[i]).filter(Boolean).slice(0,2);
+      const city = String(
+        r.City ??
+        r.city ??
+        ''
+      ).trim();
 
-  premiumConfirmed = good.filter(h => h.status === 'confirmed');
-  premiumPending   = good.filter(h => h.status === 'pending');
+      const state = String(
+        r.State ??
+        r.state ??
+        ''
+      ).trim();
 
-  console.log(`[Premium] rows: ${rows.length}, mapped: ${good.length}, confirmed: ${premiumConfirmed.length}, pending: ${premiumPending.length}`);
-  if (bad.length) console.warn('[Premium] example unmapped rows (missing/invalid lat/lng/city/state?):', bad);
+      const name = String(
+        r.Name ??
+        r.name ??
+        r.RepName ??
+        r.TrainerName ??
+        'RTS'
+      ).trim();
 
-  STATUS.textContent += `  |  Premium hubs: ${good.length}`;
+      const status = String(
+        r.Status ??
+        r.status ??
+        'active'
+      ).toLowerCase();
+
+      return {
+        id: 'rts_' + slug(`${name}-${city}-${state}`),
+        name,
+        fullName: `${name} — ${city}, ${state}`,
+        city,
+        state,
+        coords: [lat, lng],
+        status
+      };
+
+    })
+    .filter(Boolean);
+
+  STATUS.textContent += `  |  RTS hubs: ${combinedRTS.length}`;
+
+  console.log('Combined RTS loaded:', combinedRTS.length);
 
 } catch (e) {
-  console.warn('Premium file missing/invalid', e);
-  STATUS.innerHTML += `  |  <span style="color:#b42318">Premium failed</span>`;
-  premiumConfirmed = [];
-  premiumPending   = [];
+
+  STATUS.innerHTML += `  |  <span style="color:#b42318">RTS load failed</span>`;
+
+  console.error('Combined RTS load error:', e);
+
+  combinedRTS = [];
 }
 
 
@@ -1213,8 +1177,8 @@ try {
 
     // Dataset badge (simple fingerprints)
     const storesFp  = `stores:${allStores.length}`;
-    const premiumFp = `premium:${premiumConfirmed.length + premiumPending.length}`;
-    const acostaFp  = `acosta:${acostaHubs.length}`;
+const premiumFp = `rts:${combinedRTS.length}`;
+const acostaFp  = `future:0`;
     updateDatasetBadge(storesFp, premiumFp, acostaFp);
 
   } catch(err){
@@ -1501,29 +1465,39 @@ withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords
     id('emptyState').hidden = filteredStores.length !== 0;
   }
 
-  function updateCounts(){
-    const total = filteredStores.length;
-    const by = { 'Premium + Acosta':0, 'Premium Only':0, 'Acosta Only':0, 'Uncovered':0 };
-    filteredStores.forEach(s => { by[s.coverageType] = (by[s.coverageType] || 0) + 1; });
-    const pct = (n) => total ? Math.round(n * 100 / total) + '%' : '0%';
-const paCount = by['Premium + Acosta'] || 0;
-const premiumOnlyCount = by['Premium Only'] || 0;
-const acostaOnlyCount = by['Acosta Only'] || 0;
-const uncoveredCount = by['Uncovered'] || 0;
+ function updateCounts(){
 
-const premiumCoverageCount = paCount + premiumOnlyCount;
-const acostaCoverageCount = paCount + acostaOnlyCount;
-const combinedCoverageCount = paCount + premiumOnlyCount + acostaOnlyCount;
+  const total = filteredStores.length;
 
-k.pa.textContent = `${combinedCoverageCount} (${pct(combinedCoverageCount)})`;
-k.p.textContent  = `${premiumCoverageCount} (${pct(premiumCoverageCount)})`;
-k.a.textContent  = `${acostaCoverageCount} (${pct(acostaCoverageCount)})`;
-k.u.textContent  = `${uncoveredCount} (${pct(uncoveredCount)})`;
+  const by = {
+    'Covered':0,
+    'Uncovered':0
+  };
 
-k.total.textContent     = total;
-k.confirmed.textContent = premiumConfirmed.length;
-k.pending.textContent   = premiumPending.length;
-  }
+  filteredStores.forEach(s => {
+    by[s.coverageType] = (by[s.coverageType] || 0) + 1;
+  });
+
+  const pct = (n) =>
+    total
+      ? Math.round(n * 100 / total) + '%'
+      : '0%';
+
+  k.pa.textContent =
+    `${by['Covered'] || 0} (${pct(by['Covered'] || 0)})`;
+
+  k.p.textContent = '—';
+  k.a.textContent = '—';
+
+  k.u.textContent =
+    `${by['Uncovered'] || 0} (${pct(by['Uncovered'] || 0)})`;
+
+  k.total.textContent = total;
+
+  k.confirmed.textContent = combinedRTS.length;
+
+  k.pending.textContent = '0';
+}
 
   function updateInViewCount(){
     const b=map.getBounds();
@@ -1543,13 +1517,9 @@ k.pending.textContent   = premiumPending.length;
   }
 
   // ---------- Hubs ----------
-  function visibleHubs(){
-    const out = [];
-    if (showConfirmed.checked) out.push(...premiumConfirmed);
-    if (showPending.checked)   out.push(...premiumPending);
-    if (showAcosta.checked)    out.push(...acostaHubs);
-    return out;
-  }
+function visibleHubs(){
+  return combinedRTS;
+}
 function hubDisplay(h){
   if (h.fullName && /[A-Za-z]/.test(h.fullName)) return h.fullName;
   const city = (h.city || h.City || '').trim();
@@ -1656,25 +1626,32 @@ function hubDisplay(h){
   }
 
   // ---------- Coverage (Web Worker) ----------
-  async function recomputeCoverage(){
+ async function recomputeCoverage(){
+
   const msg = {
-  action:'classify',
-  radius: CLASSIFY_RADIUS,
-  stores: allStores.map(s => ({ id:s.storeNumberStr, lat:s.lat, lng:s.lng })),
+    action:'classify',
+    radius: CLASSIFY_RADIUS,
 
-  // IMPORTANT:
-  // Only confirmed/active Premium RTS hubs should count toward real coverage.
-  // Pending/future hiring hubs remain visible on the map if toggled on,
-  // but they do NOT classify stores as covered.
-  premium: premiumConfirmed.map(h=>({ lat:h.coords[0], lng:h.coords[1] })),
+    stores: allStores.map(s => ({
+      id:s.storeNumberStr,
+      lat:s.lat,
+      lng:s.lng
+    })),
 
-  acosta: acostaHubs.map(h=>({ lat:h.coords[0], lng:h.coords[1] }))
-};
-    const res = await callWorker(msg);
-    // apply coverage
-    const mapC = new Map(res.coverage); // [[id,'Premium Only'], ...]
-    allStores.forEach(s => { s.coverageType = mapC.get(s.storeNumberStr) || 'Uncovered'; });
-  }
+    rts: combinedRTS.map(h => ({
+      lat:h.coords[0],
+      lng:h.coords[1]
+    }))
+  };
+
+  const res = await callWorker(msg);
+
+  const mapC = new Map(res.coverage);
+
+  allStores.forEach(s => {
+    s.coverageType = mapC.get(s.storeNumberStr) || 'Uncovered';
+  });
+}
 
   // ---------- Sidepanel ----------
 
@@ -5844,35 +5821,55 @@ function openSandboxAt(lat, lng){
   // ---------- Worker plumbing ----------
   function makeCoverageWorker(){
     const code = `
-      self.onmessage = (e)=>{
-        const { action, radius, stores, premium, acosta } = e.data || {};
-        if (action !== 'classify') return;
-        const R = 3958.8;
-        const toRad = d=>d*Math.PI/180;
-        function dmi(a,b){
-          const dLat = toRad(b.lat-a.lat), dLon = toRad(b.lng-a.lng);
-          const s = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLon/2)**2;
-          return 2*R*Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+  self.onmessage = (e)=>{
+
+    const { action, radius, stores, rts } = e.data || {};
+
+    if (action !== 'classify') return;
+
+    const R = 3958.8;
+
+    const toRad = d => d * Math.PI / 180;
+
+    function dmi(a,b){
+
+      const dLat = toRad(b.lat-a.lat);
+      const dLon = toRad(b.lng-a.lng);
+
+      const s =
+        Math.sin(dLat/2)**2 +
+        Math.cos(toRad(a.lat)) *
+        Math.cos(toRad(b.lat)) *
+        Math.sin(dLon/2)**2;
+
+      return 2 * R * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+    }
+
+    const out = [];
+
+    for (let i=0;i<stores.length;i++){
+
+      const s = stores[i];
+
+      let covered = false;
+
+      for (let j=0;j<rts.length;j++){
+
+        if (dmi(s, rts[j]) <= radius){
+          covered = true;
+          break;
         }
-        const out = [];
-        for (let i=0;i<stores.length;i++){
-          const s = stores[i];
-          let nearPrem=false, nearAco=false;
-          for (let j=0;j<premium.length;j++){ if (dmi(s, premium[j]) <= radius){ nearPrem=true; break; } }
-          for (let k=0;k<acosta.length;k++){ if (dmi(s, acosta[k])  <= radius){ nearAco=true; break; } }
-          let cov = 'Uncovered';
-          if (nearPrem && nearAco) cov = 'Premium + Acosta';
-          else if (nearPrem) cov = 'Premium Only';
-          else if (nearAco) cov = 'Acosta Only';
-          out.push([s.id, cov]);
-        }
-        postMessage({ coverage: out });
-      };
-    `;
-    const blob = new Blob([code], { type: 'text/javascript' });
-    const url = URL.createObjectURL(blob);
-    return new Worker(url);
-  }
+      }
+
+      out.push([
+        s.id,
+        covered ? 'Covered' : 'Uncovered'
+      ]);
+    }
+
+    postMessage({ coverage: out });
+  };
+`;
   function callWorker(payload){
     return new Promise(res=>{
       const handler = (ev)=>{ coverageWorker.removeEventListener('message', handler); res(ev.data); };
