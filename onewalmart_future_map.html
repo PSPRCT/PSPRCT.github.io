@@ -4981,10 +4981,16 @@ function storeLookupKeys(v){
       o['Store Name'] ??
       'Walmart';
 
-    s.address =
-      o.address ??
-      o.Address ??
-      '';
+s.address =
+  o.address ??
+  o.Address ??
+  o.StoreAddress ??
+  o.SAddress ??
+  o['Store Address'] ??
+  o['Address 1'] ??
+  o.Address1 ??
+  o.StreetAddress ??
+  '';
 
     s.city =
       o.city ??
@@ -5103,8 +5109,7 @@ function storeLookupKeys(v){
       <div style="font-weight:800;margin-bottom:4px">Store ${escape(s.storeNumberStr)} — ${escape(s.storeName||'')}</div>
       <div>${addrLine}</div>
       <div style="margin:6px 0">${badge}</div>
-      ${assignedRts ? `<div><b>Assigned / Source RTS:</b> ${escape(assignedRts)}</div>` : ''}
-      ${managerPathHtml(s)}
+        ${managerPathHtml(s)}
       ${np ? `<div style="margin-top:6px"><b>Nearest Active RTS:</b> ${escape(hubDisplay(np.hub))} • ${np.d.toFixed(1)} mi</div>` : ''}
       ${na ? `<div><b>Nearest Legacy RTS:</b> ${escape(na.hub.label || na.hub.fullName || na.hub.name)} • ${na.d.toFixed(1)} mi</div>` : ''}
       <div style="color:var(--muted);margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
