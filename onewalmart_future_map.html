@@ -241,11 +241,11 @@
     <button id="searchClear" class="btn" type="button" title="Clear search">Clear</button>
   </div>
 
-  <label class="toggle" title="Show Premium confirmed hubs"><input id="showConfirmed" type="checkbox" checked />Premium (confirmed)</label>
+  <label class="toggle" title="Show Premium confirmed hubs"><input id="showConfirmed" type="checkbox" checked />One Walmart RTS</label>
 <label class="toggle" title="Show future/pending Premium hubs for planning reference only. These are faded and do not count toward coverage, rollups, filters, or gap finder.">
-  <input id="showPending" type="checkbox" checked />Future hubs reference
+  <input id="showPending" type="checkbox" checked />Future RTS reference
 </label>
-  <label class="toggle" title="Show Acosta trainers"><input id="showAcosta" type="checkbox"  />Acosta</label>
+  <label class="toggle" title="Legacy Acosta toggle kept for compatibility; not used in One Walmart mode" style="display:none"><input id="showAcosta" type="checkbox" />Legacy Acosta</label>
 
   <div class="range" title="Hub radius used for coverage, lists, rings, overlap">
     <span>Radius</span>
@@ -305,9 +305,7 @@
     <input id="covSearch" type="text" placeholder="Search coverage…" />
    <select id="covFilter" multiple>
   <option value="All" selected>All</option>
-  <option value="Premium + Acosta">Combined: Premium + Acosta</option>
-  <option value="Premium Only">Premium Only</option>
-  <option value="Acosta Only">Acosta Only</option>
+  <option value="Premium Only">One Walmart Covered</option>
   <option value="Uncovered">Current Gap / Uncovered</option>
 </select>
   </div>
@@ -328,12 +326,12 @@
 <div id="dataStatus" style="padding:6px 10px;color:var(--fg);font-size:12px"></div>
 
 <div class="summary" id="summary">
-<span class="chip"><span class="dot" style="background:var(--pa)"></span>Combined Coverage: <b id="k_pa">0</b></span>
-<span class="chip"><span class="dot" style="background:var(--p)"></span>Premium Coverage: <b id="k_p">0</b></span>
-<span class="chip"><span class="dot" style="background:var(--a)"></span>Acosta Coverage: <b id="k_a">0</b></span>
+<span class="chip"><span class="dot" style="background:var(--pa)"></span>One Walmart Coverage: <b id="k_pa">0</b></span>
+<span class="chip"><span class="dot" style="background:var(--p)"></span>Active RTS Coverage: <b id="k_p">0</b></span>
+<span class="chip"><span class="dot" style="background:var(--a)"></span>Legacy Legacy: <b id="k_a">0</b></span>
 <span class="chip"><span class="dot" style="background:var(--u)"></span>Current Gap / Uncovered: <b id="k_u">0</b></span>
 <span class="chip">Total: <b id="k_total">0</b></span>
-<span class="chip">RTS Hubs — <b id="k_confirmed">0</b> active / <b id="k_pending">0</b> future display-only</span>
+<span class="chip">RTS Hubs — <b id="k_confirmed">0</b> active / <b id="k_pending">0</b> future/reference</span>
   <span class="muted" id="inView">In view: 0</span>
 </div>
 <div class="summary" id="datasetBadge"></div>
@@ -730,8 +728,14 @@ const RTS_URL = './onewalmart_rts_combined.json?v=' + Date.now();
   const AUTO_RESET = ()=> id('autoReset')?.checked;
   const REV_KEY = 'prt_dataset_revs_v1'; // for dataset badge versioning
 
-  // Hub sets
+  // One Walmart RTS hub model
 let combinedRTS = [];
+
+// Compatibility aliases for existing map tools that still reference the old Premium/Acosta arrays.
+// For the post-5/31 map, all active RTS hubs live in premiumConfirmed; Acosta is intentionally empty.
+let premiumConfirmed = [];
+let premiumPending   = [];
+let acostaHubs       = [];
 
   
 
@@ -795,9 +799,9 @@ function removeHub(h){
 // Export all hub sets as a single JSON file
 function exportHubsJson(){
   const data = {
-    premiumConfirmed,
-    premiumPending,
-    acostaHubs
+    combinedRTS,
+    activeRTS: premiumConfirmed,
+    futureRTS: premiumPending
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
@@ -1020,9 +1024,9 @@ spRowsEl.addEventListener('click', (e)=>{
     const html = `
       <div style="font-size:12px">
         <div><b>${total}</b> stores</div>
-        <div><span class="dot" style="background:${COLORS["Premium + Acosta"]}"></span> P+A: <b>${cts["Premium + Acosta"]||0}</b> (${pct("Premium + Acosta")}%)</div>
-        <div><span class="dot" style="background:${COLORS["Premium Only"]}"></span> Premium: <b>${cts["Premium Only"]||0}</b> (${pct("Premium Only")}%)</div>
-        <div><span class="dot" style="background:${COLORS["Acosta Only"]}"></span> Acosta: <b>${cts["Acosta Only"]||0}</b> (${pct("Acosta Only")}%)</div>
+        <div><span class="dot" style="background:${COLORS["Premium + Acosta"]}"></span> Combined: <b>${cts["Premium + Acosta"]||0}</b> (${pct("Premium + Acosta")}%)</div>
+        <div><span class="dot" style="background:${COLORS["Premium Only"]}"></span> Active RTS: <b>${cts["Premium Only"]||0}</b> (${pct("Premium Only")}%)</div>
+        <div><span class="dot" style="background:${COLORS["Acosta Only"]}"></span> Legacy: <b>${cts["Acosta Only"]||0}</b> (${pct("Acosta Only")}%)</div>
         <div><span class="dot" style="background:${COLORS["Uncovered"]}"></span> Uncovered: <b>${cts["Uncovered"]||0}</b> (${pct("Uncovered")}%)</div>
       </div>`;
     e.layer.bindTooltip(html, {direction:'top', offset:[0,-12], opacity:0.95, sticky:true}).openTooltip();
@@ -1072,95 +1076,57 @@ spRowsEl.addEventListener('click', (e)=>{
 
     populateRM(allStores); populateAM(allStores);
 
-// ONE WALMART RTS HUBS
-try {
+    // ONE WALMART RTS HUBS
+    try {
+      const rResp = await fetch(RTS_URL, { cache:'no-store' });
+      if (!rResp.ok) throw new Error(`HTTP ${rResp.status} for ${RTS_URL}`);
 
-  const RTS_URL = './combined_rts.json?v=' + Date.now();
+      const rText = await rResp.text();
+      const rJson = JSON.parse(rText.replace(/^\uFEFF/,''));
+      const rows = Array.isArray(rJson) ? rJson : [];
 
-  const rResp = await fetch(RTS_URL, { cache:'no-store' });
+      combinedRTS = rows
+        .map(r => {
+          const lat = Number(r.Latitude ?? r.latitude ?? r.lat ?? r.Lat ?? r.RTSLat ?? r.rtsLat);
+          const lng = Number(r.Longitude ?? r.longitude ?? r.lng ?? r.Lon ?? r.RTSLon ?? r.rtsLon ?? r.RTSLng ?? r.rtsLng);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
-  if (!rResp.ok) {
-    throw new Error(`HTTP ${rResp.status} for ${RTS_URL}`);
-  }
+          const city = String(r.City ?? r.city ?? r.RTSCity ?? r.HubCity ?? '').trim();
+          const state = String(r.State ?? r.state ?? r.RTSState ?? r.HubState ?? '').trim();
+          const name = String(r.Name ?? r.name ?? r.RTSName ?? r.rtsName ?? r.RepName ?? r.TrainerName ?? 'RTS').trim();
+          const rawStatus = String(r.Status ?? r.status ?? r.RTSStatus ?? r.rtsStatus ?? 'active').trim();
+          const statusNorm = rawStatus.toLowerCase();
+          const isFuture = /(future|pending|proposed|planned|open|recruit|offer|tbd)/i.test(statusNorm);
 
-  const rJson = await rResp.json();
+          return {
+            id: 'rts_' + slug(`${name}-${city}-${state}-${lat.toFixed(3)}-${lng.toFixed(3)}`),
+            name,
+            fullName: `${name}${city || state ? ` — ${city}${city && state ? ', ' : ''}${state}` : ''}`,
+            city,
+            state,
+            coords: [lat, lng],
+            status: isFuture ? 'pending' : 'confirmed',
+            statusLabel: isFuture ? 'Future / Pending' : 'Active'
+          };
+        })
+        .filter(Boolean);
 
-  const rows = Array.isArray(rJson)
-    ? rJson
-    : [];
+      // Keep existing tools working: active One Walmart RTS are treated as the active hub set.
+      premiumConfirmed = combinedRTS.filter(h => h.status === 'confirmed');
+      premiumPending   = combinedRTS.filter(h => h.status === 'pending');
+      acostaHubs       = [];
 
-  combinedRTS = rows
-    .map(r => {
+      STATUS.textContent += `  |  One Walmart RTS hubs: ${combinedRTS.length}`;
+      console.log(`[One Walmart RTS] rows: ${rows.length}, mapped: ${combinedRTS.length}, active: ${premiumConfirmed.length}, future: ${premiumPending.length}`);
 
-      const lat = Number(
-        r.Latitude ??
-        r.latitude ??
-        r.lat ??
-        r.Lat
-      );
-
-      const lng = Number(
-        r.Longitude ??
-        r.longitude ??
-        r.lng ??
-        r.Lon
-      );
-
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-        return null;
-      }
-
-      const city = String(
-        r.City ??
-        r.city ??
-        ''
-      ).trim();
-
-      const state = String(
-        r.State ??
-        r.state ??
-        ''
-      ).trim();
-
-      const name = String(
-        r.Name ??
-        r.name ??
-        r.RepName ??
-        r.TrainerName ??
-        'RTS'
-      ).trim();
-
-      const status = String(
-        r.Status ??
-        r.status ??
-        'active'
-      ).toLowerCase();
-
-      return {
-        id: 'rts_' + slug(`${name}-${city}-${state}`),
-        name,
-        fullName: `${name} — ${city}, ${state}`,
-        city,
-        state,
-        coords: [lat, lng],
-        status
-      };
-
-    })
-    .filter(Boolean);
-
-  STATUS.textContent += `  |  RTS hubs: ${combinedRTS.length}`;
-
-  console.log('Combined RTS loaded:', combinedRTS.length);
-
-} catch (e) {
-
-  STATUS.innerHTML += `  |  <span style="color:#b42318">RTS load failed</span>`;
-
-  console.error('Combined RTS load error:', e);
-
-  combinedRTS = [];
-}
+    } catch (e) {
+      console.warn('One Walmart RTS file missing/invalid', e);
+      STATUS.innerHTML += `  |  <span style="color:#b42318">One Walmart RTS load failed</span>`;
+      combinedRTS = [];
+      premiumConfirmed = [];
+      premiumPending = [];
+      acostaHubs = [];
+    }
 
 
     // Build initial UI state
@@ -1177,8 +1143,8 @@ try {
 
     // Dataset badge (simple fingerprints)
     const storesFp  = `stores:${allStores.length}`;
-const premiumFp = `rts:${combinedRTS.length}`;
-const acostaFp  = `future:0`;
+    const premiumFp = `onewalmart-rts:${combinedRTS.length}`;
+    const acostaFp  = `future:${premiumPending.length}`;
     updateDatasetBadge(storesFp, premiumFp, acostaFp);
 
   } catch(err){
@@ -1465,39 +1431,29 @@ withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords
     id('emptyState').hidden = filteredStores.length !== 0;
   }
 
- function updateCounts(){
+  function updateCounts(){
+    const total = filteredStores.length;
+    const by = { 'Premium + Acosta':0, 'Premium Only':0, 'Acosta Only':0, 'Uncovered':0 };
+    filteredStores.forEach(s => { by[s.coverageType] = (by[s.coverageType] || 0) + 1; });
+    const pct = (n) => total ? Math.round(n * 100 / total) + '%' : '0%';
+const paCount = by['Premium + Acosta'] || 0;
+const premiumOnlyCount = by['Premium Only'] || 0;
+const acostaOnlyCount = by['Acosta Only'] || 0;
+const uncoveredCount = by['Uncovered'] || 0;
 
-  const total = filteredStores.length;
+const premiumCoverageCount = paCount + premiumOnlyCount;
+const acostaCoverageCount = paCount + acostaOnlyCount;
+const combinedCoverageCount = paCount + premiumOnlyCount + acostaOnlyCount;
 
-  const by = {
-    'Covered':0,
-    'Uncovered':0
-  };
+k.pa.textContent = `${combinedCoverageCount} (${pct(combinedCoverageCount)})`;
+k.p.textContent  = `${premiumCoverageCount} (${pct(premiumCoverageCount)})`;
+k.a.textContent  = `${acostaCoverageCount} (${pct(acostaCoverageCount)})`;
+k.u.textContent  = `${uncoveredCount} (${pct(uncoveredCount)})`;
 
-  filteredStores.forEach(s => {
-    by[s.coverageType] = (by[s.coverageType] || 0) + 1;
-  });
-
-  const pct = (n) =>
-    total
-      ? Math.round(n * 100 / total) + '%'
-      : '0%';
-
-  k.pa.textContent =
-    `${by['Covered'] || 0} (${pct(by['Covered'] || 0)})`;
-
-  k.p.textContent = '—';
-  k.a.textContent = '—';
-
-  k.u.textContent =
-    `${by['Uncovered'] || 0} (${pct(by['Uncovered'] || 0)})`;
-
-  k.total.textContent = total;
-
-  k.confirmed.textContent = combinedRTS.length;
-
-  k.pending.textContent = '0';
-}
+k.total.textContent     = total;
+k.confirmed.textContent = premiumConfirmed.length;
+k.pending.textContent   = premiumPending.length;
+  }
 
   function updateInViewCount(){
     const b=map.getBounds();
@@ -1517,9 +1473,13 @@ withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords
   }
 
   // ---------- Hubs ----------
-function visibleHubs(){
-  return combinedRTS;
-}
+  function visibleHubs(){
+    const out = [];
+    if (showConfirmed.checked) out.push(...premiumConfirmed);
+    if (showPending.checked)   out.push(...premiumPending);
+    if (showAcosta.checked)    out.push(...acostaHubs);
+    return out;
+  }
 function hubDisplay(h){
   if (h.fullName && /[A-Za-z]/.test(h.fullName)) return h.fullName;
   const city = (h.city || h.City || '').trim();
@@ -1626,32 +1586,25 @@ function hubDisplay(h){
   }
 
   // ---------- Coverage (Web Worker) ----------
- async function recomputeCoverage(){
-
+  async function recomputeCoverage(){
   const msg = {
-    action:'classify',
-    radius: CLASSIFY_RADIUS,
+  action:'classify',
+  radius: CLASSIFY_RADIUS,
+  stores: allStores.map(s => ({ id:s.storeNumberStr, lat:s.lat, lng:s.lng })),
 
-    stores: allStores.map(s => ({
-      id:s.storeNumberStr,
-      lat:s.lat,
-      lng:s.lng
-    })),
+  // IMPORTANT:
+  // Only confirmed/active Premium RTS hubs should count toward real coverage.
+  // Pending/future hiring hubs remain visible on the map if toggled on,
+  // but they do NOT classify stores as covered.
+  premium: premiumConfirmed.map(h=>({ lat:h.coords[0], lng:h.coords[1] })),
 
-    rts: combinedRTS.map(h => ({
-      lat:h.coords[0],
-      lng:h.coords[1]
-    }))
-  };
-
-  const res = await callWorker(msg);
-
-  const mapC = new Map(res.coverage);
-
-  allStores.forEach(s => {
-    s.coverageType = mapC.get(s.storeNumberStr) || 'Uncovered';
-  });
-}
+  acosta: acostaHubs.map(h=>({ lat:h.coords[0], lng:h.coords[1] }))
+};
+    const res = await callWorker(msg);
+    // apply coverage
+    const mapC = new Map(res.coverage); // [[id,'Premium Only'], ...]
+    allStores.forEach(s => { s.coverageType = mapC.get(s.storeNumberStr) || 'Uncovered'; });
+  }
 
   // ---------- Sidepanel ----------
 
@@ -1756,9 +1709,9 @@ const statusChip = isFutureHub
       ${whatIfR}
     </div>
     <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> Combined: <b>${totals['Premium + Acosta']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Active RTS: <b>${totals['Premium Only']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Legacy: <b>${totals['Acosta Only']||0}</b></span>
       <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
       <span class="sp-chip">Total: <b>${stores.length}</b></span>
     </div>
@@ -2106,8 +2059,8 @@ function printSidepanelList() {
     const aRev = bumpRevision('acosta',  acostaFp);
     badge.innerHTML =
       `<span class="chip">Stores v${today}</span>`+
-      ` <span class="chip">Premium v${pRev}</span>`+
-      ` <span class="chip">Acosta v${aRev}</span>`;
+      ` <span class="chip">One Walmart RTS v${pRev}</span>`+
+      ` <span class="chip">Future RTS v${aRev}</span>`;
   }
 // ---------- Current Gap Finder ----------
 const gapModal = id('gapModal');
@@ -2218,8 +2171,8 @@ return `
         <div><b>Covered Combined:</b> ${combinedCovered} (${pct(combinedCovered)}%)</div>
         <div><b>Current Gap:</b> ${uncovered} (${pct(uncovered)}%)</div>
 
-        <div><b>Premium Coverage:</b> ${premiumCovered} (${pct(premiumCovered)}%)</div>
-        <div><b>Acosta Coverage:</b> ${acostaCovered} (${pct(acostaCovered)}%)</div>
+        <div><b>Active RTS Coverage:</b> ${premiumCovered} (${pct(premiumCovered)}%)</div>
+        <div><b>Legacy Legacy:</b> ${acostaCovered} (${pct(acostaCovered)}%)</div>
         <div><b>Shared P+A Coverage:</b> ${paCount} (${pct(paCount)}%)</div>
       </div>
     </div>
@@ -5029,8 +4982,8 @@ const na = nearestOf(acostaHubs);
         <div style="margin:6px 0">${badge}</div>
         <div><b>Trainer City:</b> ${escape(s.trainerCity||'')}</div>
         ${managerPathHtml(s)}
-        ${np ? `<div style="margin-top:6px"><b>Nearest Premium:</b> ${escape(hubDisplay(np.hub))} • ${np.d.toFixed(1)} mi</div>` : ''}
-        ${na ? `<div><b>Nearest Acosta:</b> ${escape(na.hub.label || na.hub.fullName || na.hub.name)} • ${na.d.toFixed(1)} mi</div>` : ''}
+        ${np ? `<div style="margin-top:6px"><b>Nearest Active RTS:</b> ${escape(hubDisplay(np.hub))} • ${np.d.toFixed(1)} mi</div>` : ''}
+        ${na ? `<div><b>Nearest Legacy:</b> ${escape(na.hub.label || na.hub.fullName || na.hub.name)} • ${na.d.toFixed(1)} mi</div>` : ''}
         <div style="color:var(--muted);margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
         <div style="margin-top:6px">
           <b>Maps:</b>
@@ -5096,7 +5049,7 @@ const na = nearestOf(acostaHubs);
       radius: Number(radius.value)||DEFAULT_RADIUS,
       showConfirmed: showConfirmed.checked,
       showPending:   showPending.checked,
-      showAcosta:    showAcosta.checked
+      showLegacy:    showAcosta.checked
     };
     localStorage.setItem(LS_STATE, JSON.stringify(state));
       // NEW: write linkable state to URL
@@ -5576,9 +5529,9 @@ const projectedCoveragePct = allStores.length
 <div><b>Projected national coverage:</b> ${projectedCoveredTotal} / ${allStores.length} stores (${projectedCoveragePct}%)</div>
 <div style="color:var(--muted);margin-top:4px">${uncoveredList.length} currently uncovered stores within <b>${rMiles} mi</b> of this simulated RTS location.</div>
     <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> P+A: <b>${totals['Premium + Acosta']||0}</b></span>
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Premium: <b>${totals['Premium Only']||0}</b></span>
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Acosta: <b>${totals['Acosta Only']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> Combined: <b>${totals['Premium + Acosta']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Active RTS: <b>${totals['Premium Only']||0}</b></span>
+      <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Legacy: <b>${totals['Acosta Only']||0}</b></span>
       <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
     </div>`;
 
@@ -5821,55 +5774,35 @@ function openSandboxAt(lat, lng){
   // ---------- Worker plumbing ----------
   function makeCoverageWorker(){
     const code = `
-  self.onmessage = (e)=>{
-
-    const { action, radius, stores, rts } = e.data || {};
-
-    if (action !== 'classify') return;
-
-    const R = 3958.8;
-
-    const toRad = d => d * Math.PI / 180;
-
-    function dmi(a,b){
-
-      const dLat = toRad(b.lat-a.lat);
-      const dLon = toRad(b.lng-a.lng);
-
-      const s =
-        Math.sin(dLat/2)**2 +
-        Math.cos(toRad(a.lat)) *
-        Math.cos(toRad(b.lat)) *
-        Math.sin(dLon/2)**2;
-
-      return 2 * R * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
-    }
-
-    const out = [];
-
-    for (let i=0;i<stores.length;i++){
-
-      const s = stores[i];
-
-      let covered = false;
-
-      for (let j=0;j<rts.length;j++){
-
-        if (dmi(s, rts[j]) <= radius){
-          covered = true;
-          break;
+      self.onmessage = (e)=>{
+        const { action, radius, stores, premium, acosta } = e.data || {};
+        if (action !== 'classify') return;
+        const R = 3958.8;
+        const toRad = d=>d*Math.PI/180;
+        function dmi(a,b){
+          const dLat = toRad(b.lat-a.lat), dLon = toRad(b.lng-a.lng);
+          const s = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLon/2)**2;
+          return 2*R*Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
         }
-      }
-
-      out.push([
-        s.id,
-        covered ? 'Covered' : 'Uncovered'
-      ]);
-    }
-
-    postMessage({ coverage: out });
-  };
-`;
+        const out = [];
+        for (let i=0;i<stores.length;i++){
+          const s = stores[i];
+          let nearPrem=false, nearAco=false;
+          for (let j=0;j<premium.length;j++){ if (dmi(s, premium[j]) <= radius){ nearPrem=true; break; } }
+          for (let k=0;k<acosta.length;k++){ if (dmi(s, acosta[k])  <= radius){ nearAco=true; break; } }
+          let cov = 'Uncovered';
+          if (nearPrem && nearAco) cov = 'Premium + Acosta';
+          else if (nearPrem) cov = 'Premium Only';
+          else if (nearAco) cov = 'Acosta Only';
+          out.push([s.id, cov]);
+        }
+        postMessage({ coverage: out });
+      };
+    `;
+    const blob = new Blob([code], { type: 'text/javascript' });
+    const url = URL.createObjectURL(blob);
+    return new Worker(url);
+  }
   function callWorker(payload){
     return new Promise(res=>{
       const handler = (ev)=>{ coverageWorker.removeEventListener('message', handler); res(ev.data); };
