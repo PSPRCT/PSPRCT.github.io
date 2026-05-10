@@ -4684,8 +4684,19 @@ function asManagerArray(value){
   function buildManagerRollupMap(rows){
     const map = new Map();
     (Array.isArray(rows) ? rows : []).forEach(r => {
-      const key = String(r.StoreKey ?? r.storeKey ?? r.SStoreNo ?? r.storeNumber ?? '').trim();
-      if (!key) return;
+      const rawKey =
+  r.StoreKey ??
+  r.storeKey ??
+  r.StoreNumber ??
+  r.storeNumber ??
+  r.StoreNbr ??
+  r.SStoreNo ??
+  r['Store #'] ??
+  r['Store Number'] ??
+  '';
+
+const keys = storeLookupKeys(rawKey);
+if (!keys.length) return;
 
       let paths = [];
 
@@ -4723,30 +4734,31 @@ function asManagerArray(value){
         return true;
       });
 
-      map.set(key, {
-        managerPaths: paths,
-        areaManagers: uniqueStrings(paths.map(p => p.areaManager)),
-        regionalManagers: uniqueStrings(paths.map(p => p.regionalManager)),
-        teams: uniqueStrings(paths.map(p => p.teamName))
-      });
+   map.set(key, {
     });
     return map;
   }
 
-  function applyManagerRollupToStores(stores){
-    stores.forEach(s => {
-      const key = String(s.storeNumberStr ?? s.storeNumber ?? '').trim();
-      const roll = managerRollupByStore.get(key);
-      if (!roll) return;
+function applyManagerRollupToStores(stores){
+  stores.forEach(s => {
+    const keys = storeLookupKeys(s.storeNumberStr ?? s.storeNumber ?? s.StoreNumber ?? '');
+    let roll = null;
 
-      // Replace the store's managerPaths with the fresh, paired rollup source.
-      // This prevents blank RM rows from shifting unrelated AMs under the wrong RM.
-      if (roll.managerPaths.length) s.managerPaths = roll.managerPaths;
-      if (roll.areaManagers.length) s.areaManager = roll.areaManagers;
-      if (roll.regionalManagers.length) s.regionalManager = roll.regionalManagers;
-      if (roll.teams.length) s.managementGroupName = roll.teams;
-    });
-  }
+    for (const k of keys){
+      if (managerRollupByStore.has(k)){
+        roll = managerRollupByStore.get(k);
+        break;
+      }
+    }
+
+    if (!roll) return;
+
+    if (roll.managerPaths.length) s.managerPaths = roll.managerPaths;
+    if (roll.areaManagers.length) s.areaManager = roll.areaManagers;
+    if (roll.regionalManagers.length) s.regionalManager = roll.regionalManagers;
+    if (roll.teams.length) s.managementGroupName = roll.teams;
+  });
+}
 
   function managerTeamsLabel(s){
     const direct = asManagerArray(s.managementGroupName ?? s.managementGroups ?? s.Teams ?? '');
@@ -4911,50 +4923,144 @@ function asManagerArray(value){
 
     return Array.from(set).sort((a,b) => String(a).localeCompare(String(b)));
   }
+function normalizeStoreNumberValue(v){
+  const raw = String(v ?? '').trim();
+  const digits = raw.replace(/\D/g,'');
+  return digits ? digits.replace(/^0+/, '') || '0' : raw;
+}
 
-  function normalizeStores(arr){
-    return arr.map(o=>{
-      const s = { ...o };
-      s.storeNumberStr = String(o.storeNumberStr ?? o.Store ?? o.storeNumber ?? o['Store #'] ?? '').trim();
-      s.storeName  = o.storeName ?? o.Name ?? o['Store Name'] ?? 'Walmart';
-      s.address    = o.address ?? o.Address ?? '';
-      s.city       = o.city ?? o.City ?? '';
-      s.state      = o.state ?? o.State ?? '';
-      s.coverageType = o.coverageType ?? o.Coverage_Type ?? o.Covered_By ?? 'Uncovered';
+function storeLookupKeys(v){
+  const raw = String(v ?? '').trim();
+  const digits = raw.replace(/\D/g,'');
+  const noZero = digits.replace(/^0+/, '');
+  const last4 = digits.slice(-4);
 
-      s.managerPaths = normalizeManagerPaths(o.managerPaths ?? o.ManagerPaths ?? o.manager_paths ?? []);
+  return Array.from(new Set([
+    raw,
+    digits,
+    noZero,
+    last4,
+    last4 ? last4.padStart(4,'0') : ''
+  ].filter(Boolean)));
+}
+ function normalizeStores(arr){
+  return arr.map(o=>{
+    const s = { ...o };
 
-      const pathAMs = uniqueStrings(s.managerPaths.map(p => p.areaManager));
-      const pathRMs = uniqueStrings(s.managerPaths.map(p => p.regionalManager));
+    const rawStoreNumber =
+      o.storeNumberStr ??
+      o.StoreNumber ??
+      o.storeNumber ??
+      o.Store ??
+      o.StoreNbr ??
+      o.SStoreNo ??
+      o['Store #'] ??
+      o['Store Number'] ??
+      '';
 
-      s.areaManager = pathAMs.length
-        ? pathAMs
-        : asManagerArray(o.areaManager ?? o.AreaMgr ?? o['Area Mgr'] ?? o['Area Manager'] ?? '');
+    s.storeNumberStr = normalizeStoreNumberValue(rawStoreNumber);
 
-      s.regionalManager = pathRMs.length
-        ? pathRMs
-        : asManagerArray(o.regionalManager ?? o.RegMgr ?? o['Regional Manager'] ?? '');
+    s.storeName =
+      o.storeName ??
+      o.StoreName ??
+      o.Name ??
+      o['Store Name'] ??
+      'Walmart';
 
-      s.premiumManagers = asManagerArray(o.premiumManagers ?? '');
-      s.acostaCoreManagers = asManagerArray(o.acostaCoreManagers ?? '');
-      s.pgManagers = asManagerArray(o.pgManagers ?? '');
-      s.unileverManagers = asManagerArray(o.unileverManagers ?? '');
-      s.tysonManagers = asManagerArray(o.tysonManagers ?? '');
-      s.acostaRtsSupportedManagers = asManagerArray(o.acostaRtsSupportedManagers ?? '');
+    s.address =
+      o.address ??
+      o.Address ??
+      '';
 
-      s.premiumRegionalManagers = asManagerArray(o.premiumRegionalManagers ?? '');
-      s.acostaCoreRegionalManagers = asManagerArray(o.acostaCoreRegionalManagers ?? '');
-      s.pgRegionalManagers = asManagerArray(o.pgRegionalManagers ?? '');
-      s.unileverRegionalManagers = asManagerArray(o.unileverRegionalManagers ?? '');
-      s.tysonRegionalManagers = asManagerArray(o.tysonRegionalManagers ?? '');
-      s.acostaRtsSupportedRegionalManagers = asManagerArray(o.acostaRtsSupportedRegionalManagers ?? '');
+    s.city =
+      o.city ??
+      o.City ??
+      o.SCity ??
+      '';
 
-      s.trainerCity  = o.trainerCity ?? o.Assigned_Premium ?? o['Trainer City'] ?? '';
-      s.lat = Number(o.lat ?? o.Lat ?? o.latitude ?? o.Latitude);
-      s.lng = Number(o.lng ?? o.Lon ?? o.Lng ?? o.longitude ?? o.Longitude);
-      return s;
-    }).filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
-  }
+    s.state =
+      o.state ??
+      o.State ??
+      o.SState ??
+      '';
+
+    s.coverageType =
+      o.coverageType ??
+      o.Coverage_Type ??
+      o.Covered_By ??
+      o.CoverageStatus ??
+      'Uncovered';
+
+    s.managerPaths = normalizeManagerPaths(
+      o.managerPaths ??
+      o.ManagerPaths ??
+      o.manager_paths ??
+      []
+    );
+
+    const pathAMs = uniqueStrings(s.managerPaths.map(p => p.areaManager));
+    const pathRMs = uniqueStrings(s.managerPaths.map(p => p.regionalManager));
+
+    s.areaManager = pathAMs.length
+      ? pathAMs
+      : asManagerArray(
+          o.areaManager ??
+          o.AreaMgr ??
+          o.DistrictManager ??
+          o.SourceDistrictManager ??
+          o['Area Mgr'] ??
+          o['Area Manager'] ??
+          ''
+        );
+
+    s.regionalManager = pathRMs.length
+      ? pathRMs
+      : asManagerArray(
+          o.regionalManager ??
+          o.RegMgr ??
+          o.RegionalManager ??
+          o.SourceRegionalManager ??
+          o['Regional Manager'] ??
+          ''
+        );
+
+    s.managementGroupName =
+      o.managementGroupName ??
+      o.ManagementGroup ??
+      o.TeamType ??
+      o.Teams ??
+      '';
+
+    s.trainerCity =
+      o.trainerCity ??
+      o.RTSName ??
+      o.Assigned_Premium ??
+      o['Trainer City'] ??
+      '';
+
+    s.nearestRTS =
+      o.RTSName ??
+      o.NearestRTS ??
+      '';
+
+    s.nearestRTSEmail =
+      o.RTSEmail ??
+      o.NearestEmail ??
+      '';
+
+    s.nearestMiles =
+      Number(o.Miles ?? o.BestMiles ?? o.nearestMiles ?? '');
+
+    s.lat = Number(o.lat ?? o.Lat ?? o.latitude ?? o.Latitude);
+    s.lng = Number(o.lng ?? o.Lon ?? o.Lng ?? o.longitude ?? o.Longitude);
+
+    return s;
+  }).filter(s =>
+    s.storeNumberStr &&
+    Number.isFinite(s.lat) &&
+    Number.isFinite(s.lng)
+  );
+}
 
   // Coverage-aware popup
   function storePopupHTML(s){
