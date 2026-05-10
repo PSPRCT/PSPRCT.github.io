@@ -1211,7 +1211,7 @@ spRowsEl.addEventListener('click', (e)=>{
     searchResults._data = list; resIndex=-1;
   }
 
-  function isDedicatedTeamPath(p){
+function isDedicatedTeamPath(p){
   const t = String(p.teamName || '').toLowerCase();
 
   return (
@@ -1219,7 +1219,7 @@ spRowsEl.addEventListener('click', (e)=>{
     t.includes('tyson') ||
     t.includes('p&g') ||
     t.includes('p and g') ||
-    t.includes('drt')
+    t.includes('wm - drt')
   );
 }
 
@@ -4754,17 +4754,9 @@ function asManagerArray(value){
 
   (Array.isArray(rows) ? rows : []).forEach(r => {
     const rawKey =
-      r.StoreNumber ??
-      r.storeNumber ??
-      r.StoreNbr ??
-      r.StoreNo ??
-      r.Store ??
-      r.SStoreNo ??
-      r.StoreKey ??
-      r.storeKey ??
-      r['Store #'] ??
-      r['Store Number'] ??
-      '';
+      r.StoreNumber ?? r.storeNumber ?? r.StoreNbr ?? r.StoreNo ??
+      r.Store ?? r.SStoreNo ?? r.StoreKey ?? r.storeKey ??
+      r['Store #'] ?? r['Store Number'] ?? '';
 
     const keys = storeLookupKeys(rawKey);
     if (!keys.length) return;
@@ -4775,21 +4767,36 @@ function asManagerArray(value){
     if (Array.isArray(explicitPaths) && explicitPaths.length) {
       paths = normalizeManagerPaths(explicitPaths);
     } else {
-      const areaManagers = splitRollupText(r.AreaManagers ?? r.areaManagers ?? r['Area Managers']);
-      const regionalManagers = String(r.RegionalManagers ?? r.regionalManagers ?? r['Regional Managers'] ?? '')
-        .split('|')
-        .map(v => String(v || '').trim())
-        .map(v => (v === '—' || v.toLowerCase() === 'null' || v.toLowerCase() === 'undefined') ? '' : v);
+      const teamName =
+        r.ManagementGroup ??
+        r.TeamType ??
+        r.ManagementGroups ??
+        r['Management Group'] ??
+        r.Teams ??
+        '';
 
-      const teams = splitRollupText(r.Teams ?? r.teams ?? r.ManagementGroups ?? r['Management Groups']);
+      const regionalManager =
+        r.RegionalManager ??
+        r.SourceRegionalManager ??
+        r.regionalManager ??
+        r['Regional Manager'] ??
+        '';
 
-      const maxLen = Math.max(areaManagers.length, regionalManagers.length, teams.length);
-      for (let i = 0; i < maxLen; i++) {
-        const teamName = teams[i] || '';
-        const regionalManager = regionalManagers[i] || '';
-        const areaManager = areaManagers[i] || '';
-        if (!teamName && !regionalManager && !areaManager) continue;
-        paths.push({ teamId:'', teamName, regionalManager, areaManager });
+      const areaManager =
+        r.DistrictManager ??
+        r.SourceDistrictManager ??
+        r.AreaManager ??
+        r.areaManager ??
+        r['Area Manager'] ??
+        '';
+
+      if (teamName || regionalManager || areaManager) {
+        paths.push({
+          teamId: String(r.ManagementGroupID ?? r.teamId ?? ''),
+          teamName: String(teamName || '').trim(),
+          regionalManager: String(regionalManager || '').trim(),
+          areaManager: String(areaManager || '').trim()
+        });
       }
     }
 
