@@ -1073,7 +1073,7 @@ spRowsEl.addEventListener('click', (e)=>{
   if (!dResp.ok) throw new Error(`HTTP ${dResp.status} for ${DEDICATED_MANAGER_URL}`);
   const dText = await dResp.text();
   const dJson = JSON.parse(dText.replace(/^\uFEFF/,''));
-  applyDedicatedTeamPathsToStores(dJson, allStores);
+// applyDedicatedTeamPathsToStores(dJson, allStores);
   STATUS.textContent += `  |  dedicated team paths applied`;
 } catch(dedErr) {
   console.warn('Dedicated team overlay not loaded:', dedErr);
