@@ -706,7 +706,7 @@
   const DATA_URL = './onewalmart_store_data.json?v=' + Date.now();
 const MANAGER_ROLLUP_URL = './onewalmart_manager_paths.json?v=' + Date.now();
 const RTS_URL = './onewalmart_rts_combined.json?v=' + Date.now();
-  const DEDICATED_MANAGER_URL = './manager_paths.json?v=' + Date.now();
+  const DEDICATED_MANAGER_URL = './dedicated_manager_paths.json?v=' + Date.now();
 
 
   const FALLBACK_STORES = [
@@ -1073,7 +1073,7 @@ spRowsEl.addEventListener('click', (e)=>{
   if (!dResp.ok) throw new Error(`HTTP ${dResp.status} for ${DEDICATED_MANAGER_URL}`);
   const dText = await dResp.text();
   const dJson = JSON.parse(dText.replace(/^\uFEFF/,''));
-// applyDedicatedTeamPathsToStores(dJson, allStores);
+applyDedicatedTeamPathsToStores(dJson, allStores);
   STATUS.textContent += `  |  dedicated team paths applied`;
 } catch(dedErr) {
   console.warn('Dedicated team overlay not loaded:', dedErr);
@@ -1223,34 +1223,47 @@ function isDedicatedTeamPath(p){
   );
 }
 
-function applyDedicatedTeamPathsToStores(rows, stores){
+ffunction applyDedicatedTeamPathsToStores(rows, stores){
   const dedMap = new Map();
 
   (Array.isArray(rows) ? rows : []).forEach(r => {
     const key = normalizeStoreNumberValue(
-      r.StoreKey ?? r.storeNumberStr ?? r.StoreNumber ?? r.StoreNbr ?? ''
+      r.StoreKey ?? r.storeNumberStr ?? r.StoreNumber ?? r.StoreNbr ?? r['Store Number'] ?? ''
     );
 
-    const dedicatedPaths = (r.managerPaths || [])
-      .filter(isDedicatedTeamPath)
-      .map(p => ({
-        teamName: p.teamName || 'Dedicated Team',
-        areaManager: p.areaManager || '',
-        regionalManager: p.regionalManager || ''
-      }));
+    const teamName = String(r.teamName ?? r.TeamName ?? r['Mngnt Grp Name'] ?? '').trim();
+    const areaManager = String(r.areaManager ?? r.AreaManager ?? r['Mgr 1 Name'] ?? '').trim();
+    const regionalManager = String(r.regionalManager ?? r.RegionalManager ?? r['Mgr 2 Name'] ?? '').trim();
 
-    if (key && dedicatedPaths.length) dedMap.set(key, dedicatedPaths);
+    if (!key || !isDedicatedTeamPath({ teamName })) return;
+
+    const arr = dedMap.get(key) || [];
+    arr.push({ teamName, areaManager, regionalManager });
+    dedMap.set(key, arr);
   });
 
   let added = 0;
 
   stores.forEach(s => {
-    const key = normalizeStoreNumberValue(s.storeNumberStr);
+    const key = normalizeStoreNumberValue(s.storeNumberStr ?? s.StoreNumber ?? s.storeNumber);
     const dedicated = dedMap.get(key);
     if (!dedicated?.length) return;
 
     const existing = Array.isArray(s.managerPaths) ? s.managerPaths : [];
-    s.managerPaths = [...existing, ...dedicated];
+
+    const seen = new Set(existing.map(p =>
+      [p.teamName || '', p.areaManager || '', p.regionalManager || ''].join('|')
+    ));
+
+    dedicated.forEach(p => {
+      const sig = [p.teamName || '', p.areaManager || '', p.regionalManager || ''].join('|');
+      if (!seen.has(sig)) {
+        existing.push(p);
+        seen.add(sig);
+      }
+    });
+
+    s.managerPaths = existing;
 
     s.areaManager = uniqueStrings([
       ...asManagerArray(s.areaManager),
@@ -1265,7 +1278,7 @@ function applyDedicatedTeamPathsToStores(rows, stores){
     added++;
   });
 
-  console.log('[Dedicated Teams] added paths to stores:', added);
+  console.log('[Dedicated Teams] added paths to stores:', added, 'of', stores.length);
 }
 
   function toResFromStore(s,score,kind='STORE'){ return { kind, store:s, label:`Store ${s.storeNumberStr} — ${s.storeName||''}, ${s.city}, ${s.state}`, lat:s.lat, lng:s.lng, score }; }
