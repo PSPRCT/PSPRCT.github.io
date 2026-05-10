@@ -706,6 +706,7 @@
   const DATA_URL = './onewalmart_store_data.json?v=' + Date.now();
 const MANAGER_ROLLUP_URL = './onewalmart_manager_paths.json?v=' + Date.now();
 const RTS_URL = './onewalmart_rts_combined.json?v=' + Date.now();
+  const DEDICATED_MANAGER_URL = './manager_paths.json?v=' + Date.now();
 
 
   const FALLBACK_STORES = [
@@ -1067,6 +1068,16 @@ spRowsEl.addEventListener('click', (e)=>{
       const mJson = JSON.parse(mText.replace(/^\uFEFF/,''));
       managerRollupByStore = buildManagerRollupMap(mJson);
       applyManagerRollupToStores(allStores);
+      try {
+  const dResp = await fetch(DEDICATED_MANAGER_URL, { cache:'no-store' });
+  if (!dResp.ok) throw new Error(`HTTP ${dResp.status} for ${DEDICATED_MANAGER_URL}`);
+  const dText = await dResp.text();
+  const dJson = JSON.parse(dText.replace(/^\uFEFF/,''));
+  applyDedicatedTeamPathsToStores(dJson, allStores);
+  STATUS.textContent += `  |  dedicated team paths applied`;
+} catch(dedErr) {
+  console.warn('Dedicated team overlay not loaded:', dedErr);
+}
       STATUS.textContent += `  |  manager rollup applied`;
     } catch(mgrErr) {
       console.warn('Manager rollup overlay not loaded; using manager data from store_data.json only:', mgrErr);
@@ -1199,6 +1210,63 @@ spRowsEl.addEventListener('click', (e)=>{
     });
     searchResults._data = list; resIndex=-1;
   }
+
+  function isDedicatedTeamPath(p){
+  const t = String(p.teamName || '').toLowerCase();
+
+  return (
+    t.includes('unilever') ||
+    t.includes('tyson') ||
+    t.includes('p&g') ||
+    t.includes('p and g') ||
+    t.includes('drt')
+  );
+}
+
+function applyDedicatedTeamPathsToStores(rows, stores){
+  const dedMap = new Map();
+
+  (Array.isArray(rows) ? rows : []).forEach(r => {
+    const key = normalizeStoreNumberValue(
+      r.StoreKey ?? r.storeNumberStr ?? r.StoreNumber ?? r.StoreNbr ?? ''
+    );
+
+    const dedicatedPaths = (r.managerPaths || [])
+      .filter(isDedicatedTeamPath)
+      .map(p => ({
+        teamName: p.teamName || 'Dedicated Team',
+        areaManager: p.areaManager || '',
+        regionalManager: p.regionalManager || ''
+      }));
+
+    if (key && dedicatedPaths.length) dedMap.set(key, dedicatedPaths);
+  });
+
+  let added = 0;
+
+  stores.forEach(s => {
+    const key = normalizeStoreNumberValue(s.storeNumberStr);
+    const dedicated = dedMap.get(key);
+    if (!dedicated?.length) return;
+
+    const existing = Array.isArray(s.managerPaths) ? s.managerPaths : [];
+    s.managerPaths = [...existing, ...dedicated];
+
+    s.areaManager = uniqueStrings([
+      ...asManagerArray(s.areaManager),
+      ...dedicated.map(p => p.areaManager)
+    ]);
+
+    s.regionalManager = uniqueStrings([
+      ...asManagerArray(s.regionalManager),
+      ...dedicated.map(p => p.regionalManager)
+    ]);
+
+    added++;
+  });
+
+  console.log('[Dedicated Teams] added paths to stores:', added);
+}
 
   function toResFromStore(s,score,kind='STORE'){ return { kind, store:s, label:`Store ${s.storeNumberStr} — ${s.storeName||''}, ${s.city}, ${s.state}`, lat:s.lat, lng:s.lng, score }; }
   function toCityRes(city,state,lat,lng,score){ return { kind:'CITY', label:`${city}, ${state}`, lat, lng, score }; }
