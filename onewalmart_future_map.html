@@ -1638,6 +1638,9 @@ function looksLikeAllCapsManagerName(v){
 }
 
 function currentTeamType(p){
+  const rm = String(p?.regionalManager || '').trim();
+  const am = String(p?.areaManager || '').trim();
+
   const team = String(
     p?.teamName ||
     p?.team ||
@@ -1655,53 +1658,34 @@ function currentTeamType(p){
     ''
   ).trim();
 
-  const legacy = String(
-    p?.legacyBrand ||
-    p?.LegacyBrand ||
-    ''
-  ).trim().toLowerCase();
+  const legacy = String(p?.legacyBrand || p?.LegacyBrand || '').trim().toLowerCase();
+  const text = `${team} ${rm} ${am}`.toLowerCase();
 
-  const text = getManagerText(p);
+  // Dedicated/client teams first
+  if (/unilv|unilever/i.test(text)) return 'unilever';
+  if (/tyson/i.test(text)) return 'tyson';
+  if (/\bp&g\b|\bpg\b/i.test(text)) return 'pg';
 
-  // Dedicated/client teams first.
-  if (team.includes('unilever') || /\bunilv\b|unilever/i.test(text)) return 'unilever';
-  if (team.includes('tyson') || /tyson/i.test(text)) return 'tyson';
-  if (team.includes('p&g') || team.includes('p and g') || /\bp&g\b|\bpg\b/i.test(text)) return 'pg';
-
-  // Hard current-state team rules.
-  // Premium PSP = 64 / Dedicated - Walmart PSP only.
-  if (
-    teamId === '64' ||
-    legacy === 'premium' ||
-    team === 'dedicated - walmart psp' ||
-    team.includes('dedicated - walmart psp')
-  ) {
+  // CURRENT Premium RMs are ONLY these three
+  if (personNameMatches(rm, ['Angel Bruce', 'Roy Anders', 'Sherry Blankenhorn'])) {
     return 'premium';
   }
 
-  // Acosta PSP = 95 / WM - Walmart/Sams PSP only.
-  if (
-    teamId === '95' ||
-    legacy === 'acosta' ||
-    team === 'wm - walmart/sams psp' ||
-    team === 'wm - walmart/sam psp' ||
-    team.includes('walmart/sams') ||
-    team.includes('walmart/sam')
-  ) {
-    return 'acosta';
-  }
-
-  // Crossmark PSP = explicit Crossmark only.
-  if (
-    legacy === 'crossmark' ||
-    team.includes('crossmark')
-  ) {
+  // CURRENT Crossmark AMs commonly appear in ALL CAPS
+  if (looksLikeAllCapsManagerName(am) || looksLikeAllCapsManagerName(rm)) {
     return 'crossmark';
   }
 
-  // Critical: in Current Alignment, do NOT fall back to getTeamType().
-  // Unknown paths should be excluded, not guessed into Premium/Acosta/Crossmark.
+  // Explicit IDs/names if available
+  if (teamId === '64' || legacy === 'premium' || team.includes('dedicated - walmart psp')) return 'premium';
+  if (teamId === '95' || legacy === 'acosta' || team.includes('walmart/sams') || team.includes('walmart/sam')) return 'acosta';
+  if (legacy === 'crossmark' || team.includes('crossmark')) return 'crossmark';
+
+  // If it is not Premium and not all-caps Crossmark, treat current Walmart/Sams PSP as Acosta
+  if (rm || am) return 'acosta';
+
   return 'other';
+}
 }
   function debugCurrentTeamPaths(){
   const sample = [];
@@ -1722,7 +1706,7 @@ function currentTeamType(p){
 
   console.table(sample.slice(0, 100));
 }
-
+window.debugCurrentTeamPaths = debugCurrentTeamPaths;
 function applyDedicatedTeamPathsToStores(rows, stores){
   const dedMap = new Map();
 
