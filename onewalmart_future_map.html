@@ -1257,7 +1257,23 @@ function applyDedicatedTeamPathsToStores(rows, stores){
     arr.push({ teamName, areaManager, regionalManager });
     dedMap.set(key, arr);
   });
+function dedicatedTeamVisible(teamName){
+  const t = String(teamName || '').toLowerCase();
 
+  if (t.includes('unilever')) {
+    return id('showUnilever')?.checked !== false;
+  }
+
+  if (t.includes('p&g') || t.includes('p and g')) {
+    return id('showPG')?.checked !== false;
+  }
+
+  if (t.includes('tyson')) {
+    return id('showTyson')?.checked !== false;
+  }
+
+  return true;
+}
   let added = 0;
 
   stores.forEach(s => {
