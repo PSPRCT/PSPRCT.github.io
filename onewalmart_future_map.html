@@ -5443,19 +5443,25 @@ function buildManagerRollupMap(rows){
 }
 
 function pathMatchesCoreTeam(p){
-  const typ = activeAlignmentMode === 'current' ? currentTeamType(p) : getTeamType(p);
-  const team = String(p?.teamName || p?.team || p?.managementGroupName || '').trim().toLowerCase();
-  const teamId = String(p?.teamId || p?.ManagementGroupID || p?.managementGroupId || '').trim();
+  const t = currentTeamType(p);
 
-  if (activeAlignmentMode === 'future') {
-    // In future One Walmart view, Premium/Acosta/Crossmark legacy rows all roll up into the same
-    // One Walmart core alignment. Dedicated teams are excluded and handled by their own overlay.
-    return typ === 'onewalmart' || team.includes('one walmart') || teamId === '242' || ['premium','acosta','crossmark'].includes(typ);
+  // One Walmart mode intentionally shows all core PSP teams.
+  if (activeCoreTeamMode === 'onewalmart') {
+    return ['premium','acosta','crossmark'].includes(t);
   }
 
-  if (activeCoreTeamMode === 'premium') return typ === 'premium';
-  if (activeCoreTeamMode === 'acosta') return typ === 'acosta';
-  if (activeCoreTeamMode === 'crossmark') return typ === 'crossmark';
+  // Strict explicit matching only.
+  if (activeCoreTeamMode === 'premium') {
+    return t === 'premium';
+  }
+
+  if (activeCoreTeamMode === 'acosta') {
+    return t === 'acosta';
+  }
+
+  if (activeCoreTeamMode === 'crossmark') {
+    return t === 'crossmark';
+  }
 
   return false;
 }
