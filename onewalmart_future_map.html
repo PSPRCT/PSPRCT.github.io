@@ -1682,7 +1682,9 @@ function currentTeamType(p){
   if (legacy === 'crossmark' || team.includes('crossmark')) return 'crossmark';
 
   // If it is not Premium and not all-caps Crossmark, treat current Walmart/Sams PSP as Acosta
-  if (rm || am) return 'acosta';
+if (!team && !teamId && !legacy) return 'other';
+
+if (rm || am) return 'acosta';
 
   return 'other';
 }
