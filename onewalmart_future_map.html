@@ -1990,7 +1990,7 @@ withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords
         fillColor: COLORS[s.coverageType] || '#999'
       });
       m.store = s;
-      m.bindPopup(storePopupHTML(s));
+     m.bindPopup(() => storePopupHTML(s));
       markerByStore.set(s.storeNumberStr, m);
       return m;
     });
@@ -5595,6 +5595,14 @@ function applyManagerRollupToStores(stores){
     return asManagerArray(value).join(' | ');
   }
 
+function activeCoreTeamLabel(){
+  if (activeAlignmentMode === 'future') return 'One Walmart';
+  if (activeCoreTeamMode === 'premium') return 'Premium PSP';
+  if (activeCoreTeamMode === 'acosta') return 'Acosta PSP';
+  if (activeCoreTeamMode === 'crossmark') return 'Crossmark PSP';
+  return 'Selected team';
+}
+
 function managerPathHtml(s){
   const paths = managerPathsForStore(s)
     .filter(p => p.teamName || p.areaManager || p.regionalManager)
@@ -5604,10 +5612,14 @@ function managerPathHtml(s){
     });
 
   if (!paths.length) {
+    const msg = activeAlignmentMode === 'current'
+      ? `No ${activeCoreTeamLabel()} alignment found for this store.`
+      : `No manager alignment found for this store.`;
+
     return `
-      <div><b>Teams:</b> ${escape(managerTeamsLabel(s))}</div>
-      <div><b>Area Manager:</b> ${escape(managerLabel(s.areaManager))}</div>
-      <div><b>Regional Manager:</b> ${escape(managerLabel(s.regionalManager))}</div>
+      <div style="margin-top:8px;padding:7px 8px;border:1px solid #f59e0b;border-radius:8px;background:#fffbeb;color:#92400e;font-size:12px">
+        <b>Manager Alignment:</b><br>${escape(msg)}
+      </div>
     `;
   }
 
@@ -5624,7 +5636,6 @@ function managerPathHtml(s){
     </div>
   `;
 }
-
   function hasAnyManager(fieldValue, selectedValues){
     const selected = Array.isArray(selectedValues)
       ? selectedValues
