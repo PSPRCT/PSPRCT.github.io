@@ -215,8 +215,7 @@
 
 
   /* Coverage Priorities */
-  .priority-card{border:1px solid var(--border);border-radius:12px;padding:10px;background:#f8fafc;marginconst DATA_URL = './onewalmart_store_data.json?v=' + Date.now();
--bottom:10px}
+  .priority-card{border:1px solid var(--border);border-radius:12px;padding:10px;background:#f8fafc;margin-bottom:10px}
   .priority-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
   .priority-table{width:100%;border-collapse:collapse;font-size:13px}
   .priority-table th{position:sticky;top:0;background:#f8fafc;z-index:1}
@@ -752,25 +751,27 @@
 <script>
 (async function(){
   // ---------- CONFIG ----------
-const APP_DATA_VERSION = '2026-05-11-current-json-required-v4';
-const DATA_URL = './onewalmart_store_data.json?v=' + APP_DATA_VERSION;
+const DATA_URL = './onewalmart_store_data.json?v=' + Date.now();
 
-// IMPORTANT:
-// Current Alignment must use the SAME current-state JSON feeding the known-good current map.
-// HTML alone does not contain that data. Put the current map's manager_paths.json in this folder,
-// or copy it as current_manager_paths.json / manager_paths_current.json.
+// EXACT current-map sources. Current Alignment mode uses the same files as map_dynamic.html.
+// This prevents the future One Walmart flattened data from being guessed/reclassified as current Premium/Acosta/Crossmark alignment.
+const CURRENT_DATA_URL = './store_data.json?v=' + Date.now();
+const CURRENT_MANAGER_ROLLUP_URL = './manager_paths.json?v=' + Date.now();
+
+// Current-state alignment should come from the same JSON that feeds the known-good current map.
+// Keep manager_paths_current.json first if you created a renamed copy, but fall back to manager_paths.json
+// so this future map can sit beside the current map and reuse its existing current-alignment source.
 const CURRENT_MANAGER_URLS = [
-  './current_manager_paths.json?v=' + APP_DATA_VERSION,
-  './manager_paths_current.json?v=' + APP_DATA_VERSION,
-  './manager_paths.json?v=' + APP_DATA_VERSION
+  './manager_paths_current.json?v=' + Date.now(),
+  './manager_paths.json?v=' + Date.now()
 ];
 
 const FUTURE_MANAGER_URLS = [
-  './onewalmart_manager_paths.json?v=' + APP_DATA_VERSION
+  './onewalmart_manager_paths.json?v=' + Date.now()
 ];
 
-const RTS_URL = './onewalmart_rts_combined.json?v=' + APP_DATA_VERSION;
-const DEDICATED_MANAGER_URL = './dedicated_manager_paths.json?v=' + APP_DATA_VERSION;
+const RTS_URL = './onewalmart_rts_combined.json?v=' + Date.now();
+const DEDICATED_MANAGER_URL = './dedicated_manager_paths.json?v=' + Date.now();
 
 let currentManagerRollupMap = new Map();
 let futureManagerRollupMap = new Map();
@@ -892,6 +893,8 @@ function exportHubsJson(){
 
   // Stores
   let allStores = [];
+  let futureStores = [];
+  let currentStores = [];
   let managerRollupByStore = new Map();
   let filteredStores = [];
   const markerByStore = new Map();
@@ -1147,35 +1150,51 @@ spRowsEl.addEventListener('click', (e)=>{
       STATUS.innerHTML = `<span style="color:#a15b00;font-weight:600">Loaded fallback test data</span> — place <code>store_data.json</code> next to this file to load real data.`;
       storeRaw = FALLBACK_STORES;
     }
-    allStores = normalizeStores(storeRaw);
+    futureStores = normalizeStores(storeRaw);
+    allStores = futureStores;
 
-   // Current/Future manager alignment overlays.
+    // Load the exact current-map data set in parallel. In Current Alignment view, the map will
+    // swap to these stores and their manager_paths.json rollup instead of trying to infer current
+    // teams from the future One Walmart file.
+    try {
+      const cResp = await fetch(CURRENT_DATA_URL, { cache:'no-store' });
+      if (!cResp.ok) throw new Error(`HTTP ${cResp.status} for ${CURRENT_DATA_URL}`);
+      const cText = await cResp.text();
+      const cJson = JSON.parse(cText.replace(/^\uFEFF/,''));
+      if (!Array.isArray(cJson)) throw new Error('store_data.json must be a JSON array');
+      currentStores = normalizeStores(cJson);
+
+      const cmResp = await fetch(CURRENT_MANAGER_ROLLUP_URL, { cache:'no-store' });
+      if (!cmResp.ok) throw new Error(`HTTP ${cmResp.status} for ${CURRENT_MANAGER_ROLLUP_URL}`);
+      const cmText = await cmResp.text();
+      const cmJson = JSON.parse(cmText.replace(/^\uFEFF/,''));
+      currentManagerRollupMap = buildManagerRollupMap(cmJson);
+      applyRawManagerRollupToStores(currentStores, currentManagerRollupMap);
+
+      STATUS.textContent += `  |  current map data loaded: ${currentStores.length.toLocaleString()} stores`;
+    } catch(currentErr) {
+      console.warn('Exact current map sources not loaded. Current Alignment will not be reliable until store_data.json and manager_paths.json are beside this file:', currentErr);
+      currentStores = [];
+      currentManagerRollupMap = new Map();
+      STATUS.innerHTML += `  |  <span style="color:#b42318;font-weight:700">current map JSON missing: add store_data.json + manager_paths.json</span>`;
+    }
+
+   // Future manager alignment overlay for post-5/31 One Walmart view.
 try {
-  const [currentJsonRaw, futureJson] = await Promise.all([
-    fetchFirstJson(CURRENT_MANAGER_URLS, 'current manager alignment'),
-    fetchFirstJson(FUTURE_MANAGER_URLS, 'future One Walmart manager alignment')
-  ]);
+  const futureJson = await fetchFirstJson(FUTURE_MANAGER_URLS, 'future One Walmart manager alignment');
 
-  const currentJson = isValidCurrentAlignmentJson(currentJsonRaw) ? currentJsonRaw : [];
-  if (!currentJson.length) {
-    console.warn('[Current Alignment] Current manager JSON was rejected because it does not contain the pre-5/31 team identifiers. It is probably a future One Walmart file, not the current map manager_paths.json.');
-    STATUS.textContent += `  |  CURRENT ALIGNMENT NOT LOADED: copy the current map manager_paths.json here as current_manager_paths.json`;
-  }
-
-  currentManagerRollupMap = currentJson.length ? buildManagerRollupMap(currentJson) : new Map();
   futureManagerRollupMap = buildManagerRollupMap(futureJson);
 
   activeAlignmentMode = 'future';
   activeCoreTeamMode = 'onewalmart';
   managerRollupByStore = futureManagerRollupMap;
+  allStores = futureStores;
   syncCoreTeamToggleVisibility();
   applyActiveAlignmentToStores();
 
-  STATUS.textContent += currentJson.length
-    ? `  |  current + future manager rollups applied (current JSON source verified v4)`
-    : `  |  future manager rollups applied only`;
+  STATUS.textContent += `  |  future manager rollups applied`;
 } catch(mgrErr) {
-  console.warn('Manager rollup overlays not loaded; using manager data from onewalmart_store_data.json only:', mgrErr);
+  console.warn('Future manager rollup overlay not loaded; using manager data from onewalmart_store_data.json only:', mgrErr);
 }
 
 // Dedicated team overlay stays separate and applies after the active alignment.
@@ -1267,11 +1286,13 @@ renderHubs();
 updateRings();
 
 // Alignment + core team switchers
-function refreshAfterAlignmentChange(){
+async function refreshAfterAlignmentChange(){
+  buildSearchIndex();
   populateRM(allStores);
   populateAM(allStores);
   buildHubFilterOptions();
 
+  await recomputeCoverage();
   runFilter();
   renderChips();
   renderHubs();
@@ -1280,23 +1301,33 @@ function refreshAfterAlignmentChange(){
   map.closePopup();
 }
 
+function activateAlignmentMode(mode){
+  activeAlignmentMode = mode;
+
+  if (activeAlignmentMode === 'current') {
+    // Critical fix: use the exact current map store_data.json + manager_paths.json data.
+    // Do not clear/rebuild from future One Walmart rows in Current Alignment mode.
+    if (currentStores && currentStores.length) {
+      allStores = currentStores;
+      managerRollupByStore = currentManagerRollupMap;
+    } else {
+      allStores = futureStores;
+      managerRollupByStore = currentManagerRollupMap;
+      STATUS.innerHTML += ` | <span style="color:#b42318;font-weight:700">Current Alignment needs store_data.json + manager_paths.json</span>`;
+    }
+  } else {
+    allStores = futureStores;
+    managerRollupByStore = futureManagerRollupMap;
+    applyActiveAlignmentToStores();
+  }
+
+  syncCoreTeamToggleVisibility();
+  refreshAfterAlignmentChange();
+}
+
 document.querySelectorAll('input[name="alignmentMode"]').forEach(r => {
   r.addEventListener('change', e => {
-    activeAlignmentMode = e.target.value;
-
-    managerRollupByStore =
-      activeAlignmentMode === 'future'
-        ? futureManagerRollupMap
-        : currentManagerRollupMap;
-
-    if (activeAlignmentMode === 'current' && (!currentManagerRollupMap || currentManagerRollupMap.size === 0)) {
-      STATUS.textContent += ` | Current Alignment blocked: current_manager_paths.json/manager_paths.json is missing or not a pre-5/31 current file`;
-    }
-
-    syncCoreTeamToggleVisibility();
-    applyActiveAlignmentToStores();
-    refreshAfterAlignmentChange();
-
+    activateAlignmentMode(e.target.value);
     STATUS.textContent += ` | alignment switched to ${activeAlignmentMode}`;
   });
 });
@@ -1305,7 +1336,9 @@ document.querySelectorAll('input[name="coreTeamMode"]').forEach(r => {
   r.addEventListener('change', e => {
     activeCoreTeamMode = e.target.value;
 
-    applyActiveAlignmentToStores();
+    // Current mode keeps the current map's paired manager paths intact and only filters by team.
+    // Future mode may rebuild from the future One Walmart rollup.
+    if (activeAlignmentMode === 'future') applyActiveAlignmentToStores();
     refreshAfterAlignmentChange();
 
     STATUS.textContent += ` | core team switched to ${activeCoreTeamMode}`;
@@ -1453,25 +1486,19 @@ function currentTeamType(p){
   const team = String(p?.teamName || p?.team || p?.managementGroupName || '').trim().toLowerCase();
   const teamId = String(p?.teamId || p?.ManagementGroupID || p?.managementGroupId || '').trim();
   const text = getManagerText(p);
-  const am = String(p?.areaManager || p?.am || p?.['Area Manager'] || '').trim();
 
-  // Dedicated/client teams must stay out of the current Premium/Acosta/Crossmark core filters.
+  // Dedicated/client teams stay out of core PSP views.
   if (baseType === 'unilever' || /\bunilv\b|unilever/i.test(text)) return 'unilever';
   if (baseType === 'tyson' || /tyson/i.test(text)) return 'tyson';
   if (baseType === 'pg' || /\bp&g\b|\bpg\b/i.test(text)) return 'pg';
 
-  // For CURRENT Alignment, trust only the current map's actual team identifiers.
-  // Do not infer team from RM name. This prevents Brian/Jonathan/Raina/Alicia/etc. from being
-  // misclassified when the future One Walmart flattened file is loaded.
-  if (teamId === '64' || team === 'dedicated - walmart psp') return 'premium';
-  if (teamId === '95' || team === 'wm - walmart/sams psp' || team === 'wm - walmart/sam psp') return 'acosta';
-  if (team.includes('crossmark walmart psp') || team === 'crossmark walmart psp') return 'crossmark';
+  // Current view is now driven by the same source as map_dynamic.html.
+  // Use the paired team name / management group ID from manager_paths.json — not RM-name guesses.
+  if (teamId === '64' || team === 'dedicated - walmart psp' || team.includes('dedicated - walmart psp')) return 'premium';
+  if (teamId === '95' || team === 'wm - walmart/sams psp' || team === 'wm - walmart/sam psp' || team.includes('walmart/sams') || team.includes('walmart/sam')) return 'acosta';
+  if (team.includes('crossmark')) return 'crossmark';
 
-  // Last-resort fallback only for older current files that lost the team column but kept Crossmark AM casing.
-  // This is deliberately limited to Crossmark because ALL-CAPS AMs were confirmed as Crossmark.
-  if (looksLikeAllCapsManagerName(am)) return 'crossmark';
-
-  return 'other';
+  return baseType || 'other';
 }
 
 function applyDedicatedTeamPathsToStores(rows, stores){
@@ -5105,45 +5132,6 @@ async function fetchFirstJson(urls, label){
   throw new Error(`Could not load ${label}. Tried: ${errors.join(' | ')}`);
 }
 
-
-function isValidCurrentAlignmentJson(rows){
-  const arr = Array.isArray(rows) ? rows : [];
-  if (!arr.length) return false;
-
-  let legacyTeamHits = 0;
-  let futureOnlyHits = 0;
-
-  const sample = arr.slice(0, Math.min(arr.length, 1000));
-  sample.forEach(r => {
-    const text = JSON.stringify(r || {}).toLowerCase();
-    if (
-      text.includes('dedicated - walmart psp') ||
-      text.includes('wm - walmart/sams psp') ||
-      text.includes('wm - walmart/sam psp') ||
-      text.includes('crossmark walmart psp') ||
-      text.includes('"teamid":"64"') ||
-      text.includes('"teamid":64') ||
-      text.includes('"managementgroupid":"64"') ||
-      text.includes('"managementgroupid":64') ||
-      text.includes('"teamid":"95"') ||
-      text.includes('"teamid":95') ||
-      text.includes('"managementgroupid":"95"') ||
-      text.includes('"managementgroupid":95')
-    ) legacyTeamHits++;
-
-    if (
-      text.includes('wm - one walmart') ||
-      text.includes('onewmt|') ||
-      text.includes('"managementgroupid":242') ||
-      text.includes('"managementgroupid":"242"')
-    ) futureOnlyHits++;
-  });
-
-  // The current map JSON should contain current/pre-5/31 team names or IDs.
-  // If the file is mostly 242 / One Walmart, it is the future flattened file and must not be used for Current Alignment.
-  return legacyTeamHits > 0 && futureOnlyHits < sample.length * 0.50;
-}
-
 function buildManagerRollupMap(rows){
   const map = new Map();
 
@@ -5286,6 +5274,34 @@ function syncCoreTeamToggleVisibility(){
     futureEls.forEach(el => el.style.display = 'none');
     currentEls.forEach(el => el.style.display = '');
   }
+}
+
+function applyRawManagerRollupToStores(stores, rollupMap){
+  let matched = 0;
+
+  stores.forEach(s => {
+    const keys = storeLookupKeys(s.storeNumberStr ?? s.storeNumber ?? s.StoreNumber ?? '');
+    let roll = null;
+
+    for (const k of keys){
+      if (rollupMap && rollupMap.has(k)){
+        roll = rollupMap.get(k);
+        break;
+      }
+    }
+
+    if (!roll) return;
+
+    // Exact current-map behavior: replace with paired manager paths from manager_paths.json.
+    // Do not filter by team here; the RM/AM dropdowns filter paired paths later.
+    if ((roll.managerPaths || []).length) s.managerPaths = roll.managerPaths;
+    if ((roll.areaManagers || []).length) s.areaManager = roll.areaManagers;
+    if ((roll.regionalManagers || []).length) s.regionalManager = roll.regionalManagers;
+    if ((roll.teams || []).length) s.managementGroupName = roll.teams;
+    matched++;
+  });
+
+  console.log('[Current Map Raw Manager Rollup] matched stores:', matched, 'of', stores.length);
 }
 
 function applyManagerRollupToStores(stores){
