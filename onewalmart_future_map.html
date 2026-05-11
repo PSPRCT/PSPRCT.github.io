@@ -1127,7 +1127,21 @@ try {
   futureManagerRollupMap = buildManagerRollupMap(futureJson);
 
   managerRollupByStore = futureManagerRollupMap;
-  applyManagerRollupToStores(allStores);
+  // Clear existing paths first
+allStores.forEach(s => {
+  s.managerPaths = [];
+});
+
+// Apply selected alignment
+applyManagerRollupToStores(allStores);
+
+// Re-apply dedicated overlays
+if(window.dedicatedTeamRows){
+  applyDedicatedTeamPathsToStores(
+    window.dedicatedTeamRows,
+    allStores
+  );
+}
 
   STATUS.textContent += `  |  future manager rollup applied`;
 } catch(mgrErr) {
@@ -1141,6 +1155,7 @@ try {
 
   const dText = await dResp.text();
   const dJson = JSON.parse(dText.replace(/^\uFEFF/,''));
+  window.dedicatedTeamRows = dJson;
 
   applyDedicatedTeamPathsToStores(dJson, allStores);
   STATUS.textContent += `  |  dedicated team paths applied`;
