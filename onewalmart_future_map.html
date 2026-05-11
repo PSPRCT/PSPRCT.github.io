@@ -346,6 +346,20 @@
 </div>
 <div class="summary" id="datasetBadge"></div>
 
+  <div class="summary" id="alignmentToggle">
+  <span class="chip"><b>Alignment View:</b></span>
+
+  <label class="toggle">
+    <input type="radio" name="alignmentMode" value="future" checked>
+    Future One Walmart
+  </label>
+
+  <label class="toggle">
+    <input type="radio" name="alignmentMode" value="current">
+    Current Alignment
+  </label>
+</div>
+
 <div class="mapwrap">
   <div id="map" role="region" aria-label="Coverage Map"></div>
 
@@ -714,7 +728,13 @@
 (async function(){
   // ---------- CONFIG ----------
   const DATA_URL = './onewalmart_store_data.json?v=' + Date.now();
-const MANAGER_ROLLUP_URL = './onewalmart_manager_paths.json?v=' + Date.now();
+const currentManagerPaths =
+  await fetch('./manager_paths_current.json?v=' + Date.now())
+    .then(r => r.json());
+
+const futureManagerPaths =
+  await fetch('./onewalmart_manager_paths.json?v=' + Date.now())
+    .then(r => r.json());
 const RTS_URL = './onewalmart_rts_combined.json?v=' + Date.now();
   const DEDICATED_MANAGER_URL = './dedicated_manager_paths.json?v=' + Date.now();
 
@@ -747,6 +767,7 @@ let combinedRTS = [];
 let premiumConfirmed = [];
 let premiumPending   = [];
 let acostaHubs       = [];
+  let activeAlignmentMode = 'future';
 
   
 
