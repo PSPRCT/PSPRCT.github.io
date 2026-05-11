@@ -1120,19 +1120,36 @@ syncLegends();
   on('input', amSearch,  ()=> filterSelect(amFilter,  amSearch.value));
   on('input', hubSearch, ()=> filterSelect(hubFilter, hubSearch.value));
 
-  on('change', rmFilter,  ()=>{
-    lastFilterChanged='rmFilter';
-    cascadeAM();
-    buildHubFilterOptions();
-    runFilter(); saveState(); renderChips();
-  });
+on('change', rmFilter,  ()=>{
+  lastFilterChanged='rmFilter';
+
+  // Skip expensive AM dropdown rebuild during RM click.
+  // AM search/filter still works; dropdown just won't recalculate instantly.
+  // cascadeAM();
+
+  // Skip expensive hub dropdown rebuild during RM click.
+  // buildHubFilterOptions();
+
+  runFilter();
+  fitToResults();
+  saveState();
+  renderChips();
+});
   rebuildAMOptionsWithCounts();
-  on('change', amFilter,  ()=>{
-    lastFilterChanged='amFilter';
-    cascadeRM();
-    buildHubFilterOptions();
-    runFilter(); saveState(); renderChips();
-  });
+on('change', amFilter,  ()=>{
+  lastFilterChanged='amFilter';
+
+  // Skip expensive RM dropdown rebuild during AM click.
+  // cascadeRM();
+
+  // Skip expensive hub dropdown rebuild during AM click.
+  // buildHubFilterOptions();
+
+  runFilter();
+  fitToResults();
+  saveState();
+  renderChips();
+});
   on('change', covFilter, ()=>{
     lastFilterChanged='covFilter';
     cascadeRM();
