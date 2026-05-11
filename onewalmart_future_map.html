@@ -1235,6 +1235,45 @@ runFilter();
 renderChips();
 renderHubs();
 updateRings();
+    // Alignment mode switcher
+document.querySelectorAll('input[name="alignmentMode"]').forEach(r => {
+  r.addEventListener('change', e => {
+    activeAlignmentMode = e.target.value;
+
+    managerRollupByStore =
+      activeAlignmentMode === 'future'
+        ? futureManagerRollupMap
+        : currentManagerRollupMap;
+
+    // Clear existing manager paths before switching alignment
+    allStores.forEach(s => {
+      s.managerPaths = [];
+      s.areaManager = '';
+      s.regionalManager = '';
+    });
+
+    // Apply selected current/future alignment
+    applyManagerRollupToStores(allStores);
+
+    // Re-apply dedicated team overlay after selected alignment
+    if (window.dedicatedTeamRows) {
+      applyDedicatedTeamPathsToStores(window.dedicatedTeamRows, allStores);
+    }
+
+    populateRM(allStores);
+    populateAM(allStores);
+    buildHubFilterOptions();
+
+    runFilter();
+    renderChips();
+    renderHubs();
+    updateRings();
+
+    map.closePopup();
+
+    STATUS.textContent += ` | alignment switched to ${activeAlignmentMode}`;
+  });
+});
 
 
 // Dataset badge (simple fingerprints)
