@@ -5605,9 +5605,7 @@ function managerPathHtml(s){
 
     if (!paths.length) {
       return `
-        <div><b>Teams:</b> ${escape(managerTeamsLabel(s))}</div>
-        <div><b>Area Manager:</b> ${escape(managerLabel(s.areaManager))}</div>
-        <div><b>Regional Manager:</b> ${escape(managerLabel(s.regionalManager))}</div>`;
+   ${managerPathHtml(s)}
     }
 
     return `
