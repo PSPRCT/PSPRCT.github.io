@@ -890,6 +890,8 @@ let currentManagerRollupMap = new Map();
 let futureManagerRollupMap = new Map();
 let activeAlignmentMode = 'future';
 let activeCoreTeamMode = 'onewalmart';
+  let managerCascadeCache = null;
+let managerCascadeCacheKey = '';
 
 
   const FALLBACK_STORES = [
@@ -1424,6 +1426,7 @@ updateRings();
 
 // Alignment + core team switchers
 async function refreshAfterAlignmentChange(){
+  invalidateManagerCascadeCache();
   buildSearchIndex();
   populateRM(allStores);
   populateAM(allStores);
@@ -5123,69 +5126,131 @@ function exportCoveragePrioritiesCsv(){
   function coverageCounts(markersArr){ const out={}; markersArr.forEach(m=>{ const s=m?.store; if(!s) return; out[s.coverageType]=(out[s.coverageType]||0)+1; }); return out; }
   function toggleDropdown(menu){ menu.style.display=menu.style.display==='block'?'none':'block'; }
   function setMulti(sel,arr){ Array.from(sel.options).forEach(o=>{o.selected=arr.includes(o.value);}); }
-  function rebuildRMOptionsWithCounts(){
-    const prev = new Set(selectedValues(rmFilter));
-    const amSel = selectedActiveManagers(amFilter);
+  function managerCascadeKey(){
+  const cov = selectedValues(covFilter).filter(v => v && v !== 'All').sort().join('|');
+  return [
+    activeAlignmentMode,
+    activeCoreTeamMode,
+    cov,
+    allStores.length
+  ].join('::');
+}
 
-    const by = {};
+function getManagerCascadeCache(){
+  const key = managerCascadeKey();
 
-    allStores.forEach(s => {
-      if (!coverageSelectionAllows(s)) return;
-
-      coreManagerPathsForStore(s).forEach(p => {
-        const rm = String(p.regionalManager || '').trim();
-        const am = String(p.areaManager || '').trim();
-        if (!rm) return;
-
-        // KEY FIX: if an AM is selected, only list/count RMs from the same managerPath rows.
-        if (amSel.length && !amSel.includes(am)) return;
-
-        by[rm] = (by[rm] || 0) + 1;
-      });
-    });
-
-    const names = Object.keys(by).sort((a,b)=>String(a).localeCompare(String(b)));
-
-    rmFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
-      `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
-    )].join('');
-
-    const sel = names.filter(n => prev.has(n));
-    setMulti(rmFilter, sel.length ? sel : ['All']);
-    filterSelect(rmFilter, rmSearch.value);
+  if (managerCascadeCache && managerCascadeCacheKey === key) {
+    return managerCascadeCache;
   }
 
-  function rebuildAMOptionsWithCounts(){
-    const prev = new Set(selectedValues(amFilter));
-    const rmSel = selectedActiveManagers(rmFilter);
+  const rmToAM = new Map();
+  const amToRM = new Map();
+  const rmCounts = new Map();
+  const amCounts = new Map();
 
-    const by = {};
+  allStores.forEach(s => {
+    if (!coverageSelectionAllows(s)) return;
 
-    allStores.forEach(s => {
-      if (!coverageSelectionAllows(s)) return;
+    coreManagerPathsForStore(s).forEach(p => {
+      const rm = String(p.regionalManager || '').trim();
+      const am = String(p.areaManager || '').trim();
 
-      coreManagerPathsForStore(s).forEach(p => {
-        const rm = String(p.regionalManager || '').trim();
-        const am = String(p.areaManager || '').trim();
-        if (!am) return;
+      if (rm) rmCounts.set(rm, (rmCounts.get(rm) || 0) + 1);
+      if (am) amCounts.set(am, (amCounts.get(am) || 0) + 1);
 
-        // KEY FIX: if an RM is selected, only list/count AMs from the same managerPath rows.
-        if (rmSel.length && !rmSel.includes(rm)) return;
+      if (rm && am) {
+        if (!rmToAM.has(rm)) rmToAM.set(rm, new Map());
+        if (!amToRM.has(am)) amToRM.set(am, new Map());
 
-        by[am] = (by[am] || 0) + 1;
+        rmToAM.get(rm).set(am, (rmToAM.get(rm).get(am) || 0) + 1);
+        amToRM.get(am).set(rm, (amToRM.get(am).get(rm) || 0) + 1);
+      }
+    });
+  });
+
+  managerCascadeCache = { rmToAM, amToRM, rmCounts, amCounts };
+  managerCascadeCacheKey = key;
+
+  console.log('[Manager Cascade Cache] built', key, {
+    rms: rmCounts.size,
+    ams: amCounts.size
+  });
+
+  return managerCascadeCache;
+}
+
+function invalidateManagerCascadeCache(){
+  managerCascadeCache = null;
+  managerCascadeCacheKey = '';
+}
+
+function sortedMapKeys(m){
+  return Array.from(m.keys()).sort((a,b)=>String(a).localeCompare(String(b)));
+}
+ function rebuildRMOptionsWithCounts(){
+  const prev = new Set(selectedValues(rmFilter));
+  const amSel = selectedActiveManagers(amFilter);
+  const cache = getManagerCascadeCache();
+
+  let source;
+
+  if (amSel.length) {
+    source = new Map();
+
+    amSel.forEach(am => {
+      const rms = cache.amToRM.get(am);
+      if (!rms) return;
+
+      rms.forEach((count, rm) => {
+        source.set(rm, (source.get(rm) || 0) + count);
       });
     });
-
-    const names = Object.keys(by).sort((a,b)=>String(a).localeCompare(String(b)));
-
-    amFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
-      `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
-    )].join('');
-
-    const sel = names.filter(n => prev.has(n));
-    setMulti(amFilter, sel.length ? sel : ['All']);
-    filterSelect(amFilter, amSearch.value);
+  } else {
+    source = cache.rmCounts;
   }
+
+  const names = sortedMapKeys(source);
+
+  rmFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
+    `<option value="${escape(n)}">${escape(n)} — ${source.get(n) || 0}</option>`
+  )].join('');
+
+  const sel = names.filter(n => prev.has(n));
+  setMulti(rmFilter, sel.length ? sel : ['All']);
+  filterSelect(rmFilter, rmSearch.value);
+}
+ function rebuildAMOptionsWithCounts(){
+  const prev = new Set(selectedValues(amFilter));
+  const rmSel = selectedActiveManagers(rmFilter);
+  const cache = getManagerCascadeCache();
+
+  let source;
+
+  if (rmSel.length) {
+    source = new Map();
+
+    rmSel.forEach(rm => {
+      const ams = cache.rmToAM.get(rm);
+      if (!ams) return;
+
+      ams.forEach((count, am) => {
+        source.set(am, (source.get(am) || 0) + count);
+      });
+    });
+  } else {
+    source = cache.amCounts;
+  }
+
+  const names = sortedMapKeys(source);
+
+  amFilter.innerHTML = ['<option value="All">All</option>', ...names.map(n =>
+    `<option value="${escape(n)}">${escape(n)} — ${source.get(n) || 0}</option>`
+  )].join('');
+
+  const sel = names.filter(n => prev.has(n));
+  setMulti(amFilter, sel.length ? sel : ['All']);
+  filterSelect(amFilter, amSearch.value);
+}
 
   function filterSelect(selectEl, q){
     const query = (q||'').toLowerCase();
