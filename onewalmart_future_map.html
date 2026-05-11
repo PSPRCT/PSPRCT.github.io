@@ -309,6 +309,19 @@ select[multiple]{
   @media (max-width:720px){ .card .body{grid-template-columns:1fr;} }
   @media (max-width: 1100px){ .filters{grid-template-columns:repeat(2,minmax(220px,1fr));} }
   @media (max-width: 640px){ .filters{grid-template-columns:1fr;} }
+
+  .display-toggle-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:4px 8px;
+  border-bottom:1px solid #eef0f3;
+  background:#fff;
+}
+
+.display-options-collapsed{
+  display:none !important;
+}
 </style>
 </head>
 <body>
@@ -432,7 +445,13 @@ select[multiple]{
   <span class="muted" id="inView">In view: 0</span>
 </div>
 <div class="summary" id="mgrRollupSummary" style="display:none;"></div>
-<div class="summary" id="dedicatedTeamFilters">
+<div class="display-toggle-row">
+  <button id="displayToggleBtn" class="btn" type="button">Display Options ▾</button>
+  <span class="muted">Show/hide alignment, dedicated teams, and map overlays.</span>
+</div>
+
+<div id="displayOptionsPanel" class="display-options-collapsed">
+  <div class="summary" id="dedicatedTeamFilters">
   <span class="chip"><b>Dedicated Team Filters:</b></span>
   <label class="toggle"><input id="showUnilever" type="checkbox" checked> Unilever</label>
   <label class="toggle"><input id="showPG" type="checkbox" checked> P&amp;G</label>
@@ -477,7 +496,7 @@ select[multiple]{
     Crossmark PSP
   </label>
 </div>
-
+</div>
 <div class="mapwrap">
   <div id="map" role="region" aria-label="Coverage Map"></div>
 
