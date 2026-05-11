@@ -1445,9 +1445,18 @@ function activateAlignmentMode(mode){
     // Critical fix: use the exact current map store_data.json + manager_paths.json data.
     // Do not clear/rebuild from future One Walmart rows in Current Alignment mode.
     if (currentStores && currentStores.length) {
-      allStores = currentStores;
-      managerRollupByStore = currentManagerRollupMap;
-    } else {
+  allStores = currentStores;
+  managerRollupByStore = currentManagerRollupMap;
+
+  allStores.forEach(s => {
+    s.managerPaths = [];
+    s.areaManager = '';
+    s.regionalManager = '';
+    s.managementGroupName = '';
+  });
+
+  applyManagerRollupToStores(allStores);
+} else {
       allStores = futureStores;
       managerRollupByStore = currentManagerRollupMap;
       STATUS.innerHTML += ` | <span style="color:#b42318;font-weight:700">Current Alignment needs store_data.json + manager_paths.json</span>`;
@@ -1473,9 +1482,19 @@ document.querySelectorAll('input[name="coreTeamMode"]').forEach(r => {
   r.addEventListener('change', e => {
     activeCoreTeamMode = e.target.value;
 
-    // Current mode keeps the current map's paired manager paths intact and only filters by team.
-    // Future mode may rebuild from the future One Walmart rollup.
-    if (activeAlignmentMode === 'future') applyActiveAlignmentToStores();
+    if (activeAlignmentMode === 'current') {
+      allStores.forEach(s => {
+        s.managerPaths = [];
+        s.areaManager = '';
+        s.regionalManager = '';
+        s.managementGroupName = '';
+      });
+
+      applyManagerRollupToStores(allStores);
+    } else {
+      applyActiveAlignmentToStores();
+    }
+
     refreshAfterAlignmentChange();
 
     STATUS.textContent += ` | core team switched to ${activeCoreTeamMode}`;
