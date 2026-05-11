@@ -1130,13 +1130,14 @@ on('change', rmFilter,  ()=>{
 
   cascadeAM();
 
-  // Keep this off for performance.
-  // buildHubFilterOptions();
-
   runFilter();
   fitToResults();
   saveState();
   renderChips();
+
+  setTimeout(() => {
+    buildHubFilterOptions();
+  }, 50);
 });
   rebuildAMOptionsWithCounts();
 on('change', amFilter,  ()=>{
@@ -1144,13 +1145,14 @@ on('change', amFilter,  ()=>{
 
   cascadeRM();
 
-  // Keep this off for performance.
-  // buildHubFilterOptions();
-
   runFilter();
   fitToResults();
   saveState();
   renderChips();
+
+  setTimeout(() => {
+    buildHubFilterOptions();
+  }, 50);
 });
   on('change', covFilter, ()=>{
     lastFilterChanged='covFilter';
