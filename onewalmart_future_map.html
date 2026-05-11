@@ -328,7 +328,7 @@
 <div class="summary" id="summary">
 <span class="chip"><span class="dot" style="background:var(--pa)"></span>One Walmart Coverage: <b id="k_pa">0</b></span>
 <span class="chip"><span class="dot" style="background:var(--p)"></span>Active RTS Coverage: <b id="k_p">0</b></span>
-<span class="chip"><span class="dot" style="background:var(--a)"></span>Legacy Legacy: <b id="k_a">0</b></span>
+<span class="chip"><span class="dot" style="background:var(--a)"></span>Legacy Coverage: <b id="k_a">0</b></span>
 <span class="chip"><span class="dot" style="background:var(--u)"></span>Current Gap / Uncovered: <b id="k_u">0</b></span>
 <span class="chip">Total: <b id="k_total">0</b></span>
 <span class="chip">RTS Hubs — <b id="k_confirmed">0</b> active / <b id="k_pending">0</b> future/reference</span>
@@ -810,6 +810,13 @@ function exportHubsJson(){
   a.download = `hubs_${Date.now()}.json`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
+}
+  function coverageDisplayLabel(v){
+  if (v === 'Premium Only') return 'One Walmart Covered';
+  if (v === 'Premium + Acosta') return 'One Walmart + Legacy Covered';
+  if (v === 'Acosta Only') return 'Legacy Covered';
+  if (v === 'Uncovered') return 'Current Gap / Uncovered';
+  return v || '';
 }
 
 
@@ -1691,11 +1698,12 @@ function hubDisplay(h){
 
 function rowHTML(s){
   const addr = `${s.address||''}, ${s.city||''}, ${s.state||''}`.replace(/\s+/g,' ').trim();
-  const coverage = s.coverageType || 'Uncovered';
+  const coverageRaw = s.coverageType || 'Uncovered';
+const coverage = coverageDisplayLabel(coverageRaw);
   const covClass =
-    coverage === 'Premium + Acosta' ? 'cov-pa' :
-    coverage === 'Premium Only'     ? 'cov-p'  :
-    coverage === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
+   coverageRaw === 'Premium + Acosta' ? 'cov-pa' :
+coverageRaw === 'Premium Only'     ? 'cov-p'  :
+coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
 
   const dist = (s._distMiles != null) ? `${s._distMiles.toFixed(1)} mi` : '';
 
@@ -5192,7 +5200,7 @@ s.address =
     .filter(Boolean)
     .join('<br>');
 
-  const badge = `<span style="padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:${COLORS[s.coverageType]||'#eee'}22">${escape(s.coverageType||'')}</span>`;
+  const badge = `<span style="padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:${COLORS[s.coverageType]||'#eee'}22">${escape(coverageDisplayLabel(s.coverageType))}</span>`;
 
   const assignedRts = s.nearestRTS || s.trainerCity || '';
 
