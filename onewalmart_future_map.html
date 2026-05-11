@@ -1549,7 +1549,7 @@ k.pending.textContent   = premiumPending.length;
     renderManagerRollupSummary(filteredStores);
   }
 
-  function renderManagerRollupSummary(stores){
+function renderManagerRollupSummary(stores){
   const valid = (stores || []).filter(s => !s.isCluster);
   const covered = valid.filter(s => (s.coverageType || '') !== 'Uncovered');
   const uncovered = valid.filter(s => (s.coverageType || '') === 'Uncovered');
@@ -1558,8 +1558,14 @@ k.pending.textContent   = premiumPending.length;
   const ams = new Set();
 
   valid.forEach(s => {
-    asManagerArray(s.regionalManager).forEach(v => { if(v) rms.add(v); });
-    asManagerArray(s.areaManager).forEach(v => { if(v) ams.add(v); });
+    const oneWalmartPaths = (s.managerPaths || []).filter(p =>
+      String(p.teamName || '').trim().toLowerCase() === 'wm - one walmart'
+    );
+
+    oneWalmartPaths.forEach(p => {
+      if (p.regionalManager) rms.add(String(p.regionalManager).trim());
+      if (p.areaManager) ams.add(String(p.areaManager).trim());
+    });
   });
 
   const dedicatedStores = valid.filter(s =>
@@ -1569,12 +1575,12 @@ k.pending.textContent   = premiumPending.length;
   const pct = valid.length ? ((covered.length / valid.length) * 100).toFixed(1) : '0.0';
 
   id('mgrRollupSummary').innerHTML = `
-    <span class="chip">Regional Managers: <b>${rms.size}</b></span>
-    <span class="chip">Area Managers: <b>${ams.size}</b></span>
+    <span class="chip">One Walmart RMs: <b>${rms.size}</b></span>
+    <span class="chip">One Walmart AMs: <b>${ams.size}</b></span>
     <span class="chip">Covered Stores: <b>${covered.length}</b></span>
     <span class="chip">Uncovered Stores: <b>${uncovered.length}</b></span>
     <span class="chip">Coverage %: <b>${pct}%</b></span>
-    <span class="chip">Dedicated Team Stores: <b>${dedicatedStores.length}</b></span>
+    <span class="chip">Stores with Dedicated Team Paths: <b>${dedicatedStores.length}</b></span>
   `;
 }
 
