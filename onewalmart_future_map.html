@@ -19,7 +19,71 @@
   html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg)}
   body{display:flex;flex-direction:column;min-width:320px}
 
-  .topbar{position:sticky; top:0; background:var(--panel); display:flex;flex-wrap:wrap;gap:10px;align-items:center; padding:8px 10px;border-bottom:1px solid #eef0f3;z-index:10; box-shadow:0 4px 14px rgba(0,0,0,.04)}
+  .topbar{
+    position:sticky;
+    top:0;
+    background:var(--panel);
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:stretch;
+    padding:6px 8px;
+    border-bottom:1px solid #eef0f3;
+    z-index:10;
+    box-shadow:0 4px 14px rgba(0,0,0,.04);
+  }
+  .topbar-section{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    min-height:38px;
+    padding:5px 6px;
+    border:1px solid #eef0f3;
+    border-radius:12px;
+    background:#f8fafc;
+  }
+  .topbar-section.search-section{
+    flex:1 1 420px;
+    min-width:320px;
+    padding:0;
+    border-color:transparent;
+    background:transparent;
+  }
+  .topbar-label{
+    font-size:11px;
+    line-height:1;
+    font-weight:900;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    color:var(--muted);
+    white-space:nowrap;
+    margin:0 2px;
+  }
+  .topbar-actions{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    flex-wrap:wrap;
+  }
+  .topbar-section .btn{
+    padding:6px 8px;
+    font-size:12px;
+    box-shadow:none;
+  }
+  .topbar-section .toggle{
+    white-space:nowrap;
+  }
+  .topbar-section .range{
+    font-size:12px;
+    gap:5px;
+  }
+  .topbar-section .range input[type="range"]{
+    width:90px;
+  }
+  @media (max-width:980px){
+    .topbar-section.search-section{flex-basis:100%;}
+    .topbar-section{flex:1 1 auto;}
+  }
   .search-wrap{display:flex;gap:8px;align-items:center;min-width:280px;flex:1}
   .searchbox{position:relative;flex:1}
   .searchbox input{width:100%;border:1px solid #d0d7de;border-radius:10px;padding:10px 12px 10px 64px;font-size:14px;background:var(--bg);color:var(--fg)}
@@ -327,66 +391,77 @@ select[multiple]{
 <body>
 
 <div class="topbar">
-  <div class="search-wrap" title="Type a store #, city/state, or hub name. Tip: type ‘near’ for nearby stores.">
-    <div class="searchbox">
-     
-      <input id="searchBox" type="text" placeholder="Type a store #, city/state, hub name… (tip: 'near Dallas')" autocomplete="off" aria-label="Search store or city" />
-      <span id="searchBadge" class="badge-left">SEARCH</span>
-
-      <div id="searchResults" class="results" role="listbox"></div>
-    </div>
-    <button id="searchClear" class="btn" type="button" title="Clear search">Clear</button>
-  </div>
-
-  <label class="toggle" title="Show Premium confirmed hubs"><input id="showConfirmed" type="checkbox" checked />One Walmart RTS</label>
-<label class="toggle" title="Show future/pending Premium hubs for planning reference only. These are faded and do not count toward coverage, rollups, filters, or gap finder.">
-  <input id="showPending" type="checkbox" checked />Future RTS reference
-</label>
-  <label class="toggle" title="Legacy Acosta toggle kept for compatibility; not used in One Walmart mode" style="display:none"><input id="showAcosta" type="checkbox" />Legacy Acosta</label>
-
-  <div class="range" title="Hub radius used for coverage, lists, rings, overlap">
-    <span>Radius</span>
-    <input id="radius" type="range" min="25" max="150" step="5" value="75" />
-    <b id="radiusLbl">75</b><small>mi</small>
-  </div>
-
-  <button id="fitBtn" class="btn" type="button" title="Fit map to filtered stores">Fit to Results</button>
-  <button id="homeBtn" class="btn" type="button" title="Reset to starting view (keeps filters)">Home</button>
-  <button id="resetBtn" class="btn" type="button" title="Reset all filters and view">Reset</button>
-
-  <!-- Export -->
-  <div class="dropdown" id="exportDrop" style="position:relative">
-    <button class="btn" type="button" title="Download CSV of filtered stores or panel list">Export ▾</button>
-    <div class="dropdown-menu">
-      <button id="exportStores" class="btn" type="button" style="display:block;width:100%;margin:4px 0" title="Export all filtered stores on the map">
-        Export filtered stores (CSV)
-      </button>
-      <label class="toggle" style="margin:6px 4px;display:flex"><input id="autoReset" type="checkbox" />Auto-reset after export/print</label>
+  <div class="topbar-section search-section">
+    <div class="search-wrap" title="Type a store #, city/state, or hub name. Tip: type ‘near’ for nearby stores.">
+      <div class="searchbox">
+        <input id="searchBox" type="text" placeholder="Type a store #, city/state, hub name… (tip: 'near Dallas')" autocomplete="off" aria-label="Search store or city" />
+        <span id="searchBadge" class="badge-left">SEARCH</span>
+        <div id="searchResults" class="results" role="listbox"></div>
+      </div>
+      <button id="searchClear" class="btn" type="button" title="Clear search">Clear</button>
     </div>
   </div>
 
-  <!-- Saved Views -->
-  <div class="dropdown" id="viewsDrop" style="position:relative">
-    <button class="btn" type="button" title="Save or recall views">Views ▾</button>
-    <div class="dropdown-menu" id="viewsMenu">
-      <button id="viewSave" class="btn" type="button" style="display:block;width:100%">Save current view…</button>
-      <div style="border-top:1px solid var(--border);margin:6px 0"></div>
-      <div id="viewList" style="min-width:220px"></div>
+  <div class="topbar-section">
+    <span class="topbar-label">View</span>
+    <div class="topbar-actions">
+      <button id="fitBtn" class="btn" type="button" title="Fit map to filtered stores">Fit</button>
+      <button id="homeBtn" class="btn" type="button" title="Reset to starting view (keeps filters)">Home</button>
+      <button id="resetBtn" class="btn" type="button" title="Reset all filters and view">Reset</button>
     </div>
   </div>
 
-<!-- Analysis Tools -->
-<div class="dropdown" id="analysisDrop" style="position:relative">
-  <button class="btn" type="button" title="Open map analysis tools">Analysis Tools ▾</button>
-  <div class="dropdown-menu">
-    <button id="gapBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Current Gap Finder</button>
-    <button id="rollupBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Manager Rollups</button>
-    <button id="coverageBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Coverage Priorities</button>
-    <button id="suggestRtsBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Suggest RTS City</button>
+  <div class="topbar-section">
+    <span class="topbar-label">RTS</span>
+    <div class="topbar-actions">
+      <label class="toggle" title="Show Premium confirmed hubs"><input id="showConfirmed" type="checkbox" checked />Active</label>
+      <label class="toggle" title="Show future/pending Premium hubs for planning reference only. These are faded and do not count toward coverage, rollups, filters, or gap finder.">
+        <input id="showPending" type="checkbox" checked />Future
+      </label>
+      <label class="toggle" title="Legacy Acosta toggle kept for compatibility; not used in One Walmart mode" style="display:none"><input id="showAcosta" type="checkbox" />Legacy Acosta</label>
+      <div class="range" title="Hub radius used for coverage, lists, rings, overlap">
+        <span>Radius</span>
+        <input id="radius" type="range" min="25" max="150" step="5" value="75" />
+        <b id="radiusLbl">75</b><small>mi</small>
+      </div>
+    </div>
   </div>
-</div>
 
-<button id="helpBtn" class="btn" type="button" title="Quick tips and shortcuts">Help</button>
+  <div class="topbar-section">
+    <span class="topbar-label">Tools</span>
+    <div class="topbar-actions">
+      <div class="dropdown" id="exportDrop" style="position:relative">
+        <button class="btn" type="button" title="Download CSV of filtered stores or panel list">Export ▾</button>
+        <div class="dropdown-menu">
+          <button id="exportStores" class="btn" type="button" style="display:block;width:100%;margin:4px 0" title="Export all filtered stores on the map">
+            Export filtered stores (CSV)
+          </button>
+          <label class="toggle" style="margin:6px 4px;display:flex"><input id="autoReset" type="checkbox" />Auto-reset after export/print</label>
+        </div>
+      </div>
+
+      <div class="dropdown" id="viewsDrop" style="position:relative">
+        <button class="btn" type="button" title="Save or recall views">Views ▾</button>
+        <div class="dropdown-menu" id="viewsMenu">
+          <button id="viewSave" class="btn" type="button" style="display:block;width:100%">Save current view…</button>
+          <div style="border-top:1px solid var(--border);margin:6px 0"></div>
+          <div id="viewList" style="min-width:220px"></div>
+        </div>
+      </div>
+
+      <div class="dropdown" id="analysisDrop" style="position:relative">
+        <button class="btn" type="button" title="Open map analysis tools">Analysis Tools ▾</button>
+        <div class="dropdown-menu">
+          <button id="gapBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Current Gap Finder</button>
+          <button id="rollupBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Manager Rollups</button>
+          <button id="coverageBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Coverage Priorities</button>
+          <button id="suggestRtsBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Suggest RTS City</button>
+        </div>
+      </div>
+
+      <button id="helpBtn" class="btn" type="button" title="Quick tips and shortcuts">Help</button>
+    </div>
+  </div>
 </div>
 
 <div class="pillbar compact-viewbar" id="presetBar">
@@ -1176,7 +1251,7 @@ on('change', amFilter,  ()=>{
   }
 });
 
-  id('fitBtn').onclick  = ()=>{  saveState(); };
+  id('fitBtn').onclick  = ()=>{ fitToResults(); saveState(); };
   id('homeBtn').onclick = ()=>{ map.setView(HOME_VIEW.center, HOME_VIEW.zoom); };
   id('resetBtn').onclick= ()=>{ resetAll(); runFilter(); saveState(); renderChips(); };
   const filterToggleBtn = id('filterToggleBtn');
