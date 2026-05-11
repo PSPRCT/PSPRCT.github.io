@@ -6464,24 +6464,50 @@ function openSandboxAt(lat, lng){
     }
   }
 
-  // ---------- Cascade AM by RM ----------
-  function populateRM(stores){
-    const arr = uniqSorted(stores.map(s => s.regionalManager));
-    rmFilter.innerHTML = ['<option value="All" selected>All</option>', ...arr.map(v=>`<option value="${escape(v)}">${escape(v)}</option>`)].join('');
-  }
+// ---------- Cascade AM by RM ----------
+function populateRM(stores){
+  const by = {};
 
-  function populateAM(stores){
-    const arr = uniqSorted(stores.map(s => s.areaManager));
-    amFilter.innerHTML = ['<option value="All" selected>All</option>', ...arr.map(v=>`<option value="${escape(v)}">${escape(v)}</option>`)].join('');
-  }
+  (stores || []).forEach(s => {
+    coreManagerPathsForStore(s).forEach(p => {
+      const rm = String(p.regionalManager || '').trim();
+      if (!rm) return;
+      by[rm] = (by[rm] || 0) + 1;
+    });
+  });
 
-  function cascadeAM(){
-    rebuildAMOptionsWithCounts();
-  }
+  const names = Object.keys(by).sort((a,b)=>String(a).localeCompare(String(b)));
 
-  function cascadeRM(){
-    rebuildRMOptionsWithCounts();
-  }
+  rmFilter.innerHTML = ['<option value="All" selected>All</option>', ...names.map(n =>
+    `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
+  )].join('');
+}
+
+function populateAM(stores){
+  const by = {};
+
+  (stores || []).forEach(s => {
+    coreManagerPathsForStore(s).forEach(p => {
+      const am = String(p.areaManager || '').trim();
+      if (!am) return;
+      by[am] = (by[am] || 0) + 1;
+    });
+  });
+
+  const names = Object.keys(by).sort((a,b)=>String(a).localeCompare(String(b)));
+
+  amFilter.innerHTML = ['<option value="All" selected>All</option>', ...names.map(n =>
+    `<option value="${escape(n)}">${escape(n)} — ${by[n]}</option>`
+  )].join('');
+}
+
+function cascadeAM(){
+  rebuildAMOptionsWithCounts();
+}
+
+function cascadeRM(){
+  rebuildRMOptionsWithCounts();
+}
 
   // ---------- Fit to results ----------
   function fitToResults(){
