@@ -1128,11 +1128,9 @@ syncLegends();
 on('change', rmFilter,  ()=>{
   lastFilterChanged='rmFilter';
 
-  // Skip expensive AM dropdown rebuild during RM click.
-  // AM search/filter still works; dropdown just won't recalculate instantly.
-  // cascadeAM();
+  cascadeAM();
 
-  // Skip expensive hub dropdown rebuild during RM click.
+  // Keep this off for performance.
   // buildHubFilterOptions();
 
   runFilter();
@@ -1144,10 +1142,9 @@ on('change', rmFilter,  ()=>{
 on('change', amFilter,  ()=>{
   lastFilterChanged='amFilter';
 
-  // Skip expensive RM dropdown rebuild during AM click.
-  // cascadeRM();
+  cascadeRM();
 
-  // Skip expensive hub dropdown rebuild during AM click.
+  // Keep this off for performance.
   // buildHubFilterOptions();
 
   runFilter();
