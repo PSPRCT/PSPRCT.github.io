@@ -1162,7 +1162,7 @@ try {
   syncCoreTeamToggleVisibility();
   applyActiveAlignmentToStores();
 
-  STATUS.textContent += `  |  current + future manager rollups applied`;
+  STATUS.textContent += `  |  current + future manager rollups applied (team-scoped v2)`;
 } catch(mgrErr) {
   console.warn('Manager rollup overlays not loaded; using manager data from onewalmart_store_data.json only:', mgrErr);
 }
@@ -1370,25 +1370,23 @@ function getManagerText(p){
 
 function getTeamType(path){
   const team = String(path?.teamName || path?.team || path?.managementGroupName || '').trim().toLowerCase();
+  const legacy = String(path?.legacyBrand || path?.LegacyBrand || '').trim().toLowerCase();
+  const teamId = String(path?.teamId || path?.ManagementGroupID || path?.managementGroupId || '').trim();
   const text = getManagerText(path);
 
-  // Future-state core team
-  if (team === 'wm - one walmart' || team.includes('one walmart')) return 'onewalmart';
-
-  // Current-state core teams — exact/strict classification.
-  // Premium PSP is labeled "Dedicated - Walmart PSP" in the current manager_paths file.
-  if (team === 'dedicated - walmart psp') return 'premium';
-
-  // Acosta PSP is labeled "WM - Walmart/Sams PSP" in the current manager_paths file.
-  if (team === 'wm - walmart/sams psp' || team === 'wm - walmart/sam psp') return 'acosta';
-
-  // Crossmark PSP.
-  if (team === 'crossmark walmart psp') return 'crossmark';
-
-  // Dedicated client teams — infer from team name first, then manager labels when teamName is blank.
+  // Dedicated client teams must win first so they never get swallowed by One Walmart/core Walmart labels.
   if (team.includes('unilever') || /\bunilv\b/.test(text) || /\bunvil\b/.test(text)) return 'unilever';
   if (team.includes('tyson') || /\bwmtyson\b/.test(text) || /\btyson\b/.test(text)) return 'tyson';
   if (team.includes('p&g') || team.includes('p and g') || team.includes('drt - p&g') || /\bpg\b/.test(text) || /\bp&g\b/.test(text)) return 'pg';
+
+  // Current-state core teams can be supplied either by the current map's manager_paths.json
+  // or by the future One Walmart flattened file using LegacyBrand.
+  if (legacy === 'premium' || team === 'dedicated - walmart psp' || teamId === '64') return 'premium';
+  if (legacy === 'acosta' || team === 'wm - walmart/sams psp' || team === 'wm - walmart/sam psp' || teamId === '95') return 'acosta';
+  if (legacy === 'crossmark' || team === 'crossmark walmart psp') return 'crossmark';
+
+  // Future-state core team
+  if (team === 'wm - one walmart' || team.includes('one walmart') || teamId === '242') return 'onewalmart';
 
   return 'other';
 }
@@ -4819,7 +4817,7 @@ function exportCoveragePrioritiesCsv(){
     allStores.forEach(s => {
       if (!coverageSelectionAllows(s)) return;
 
-      managerPathsForStore(s).forEach(p => {
+      coreManagerPathsForStore(s).forEach(p => {
         const rm = String(p.regionalManager || '').trim();
         const am = String(p.areaManager || '').trim();
         if (!rm) return;
@@ -4851,7 +4849,7 @@ function exportCoveragePrioritiesCsv(){
     allStores.forEach(s => {
       if (!coverageSelectionAllows(s)) return;
 
-      managerPathsForStore(s).forEach(p => {
+      coreManagerPathsForStore(s).forEach(p => {
         const rm = String(p.regionalManager || '').trim();
         const am = String(p.areaManager || '').trim();
         if (!am) return;
@@ -5119,9 +5117,13 @@ function buildManagerRollupMap(rows){
 
 function pathMatchesCoreTeam(p){
   const typ = getTeamType(p);
+  const team = String(p?.teamName || p?.team || p?.managementGroupName || '').trim().toLowerCase();
+  const teamId = String(p?.teamId || p?.ManagementGroupID || p?.managementGroupId || '').trim();
 
   if (activeAlignmentMode === 'future') {
-    return typ === 'onewalmart';
+    // In future One Walmart view, Premium/Acosta/Crossmark legacy rows all roll up into the same
+    // One Walmart core alignment. Dedicated teams are excluded and handled by their own overlay.
+    return typ === 'onewalmart' || team.includes('one walmart') || teamId === '242' || ['premium','acosta','crossmark'].includes(typ);
   }
 
   if (activeCoreTeamMode === 'premium') return typ === 'premium';
@@ -5222,10 +5224,11 @@ function applyManagerRollupToStores(stores){
       if (!p || typeof p !== 'object') return null;
       const teamId = String(p.teamId ?? p.teamID ?? p.managementGroupId ?? p['Mngnt Grp Id'] ?? '').trim();
       const teamName = String(p.teamName ?? p.team ?? p.managementGroupName ?? p['Mngnt Grp Name'] ?? '').trim();
+      const legacyBrand = String(p.legacyBrand ?? p.LegacyBrand ?? p.brand ?? '').trim();
       const regionalManager = String(p.regionalManager ?? p.rm ?? p['Regional Manager'] ?? p['Mgr 4 Name'] ?? p['Mgr 3 Name'] ?? '').trim();
       const areaManager = String(p.areaManager ?? p.am ?? p['Area Manager'] ?? p['Mgr 2 Name'] ?? p['Mgr 1 Name'] ?? '').trim();
       if (!regionalManager && !areaManager) return null;
-      return { teamId, teamName, regionalManager, areaManager };
+      return { teamId, teamName, legacyBrand, regionalManager, areaManager };
     }).filter(Boolean);
   }
 
@@ -5302,6 +5305,10 @@ function managerPathHtml(s){
     return selectedValues(selectEl).filter(v => v && v !== 'All');
   }
 
+  function coreManagerPathsForStore(s){
+    return managerPathsForStore(s).filter(p => pathMatchesCoreTeam(p));
+  }
+
   function coverageSelectionAllows(s){
     const covSel = selectedValues(covFilter);
     return covSel.includes('All') || covSel.length === 0 || covSel.includes(s.coverageType || '');
@@ -5310,12 +5317,12 @@ function managerPathHtml(s){
   function regionalSelectionMatches(s, rmSel){
     const selected = (Array.isArray(rmSel) ? rmSel : Array.from(rmSel || [])).filter(v => v && v !== 'All');
     if (!selected.length) return true;
-    return managerPathsForStore(s).some(p => selected.includes(String(p.regionalManager || '').trim()));
+    return coreManagerPathsForStore(s).some(p => selected.includes(String(p.regionalManager || '').trim()));
   }
 
   function areaManagersForRegionalSelection(s, rmSel){
     const selectedRM = (Array.isArray(rmSel) ? rmSel : Array.from(rmSel || [])).filter(v => v && v !== 'All');
-    const paths = managerPathsForStore(s);
+    const paths = coreManagerPathsForStore(s);
 
     return uniqueStrings(paths
       .filter(p => !selectedRM.length || selectedRM.includes(String(p.regionalManager || '').trim()))
@@ -5324,7 +5331,7 @@ function managerPathHtml(s){
 
   function regionalManagersForAreaSelection(s, amSel){
     const selectedAM = (Array.isArray(amSel) ? amSel : Array.from(amSel || [])).filter(v => v && v !== 'All');
-    const paths = managerPathsForStore(s);
+    const paths = coreManagerPathsForStore(s);
 
     return uniqueStrings(paths
       .filter(p => !selectedAM.length || selectedAM.includes(String(p.areaManager || '').trim()))
@@ -5336,7 +5343,7 @@ function managerPathHtml(s){
     const selectedRM = (Array.isArray(rmSel) ? rmSel : Array.from(rmSel || [])).filter(v => v && v !== 'All');
     if (!selectedAM.length) return true;
 
-    return managerPathsForStore(s).some(p => {
+    return coreManagerPathsForStore(s).some(p => {
       const rmOK = !selectedRM.length || selectedRM.includes(String(p.regionalManager || '').trim());
       const amOK = selectedAM.includes(String(p.areaManager || '').trim());
       return rmOK && amOK;
@@ -5348,7 +5355,7 @@ function managerPathHtml(s){
     const selectedAM = (Array.isArray(amSel) ? amSel : Array.from(amSel || [])).filter(v => v && v !== 'All');
     if (!selectedRM.length && !selectedAM.length) return true;
 
-    return managerPathsForStore(s).some(p => {
+    return coreManagerPathsForStore(s).some(p => {
       const rmOK = !selectedRM.length || selectedRM.includes(String(p.regionalManager || '').trim());
       const amOK = !selectedAM.length || selectedAM.includes(String(p.areaManager || '').trim());
       return rmOK && amOK;
