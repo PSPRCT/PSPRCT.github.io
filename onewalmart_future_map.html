@@ -375,14 +375,18 @@ select[multiple]{
     </div>
   </div>
 
-  <!-- Analysis buttons -->
-  <button id="gapBtn" class="btn" type="button" title="Find current uncovered store clusters based on active RTS coverage only">Current Gap Finder</button>
-  <button id="rollupBtn" class="btn" type="button" title="Totals by RM/AM">Rollups</button>
-  <button id="coverageBtn" class="btn" type="button" title="Rank managers by current coverage gaps and opportunity">Coverage Priorities</button>
-  <button id="suggestRtsBtn" class="btn" type="button" title="Rank the best current RTS posting locations based on uncovered store clusters">Suggest RTS City</button>
-
-  <button id="helpBtn" class="btn" type="button" title="Quick tips and shortcuts">Help</button>
+<!-- Analysis Tools -->
+<div class="dropdown" id="analysisDrop" style="position:relative">
+  <button class="btn" type="button" title="Open map analysis tools">Analysis Tools ▾</button>
+  <div class="dropdown-menu">
+    <button id="gapBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Current Gap Finder</button>
+    <button id="rollupBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Manager Rollups</button>
+    <button id="coverageBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Coverage Priorities</button>
+    <button id="suggestRtsBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Suggest RTS City</button>
+  </div>
 </div>
+
+<button id="helpBtn" class="btn" type="button" title="Quick tips and shortcuts">Help</button>
 
 <div class="pillbar compact-viewbar" id="presetBar">
   <button id="presetUncov" class="pill compact-pill" type="button" title="Uncovered + Rings + Heatmap">
@@ -1207,6 +1211,14 @@ if (displayToggleBtn && displayOptionsPanel) {
   id('exportStores').onclick  = ()=>{ exportStoresCsv(); if(AUTO_RESET()) { resetAll(); runFilter(); renderChips(); } };
 
   const viewsDrop = id('viewsDrop'); const viewsMenu = id('viewsMenu'); const viewList = id('viewList');
+  const analysisDrop = id('analysisDrop');
+if (analysisDrop) {
+  const analysisMenu = analysisDrop.querySelector('.dropdown-menu');
+  analysisDrop.querySelector('button').onclick = () => toggleDropdown(analysisMenu);
+  on('click', document.body, (e) => {
+    if (!analysisDrop.contains(e.target)) analysisMenu.style.display = 'none';
+  }, true);
+}
   viewsDrop.querySelector('button').onclick = ()=> toggleDropdown(viewsMenu);
   on('click', document.body, (e)=>{ if (!viewsDrop.contains(e.target)) viewsMenu.style.display='none'; }, true);
   id('viewSave').onclick = saveCurrentView;
