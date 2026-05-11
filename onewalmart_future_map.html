@@ -291,8 +291,14 @@ select[multiple]{
   margin-left: 8px;
 }
 
-  .floating{position:absolute;left:10px;top:10px;z-index:402;display:flex;gap:8px;flex-wrap:wrap}
+  .floating{position:absolute;left:10px;top:10px;z-index:402;display:block}
   .floating .btn,.floating .toggle{padding:6px 8px;font-size:12px}
+  .map-layers-drop{position:relative}
+  .map-layers-drop summary{list-style:none;display:inline-flex;align-items:center;gap:6px}
+  .map-layers-drop summary::-webkit-details-marker{display:none}
+  .map-layers-panel{margin-top:6px;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 24px rgba(0,0,0,.16);padding:8px;min-width:235px;display:grid;gap:5px}
+  .map-layers-panel .toggle{justify-content:flex-start;width:100%;box-sizing:border-box}
+  .map-layers-panel .btn{width:100%;text-align:left;box-sizing:border-box}
 
   .legend{position:absolute;top:10px;right:10px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:8px 10px;box-shadow:0 6px 18px rgba(0,0,0,.12);z-index:401}
 
@@ -590,13 +596,18 @@ select[multiple]{
 
 
   <div class="floating">
-    <label class="toggle" title="Density of stores"><input id="tgHeat" type="checkbox" />Heatmap</label>
-    <label class="toggle" title="Show hub radius circles"><input id="tgRings" type="checkbox" />Hub radii</label>
-    <label class="toggle" title="Highlight stores covered by 2+ hubs"><input id="tgOverlap" type="checkbox" />Overlap</label>
-    <label class="toggle" title="Pin hubs to compare coverage"><input id="tgCompare" type="checkbox" />Compare</label>
-    <label class="toggle" title="Filter: only stores inside any visible hub radius"><input id="tgWithin" type="checkbox" />Within hubs</label>
-    <label class="toggle" title="Turn clustering on/off (useful when zoomed in)"><input id="tgCluster" type="checkbox" checked />Cluster</label>
-    <button id="sandboxBtn" class="btn" type="button" title="Simulate adding a new RTS hub and estimate coverage impact">Simulate New RTS</button>
+    <details class="map-layers-drop">
+      <summary class="btn" title="Show or hide map overlays and planning controls">Map Layers ▾</summary>
+      <div class="map-layers-panel">
+        <label class="toggle" title="Density of stores"><input id="tgHeat" type="checkbox" />Heatmap</label>
+        <label class="toggle" title="Show hub radius circles"><input id="tgRings" type="checkbox" />Hub radii</label>
+        <label class="toggle" title="Highlight stores covered by 2+ hubs"><input id="tgOverlap" type="checkbox" />Overlap</label>
+        <label class="toggle" title="Pin hubs to compare coverage"><input id="tgCompare" type="checkbox" />Compare</label>
+        <label class="toggle" title="Filter: only stores inside any visible hub radius"><input id="tgWithin" type="checkbox" />Within hubs</label>
+        <label class="toggle" title="Turn clustering on/off (useful when zoomed in)"><input id="tgCluster" type="checkbox" checked />Cluster</label>
+        <button id="sandboxBtn" class="btn" type="button" title="Simulate adding a new RTS hub and estimate coverage impact">Simulate New RTS</button>
+      </div>
+    </details>
   </div>
 
   <!-- Compare/Venn panel -->
