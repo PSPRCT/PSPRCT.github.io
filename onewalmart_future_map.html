@@ -1124,14 +1124,14 @@ syncLegends();
     lastFilterChanged='rmFilter';
     cascadeAM();
     buildHubFilterOptions();
-    runFilter(); fitToResults(); saveState(); renderChips();
+    runFilter(); saveState(); renderChips();
   });
   rebuildAMOptionsWithCounts();
   on('change', amFilter,  ()=>{
     lastFilterChanged='amFilter';
     cascadeRM();
     buildHubFilterOptions();
-    runFilter(); fitToResults(); saveState(); renderChips();
+    runFilter(); saveState(); renderChips();
   });
   on('change', covFilter, ()=>{
     lastFilterChanged='covFilter';
@@ -1140,7 +1140,7 @@ syncLegends();
     buildHubFilterOptions();
     runFilter(); saveState(); renderChips();
   });
-  on('change', hubFilter, ()=>{ lastFilterChanged='hubFilter'; runFilter(); fitToResults(); saveState(); renderChips(); });
+  on('change', hubFilter, ()=>{ lastFilterChanged='hubFilter'; runFilter(); saveState(); renderChips(); });
   ['showUnilever','showPG','showTyson'].forEach(idv => {
   const el = id(idv);
   if (el) {
@@ -1155,7 +1155,7 @@ syncLegends();
   }
 });
 
-  id('fitBtn').onclick  = ()=>{ fitToResults(); saveState(); };
+  id('fitBtn').onclick  = ()=>{  saveState(); };
   id('homeBtn').onclick = ()=>{ map.setView(HOME_VIEW.center, HOME_VIEW.zoom); };
   id('resetBtn').onclick= ()=>{ resetAll(); runFilter(); saveState(); renderChips(); };
   const filterToggleBtn = id('filterToggleBtn');
@@ -1210,7 +1210,7 @@ if (displayToggleBtn && displayOptionsPanel) {
 };
 
   tgCompare.onchange= ()=>{ compareMode = tgCompare.checked; pinnedHubs=[]; highlightLayer.clearLayers(); refreshComparePanel(); alert(compareMode ? 'Compare mode on: click hub markers to pin them.' : 'Compare mode off.'); saveState(); };
-  tgWithin.onchange = ()=>{ lastFilterChanged='tgWithin'; runFilter(); fitToResults(); saveState(); };
+  tgWithin.onchange = ()=>{ lastFilterChanged='tgWithin'; runFilter(); saveState(); };
 tgCluster.onchange = ()=>{ refreshLayerMode(); saveState(); };
 
 
@@ -3168,8 +3168,7 @@ function drillIntoManager(rollBy, managerName){
 
   buildHubFilterOptions();
   runFilter();
-  fitToResults();
-  renderChips();
+    renderChips();
   saveState();
 
   gapModal.classList.add('show');
@@ -6255,7 +6254,7 @@ function applyStateObject(st){
         if (!v) return;
         localStorage.setItem(LS_STATE, JSON.stringify(v.state));
         tryLoadLocal();
-        recomputeCoverage().then(()=>{ runFilter(); renderChips(); renderHubs(); updateRings(); fitToResults(); });
+        recomputeCoverage().then(()=>{ runFilter(); renderChips(); renderHubs(); updateRings() });
 
         if (sandboxOpen && id('sandboxUseFilters')?.checked) {
   refreshSandbox();
@@ -6354,7 +6353,7 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
     updateRings();
     recomputeCoverage().then(()=>{
       if (tgOverlap.checked) drawOverlap();
-      if (tgWithin.checked){ runFilter(); fitToResults(); } else { runFilter(); }
+      if (tgWithin.checked){ runFilter()} else { runFilter(); }
       if (spHub && !visibleHubs().some(h => h.id === spHub.id)) hideSidepanel();
       refreshComparePanel();
       saveState();
