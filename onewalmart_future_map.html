@@ -753,8 +753,19 @@
 (async function(){
   // ---------- CONFIG ----------
 const DATA_URL = './onewalmart_store_data.json?v=' + Date.now();
-const CURRENT_MANAGER_URL = './manager_paths_current.json?v=' + Date.now();
-const FUTURE_MANAGER_URL = './onewalmart_manager_paths.json?v=' + Date.now();
+
+// Current-state alignment should come from the same JSON that feeds the known-good current map.
+// Keep manager_paths_current.json first if you created a renamed copy, but fall back to manager_paths.json
+// so this future map can sit beside the current map and reuse its existing current-alignment source.
+const CURRENT_MANAGER_URLS = [
+  './manager_paths_current.json?v=' + Date.now(),
+  './manager_paths.json?v=' + Date.now()
+];
+
+const FUTURE_MANAGER_URLS = [
+  './onewalmart_manager_paths.json?v=' + Date.now()
+];
+
 const RTS_URL = './onewalmart_rts_combined.json?v=' + Date.now();
 const DEDICATED_MANAGER_URL = './dedicated_manager_paths.json?v=' + Date.now();
 
@@ -1137,16 +1148,10 @@ spRowsEl.addEventListener('click', (e)=>{
 
    // Current/Future manager alignment overlays.
 try {
-  const [currentResp, futureResp] = await Promise.all([
-    fetch(CURRENT_MANAGER_URL, { cache:'no-store' }),
-    fetch(FUTURE_MANAGER_URL, { cache:'no-store' })
+  const [currentJson, futureJson] = await Promise.all([
+    fetchFirstJson(CURRENT_MANAGER_URLS, 'current manager alignment'),
+    fetchFirstJson(FUTURE_MANAGER_URLS, 'future One Walmart manager alignment')
   ]);
-
-  if (!currentResp.ok) throw new Error(`HTTP ${currentResp.status} for ${CURRENT_MANAGER_URL}`);
-  if (!futureResp.ok) throw new Error(`HTTP ${futureResp.status} for ${FUTURE_MANAGER_URL}`);
-
-  const currentJson = JSON.parse((await currentResp.text()).replace(/^\uFEFF/,''));
-  const futureJson = JSON.parse((await futureResp.text()).replace(/^\uFEFF/,''));
 
   currentManagerRollupMap = buildManagerRollupMap(currentJson);
   futureManagerRollupMap = buildManagerRollupMap(futureJson);
@@ -1157,9 +1162,9 @@ try {
   syncCoreTeamToggleVisibility();
   applyActiveAlignmentToStores();
 
-  STATUS.textContent += `  |  future manager rollup applied`;
+  STATUS.textContent += `  |  current + future manager rollups applied`;
 } catch(mgrErr) {
-  console.warn('Manager rollup overlays not loaded; using manager data from store_data.json only:', mgrErr);
+  console.warn('Manager rollup overlays not loaded; using manager data from onewalmart_store_data.json only:', mgrErr);
 }
 
 // Dedicated team overlay stays separate and applies after the active alignment.
@@ -5002,7 +5007,29 @@ function asManagerArray(value){
       .filter(v => v && v !== '—' && v.toLowerCase() !== 'null' && v.toLowerCase() !== 'undefined');
   }
 
- function buildManagerRollupMap(rows){
+async function fetchFirstJson(urls, label){
+  const errors = [];
+
+  for (const url of urls){
+    try {
+      const resp = await fetch(url, { cache:'no-store' });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
+
+      const text = await resp.text();
+      const json = JSON.parse(text.replace(/^\uFEFF/,''));
+      if (!Array.isArray(json)) throw new Error(`${label} must be a JSON array: ${url}`);
+
+      console.log(`[Manager Rollup] loaded ${label}:`, url, 'rows:', json.length);
+      return json;
+    } catch(e) {
+      errors.push(`${url}: ${e.message || e}`);
+    }
+  }
+
+  throw new Error(`Could not load ${label}. Tried: ${errors.join(' | ')}`);
+}
+
+function buildManagerRollupMap(rows){
   const map = new Map();
 
   (Array.isArray(rows) ? rows : []).forEach(r => {
@@ -5022,6 +5049,8 @@ function asManagerArray(value){
     } else {
       const teamName =
         r.ManagementGroup ??
+        r.TeamName ??
+        r.teamName ??
         r.TeamType ??
         r.ManagementGroups ??
         r['Management Group'] ??
@@ -5033,6 +5062,7 @@ function asManagerArray(value){
         r.SourceRegionalManager ??
         r.regionalManager ??
         r['Regional Manager'] ??
+        r['Mgr 2 Name'] ??
         '';
 
       const areaManager =
@@ -5041,34 +5071,46 @@ function asManagerArray(value){
         r.AreaManager ??
         r.areaManager ??
         r['Area Manager'] ??
+        r['Mgr 1 Name'] ??
         '';
 
       if (teamName || regionalManager || areaManager) {
         paths.push({
-          teamId: String(r.ManagementGroupID ?? r.teamId ?? ''),
+          teamId: String(r.ManagementGroupID ?? r.teamId ?? r['Mngnt Grp Id'] ?? ''),
           teamName: String(teamName || '').trim(),
+          legacyBrand: String(r.LegacyBrand ?? r.legacyBrand ?? '').trim(),
           regionalManager: String(regionalManager || '').trim(),
           areaManager: String(areaManager || '').trim()
         });
       }
     }
 
+    paths = paths.filter(p => p && (p.teamName || p.regionalManager || p.areaManager));
+
+    keys.forEach(k => {
+      const existing = map.get(k) || { managerPaths: [] };
+      existing.managerPaths.push(...paths);
+      map.set(k, existing);
+    });
+  });
+
+  // Finalize each store after all rows are read. This is important for the future One Walmart file,
+  // where the same StoreTeamKey can appear once for Premium, once for Acosta, and once for Crossmark.
+  // The old logic overwrote earlier rows with the last row, which made managers disappear or appear under the wrong current/future view.
+  map.forEach((roll, key) => {
     const seen = new Set();
-    paths = paths.filter(p => {
-      const sig = [p.teamId || '', p.teamName || '', p.regionalManager || '', p.areaManager || ''].join('|');
+    const paths = (roll.managerPaths || []).filter(p => {
+      const sig = [p.teamId || '', p.teamName || '', p.legacyBrand || '', p.regionalManager || '', p.areaManager || ''].join('|');
       if (seen.has(sig)) return false;
       seen.add(sig);
       return true;
     });
 
-    const roll = {
-      managerPaths: paths,
-      areaManagers: uniqueStrings(paths.map(p => p.areaManager)),
-      regionalManagers: uniqueStrings(paths.map(p => p.regionalManager)),
-      teams: uniqueStrings(paths.map(p => p.teamName))
-    };
-
-    keys.forEach(k => map.set(k, roll));
+    roll.managerPaths = paths;
+    roll.areaManagers = uniqueStrings(paths.map(p => p.areaManager));
+    roll.regionalManagers = uniqueStrings(paths.map(p => p.regionalManager));
+    roll.teams = uniqueStrings(paths.map(p => p.teamName));
+    map.set(key, roll);
   });
 
   console.log('[Manager Rollup] rows:', Array.isArray(rows) ? rows.length : 0, 'lookup keys:', map.size);
