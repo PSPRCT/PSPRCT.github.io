@@ -962,6 +962,19 @@ syncLegends();
     runFilter(); saveState(); renderChips();
   });
   on('change', hubFilter, ()=>{ lastFilterChanged='hubFilter'; runFilter(); fitToResults(); saveState(); renderChips(); });
+  ['showUnilever','showPG','showTyson'].forEach(idv => {
+  const el = id(idv);
+  if (el) {
+    el.addEventListener('change', () => {
+      runFilter();
+      renderChips();
+      saveState();
+
+      // Refresh currently open popup, if any.
+      map.closePopup();
+    });
+  }
+});
 
   id('fitBtn').onclick  = ()=>{ fitToResults(); saveState(); };
   id('homeBtn').onclick = ()=>{ map.setView(HOME_VIEW.center, HOME_VIEW.zoom); };
@@ -1257,23 +1270,7 @@ function applyDedicatedTeamPathsToStores(rows, stores){
     arr.push({ teamName, areaManager, regionalManager });
     dedMap.set(key, arr);
   });
-function dedicatedTeamVisible(teamName){
-  const t = String(teamName || '').toLowerCase();
 
-  if (t.includes('unilever')) {
-    return id('showUnilever')?.checked !== false;
-  }
-
-  if (t.includes('p&g') || t.includes('p and g')) {
-    return id('showPG')?.checked !== false;
-  }
-
-  if (t.includes('tyson')) {
-    return id('showTyson')?.checked !== false;
-  }
-
-  return true;
-}
   let added = 0;
 
   stores.forEach(s => {
@@ -1311,6 +1308,23 @@ function dedicatedTeamVisible(teamName){
   });
 
   console.log('[Dedicated Teams] added paths to stores:', added, 'of', stores.length);
+}
+  function dedicatedTeamVisible(teamName){
+  const t = String(teamName || '').toLowerCase();
+
+  if (t.includes('unilever')) {
+    return id('showUnilever')?.checked !== false;
+  }
+
+  if (t.includes('p&g') || t.includes('p and g')) {
+    return id('showPG')?.checked !== false;
+  }
+
+  if (t.includes('tyson')) {
+    return id('showTyson')?.checked !== false;
+  }
+
+  return true;
 }
 
   function toResFromStore(s,score,kind='STORE'){ return { kind, store:s, label:`Store ${s.storeNumberStr} — ${s.storeName||''}, ${s.city}, ${s.state}`, lat:s.lat, lng:s.lng, score }; }
@@ -4993,9 +5007,13 @@ function applyManagerRollupToStores(stores){
     return asManagerArray(value).join(' | ');
   }
 
-  function managerPathHtml(s){
-    const paths = managerPathsForStore(s)
-      .filter(p => p.teamName || p.areaManager || p.regionalManager);
+function managerPathHtml(s){
+  const paths = managerPathsForStore(s)
+    .filter(p => p.teamName || p.areaManager || p.regionalManager)
+    .filter(p => {
+      if (!isDedicatedTeamPath(p)) return true;
+      return dedicatedTeamVisible(p.teamName);
+    });
 
     if (!paths.length) {
       return `
