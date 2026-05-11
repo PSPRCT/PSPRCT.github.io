@@ -5871,8 +5871,8 @@ s.address =
   // Coverage-aware popup
   function storePopupHTML(s){
   const nearestOf = (hubs) => {
-    let best=null, dmin=Infinity;
-    hubs.forEach(h=>{
+    let best = null, dmin = Infinity;
+    hubs.forEach(h => {
       const d = distMiles(s.lat, s.lng, h.coords[0], h.coords[1]);
       if (d < dmin){ dmin = d; best = h; }
     });
@@ -5882,30 +5882,43 @@ s.address =
   const np = nearestOf(premiumConfirmed);
   const na = nearestOf(acostaHubs);
 
-  const addrLine = [s.address, `${s.city || ''}, ${s.state || ''}`]
-    .filter(Boolean)
-    .join('<br>');
+  const addrLine = [
+    escape(s.address || ''),
+    `${escape(s.city || '')}, ${escape(s.state || '')}`
+  ].filter(Boolean).join('<br>');
 
-  const badge = `<span style="padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:${COLORS[s.coverageType]||'#eee'}22">${escape(coverageDisplayLabel(s.coverageType))}</span>`;
-
-  const assignedRts = s.nearestRTS || s.trainerCity || '';
+  const badge = `
+    <span style="padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:${COLORS[s.coverageType] || '#eee'}22">
+      ${escape(coverageDisplayLabel(s.coverageType))}
+    </span>
+  `;
 
   return `
-    <div style="font-size:13px;line-height:1.35;min-width:260px">
-      <div style="font-weight:800;margin-bottom:4px">Store ${escape(s.storeNumberStr)} — ${escape(s.storeName||'')}</div>
+    <div style="font-size:13px;line-height:1.35;min-width:280px">
+      <div style="font-weight:800;margin-bottom:4px">
+        Store ${escape(s.storeNumberStr)} — ${escape(s.storeName || '')}
+      </div>
+
       <div>${addrLine}</div>
       <div style="margin:6px 0">${badge}</div>
-        ${managerPathHtml(s)}
+
+      ${managerPathHtml(s)}
+
       ${np ? `<div style="margin-top:6px"><b>Nearest Active RTS:</b> ${escape(hubDisplay(np.hub))} • ${np.d.toFixed(1)} mi</div>` : ''}
-      ${na ? `<div><b>Nearest Legacy RTS:</b> ${escape(na.hub.label || na.hub.fullName || na.hub.name)} • ${na.d.toFixed(1)} mi</div>` : ''}
-      <div style="color:var(--muted);margin-top:6px">Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}</div>
+      ${na ? `<div><b>Nearest Legacy RTS:</b> ${escape(na.hub.label || na.hub.fullName || na.hub.name || '')} • ${na.d.toFixed(1)} mi</div>` : ''}
+
+      <div style="color:var(--muted);margin-top:6px">
+        Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}
+      </div>
+
       <div style="margin-top:6px">
         <b>Maps:</b>
-        <a target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(s.lat+','+s.lng)}">Google</a>
+        <a target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(s.lat + ',' + s.lng)}">Google</a>
         •
-        <a target="_blank" rel="noopener" href="http://maps.apple.com/?ll=${encodeURIComponent(s.lat+','+s.lng)}">Apple</a>
+        <a target="_blank" rel="noopener" href="http://maps.apple.com/?ll=${encodeURIComponent(s.lat + ',' + s.lng)}">Apple</a>
       </div>
-    </div>`;
+    </div>
+  `;
 }
   function ensureMarkerForStore(store){
     let m = markerByStore.get(store.storeNumberStr);
