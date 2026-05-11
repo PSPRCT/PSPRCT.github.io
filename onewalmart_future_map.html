@@ -1351,16 +1351,46 @@ const storesFp  = `stores:${allStores.length}`;
     searchResults._data = list; resIndex=-1;
   }
 
-function isDedicatedTeamPath(p){
-  const t = String(p.teamName || '').toLowerCase();
+function getManagerText(p){
+  return String([
+    p?.teamName,
+    p?.team,
+    p?.managementGroupName,
+    p?.areaManager,
+    p?.regionalManager,
+    p?.am,
+    p?.rm
+  ].filter(Boolean).join(' ')).trim().toLowerCase();
+}
 
-  return (
-    t.includes('unilever') ||
-    t.includes('tyson') ||
-    t.includes('p&g') ||
-    t.includes('p and g') ||
-    t.includes('wm - drt')
-  );
+function getTeamType(path){
+  const team = String(path?.teamName || path?.team || path?.managementGroupName || '').trim().toLowerCase();
+  const text = getManagerText(path);
+
+  // Future-state core team
+  if (team === 'wm - one walmart' || team.includes('one walmart')) return 'onewalmart';
+
+  // Current-state core teams — exact/strict classification.
+  // Premium PSP is labeled "Dedicated - Walmart PSP" in the current manager_paths file.
+  if (team === 'dedicated - walmart psp') return 'premium';
+
+  // Acosta PSP is labeled "WM - Walmart/Sams PSP" in the current manager_paths file.
+  if (team === 'wm - walmart/sams psp' || team === 'wm - walmart/sam psp') return 'acosta';
+
+  // Crossmark PSP.
+  if (team === 'crossmark walmart psp') return 'crossmark';
+
+  // Dedicated client teams — infer from team name first, then manager labels when teamName is blank.
+  if (team.includes('unilever') || /\bunilv\b/.test(text) || /\bunvil\b/.test(text)) return 'unilever';
+  if (team.includes('tyson') || /\bwmtyson\b/.test(text) || /\btyson\b/.test(text)) return 'tyson';
+  if (team.includes('p&g') || team.includes('p and g') || team.includes('drt - p&g') || /\bpg\b/.test(text) || /\bp&g\b/.test(text)) return 'pg';
+
+  return 'other';
+}
+
+function isDedicatedTeamPath(p){
+  const typ = getTeamType(p);
+  return typ === 'unilever' || typ === 'tyson' || typ === 'pg';
 }
 
 function applyDedicatedTeamPathsToStores(rows, stores){
@@ -1371,14 +1401,24 @@ function applyDedicatedTeamPathsToStores(rows, stores){
       r.StoreKey ?? r.storeNumberStr ?? r.StoreNumber ?? r.StoreNbr ?? r['Store Number'] ?? ''
     );
 
-    const teamName = String(r.teamName ?? r.TeamName ?? r['Mngnt Grp Name'] ?? '').trim();
-    const areaManager = String(r.areaManager ?? r.AreaManager ?? r['Mgr 1 Name'] ?? '').trim();
-    const regionalManager = String(r.regionalManager ?? r.RegionalManager ?? r['Mgr 2 Name'] ?? '').trim();
+    const teamName = String(r.teamName ?? r.TeamName ?? r['Mngnt Grp Name'] ?? r.ManagementGroup ?? '').trim();
+    const areaManager = String(r.areaManager ?? r.AreaManager ?? r['Mgr 1 Name'] ?? r.DistrictManager ?? '').trim();
+    const regionalManager = String(r.regionalManager ?? r.RegionalManager ?? r['Mgr 2 Name'] ?? r.SourceRegionalManager ?? '').trim();
 
-    if (!key || !isDedicatedTeamPath({ teamName })) return;
+    const path = { teamName, areaManager, regionalManager };
+    if (!key || !isDedicatedTeamPath(path)) return;
+
+    // Normalize blank inferred team names so popups and filters still show the right client team.
+    if (!path.teamName) {
+      const typ = getTeamType(path);
+      path.teamName = typ === 'unilever' ? 'Unilever - DRT'
+        : typ === 'tyson' ? 'WM - DRT - Tyson'
+        : typ === 'pg' ? 'WM - DRT - P&G'
+        : '';
+    }
 
     const arr = dedMap.get(key) || [];
-    arr.push({ teamName, areaManager, regionalManager });
+    arr.push(path);
     dedMap.set(key, arr);
   });
 
@@ -1405,7 +1445,7 @@ function applyDedicatedTeamPathsToStores(rows, stores){
 
     s.managerPaths = existing;
 
-    // Dedicated team paths stay in managerPaths only.
+    // Dedicated client team paths stay in managerPaths only.
     // Do not append dedicated AM/RM names into s.areaManager or s.regionalManager,
     // because those fields drive the main core-team RM/AM filters.
 
@@ -1415,19 +1455,11 @@ function applyDedicatedTeamPathsToStores(rows, stores){
   console.log('[Dedicated Teams] added paths to stores:', added, 'of', stores.length);
 }
   function dedicatedTeamVisible(teamName){
-  const t = String(teamName || '').toLowerCase();
+  const typ = getTeamType({ teamName });
 
-  if (t.includes('unilever')) {
-    return id('showUnilever')?.checked !== false;
-  }
-
-  if (t.includes('p&g') || t.includes('p and g')) {
-    return id('showPG')?.checked !== false;
-  }
-
-  if (t.includes('tyson')) {
-    return id('showTyson')?.checked !== false;
-  }
+  if (typ === 'unilever') return id('showUnilever')?.checked !== false;
+  if (typ === 'pg') return id('showPG')?.checked !== false;
+  if (typ === 'tyson') return id('showTyson')?.checked !== false;
 
   return true;
 }
@@ -1694,54 +1726,52 @@ function renderManagerRollupSummary(stores){
   const covered = valid.filter(s => (s.coverageType || '') !== 'Uncovered');
   const uncovered = valid.filter(s => (s.coverageType || '') === 'Uncovered');
 
+  const corePaths = [];
+  const dedicatedPaths = [];
   const rms = new Set();
   const ams = new Set();
 
   valid.forEach(s => {
-    const oneWalmartPaths = (s.managerPaths || []).filter(p =>
-      String(p.teamName || '').trim().toLowerCase() === 'wm - one walmart'
-    );
+    (s.managerPaths || []).forEach(p => {
+      if (pathMatchesCoreTeam(p)) {
+        corePaths.push(p);
+        if (p.regionalManager) rms.add(String(p.regionalManager).trim());
+        if (p.areaManager) ams.add(String(p.areaManager).trim());
+      }
 
-    oneWalmartPaths.forEach(p => {
-      if (p.regionalManager) rms.add(String(p.regionalManager).trim());
-      if (p.areaManager) ams.add(String(p.areaManager).trim());
+      if (isDedicatedTeamPath(p) && dedicatedTeamVisible(p.teamName)) {
+        dedicatedPaths.push(p);
+      }
     });
   });
 
-const dedicatedPaths = [];
-
-valid.forEach(s => {
-  (s.managerPaths || []).forEach(p => {
-if (
-  isDedicatedTeamPath(p) &&
-  dedicatedTeamVisible(p.teamName)
-){
-  dedicatedPaths.push(p);
-}
-  });
-});
-
-const dedicatedByTeam = {
-  unilever: dedicatedPaths.filter(p => String(p.teamName || '').toLowerCase().includes('unilever')).length,
-  pg: dedicatedPaths.filter(p => {
-    const t = String(p.teamName || '').toLowerCase();
-    return t.includes('p&g') || t.includes('p and g');
-  }).length,
-  tyson: dedicatedPaths.filter(p => String(p.teamName || '').toLowerCase().includes('tyson')).length
-};
+  const dedicatedByTeam = {
+    unilever: dedicatedPaths.filter(p => getTeamType(p) === 'unilever').length,
+    pg: dedicatedPaths.filter(p => getTeamType(p) === 'pg').length,
+    tyson: dedicatedPaths.filter(p => getTeamType(p) === 'tyson').length
+  };
 
   const pct = valid.length ? ((covered.length / valid.length) * 100).toFixed(1) : '0.0';
+  const coreLabel = activeAlignmentMode === 'future'
+    ? 'One Walmart'
+    : activeCoreTeamMode === 'premium'
+      ? 'Premium PSP'
+      : activeCoreTeamMode === 'acosta'
+        ? 'Acosta PSP'
+        : activeCoreTeamMode === 'crossmark'
+          ? 'Crossmark PSP'
+          : 'Core Team';
 
   id('mgrRollupSummary').innerHTML = `
-    <span class="chip">One Walmart RMs: <b>${rms.size}</b></span>
-    <span class="chip">One Walmart AMs: <b>${ams.size}</b></span>
+    <span class="chip">${coreLabel} RMs: <b>${rms.size}</b></span>
+    <span class="chip">${coreLabel} AMs: <b>${ams.size}</b></span>
     <span class="chip">Covered Stores: <b>${covered.length}</b></span>
     <span class="chip">Uncovered Stores: <b>${uncovered.length}</b></span>
     <span class="chip">Coverage %: <b>${pct}%</b></span>
     <span class="chip">Dedicated Paths: <b>${dedicatedPaths.length}</b></span>
-<span class="chip">Unilever: <b>${dedicatedByTeam.unilever}</b></span>
-<span class="chip">P&amp;G: <b>${dedicatedByTeam.pg}</b></span>
-<span class="chip">Tyson: <b>${dedicatedByTeam.tyson}</b></span>
+    <span class="chip">Unilever: <b>${dedicatedByTeam.unilever}</b></span>
+    <span class="chip">P&amp;G: <b>${dedicatedByTeam.pg}</b></span>
+    <span class="chip">Tyson: <b>${dedicatedByTeam.tyson}</b></span>
   `;
 }
 
@@ -5046,24 +5076,15 @@ function asManagerArray(value){
 }
 
 function pathMatchesCoreTeam(p){
-  const t = String(p.teamName || '').trim().toLowerCase();
-  const idv = String(p.teamId || '').trim();
+  const typ = getTeamType(p);
 
   if (activeAlignmentMode === 'future') {
-    return t === 'wm - one walmart' || t.includes('one walmart');
+    return typ === 'onewalmart';
   }
 
-  if (activeCoreTeamMode === 'premium') {
-    return idv === '64' || t.includes('premium') || t.includes('walmart/sams psp') || t.includes('walmart/sam');
-  }
-
-  if (activeCoreTeamMode === 'acosta') {
-    return idv === '95' || t.includes('acosta') || t.includes('dedicated - walmart psp');
-  }
-
-  if (activeCoreTeamMode === 'crossmark') {
-    return idv === '242' || t.includes('crossmark');
-  }
+  if (activeCoreTeamMode === 'premium') return typ === 'premium';
+  if (activeCoreTeamMode === 'acosta') return typ === 'acosta';
+  if (activeCoreTeamMode === 'crossmark') return typ === 'crossmark';
 
   return false;
 }
