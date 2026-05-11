@@ -752,22 +752,25 @@
 <script>
 (async function(){
   // ---------- CONFIG ----------
-const DATA_URL = './onewalmart_store_data.json?v=' + Date.now();
+const APP_DATA_VERSION = '2026-05-11-current-json-required-v4';
+const DATA_URL = './onewalmart_store_data.json?v=' + APP_DATA_VERSION;
 
-// Current-state alignment should come from the same JSON that feeds the known-good current map.
-// Keep manager_paths_current.json first if you created a renamed copy, but fall back to manager_paths.json
-// so this future map can sit beside the current map and reuse its existing current-alignment source.
+// IMPORTANT:
+// Current Alignment must use the SAME current-state JSON feeding the known-good current map.
+// HTML alone does not contain that data. Put the current map's manager_paths.json in this folder,
+// or copy it as current_manager_paths.json / manager_paths_current.json.
 const CURRENT_MANAGER_URLS = [
-  './manager_paths_current.json?v=' + Date.now(),
-  './manager_paths.json?v=' + Date.now()
+  './current_manager_paths.json?v=' + APP_DATA_VERSION,
+  './manager_paths_current.json?v=' + APP_DATA_VERSION,
+  './manager_paths.json?v=' + APP_DATA_VERSION
 ];
 
 const FUTURE_MANAGER_URLS = [
-  './onewalmart_manager_paths.json?v=' + Date.now()
+  './onewalmart_manager_paths.json?v=' + APP_DATA_VERSION
 ];
 
-const RTS_URL = './onewalmart_rts_combined.json?v=' + Date.now();
-const DEDICATED_MANAGER_URL = './dedicated_manager_paths.json?v=' + Date.now();
+const RTS_URL = './onewalmart_rts_combined.json?v=' + APP_DATA_VERSION;
+const DEDICATED_MANAGER_URL = './dedicated_manager_paths.json?v=' + APP_DATA_VERSION;
 
 let currentManagerRollupMap = new Map();
 let futureManagerRollupMap = new Map();
@@ -1148,12 +1151,18 @@ spRowsEl.addEventListener('click', (e)=>{
 
    // Current/Future manager alignment overlays.
 try {
-  const [currentJson, futureJson] = await Promise.all([
+  const [currentJsonRaw, futureJson] = await Promise.all([
     fetchFirstJson(CURRENT_MANAGER_URLS, 'current manager alignment'),
     fetchFirstJson(FUTURE_MANAGER_URLS, 'future One Walmart manager alignment')
   ]);
 
-  currentManagerRollupMap = buildManagerRollupMap(currentJson);
+  const currentJson = isValidCurrentAlignmentJson(currentJsonRaw) ? currentJsonRaw : [];
+  if (!currentJson.length) {
+    console.warn('[Current Alignment] Current manager JSON was rejected because it does not contain the pre-5/31 team identifiers. It is probably a future One Walmart file, not the current map manager_paths.json.');
+    STATUS.textContent += `  |  CURRENT ALIGNMENT NOT LOADED: copy the current map manager_paths.json here as current_manager_paths.json`;
+  }
+
+  currentManagerRollupMap = currentJson.length ? buildManagerRollupMap(currentJson) : new Map();
   futureManagerRollupMap = buildManagerRollupMap(futureJson);
 
   activeAlignmentMode = 'future';
@@ -1162,7 +1171,9 @@ try {
   syncCoreTeamToggleVisibility();
   applyActiveAlignmentToStores();
 
-  STATUS.textContent += `  |  current + future manager rollups applied (current-team override v3)`;
+  STATUS.textContent += currentJson.length
+    ? `  |  current + future manager rollups applied (current JSON source verified v4)`
+    : `  |  future manager rollups applied only`;
 } catch(mgrErr) {
   console.warn('Manager rollup overlays not loaded; using manager data from onewalmart_store_data.json only:', mgrErr);
 }
@@ -1277,6 +1288,10 @@ document.querySelectorAll('input[name="alignmentMode"]').forEach(r => {
       activeAlignmentMode === 'future'
         ? futureManagerRollupMap
         : currentManagerRollupMap;
+
+    if (activeAlignmentMode === 'current' && (!currentManagerRollupMap || currentManagerRollupMap.size === 0)) {
+      STATUS.textContent += ` | Current Alignment blocked: current_manager_paths.json/manager_paths.json is missing or not a pre-5/31 current file`;
+    }
 
     syncCoreTeamToggleVisibility();
     applyActiveAlignmentToStores();
@@ -1435,34 +1450,28 @@ function looksLikeAllCapsManagerName(v){
 
 function currentTeamType(p){
   const baseType = getTeamType(p);
-  const rm = String(p?.regionalManager || p?.rm || p?.['Regional Manager'] || '').trim();
-  const am = String(p?.areaManager || p?.am || p?.['Area Manager'] || '').trim();
   const team = String(p?.teamName || p?.team || p?.managementGroupName || '').trim().toLowerCase();
+  const teamId = String(p?.teamId || p?.ManagementGroupID || p?.managementGroupId || '').trim();
   const text = getManagerText(p);
+  const am = String(p?.areaManager || p?.am || p?.['Area Manager'] || '').trim();
 
   // Dedicated/client teams must stay out of the current Premium/Acosta/Crossmark core filters.
-  if (baseType === 'unilever' || personNameMatches(rm, ['Angela Mons']) || /\bunilv\b|unilever/i.test(text)) return 'unilever';
+  if (baseType === 'unilever' || /\bunilv\b|unilever/i.test(text)) return 'unilever';
   if (baseType === 'tyson' || /tyson/i.test(text)) return 'tyson';
   if (baseType === 'pg' || /\bp&g\b|\bpg\b/i.test(text)) return 'pg';
 
-  // User-confirmed current Premium PSP RMs only.
-  if (personNameMatches(rm, ['Angel Bruce', 'Roy Anders', 'Sherry Blankenhorn'])) return 'premium';
+  // For CURRENT Alignment, trust only the current map's actual team identifiers.
+  // Do not infer team from RM name. This prevents Brian/Jonathan/Raina/Alicia/etc. from being
+  // misclassified when the future One Walmart flattened file is loaded.
+  if (teamId === '64' || team === 'dedicated - walmart psp') return 'premium';
+  if (teamId === '95' || team === 'wm - walmart/sams psp' || team === 'wm - walmart/sam psp') return 'acosta';
+  if (team.includes('crossmark walmart psp') || team === 'crossmark walmart psp') return 'crossmark';
 
-  // User-confirmed Acosta example; keep Alicia out of Premium/Crossmark.
-  if (personNameMatches(rm, ['Alicia Fiechter'])) return 'acosta';
+  // Last-resort fallback only for older current files that lost the team column but kept Crossmark AM casing.
+  // This is deliberately limited to Crossmark because ALL-CAPS AMs were confirmed as Crossmark.
+  if (looksLikeAllCapsManagerName(am)) return 'crossmark';
 
-  // Current Crossmark often appears with all-caps AMs. This must not bleed into Premium.
-  if (baseType === 'crossmark' || team.includes('crossmark') || looksLikeAllCapsManagerName(am)) return 'crossmark';
-
-  // Current Acosta source team name.
-  if (baseType === 'acosta' || team.includes('walmart/sams') || team.includes('walmart/sam')) return 'acosta';
-
-  // Do NOT trust future/flattened LegacyBrand=Premium for current view unless RM is one of the
-  // three confirmed Premium RMs above. This prevents Alicia/other future One Walmart paths from
-  // showing under Premium in Current Alignment.
-  if (baseType === 'premium') return 'other';
-
-  return baseType || 'other';
+  return 'other';
 }
 
 function applyDedicatedTeamPathsToStores(rows, stores){
@@ -5094,6 +5103,45 @@ async function fetchFirstJson(urls, label){
   }
 
   throw new Error(`Could not load ${label}. Tried: ${errors.join(' | ')}`);
+}
+
+
+function isValidCurrentAlignmentJson(rows){
+  const arr = Array.isArray(rows) ? rows : [];
+  if (!arr.length) return false;
+
+  let legacyTeamHits = 0;
+  let futureOnlyHits = 0;
+
+  const sample = arr.slice(0, Math.min(arr.length, 1000));
+  sample.forEach(r => {
+    const text = JSON.stringify(r || {}).toLowerCase();
+    if (
+      text.includes('dedicated - walmart psp') ||
+      text.includes('wm - walmart/sams psp') ||
+      text.includes('wm - walmart/sam psp') ||
+      text.includes('crossmark walmart psp') ||
+      text.includes('"teamid":"64"') ||
+      text.includes('"teamid":64') ||
+      text.includes('"managementgroupid":"64"') ||
+      text.includes('"managementgroupid":64') ||
+      text.includes('"teamid":"95"') ||
+      text.includes('"teamid":95') ||
+      text.includes('"managementgroupid":"95"') ||
+      text.includes('"managementgroupid":95')
+    ) legacyTeamHits++;
+
+    if (
+      text.includes('wm - one walmart') ||
+      text.includes('onewmt|') ||
+      text.includes('"managementgroupid":242') ||
+      text.includes('"managementgroupid":"242"')
+    ) futureOnlyHits++;
+  });
+
+  // The current map JSON should contain current/pre-5/31 team names or IDs.
+  // If the file is mostly 242 / One Walmart, it is the future flattened file and must not be used for Current Alignment.
+  return legacyTeamHits > 0 && futureOnlyHits < sample.length * 0.50;
 }
 
 function buildManagerRollupMap(rows){
