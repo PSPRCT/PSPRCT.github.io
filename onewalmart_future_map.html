@@ -76,6 +76,18 @@
   margin:4px 8px;
   box-shadow:0 3px 10px rgba(0,0,0,.04);
 }
+  .filter-toggle-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:4px 8px;
+  border-bottom:1px solid #eef0f3;
+  background:#fff;
+}
+
+.filters-collapsed{
+  display:none !important;
+}
 
 .picker{
   display:flex;
@@ -376,8 +388,13 @@ select[multiple]{
 <div class="pillbar" id="activeChips"></div>
 
 
+<div class="filter-toggle-row">
+  <button id="filterToggleBtn" class="btn" type="button">Filters ▾</button>
+  <span class="muted">Use filters only when narrowing by coverage, RM, AM, or RTS hub.</span>
+</div>
+
 <!-- Filters -->
-<div class="filters" title="Use these to narrow stores; search also matches store # and city/state.">
+<div class="filters filters-collapsed" id="filtersPanel" title="Use these to narrow stores; search also matches store # and city/state.">
   <div class="picker">
     <input id="covSearch" type="text" placeholder="Search coverage…" />
    <select id="covFilter" multiple>
@@ -1120,6 +1137,18 @@ syncLegends();
   id('fitBtn').onclick  = ()=>{ fitToResults(); saveState(); };
   id('homeBtn').onclick = ()=>{ map.setView(HOME_VIEW.center, HOME_VIEW.zoom); };
   id('resetBtn').onclick= ()=>{ resetAll(); runFilter(); saveState(); renderChips(); };
+  const filterToggleBtn = id('filterToggleBtn');
+const filtersPanel = id('filtersPanel');
+
+if (filterToggleBtn && filtersPanel) {
+  filterToggleBtn.onclick = () => {
+    filtersPanel.classList.toggle('filters-collapsed');
+    filterToggleBtn.textContent = filtersPanel.classList.contains('filters-collapsed')
+      ? 'Filters ▾'
+      : 'Filters ▴';
+    setTimeout(() => map.invalidateSize(), 100);
+  };
+}
 
   // Dropdowns & views
   const exportDrop = id('exportDrop'); const menu = exportDrop.querySelector('.dropdown-menu');
