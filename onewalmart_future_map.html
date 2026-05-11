@@ -361,6 +361,30 @@
   </label>
 </div>
 
+<div class="summary" id="coreTeamToggle">
+  <span class="chip"><b>Core Team View:</b></span>
+
+  <label class="toggle core-team-future">
+    <input type="radio" name="coreTeamMode" value="onewalmart" checked>
+    One Walmart
+  </label>
+
+  <label class="toggle core-team-current" style="display:none">
+    <input type="radio" name="coreTeamMode" value="premium">
+    Premium PSP
+  </label>
+
+  <label class="toggle core-team-current" style="display:none">
+    <input type="radio" name="coreTeamMode" value="acosta">
+    Acosta PSP
+  </label>
+
+  <label class="toggle core-team-current" style="display:none">
+    <input type="radio" name="coreTeamMode" value="crossmark">
+    Crossmark PSP
+  </label>
+</div>
+
 <div class="mapwrap">
   <div id="map" role="region" aria-label="Coverage Map"></div>
 
@@ -737,6 +761,7 @@ const DEDICATED_MANAGER_URL = './dedicated_manager_paths.json?v=' + Date.now();
 let currentManagerRollupMap = new Map();
 let futureManagerRollupMap = new Map();
 let activeAlignmentMode = 'future';
+let activeCoreTeamMode = 'onewalmart';
 
 
   const FALLBACK_STORES = [
@@ -1126,22 +1151,11 @@ try {
   currentManagerRollupMap = buildManagerRollupMap(currentJson);
   futureManagerRollupMap = buildManagerRollupMap(futureJson);
 
+  activeAlignmentMode = 'future';
+  activeCoreTeamMode = 'onewalmart';
   managerRollupByStore = futureManagerRollupMap;
-  // Clear existing paths first
-allStores.forEach(s => {
-  s.managerPaths = [];
-});
-
-// Apply selected alignment
-applyManagerRollupToStores(allStores);
-
-// Re-apply dedicated overlays
-if(window.dedicatedTeamRows){
-  applyDedicatedTeamPathsToStores(
-    window.dedicatedTeamRows,
-    allStores
-  );
-}
+  syncCoreTeamToggleVisibility();
+  applyActiveAlignmentToStores();
 
   STATUS.textContent += `  |  future manager rollup applied`;
 } catch(mgrErr) {
@@ -1235,7 +1249,21 @@ runFilter();
 renderChips();
 renderHubs();
 updateRings();
-    // Alignment mode switcher
+
+// Alignment + core team switchers
+function refreshAfterAlignmentChange(){
+  populateRM(allStores);
+  populateAM(allStores);
+  buildHubFilterOptions();
+
+  runFilter();
+  renderChips();
+  renderHubs();
+  updateRings();
+
+  map.closePopup();
+}
+
 document.querySelectorAll('input[name="alignmentMode"]').forEach(r => {
   r.addEventListener('change', e => {
     activeAlignmentMode = e.target.value;
@@ -1245,36 +1273,24 @@ document.querySelectorAll('input[name="alignmentMode"]').forEach(r => {
         ? futureManagerRollupMap
         : currentManagerRollupMap;
 
-    // Clear existing manager paths before switching alignment
-    allStores.forEach(s => {
-      s.managerPaths = [];
-      s.areaManager = '';
-      s.regionalManager = '';
-    });
-
-    // Apply selected current/future alignment
-    applyManagerRollupToStores(allStores);
-
-    // Re-apply dedicated team overlay after selected alignment
-    if (window.dedicatedTeamRows) {
-      applyDedicatedTeamPathsToStores(window.dedicatedTeamRows, allStores);
-    }
-
-    populateRM(allStores);
-    populateAM(allStores);
-    buildHubFilterOptions();
-
-    runFilter();
-    renderChips();
-    renderHubs();
-    updateRings();
-
-    map.closePopup();
+    syncCoreTeamToggleVisibility();
+    applyActiveAlignmentToStores();
+    refreshAfterAlignmentChange();
 
     STATUS.textContent += ` | alignment switched to ${activeAlignmentMode}`;
   });
 });
 
+document.querySelectorAll('input[name="coreTeamMode"]').forEach(r => {
+  r.addEventListener('change', e => {
+    activeCoreTeamMode = e.target.value;
+
+    applyActiveAlignmentToStores();
+    refreshAfterAlignmentChange();
+
+    STATUS.textContent += ` | core team switched to ${activeCoreTeamMode}`;
+  });
+});
 
 // Dataset badge (simple fingerprints)
 const storesFp  = `stores:${allStores.length}`;
@@ -1389,15 +1405,9 @@ function applyDedicatedTeamPathsToStores(rows, stores){
 
     s.managerPaths = existing;
 
-    s.areaManager = uniqueStrings([
-      ...asManagerArray(s.areaManager),
-      ...dedicated.map(p => p.areaManager)
-    ]);
-
-    s.regionalManager = uniqueStrings([
-      ...asManagerArray(s.regionalManager),
-      ...dedicated.map(p => p.regionalManager)
-    ]);
+    // Dedicated team paths stay in managerPaths only.
+    // Do not append dedicated AM/RM names into s.areaManager or s.regionalManager,
+    // because those fields drive the main core-team RM/AM filters.
 
     added++;
   });
@@ -5035,6 +5045,67 @@ function asManagerArray(value){
   return map;
 }
 
+function pathMatchesCoreTeam(p){
+  const t = String(p.teamName || '').trim().toLowerCase();
+  const idv = String(p.teamId || '').trim();
+
+  if (activeAlignmentMode === 'future') {
+    return t === 'wm - one walmart' || t.includes('one walmart');
+  }
+
+  if (activeCoreTeamMode === 'premium') {
+    return idv === '64' || t.includes('premium') || t.includes('walmart/sams psp') || t.includes('walmart/sam');
+  }
+
+  if (activeCoreTeamMode === 'acosta') {
+    return idv === '95' || t.includes('acosta') || t.includes('dedicated - walmart psp');
+  }
+
+  if (activeCoreTeamMode === 'crossmark') {
+    return idv === '242' || t.includes('crossmark');
+  }
+
+  return false;
+}
+
+function applyActiveAlignmentToStores(){
+  allStores.forEach(s => {
+    s.managerPaths = [];
+    s.areaManager = '';
+    s.regionalManager = '';
+    s.managementGroupName = '';
+  });
+
+  applyManagerRollupToStores(allStores);
+
+  if (window.dedicatedTeamRows) {
+    applyDedicatedTeamPathsToStores(window.dedicatedTeamRows, allStores);
+  }
+}
+
+function syncCoreTeamToggleVisibility(){
+  const futureEls = document.querySelectorAll('.core-team-future');
+  const currentEls = document.querySelectorAll('.core-team-current');
+
+  if (activeAlignmentMode === 'future') {
+    activeCoreTeamMode = 'onewalmart';
+    const one = document.querySelector('input[name="coreTeamMode"][value="onewalmart"]');
+    if (one) one.checked = true;
+
+    futureEls.forEach(el => el.style.display = '');
+    currentEls.forEach(el => el.style.display = 'none');
+  } else {
+    if (activeCoreTeamMode === 'onewalmart') {
+      activeCoreTeamMode = 'premium';
+      const premium = document.querySelector('input[name="coreTeamMode"][value="premium"]');
+      if (premium) premium.checked = true;
+    }
+
+    futureEls.forEach(el => el.style.display = 'none');
+    currentEls.forEach(el => el.style.display = '');
+  }
+}
+
 function applyManagerRollupToStores(stores){
   let matched = 0;
 
@@ -5050,15 +5121,19 @@ function applyManagerRollupToStores(stores){
     }
 
     if (!roll) return;
+
+    const corePaths = (roll.managerPaths || []).filter(pathMatchesCoreTeam);
+    if (!corePaths.length) return;
+
     matched++;
 
-    if (roll.managerPaths?.length) s.managerPaths = roll.managerPaths;
-    if (roll.areaManagers?.length) s.areaManager = roll.areaManagers;
-    if (roll.regionalManagers?.length) s.regionalManager = roll.regionalManagers;
-    if (roll.teams?.length) s.managementGroupName = roll.teams;
+    s.managerPaths = corePaths;
+    s.areaManager = uniqueStrings(corePaths.map(p => p.areaManager));
+    s.regionalManager = uniqueStrings(corePaths.map(p => p.regionalManager));
+    s.managementGroupName = uniqueStrings(corePaths.map(p => p.teamName));
   });
 
-  console.log('[Manager Rollup] matched stores:', matched, 'of', stores.length);
+  console.log('[Manager Rollup] matched stores:', matched, 'of', stores.length, 'alignment:', activeAlignmentMode, 'core team:', activeCoreTeamMode);
 }
 
   function managerTeamsLabel(s){
