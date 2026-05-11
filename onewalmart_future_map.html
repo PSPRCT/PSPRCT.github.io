@@ -1147,12 +1147,9 @@ try {
 } catch(dedErr) {
   console.warn('Dedicated team overlay not loaded:', dedErr);
 }
-      STATUS.textContent += `  |  manager rollup applied`;
-    } catch(mgrErr) {
-      console.warn('Manager rollup overlay not loaded; using manager data from store_data.json only:', mgrErr);
-    }
+  
 
-    STATUS.textContent += `  |  ${allStores.length.toLocaleString()} stores ready`;
+STATUS.textContent += `  |  ${allStores.length.toLocaleString()} stores ready`;
 
     populateRM(allStores); populateAM(allStores);
 
@@ -1227,9 +1224,6 @@ updateRings();
 
 // Dataset badge (simple fingerprints)
 const storesFp  = `stores:${allStores.length}`;
-
-    // Dataset badge (simple fingerprints)
-    const storesFp  = `stores:${allStores.length}`;
     const premiumFp = `onewalmart-rts:${combinedRTS.length}`;
     const acostaFp  = `future:${premiumPending.length}`;
     updateDatasetBadge(storesFp, premiumFp, acostaFp);
