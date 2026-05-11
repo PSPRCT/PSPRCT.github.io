@@ -376,6 +376,117 @@ select[multiple]{
   .priority-table th,.priority-table td{border-bottom:1px solid #eef0f3;padding:7px 8px;vertical-align:top}
   .severity-chip{display:inline-block;padding:2px 8px;border-radius:999px;font-weight:700;font-size:12px;background:#fff}
 
+
+
+  /* Collapsible left control panel layout */
+  .workspace{
+    flex:1;
+    min-height:0;
+    display:flex;
+    background:#f8fafc;
+  }
+  .control-panel{
+    width:330px;
+    flex:0 0 330px;
+    border-right:1px solid var(--border);
+    background:var(--panel);
+    overflow:auto;
+    padding:10px;
+    box-shadow:4px 0 14px rgba(0,0,0,.05);
+    transition:width .18s ease, flex-basis .18s ease, padding .18s ease;
+    z-index:8;
+  }
+  .workspace.panel-collapsed .control-panel{
+    width:0;
+    flex-basis:0;
+    padding:0;
+    overflow:hidden;
+    border-right:0;
+  }
+  .map-stage{
+    flex:1;
+    min-width:0;
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    background:var(--bg);
+  }
+  .panel-title{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    margin-bottom:10px;
+    font-size:14px;
+    font-weight:900;
+  }
+  .control-section{
+    border:1px solid #eef0f3;
+    border-radius:14px;
+    background:#f8fafc;
+    padding:9px;
+    margin-bottom:10px;
+  }
+  .control-section h4{
+    margin:0 0 8px 0;
+    font-size:11px;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+    color:var(--muted);
+  }
+  .control-section .topbar-actions,
+  .control-section .panel-actions{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    align-items:center;
+  }
+  .control-section .btn{box-shadow:none}
+  .control-section .range{width:100%;justify-content:space-between;margin-top:6px}
+  .control-section .range input{flex:1;min-width:120px}
+  .control-panel .pillbar{padding:0;gap:6px}
+  .control-panel .filters{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+    padding:0;
+    border:0;
+    margin:0;
+    box-shadow:none;
+    background:transparent;
+  }
+  .control-panel select[multiple]{height:88px}
+  .control-panel .summary{padding:0;gap:6px}
+  .control-panel .display-toggle-row,
+  .control-panel .filter-toggle-row{
+    padding:0;
+    border:0;
+    background:transparent;
+    margin-bottom:8px;
+  }
+  .control-panel .muted{margin-left:0;font-size:11px;line-height:1.25}
+  .control-panel .dropdown{width:100%}
+  .control-panel .dropdown > .btn{width:100%;text-align:left}
+  .control-panel .dropdown-menu{left:0;right:auto;width:100%;min-width:0;z-index:30}
+  .control-panel .map-layers-drop summary{width:100%;box-sizing:border-box;justify-content:space-between}
+  .control-panel .map-layers-panel{
+    position:static;
+    min-width:0;
+    box-shadow:none;
+    background:#fff;
+  }
+  #panelToggleBtn{white-space:nowrap}
+  @media (max-width:900px){
+    .workspace{position:relative}
+    .control-panel{
+      position:absolute;
+      left:0;
+      top:0;
+      bottom:0;
+      max-width:88vw;
+    }
+    .workspace.panel-collapsed .control-panel{transform:translateX(-100%)}
+  }
   @media (max-width:720px){ .card .body{grid-template-columns:1fr;} }
   @media (max-width: 1100px){ .filters{grid-template-columns:repeat(2,minmax(220px,1fr));} }
   @media (max-width: 640px){ .filters{grid-template-columns:1fr;} }
@@ -396,7 +507,8 @@ select[multiple]{
 </head>
 <body>
 
-<div class="topbar">
+<div class="topbar compact-mainbar">
+  <button id="panelToggleBtn" class="btn" type="button" title="Show or hide the control panel">☰ Controls</button>
   <div class="topbar-section search-section">
     <div class="search-wrap" title="Type a store #, city/state, or hub name. Tip: type ‘near’ for nearby stores.">
       <div class="searchbox">
@@ -407,115 +519,163 @@ select[multiple]{
       <button id="searchClear" class="btn" type="button" title="Clear search">Clear</button>
     </div>
   </div>
+</div>
 
-  <div class="topbar-section">
-    <span class="topbar-label">View</span>
-    <div class="topbar-actions">
-      <button id="fitBtn" class="btn" type="button" title="Fit map to filtered stores">Fit</button>
-      <button id="homeBtn" class="btn" type="button" title="Reset to starting view (keeps filters)">Home</button>
-      <button id="resetBtn" class="btn" type="button" title="Reset all filters and view">Reset</button>
+<div class="workspace" id="workspace">
+  <aside class="control-panel" id="controlPanel">
+    <div class="panel-title">
+      <span>Map Controls</span>
+      <button id="panelCloseBtn" class="btn" type="button" title="Collapse control panel">Hide</button>
     </div>
-  </div>
 
-  <div class="topbar-section">
-    <span class="topbar-label">RTS</span>
-    <div class="topbar-actions">
-      <label class="toggle" title="Show Premium confirmed hubs"><input id="showConfirmed" type="checkbox" checked />Active</label>
-      <label class="toggle" title="Show future/pending Premium hubs for planning reference only. These are faded and do not count toward coverage, rollups, filters, or gap finder.">
-        <input id="showPending" type="checkbox" checked />Future
-      </label>
-      <label class="toggle" title="Legacy Acosta toggle kept for compatibility; not used in One Walmart mode" style="display:none"><input id="showAcosta" type="checkbox" />Legacy Acosta</label>
+    <section class="control-section">
+      <h4>View</h4>
+      <div class="panel-actions">
+        <button id="fitBtn" class="btn" type="button" title="Fit map to filtered stores">Fit to Results</button>
+        <button id="homeBtn" class="btn" type="button" title="Reset to starting view (keeps filters)">Home</button>
+        <button id="resetBtn" class="btn" type="button" title="Reset all filters and view">Reset</button>
+      </div>
+    </section>
+
+    <section class="control-section">
+      <h4>RTS Visibility</h4>
+      <div class="panel-actions">
+        <label class="toggle" title="Show Premium confirmed hubs"><input id="showConfirmed" type="checkbox" checked />Active RTS</label>
+        <label class="toggle" title="Show future/pending Premium hubs for planning reference only. These are faded and do not count toward coverage, rollups, filters, or gap finder.">
+          <input id="showPending" type="checkbox" checked />Future RTS
+        </label>
+        <label class="toggle" title="Legacy Acosta toggle kept for compatibility; not used in One Walmart mode" style="display:none"><input id="showAcosta" type="checkbox" />Legacy Acosta</label>
+      </div>
       <div class="range" title="Hub radius used for coverage, lists, rings, overlap">
         <span>Radius</span>
         <input id="radius" type="range" min="25" max="150" step="5" value="75" />
         <b id="radiusLbl">75</b><small>mi</small>
       </div>
-    </div>
-  </div>
+    </section>
 
-  <div class="topbar-section">
-    <span class="topbar-label">Tools</span>
-    <div class="topbar-actions">
-      <div class="dropdown" id="exportDrop" style="position:relative">
-        <button class="btn" type="button" title="Download CSV of filtered stores or panel list">Export ▾</button>
-        <div class="dropdown-menu">
-          <button id="exportStores" class="btn" type="button" style="display:block;width:100%;margin:4px 0" title="Export all filtered stores on the map">
-            Export filtered stores (CSV)
-          </button>
-          <label class="toggle" style="margin:6px 4px;display:flex"><input id="autoReset" type="checkbox" />Auto-reset after export/print</label>
-        </div>
-      </div>
-
-      <div class="dropdown" id="viewsDrop" style="position:relative">
-        <button class="btn" type="button" title="Save or recall views">Views ▾</button>
-        <div class="dropdown-menu" id="viewsMenu">
-          <button id="viewSave" class="btn" type="button" style="display:block;width:100%">Save current view…</button>
-          <div style="border-top:1px solid var(--border);margin:6px 0"></div>
-          <div id="viewList" style="min-width:220px"></div>
-        </div>
-      </div>
-
-      <div class="dropdown" id="analysisDrop" style="position:relative">
-        <button class="btn" type="button" title="Open map analysis tools">Analysis Tools ▾</button>
-        <div class="dropdown-menu">
-          <button id="gapBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Current Gap Finder</button>
-          <button id="rollupBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Manager Rollups</button>
-          <button id="coverageBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Coverage Priorities</button>
-          <button id="suggestRtsBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Suggest RTS City</button>
-        </div>
-      </div>
-
-      <button id="helpBtn" class="btn" type="button" title="Quick tips and shortcuts">Help</button>
-    </div>
-  </div>
-</div>
-
+    <section class="control-section">
+      <h4>Quick Views</h4>
 <div class="pillbar compact-viewbar" id="presetBar">
   <button id="presetUncov" class="pill compact-pill" type="button" title="Uncovered + Rings + Heatmap">
     <span class="dot" style="background:var(--u)"></span> Gaps
   </button>
-
-  <button id="presetHubs" class="pill compact-pill" type="button" title="Show only stores within any visible hub radius">
-    RTS Coverage
-  </button>
-
-  <button id="snapBtn" class="pill compact-pill" type="button" title="Copy a shareable URL">
-    Save Link
-  </button>
+  <button id="presetHubs" class="pill compact-pill" type="button" title="Show only stores within any visible hub radius">RTS Coverage</button>
+  <button id="snapBtn" class="pill compact-pill" type="button" title="Copy a shareable URL">Save Link</button>
 </div>
+</section>
 
-<div class="pillbar" id="activeChips"></div>
+<section class="control-section">
+  <h4>Active Filters</h4>
+  <div class="pillbar" id="activeChips"></div>
+</section>
 
-
-<div class="filter-toggle-row">
-  <button id="filterToggleBtn" class="btn" type="button">Filters ▾</button>
-  <span class="muted">Use filters only when narrowing by coverage, RM, AM, or RTS hub.</span>
-</div>
-
-<!-- Filters -->
-<div class="filters filters-collapsed" id="filtersPanel" title="Use these to narrow stores; search also matches store # and city/state.">
-  <div class="picker">
-    <input id="covSearch" type="text" placeholder="Search coverage…" />
-   <select id="covFilter" multiple>
-  <option value="All" selected>All</option>
-  <option value="Premium Only">One Walmart Covered</option>
-  <option value="Uncovered">Current Gap / Uncovered</option>
-</select>
+<section class="control-section">
+  <div class="filter-toggle-row">
+    <button id="filterToggleBtn" class="btn" type="button">Filters ▴</button>
+    <span class="muted">Narrow by coverage, RM, AM, or RTS hub.</span>
   </div>
-  <div class="picker">
-    <input id="rmSearch" type="text" placeholder="Filter regional managers…" />
-    <select id="rmFilter" multiple><option value="All" selected>All</option></select>
+  <div class="filters" id="filtersPanel" title="Use these to narrow stores; search also matches store # and city/state.">
+    <div class="picker">
+      <input id="covSearch" type="text" placeholder="Search coverage…" />
+      <select id="covFilter" multiple>
+        <option value="All" selected>All</option>
+        <option value="Premium Only">One Walmart Covered</option>
+        <option value="Uncovered">Current Gap / Uncovered</option>
+      </select>
+    </div>
+    <div class="picker">
+      <input id="rmSearch" type="text" placeholder="Filter regional managers…" />
+      <select id="rmFilter" multiple><option value="All" selected>All</option></select>
+    </div>
+    <div class="picker">
+      <input id="amSearch" type="text" placeholder="Filter area managers…" />
+      <select id="amFilter" multiple><option value="All" selected>All</option></select>
+    </div>
+    <div class="picker">
+      <input id="hubSearch" type="text" placeholder="Filter hubs…" />
+      <select id="hubFilter" multiple></select>
+    </div>
   </div>
-  <div class="picker">
-    <input id="amSearch" type="text" placeholder="Filter area managers…" />
-    <select id="amFilter" multiple><option value="All" selected>All</option></select>
-  </div>
-  <div class="picker">
-    <input id="hubSearch" type="text" placeholder="Filter hubs…" />
-    <select id="hubFilter" multiple></select>
-  </div>
-</div>
+</section>
 
+<section class="control-section">
+  <h4>Display Options</h4>
+  <div class="display-toggle-row">
+    <button id="displayToggleBtn" class="btn" type="button">Display Options ▾</button>
+    <span class="muted">Alignment, dedicated teams, and dataset badges.</span>
+  </div>
+  <div id="displayOptionsPanel" class="display-options-collapsed">
+    <div class="summary" id="dedicatedTeamFilters">
+      <span class="chip"><b>Dedicated:</b></span>
+      <label class="toggle"><input id="showUnilever" type="checkbox" checked> Unilever</label>
+      <label class="toggle"><input id="showPG" type="checkbox" checked> P&amp;G</label>
+      <label class="toggle"><input id="showTyson" type="checkbox" checked> Tyson</label>
+    </div>
+    <div class="summary" id="datasetBadge"></div>
+    <div class="summary" id="alignmentToggle">
+      <span class="chip"><b>Alignment:</b></span>
+      <label class="toggle"><input type="radio" name="alignmentMode" value="future" checked> Future One Walmart</label>
+      <label class="toggle"><input type="radio" name="alignmentMode" value="current"> Current Alignment</label>
+    </div>
+    <div class="summary" id="coreTeamToggle">
+      <span class="chip"><b>Core Team:</b></span>
+      <label class="toggle core-team-future"><input type="radio" name="coreTeamMode" value="onewalmart" checked> One Walmart</label>
+      <label class="toggle core-team-current" style="display:none"><input type="radio" name="coreTeamMode" value="premium"> Premium PSP</label>
+      <label class="toggle core-team-current" style="display:none"><input type="radio" name="coreTeamMode" value="acosta"> Acosta PSP</label>
+      <label class="toggle core-team-current" style="display:none"><input type="radio" name="coreTeamMode" value="crossmark"> Crossmark PSP</label>
+    </div>
+  </div>
+</section>
+
+<section class="control-section">
+  <h4>Map Layers</h4>
+  <details class="map-layers-drop" open>
+    <summary class="btn" title="Show or hide map overlays and planning controls">Map Layers ▾</summary>
+    <div class="map-layers-panel">
+      <label class="toggle" title="Density of stores"><input id="tgHeat" type="checkbox" />Heatmap</label>
+      <label class="toggle" title="Show hub radius circles"><input id="tgRings" type="checkbox" />RTS radius rings</label>
+      <label class="toggle" title="Highlight stores covered by 2+ hubs"><input id="tgOverlap" type="checkbox" />Overlap</label>
+      <label class="toggle" title="Pin hubs to compare coverage"><input id="tgCompare" type="checkbox" />Compare</label>
+      <label class="toggle" title="Filter: only stores inside any visible hub radius"><input id="tgWithin" type="checkbox" />Stores within RTS radius</label>
+      <label class="toggle" title="Turn clustering on/off (useful when zoomed in)"><input id="tgCluster" type="checkbox" checked />Cluster stores</label>
+      <button id="sandboxBtn" class="btn" type="button" title="Simulate adding a new RTS hub and estimate coverage impact">Simulate New RTS</button>
+    </div>
+  </details>
+</section>
+
+<section class="control-section">
+  <h4>Tools</h4>
+  <div class="panel-actions">
+    <div class="dropdown" id="exportDrop" style="position:relative">
+      <button class="btn" type="button" title="Download CSV of filtered stores or panel list">Export ▾</button>
+      <div class="dropdown-menu">
+        <button id="exportStores" class="btn" type="button" style="display:block;width:100%;margin:4px 0" title="Export all filtered stores on the map">Export filtered stores (CSV)</button>
+        <label class="toggle" style="margin:6px 4px;display:flex"><input id="autoReset" type="checkbox" />Auto-reset after export/print</label>
+      </div>
+    </div>
+    <div class="dropdown" id="viewsDrop" style="position:relative">
+      <button class="btn" type="button" title="Save or recall views">Views ▾</button>
+      <div class="dropdown-menu" id="viewsMenu">
+        <button id="viewSave" class="btn" type="button" style="display:block;width:100%">Save current view…</button>
+        <div style="border-top:1px solid var(--border);margin:6px 0"></div>
+        <div id="viewList" style="min-width:220px"></div>
+      </div>
+    </div>
+    <div class="dropdown" id="analysisDrop" style="position:relative">
+      <button class="btn" type="button" title="Open map analysis tools">Analysis Tools ▾</button>
+      <div class="dropdown-menu">
+        <button id="gapBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Current Gap Finder</button>
+        <button id="rollupBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Manager Rollups</button>
+        <button id="coverageBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Coverage Priorities</button>
+        <button id="suggestRtsBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Suggest RTS City</button>
+      </div>
+    </div>
+    <button id="helpBtn" class="btn" type="button" title="Quick tips and shortcuts">Help</button>
+  </div>
+</section>
+</aside>
+
+<main class="map-stage">
 <div style="padding:6px 10px;color:var(--fg);font-size:12px;background:#f8fafc;border-top:1px solid #eef0f3;border-bottom:1px solid #eef0f3">
   <b>Future-State One Walmart Map:</b> PSP alignment reflects the post-5/31 One Walmart structure. Dedicated teams — Unilever, P&amp;G, and Tyson — are shown separately where applicable.
 </div>
@@ -531,58 +691,6 @@ select[multiple]{
   <span class="muted" id="inView">In view: 0</span>
 </div>
 <div class="summary" id="mgrRollupSummary" style="display:none;"></div>
-<div class="display-toggle-row">
-  <button id="displayToggleBtn" class="btn" type="button">Display Options ▾</button>
-  <span class="muted">Show/hide alignment, dedicated teams, and map overlays.</span>
-</div>
-
-<div id="displayOptionsPanel" class="display-options-collapsed">
-  <div class="summary" id="dedicatedTeamFilters">
-  <span class="chip"><b>Dedicated Team Filters:</b></span>
-  <label class="toggle"><input id="showUnilever" type="checkbox" checked> Unilever</label>
-  <label class="toggle"><input id="showPG" type="checkbox" checked> P&amp;G</label>
-  <label class="toggle"><input id="showTyson" type="checkbox" checked> Tyson</label>
-</div>
-<div class="summary" id="datasetBadge"></div>
-
-  <div class="summary" id="alignmentToggle">
-  <span class="chip"><b>Alignment View:</b></span>
-
-  <label class="toggle">
-    <input type="radio" name="alignmentMode" value="future" checked>
-    Future One Walmart
-  </label>
-
-  <label class="toggle">
-    <input type="radio" name="alignmentMode" value="current">
-    Current Alignment
-  </label>
-</div>
-
-<div class="summary" id="coreTeamToggle">
-  <span class="chip"><b>Core Team View:</b></span>
-
-  <label class="toggle core-team-future">
-    <input type="radio" name="coreTeamMode" value="onewalmart" checked>
-    One Walmart
-  </label>
-
-  <label class="toggle core-team-current" style="display:none">
-    <input type="radio" name="coreTeamMode" value="premium">
-    Premium PSP
-  </label>
-
-  <label class="toggle core-team-current" style="display:none">
-    <input type="radio" name="coreTeamMode" value="acosta">
-    Acosta PSP
-  </label>
-
-  <label class="toggle core-team-current" style="display:none">
-    <input type="radio" name="coreTeamMode" value="crossmark">
-    Crossmark PSP
-  </label>
-</div>
-</div>
 <div class="mapwrap">
   <div id="map" role="region" aria-label="Coverage Map"></div>
 
@@ -594,21 +702,6 @@ select[multiple]{
     </div>
   </div>
 
-
-  <div class="floating">
-    <details class="map-layers-drop">
-      <summary class="btn" title="Show or hide map overlays and planning controls">Map Layers ▾</summary>
-      <div class="map-layers-panel">
-        <label class="toggle" title="Density of stores"><input id="tgHeat" type="checkbox" />Heatmap</label>
-        <label class="toggle" title="Show hub radius circles"><input id="tgRings" type="checkbox" />Hub radii</label>
-        <label class="toggle" title="Highlight stores covered by 2+ hubs"><input id="tgOverlap" type="checkbox" />Overlap</label>
-        <label class="toggle" title="Pin hubs to compare coverage"><input id="tgCompare" type="checkbox" />Compare</label>
-        <label class="toggle" title="Filter: only stores inside any visible hub radius"><input id="tgWithin" type="checkbox" />Within hubs</label>
-        <label class="toggle" title="Turn clustering on/off (useful when zoomed in)"><input id="tgCluster" type="checkbox" checked />Cluster</label>
-        <button id="sandboxBtn" class="btn" type="button" title="Simulate adding a new RTS hub and estimate coverage impact">Simulate New RTS</button>
-      </div>
-    </details>
-  </div>
 
   <!-- Compare/Venn panel -->
   <div id="comparePanel" class="compare-panel">
@@ -662,6 +755,8 @@ select[multiple]{
       </div>
     </div>
   </div>
+</div>
+</main>
 </div>
 
 <!-- Help modal -->
@@ -1187,6 +1282,20 @@ syncLegends();
   ).trim();
 
   setTimeout(()=> map.invalidateSize(), 120);
+
+
+  // Left control panel shell
+  const workspaceEl = id('workspace');
+  const panelToggleBtn = id('panelToggleBtn');
+  const panelCloseBtn = id('panelCloseBtn');
+  function setControlPanelCollapsed(collapsed){
+    if (!workspaceEl) return;
+    workspaceEl.classList.toggle('panel-collapsed', !!collapsed);
+    if (panelToggleBtn) panelToggleBtn.textContent = collapsed ? '☰ Controls' : '☰ Hide Controls';
+    setTimeout(() => map.invalidateSize(), 160);
+  }
+  if (panelToggleBtn) panelToggleBtn.onclick = () => setControlPanelCollapsed(!workspaceEl.classList.contains('panel-collapsed'));
+  if (panelCloseBtn) panelCloseBtn.onclick = () => setControlPanelCollapsed(true);
 
   // Event wiring — visibility affects coverage
   showConfirmed.onchange = handleHubVisibilityChange;
