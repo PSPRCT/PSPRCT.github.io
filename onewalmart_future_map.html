@@ -215,7 +215,8 @@
 
 
   /* Coverage Priorities */
-  .priority-card{border:1px solid var(--border);border-radius:12px;padding:10px;background:#f8fafc;margin-bottom:10px}
+  .priority-card{border:1px solid var(--border);border-radius:12px;padding:10px;background:#f8fafc;marginconst DATA_URL = './onewalmart_store_data.json?v=' + Date.now();
+-bottom:10px}
   .priority-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
   .priority-table{width:100%;border-collapse:collapse;font-size:13px}
   .priority-table th{position:sticky;top:0;background:#f8fafc;z-index:1}
@@ -727,16 +728,15 @@
 <script>
 (async function(){
   // ---------- CONFIG ----------
-  const DATA_URL = './onewalmart_store_data.json?v=' + Date.now();
-const currentManagerPaths =
-  await fetch('./manager_paths_current.json?v=' + Date.now())
-    .then(r => r.json());
-
-const futureManagerPaths =
-  await fetch('./onewalmart_manager_paths.json?v=' + Date.now())
-    .then(r => r.json());
+const DATA_URL = './onewalmart_store_data.json?v=' + Date.now();
+const CURRENT_MANAGER_URL = './manager_paths_current.json?v=' + Date.now();
+const FUTURE_MANAGER_URL = './onewalmart_manager_paths.json?v=' + Date.now();
 const RTS_URL = './onewalmart_rts_combined.json?v=' + Date.now();
-  const DEDICATED_MANAGER_URL = './dedicated_manager_paths.json?v=' + Date.now();
+const DEDICATED_MANAGER_URL = './dedicated_manager_paths.json?v=' + Date.now();
+
+let currentManagerRollupMap = new Map();
+let futureManagerRollupMap = new Map();
+let activeAlignmentMode = 'future';
 
 
   const FALLBACK_STORES = [
@@ -767,7 +767,7 @@ let combinedRTS = [];
 let premiumConfirmed = [];
 let premiumPending   = [];
 let acostaHubs       = [];
-  let activeAlignmentMode = 'future';
+ 
 
   
 
@@ -1110,21 +1110,39 @@ spRowsEl.addEventListener('click', (e)=>{
     }
     allStores = normalizeStores(storeRaw);
 
-    // Optional manager rollup overlay. This lets you refresh manager alignment
-    // without rebuilding the full store_data.json file.
-    try {
-      const mResp = await fetch(MANAGER_ROLLUP_URL, { cache:'no-store' });
-      if (!mResp.ok) throw new Error(`HTTP ${mResp.status} for ${MANAGER_ROLLUP_URL}`);
-      const mText = await mResp.text();
-      const mJson = JSON.parse(mText.replace(/^\uFEFF/,''));
-      managerRollupByStore = buildManagerRollupMap(mJson);
-      applyManagerRollupToStores(allStores);
-      try {
+   // Current/Future manager alignment overlays.
+try {
+  const [currentResp, futureResp] = await Promise.all([
+    fetch(CURRENT_MANAGER_URL, { cache:'no-store' }),
+    fetch(FUTURE_MANAGER_URL, { cache:'no-store' })
+  ]);
+
+  if (!currentResp.ok) throw new Error(`HTTP ${currentResp.status} for ${CURRENT_MANAGER_URL}`);
+  if (!futureResp.ok) throw new Error(`HTTP ${futureResp.status} for ${FUTURE_MANAGER_URL}`);
+
+  const currentJson = JSON.parse((await currentResp.text()).replace(/^\uFEFF/,''));
+  const futureJson = JSON.parse((await futureResp.text()).replace(/^\uFEFF/,''));
+
+  currentManagerRollupMap = buildManagerRollupMap(currentJson);
+  futureManagerRollupMap = buildManagerRollupMap(futureJson);
+
+  managerRollupByStore = futureManagerRollupMap;
+  applyManagerRollupToStores(allStores);
+
+  STATUS.textContent += `  |  future manager rollup applied`;
+} catch(mgrErr) {
+  console.warn('Manager rollup overlays not loaded; using manager data from store_data.json only:', mgrErr);
+}
+
+// Dedicated team overlay stays separate and applies after the active alignment.
+try {
   const dResp = await fetch(DEDICATED_MANAGER_URL, { cache:'no-store' });
   if (!dResp.ok) throw new Error(`HTTP ${dResp.status} for ${DEDICATED_MANAGER_URL}`);
+
   const dText = await dResp.text();
   const dJson = JSON.parse(dText.replace(/^\uFEFF/,''));
-applyDedicatedTeamPathsToStores(dJson, allStores);
+
+  applyDedicatedTeamPathsToStores(dJson, allStores);
   STATUS.textContent += `  |  dedicated team paths applied`;
 } catch(dedErr) {
   console.warn('Dedicated team overlay not loaded:', dedErr);
