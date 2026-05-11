@@ -1607,7 +1607,12 @@ const dedicatedPaths = [];
 
 valid.forEach(s => {
   (s.managerPaths || []).forEach(p => {
-    if (isDedicatedTeamPath(p)) dedicatedPaths.push(p);
+if (
+  isDedicatedTeamPath(p) &&
+  dedicatedTeamVisible(p.teamName)
+){
+  dedicatedPaths.push(p);
+}
   });
 });
 
