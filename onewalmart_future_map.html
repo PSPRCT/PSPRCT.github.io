@@ -1568,9 +1568,22 @@ function renderManagerRollupSummary(stores){
     });
   });
 
-  const dedicatedStores = valid.filter(s =>
-    (s.managerPaths || []).some(p => isDedicatedTeamPath(p))
-  );
+const dedicatedPaths = [];
+
+valid.forEach(s => {
+  (s.managerPaths || []).forEach(p => {
+    if (isDedicatedTeamPath(p)) dedicatedPaths.push(p);
+  });
+});
+
+const dedicatedByTeam = {
+  unilever: dedicatedPaths.filter(p => String(p.teamName || '').toLowerCase().includes('unilever')).length,
+  pg: dedicatedPaths.filter(p => {
+    const t = String(p.teamName || '').toLowerCase();
+    return t.includes('p&g') || t.includes('p and g');
+  }).length,
+  tyson: dedicatedPaths.filter(p => String(p.teamName || '').toLowerCase().includes('tyson')).length
+};
 
   const pct = valid.length ? ((covered.length / valid.length) * 100).toFixed(1) : '0.0';
 
@@ -1580,7 +1593,10 @@ function renderManagerRollupSummary(stores){
     <span class="chip">Covered Stores: <b>${covered.length}</b></span>
     <span class="chip">Uncovered Stores: <b>${uncovered.length}</b></span>
     <span class="chip">Coverage %: <b>${pct}%</b></span>
-    <span class="chip">Stores with Dedicated Team Paths: <b>${dedicatedStores.length}</b></span>
+    <span class="chip">Dedicated Paths: <b>${dedicatedPaths.length}</b></span>
+<span class="chip">Unilever: <b>${dedicatedByTeam.unilever}</b></span>
+<span class="chip">P&amp;G: <b>${dedicatedByTeam.pg}</b></span>
+<span class="chip">Tyson: <b>${dedicatedByTeam.tyson}</b></span>
   `;
 }
 
