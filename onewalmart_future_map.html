@@ -287,17 +287,34 @@
   <button id="helpBtn" class="btn" type="button" title="Quick tips and shortcuts">Help</button>
 </div>
 
-<div class="pillbar" id="presetBar">
-  <div id="presetUncov" class="pill" title="Uncovered + Rings + Heatmap">
-    <span class="dot" style="background:var(--u)"></span> Preset: Uncovered focus
-  </div>
-  <div id="presetHubs" class="pill" title="Show only stores within any visible hub radius">
-    🟦 Preset: Hubs coverage
-  </div>
-  <div id="snapBtn" class="pill" title="Copy a shareable URL">🔗 Save snapshot link</div>
+<div class="pillbar compact-viewbar" id="presetBar">
+  <button id="presetUncov" class="pill compact-pill" type="button" title="Uncovered + Rings + Heatmap">
+    <span class="dot" style="background:var(--u)"></span> Gaps
+  </button>
+
+  <button id="presetHubs" class="pill compact-pill" type="button" title="Show only stores within any visible hub radius">
+    RTS Coverage
+  </button>
+
+  <button id="snapBtn" class="pill compact-pill" type="button" title="Copy a shareable URL">
+    Save Link
+  </button>
 </div>
 
 <div class="pillbar" id="activeChips"></div>
+  .compact-viewbar {
+  padding: 4px 10px;
+  gap: 6px;
+  border-bottom: 1px solid #eef0f3;
+  background: #f8fafc;
+}
+
+.compact-pill {
+  font-size: 12px;
+  padding: 5px 9px;
+  box-shadow: none;
+  background: #fff;
+}
 
 <!-- Filters -->
 <div class="filters" title="Use these to narrow stores; search also matches store # and city/state.">
