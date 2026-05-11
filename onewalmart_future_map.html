@@ -1224,31 +1224,6 @@ renderChips();
 renderHubs();
 updateRings();
 
-// alignment mode switcher
-document.querySelectorAll('input[name="alignmentMode"]').forEach(r => {
-  r.addEventListener('change', e => {
-    activeAlignmentMode = e.target.value;
-
-    managerRollupByStore =
-      activeAlignmentMode === 'future'
-        ? futureManagerRollupMap
-        : currentManagerRollupMap;
-
-    applyManagerRollupToStores(allStores);
-
-    runFilter();
-    renderChips();
-    renderHubs();
-    updateRings();
-
-    populateRM(allStores);
-    populateAM(allStores);
-
-    map.closePopup();
-
-    STATUS.textContent += ` | alignment switched to ${activeAlignmentMode}`;
-  });
-});
 
 // Dataset badge (simple fingerprints)
 const storesFp  = `stores:${allStores.length}`;
