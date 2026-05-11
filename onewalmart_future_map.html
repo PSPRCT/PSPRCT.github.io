@@ -1168,6 +1168,18 @@ if (filterToggleBtn && filtersPanel) {
     setTimeout(() => map.invalidateSize(), 100);
   };
 }
+  const displayToggleBtn = id('displayToggleBtn');
+const displayOptionsPanel = id('displayOptionsPanel');
+
+if (displayToggleBtn && displayOptionsPanel) {
+  displayToggleBtn.onclick = () => {
+    displayOptionsPanel.classList.toggle('display-options-collapsed');
+    displayToggleBtn.textContent = displayOptionsPanel.classList.contains('display-options-collapsed')
+      ? 'Display Options ▾'
+      : 'Display Options ▴';
+    setTimeout(() => map.invalidateSize(), 100);
+  };
+}
 
   // Dropdowns & views
   const exportDrop = id('exportDrop'); const menu = exportDrop.querySelector('.dropdown-menu');
