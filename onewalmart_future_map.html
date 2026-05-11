@@ -1162,7 +1162,7 @@ try {
   syncCoreTeamToggleVisibility();
   applyActiveAlignmentToStores();
 
-  STATUS.textContent += `  |  current + future manager rollups applied (team-scoped v2)`;
+  STATUS.textContent += `  |  current + future manager rollups applied (current-team override v3)`;
 } catch(mgrErr) {
   console.warn('Manager rollup overlays not loaded; using manager data from onewalmart_store_data.json only:', mgrErr);
 }
@@ -1394,6 +1394,75 @@ function getTeamType(path){
 function isDedicatedTeamPath(p){
   const typ = getTeamType(p);
   return typ === 'unilever' || typ === 'tyson' || typ === 'pg';
+}
+
+
+// Current-state override rules for the pre-5/31 view.
+// The current manager source may contain multiple Walmart teams and, in some generated files,
+// future-state legacy tags. These rules keep the CURRENT view from assigning managers to the
+// wrong legacy team.
+function normPersonName(v){
+  return String(v || '')
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function personNameMatches(value, candidates){
+  const n = normPersonName(value);
+  return candidates.some(c => {
+    const x = normPersonName(c);
+    if (!x) return false;
+    const parts = x.split(' ').filter(Boolean);
+    const rev = parts.length >= 2 ? [parts[1], parts[0], ...parts.slice(2)].join(' ') : x;
+    return n === x || n === rev || n.includes(x) || n.includes(rev);
+  });
+}
+
+function looksLikeAllCapsManagerName(v){
+  const raw = String(v || '').trim();
+  if (!raw) return false;
+  const letters = raw.replace(/[^A-Za-z]/g, '');
+  if (letters.length < 4) return false;
+  const upper = raw.toUpperCase();
+  // Crossmark AM names in the current file are commonly all-caps, e.g. ABEDRABBO, IMAD.
+  // Do not treat client-coded names as Crossmark here; those are handled as dedicated paths.
+  if (/UNILV|UNILEVER|TYSON|\bPG\b|P&G/i.test(raw)) return false;
+  return raw === upper;
+}
+
+function currentTeamType(p){
+  const baseType = getTeamType(p);
+  const rm = String(p?.regionalManager || p?.rm || p?.['Regional Manager'] || '').trim();
+  const am = String(p?.areaManager || p?.am || p?.['Area Manager'] || '').trim();
+  const team = String(p?.teamName || p?.team || p?.managementGroupName || '').trim().toLowerCase();
+  const text = getManagerText(p);
+
+  // Dedicated/client teams must stay out of the current Premium/Acosta/Crossmark core filters.
+  if (baseType === 'unilever' || personNameMatches(rm, ['Angela Mons']) || /\bunilv\b|unilever/i.test(text)) return 'unilever';
+  if (baseType === 'tyson' || /tyson/i.test(text)) return 'tyson';
+  if (baseType === 'pg' || /\bp&g\b|\bpg\b/i.test(text)) return 'pg';
+
+  // User-confirmed current Premium PSP RMs only.
+  if (personNameMatches(rm, ['Angel Bruce', 'Roy Anders', 'Sherry Blankenhorn'])) return 'premium';
+
+  // User-confirmed Acosta example; keep Alicia out of Premium/Crossmark.
+  if (personNameMatches(rm, ['Alicia Fiechter'])) return 'acosta';
+
+  // Current Crossmark often appears with all-caps AMs. This must not bleed into Premium.
+  if (baseType === 'crossmark' || team.includes('crossmark') || looksLikeAllCapsManagerName(am)) return 'crossmark';
+
+  // Current Acosta source team name.
+  if (baseType === 'acosta' || team.includes('walmart/sams') || team.includes('walmart/sam')) return 'acosta';
+
+  // Do NOT trust future/flattened LegacyBrand=Premium for current view unless RM is one of the
+  // three confirmed Premium RMs above. This prevents Alicia/other future One Walmart paths from
+  // showing under Premium in Current Alignment.
+  if (baseType === 'premium') return 'other';
+
+  return baseType || 'other';
 }
 
 function applyDedicatedTeamPathsToStores(rows, stores){
@@ -5116,7 +5185,7 @@ function buildManagerRollupMap(rows){
 }
 
 function pathMatchesCoreTeam(p){
-  const typ = getTeamType(p);
+  const typ = activeAlignmentMode === 'current' ? currentTeamType(p) : getTeamType(p);
   const team = String(p?.teamName || p?.team || p?.managementGroupName || '').trim().toLowerCase();
   const teamId = String(p?.teamId || p?.ManagementGroupID || p?.managementGroupId || '').trim();
 
