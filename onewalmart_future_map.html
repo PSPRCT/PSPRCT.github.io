@@ -503,6 +503,44 @@ select[multiple]{
 .display-options-collapsed{
   display:none !important;
 }
+  .delta-legend{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  margin-top:10px;
+}
+
+.delta-item{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  font-size:12px;
+  line-height:1.4;
+}
+
+.delta-dot{
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  margin-top:3px;
+  flex-shrink:0;
+}
+
+.delta-new{
+  background:#16a34a;
+}
+
+.delta-improved{
+  background:#2563eb;
+}
+
+.delta-lost{
+  background:#dc2626;
+}
+
+.delta-owner{
+  background:#b45309;
+}
 
 
   /* ===== Enterprise UI polish pack ===== */
@@ -7768,6 +7806,9 @@ function cascadeRM(){
       .ops-delta-new{background:#22c55e;}
       .ops-delta-lost{background:#ef4444;}
       .ops-delta-owner{background:#f59e0b;}
+      .ops-delta-improved{
+  background:#2563eb;
+}
       .ops-leadership-box{
         border:1px solid #dbe3ea;
         border-radius:12px;
@@ -7854,10 +7895,49 @@ function cascadeRM(){
 
         <div class="ops-pane" id="opsPaneDelta">
           <div class="ops-card"><div class="ops-section-title"><span>Current vs Future Delta</span><span class="ops-sub">5/31 transition</span></div><div id="opsDeltaSummary"></div></div>
-          <div class="ops-card"><div class="ops-section-title"><span>Delta Legend</span><span class="ops-sub">map highlight</span></div>
-            <div class="ops-sub"><b style="color:#16a34a">Green</b> = newly covered/improved<br><b style="color:#dc2626">Red</b> = lost coverage/regressed<br><b style="color:#b45309">Yellow</b> = manager ownership changed</div>
-          </div>
-        </div>
+        <div class="ops-card">
+  <div class="ops-section-title">
+    <span>Delta Legend</span>
+    <span class="ops-sub">map highlight</span>
+  </div>
+
+  <div class="delta-legend">
+
+    <div class="delta-item">
+      <span class="delta-dot delta-new"></span>
+      <div>
+        <strong>Newly Covered</strong><br>
+        Previously had NO RTS coverage. Gains coverage in the future One Walmart model.
+      </div>
+    </div>
+
+    <div class="delta-item">
+      <span class="delta-dot delta-improved"></span>
+      <div>
+        <strong>Improved Coverage</strong><br>
+        Already covered today, but future state improves travel distance,
+        RTS depth, or adds support from additional teams.
+      </div>
+    </div>
+
+    <div class="delta-item">
+      <span class="delta-dot delta-lost"></span>
+      <div>
+        <strong>Coverage Risk</strong><br>
+        Covered today but not covered in the future model.
+      </div>
+    </div>
+
+    <div class="delta-item">
+      <span class="delta-dot delta-owner"></span>
+      <div>
+        <strong>Manager Ownership Change</strong><br>
+        Store remains covered, but assigned RM/AM hierarchy changes after transition.
+      </div>
+    </div>
+
+  </div>
+</div>
 
         <div class="ops-pane" id="opsPaneLeadership">
           <div class="ops-card"><div class="ops-section-title"><span>Leadership Snapshot</span><span class="ops-sub">copy-ready</span></div><div id="opsLeadershipSnapshot"></div></div>
@@ -8032,34 +8112,75 @@ function buildDeltaSummary(){
   };
 }
 
-    function renderDeltaMarkers(){
-      deltaLayer.clearLayers();
-      if (!deltaModeOn) return;
+function renderDeltaMarkers(){
+  deltaLayer.clearLayers();
+  if (!deltaModeOn) return;
 
-      const d = buildDeltaSummary();
-      const rows = [
-        ...d.newlyCovered.slice(0,500).map(s => ({ s, cls:'ops-delta-new', title:'Newly covered / improved' })),
-        ...d.newlyGap.slice(0,500).map(s => ({ s, cls:'ops-delta-lost', title:'Lost coverage / regressed' })),
-        ...d.ownerChanged.slice(0,700).map(s => ({ s, cls:'ops-delta-owner', title:'Manager ownership changed' }))
-      ];
+  const d = buildDeltaSummary();
 
-      const seen = new Set();
-      rows.forEach(x=>{
-        const k = storeKey(x.s) + '|' + x.cls;
-        if (seen.has(k)) return;
-        seen.add(k);
-        if (!Number.isFinite(Number(x.s.lat)) || !Number.isFinite(Number(x.s.lng))) return;
-        const icon = L.divIcon({
-          className:'',
-          html:`<div class="ops-delta-marker ${x.cls}" title="${safe(x.title)}"></div>`,
-          iconSize:[16,16],
-          iconAnchor:[8,8]
-        });
-        L.marker([Number(x.s.lat), Number(x.s.lng)], { icon, pane:'markerPane', title:x.title })
-          .bindPopup(`<b>${safe(x.title)}</b><br>Store ${safe(x.s.storeNumberStr || '')}<br>${safe(x.s.city || '')}, ${safe(x.s.state || '')}`)
-          .addTo(deltaLayer);
-      });
+  const rows = [
+    ...d.newlyCovered.slice(0,500).map(s => ({
+      s,
+      cls:'ops-delta-new',
+      title:'Newly Covered'
+    })),
+
+    ...d.improvedCoverage.slice(0,500).map(s => ({
+      s,
+      cls:'ops-delta-improved',
+      title:'Improved Coverage'
+    })),
+
+    ...d.lostCoverage.slice(0,500).map(s => ({
+      s,
+      cls:'ops-delta-lost',
+      title:'Coverage Risk / Lost Coverage'
+    })),
+
+    ...(d.ownerChanged || []).slice(0,700).map(s => ({
+      s,
+      cls:'ops-delta-owner',
+      title:'Manager Ownership Changed'
+    }))
+  ];
+
+  const seen = new Set();
+
+  rows.forEach(x => {
+    const k = storeKey(x.s) + '|' + x.cls;
+    if (seen.has(k)) return;
+    seen.add(k);
+
+    if (
+      !Number.isFinite(Number(x.s.lat)) ||
+      !Number.isFinite(Number(x.s.lng))
+    ) {
+      return;
     }
+
+    const icon = L.divIcon({
+      className:'',
+      html:`<div class="ops-delta-marker ${x.cls}" title="${safe(x.title)}"></div>`,
+      iconSize:[16,16],
+      iconAnchor:[8,8]
+    });
+
+    L.marker(
+      [Number(x.s.lat), Number(x.s.lng)],
+      {
+        icon,
+        pane:'markerPane',
+        title:x.title
+      }
+    )
+      .bindPopup(`
+        <b>${safe(x.title)}</b><br>
+        Store ${safe(x.s.storeNumberStr || '')}<br>
+        ${safe(x.s.city || '')}, ${safe(x.s.state || '')}
+      `)
+      .addTo(deltaLayer);
+  });
+}
 
     function syncCommandLayout(){
       const drawerOpen = drawer.classList.contains('show');
