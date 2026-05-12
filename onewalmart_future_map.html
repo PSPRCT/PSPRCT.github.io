@@ -866,9 +866,32 @@ function initializeMap(){
 }
 
 function normalizeCoverage(val){
-  return String(val || '')
-    .trim()
-    .toLowerCase() === 'covered';
+  const v = String(val || '').trim().toLowerCase();
+
+  if (!v) return false;
+
+  if (
+    v === 'covered' ||
+    v === 'true' ||
+    v === 'yes' ||
+    v.includes('premium') ||
+    v.includes('acosta') ||
+    v.includes('one walmart') ||
+    v.includes('legacy')
+  ){
+    return true;
+  }
+
+  if (
+    v === 'uncovered' ||
+    v === 'false' ||
+    v === 'no' ||
+    v.includes('gap')
+  ){
+    return false;
+  }
+
+  return false;
 }
 
 function normalizeName(v){
@@ -2173,16 +2196,23 @@ function getLng(row){
 
 function getCoveredFromCoverageType(value){
 
-  const v =
-    String(value || '')
-      .trim()
-      .toLowerCase();
+  const v = String(value || '').trim().toLowerCase();
 
-  if(
-    v.includes('covered') ||
+  if (
+    !v ||
+    v === 'uncovered' ||
+    v.includes('current gap') ||
+    v.includes('gap / uncovered')
+  ){
+    return 'Uncovered';
+  }
+
+  if (
     v.includes('premium') ||
     v.includes('acosta') ||
-    v.includes('one walmart')
+    v.includes('one walmart') ||
+    v.includes('covered') ||
+    v.includes('legacy')
   ){
     return 'Covered';
   }
@@ -2322,13 +2352,21 @@ function normalizeFutureStore(row){
       row.TrainerCity ??
       '',
 
-    bestMiles:
-      row.futureBestMiles ??
-      row.bestMiles ??
-      row.BestMiles ??
-      row.distance ??
-      row.Distance ??
-      999,
+bestMiles:
+  row.futureBestMiles ??
+  row.FutureBestMiles ??
+  row.bestMiles ??
+  row.BestMiles ??
+  row.best_miles ??
+  row.distance ??
+  row.Distance ??
+  row.distanceMiles ??
+  row.DistanceMiles ??
+  row.nearestMiles ??
+  row.NearestMiles ??
+  row.miles ??
+  row.Miles ??
+  999,
 
     areaManager:
       row.futureAreaManager ??
