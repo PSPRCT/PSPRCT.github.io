@@ -8072,8 +8072,8 @@ function buildDeltaSummary(){
   const out = {
     comparable:0,
     newlyCovered:[],
-    lostCoverage:[],
     newlyGap:[],
+    lostCoverage:[],
     improvedCoverage:[],
     ownerChanged:[],
     unchanged:[]
@@ -8082,17 +8082,32 @@ function buildDeltaSummary(){
   keys.forEach(k => {
     const current = curMap.get(k);
     const future = futMap.get(k);
-
     if (!current || !future) return;
 
     out.comparable++;
 
-    const currentCovered = covered(current);
-    const futureCovered = covered(future);
+    const currentCoverageValue =
+      current.originalCoverageType ||
+      current.currentCoverageType ||
+      current.coverageType ||
+      '';
+
+    const futureCoverageValue =
+      future.originalCoverageType ||
+      future.futureCoverageType ||
+      future.coverageType ||
+      '';
+
+    const currentCovered =
+      String(currentCoverageValue || '').trim() !== '' &&
+      String(currentCoverageValue || '').trim() !== 'Uncovered';
+
+    const futureCovered =
+      String(futureCoverageValue || '').trim() !== '' &&
+      String(futureCoverageValue || '').trim() !== 'Uncovered';
 
     const currentRM = rmOf(current);
     const futureRM = rmOf(future);
-
     const currentAM = amOf(current);
     const futureAM = amOf(future);
 
@@ -8102,8 +8117,8 @@ function buildDeltaSummary(){
     }
 
     if (currentCovered && !futureCovered){
-      out.lostCoverage.push(future);
       out.newlyGap.push(future);
+      out.lostCoverage.push(future);
       return;
     }
 
