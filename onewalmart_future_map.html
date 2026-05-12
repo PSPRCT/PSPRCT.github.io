@@ -6310,6 +6310,12 @@ function applyManagerRollupToStores(stores){
         raw = [];
       }
     }
+    function normalizeName(v){
+  return String(v || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g,' ');
+}
 
     return raw.map(p => {
       if (!p || typeof p !== 'object') return null;
@@ -7894,51 +7900,58 @@ function cascadeRM(){
         </div>
 
         <div class="ops-pane" id="opsPaneDelta">
-          <div class="ops-card"><div class="ops-section-title"><span>Current vs Future Delta</span><span class="ops-sub">5/31 transition</span></div><div id="opsDeltaSummary"></div></div>
-        <div class="ops-card">
-  <div class="ops-section-title">
-    <span>Delta Legend</span>
-    <span class="ops-sub">map highlight</span>
+  <div class="ops-card">
+    <div class="ops-section-title">
+      <span>Current vs Future Delta</span>
+      <span class="ops-sub">5/31 transition</span>
+    </div>
+
+    <div id="opsDeltaSummary"></div>
   </div>
 
-  <div class="delta-legend">
-
-    <div class="delta-item">
-      <span class="delta-dot delta-new"></span>
-      <div>
-        <strong>Newly Covered</strong><br>
-        Previously had NO RTS coverage. Gains coverage in the future One Walmart model.
-      </div>
+  <div class="ops-card">
+    <div class="ops-section-title">
+      <span>Delta Legend</span>
+      <span class="ops-sub">map highlight</span>
     </div>
 
-    <div class="delta-item">
-      <span class="delta-dot delta-improved"></span>
-      <div>
-        <strong>Improved Coverage</strong><br>
-        Already covered today, but future state improves travel distance,
-        RTS depth, or adds support from additional teams.
-      </div>
-    </div>
+    <div class="delta-legend">
 
-    <div class="delta-item">
-      <span class="delta-dot delta-lost"></span>
-      <div>
-        <strong>Coverage Risk</strong><br>
-        Covered today but not covered in the future model.
+      <div class="delta-item">
+        <span class="delta-dot delta-new"></span>
+        <div>
+          <strong>Newly Covered</strong><br>
+          Current uncovered → future covered.
+        </div>
       </div>
-    </div>
 
-    <div class="delta-item">
-      <span class="delta-dot delta-owner"></span>
-      <div>
-        <strong>Manager Ownership Change</strong><br>
-        Store remains covered, but assigned RM/AM hierarchy changes after transition.
+      <div class="delta-item">
+        <span class="delta-dot delta-improved"></span>
+        <div>
+          <strong>Improved Coverage</strong><br>
+          Already covered, but future coverage improves.
+        </div>
       </div>
-    </div>
 
+      <div class="delta-item">
+        <span class="delta-dot delta-lost"></span>
+        <div>
+          <strong>Lost Coverage / Risk</strong><br>
+          Current covered → future uncovered.
+        </div>
+      </div>
+
+      <div class="delta-item">
+        <span class="delta-dot delta-owner"></span>
+        <div>
+          <strong>Ownership Changed</strong><br>
+          Store remains covered, but RM/AM path changes.
+        </div>
+      </div>
+
+    </div>
   </div>
 </div>
-
         <div class="ops-pane" id="opsPaneLeadership">
           <div class="ops-card"><div class="ops-section-title"><span>Leadership Snapshot</span><span class="ops-sub">copy-ready</span></div><div id="opsLeadershipSnapshot"></div></div>
           <div class="ops-card"><div class="ops-section-title"><span>Recommended Talking Points</span><span class="ops-sub">auto summary</span></div><div id="opsTalkingPoints"></div></div>
@@ -8041,8 +8054,19 @@ function cascadeRM(){
     }
 
 function buildDeltaSummary(){
-  const curMap = new Map((currentStores || []).map(s => [storeKey(s), s]).filter(([k]) => k));
-  const futMap = new Map((futureStores || []).map(s => [storeKey(s), s]).filter(([k]) => k));
+  const curMap = new Map();
+  const futMap = new Map();
+
+  (currentStores || []).forEach(s => {
+    const k = storeKey(s);
+    if (k) curMap.set(k, s);
+  });
+
+  (futureStores || []).forEach(s => {
+    const k = storeKey(s);
+    if (k) futMap.set(k, s);
+  });
+
   const keys = [...new Set([...curMap.keys(), ...futMap.keys()])];
 
   const out = {
@@ -8052,48 +8076,47 @@ function buildDeltaSummary(){
     newlyGap:[],
     improvedCoverage:[],
     ownerChanged:[],
-    rmChanged:[],
-    amChanged:[],
     unchanged:[]
   };
 
   keys.forEach(k => {
-    const c = curMap.get(k);
-    const f = futMap.get(k);
-    if (!c || !f) return;
+    const current = curMap.get(k);
+    const future = futMap.get(k);
+
+    if (!current || !future) return;
 
     out.comparable++;
 
-    const cCov = covered(c);
-    const fCov = covered(f);
+    const currentCovered = covered(current);
+    const futureCovered = covered(future);
 
-    const cRM = rmOf(c);
-    const fRM = rmOf(f);
-    const cAM = amOf(c);
-    const fAM = amOf(f);
+    const currentRM = rmOf(current);
+    const futureRM = rmOf(future);
 
-    if (!cCov && fCov) {
-      out.newlyCovered.push(f);
+    const currentAM = amOf(current);
+    const futureAM = amOf(future);
+
+    if (!currentCovered && futureCovered){
+      out.newlyCovered.push(future);
       return;
     }
 
-    if (cCov && !fCov) {
-      out.lostCoverage.push(f);
-      out.newlyGap.push(f);
+    if (currentCovered && !futureCovered){
+      out.lostCoverage.push(future);
+      out.newlyGap.push(future);
       return;
     }
 
-    if (cCov && fCov) {
-      if (cRM !== fRM || cAM !== fAM) {
-        out.ownerChanged.push(f);
+    if (currentCovered && futureCovered){
+      if (
+        normalizeName(currentRM) !== normalizeName(futureRM) ||
+        normalizeName(currentAM) !== normalizeName(futureAM)
+      ){
+        out.ownerChanged.push(future);
+        return;
       }
 
-      if (cRM !== fRM) out.rmChanged.push(f);
-      if (cAM !== fAM) out.amChanged.push(f);
-
-      // Placeholder for future distance-based logic.
-      // Do NOT call this newly covered.
-      out.unchanged.push(f);
+      out.unchanged.push(future);
     }
   });
 
@@ -8122,13 +8145,13 @@ function renderDeltaMarkers(){
     ...d.lostCoverage.slice(0,500).map(s => ({
       s,
       cls:'ops-delta-lost',
-      title:'Coverage Risk / Lost Coverage'
+      title:'Lost Coverage / Risk'
     })),
 
     ...d.ownerChanged.slice(0,700).map(s => ({
       s,
       cls:'ops-delta-owner',
-      title:'Manager Ownership Changed'
+      title:'Ownership Changed'
     }))
   ];
 
@@ -8142,9 +8165,7 @@ function renderDeltaMarkers(){
     if (
       !Number.isFinite(Number(x.s.lat)) ||
       !Number.isFinite(Number(x.s.lng))
-    ) {
-      return;
-    }
+    ) return;
 
     const icon = L.divIcon({
       className:'',
