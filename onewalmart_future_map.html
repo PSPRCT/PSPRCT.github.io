@@ -7510,6 +7510,494 @@ function cascadeRM(){
       coverageWorker.postMessage(payload);
     });
   }
+  <script>
+/* =========================================================
+   ENTERPRISE PATCH: Analysis Tools + Operations Intelligence
+   Paste before the closing })(); of the main async script.
+========================================================= */
+
+(function enterprisePolishPatch(){
+
+  /* ---------- 1) Fix clipped Analysis Tools ----------
+     Converts dropdown-style tools into an in-panel accordion/list.
+  */
+  function fixAnalysisToolsPanel(){
+    const toolsSections = Array.from(document.querySelectorAll('.control-section'))
+      .filter(sec => /tools|analysis/i.test(sec.textContent || ''));
+
+    toolsSections.forEach(sec => {
+      sec.style.overflow = 'visible';
+
+      sec.querySelectorAll('.dropdown-menu').forEach(menu => {
+        menu.style.position = 'static';
+        menu.style.display = 'grid';
+        menu.style.width = '100%';
+        menu.style.maxHeight = 'none';
+        menu.style.overflow = 'visible';
+        menu.style.boxShadow = 'none';
+        menu.style.marginTop = '6px';
+        menu.style.background = '#fff';
+      });
+
+      sec.querySelectorAll('.dropdown').forEach(drop => {
+        drop.style.width = '100%';
+        drop.style.position = 'static';
+      });
+    });
+  }
+
+  /* ---------- 2) Add Operations Intelligence Drawer ---------- */
+
+  const style = document.createElement('style');
+  style.textContent = `
+    .ops-toggle-btn{
+      position:absolute;
+      top:64px;
+      right:12px;
+      z-index:405;
+      border:1px solid var(--border);
+      background:var(--panel);
+      color:var(--fg);
+      border-radius:999px;
+      padding:8px 12px;
+      font-weight:900;
+      box-shadow:0 8px 22px rgba(0,0,0,.14);
+      cursor:pointer;
+    }
+
+    .ops-drawer{
+      position:absolute;
+      top:0;
+      right:0;
+      bottom:0;
+      width:390px;
+      max-width:92vw;
+      z-index:404;
+      background:var(--panel);
+      border-left:1px solid var(--border);
+      box-shadow:-10px 0 28px rgba(0,0,0,.16);
+      transform:translateX(100%);
+      transition:transform .18s ease;
+      display:flex;
+      flex-direction:column;
+    }
+
+    .ops-drawer.show{ transform:translateX(0); }
+
+    .ops-head{
+      padding:12px;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      align-items:center;
+      gap:8px;
+      background:#f8fafc;
+    }
+
+    .ops-head h3{
+      margin:0;
+      font-size:15px;
+      flex:1;
+      line-height:1.2;
+    }
+
+    .ops-body{
+      padding:10px;
+      overflow:auto;
+      display:grid;
+      gap:10px;
+    }
+
+    .ops-kpis{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+    }
+
+    .ops-card{
+      border:1px solid var(--border);
+      border-radius:14px;
+      background:#fff;
+      padding:10px;
+      box-shadow:0 3px 12px rgba(0,0,0,.04);
+    }
+
+    .ops-label{
+      color:var(--muted);
+      font-size:11px;
+      font-weight:900;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+    }
+
+    .ops-value{
+      font-size:22px;
+      font-weight:950;
+      line-height:1.15;
+      margin-top:3px;
+    }
+
+    .ops-sub{
+      color:var(--muted);
+      font-size:12px;
+      margin-top:3px;
+    }
+
+    .ops-section-title{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      margin-bottom:7px;
+      font-size:12px;
+      font-weight:950;
+      text-transform:uppercase;
+      color:#374151;
+      letter-spacing:.035em;
+    }
+
+    .ops-table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:12px;
+    }
+
+    .ops-table th,
+    .ops-table td{
+      padding:6px 5px;
+      border-bottom:1px solid #eef0f3;
+      vertical-align:top;
+    }
+
+    .ops-table th{
+      color:var(--muted);
+      text-align:left;
+      font-size:11px;
+      background:#f8fafc;
+      position:sticky;
+      top:0;
+    }
+
+    .ops-risk-high{ color:#b91c1c; font-weight:900; }
+    .ops-risk-med{ color:#b45309; font-weight:900; }
+    .ops-risk-low{ color:#166534; font-weight:900; }
+
+    @media(max-width:900px){
+      .ops-drawer{ width:340px; }
+      .ops-toggle-btn{ top:58px; right:8px; }
+    }
+  `;
+  document.head.appendChild(style);
+
+  function addOpsDrawer(){
+    const mapwrap = document.querySelector('.mapwrap');
+    if (!mapwrap || document.getElementById('opsDrawer')) return;
+
+    const toggle = document.createElement('button');
+    toggle.id = 'opsDrawerToggle';
+    toggle.className = 'ops-toggle-btn';
+    toggle.type = 'button';
+    toggle.textContent = 'Ops Intel';
+
+    const drawer = document.createElement('aside');
+    drawer.id = 'opsDrawer';
+    drawer.className = 'ops-drawer';
+    drawer.innerHTML = `
+      <div class="ops-head">
+        <h3>Operations Intelligence</h3>
+        <button id="opsRefreshBtn" class="btn" type="button">Refresh</button>
+        <button id="opsCloseBtn" class="btn" type="button">×</button>
+      </div>
+      <div class="ops-body">
+        <div class="ops-kpis">
+          <div class="ops-card">
+            <div class="ops-label">Visible Stores</div>
+            <div class="ops-value" id="opsKpiStores">—</div>
+            <div class="ops-sub" id="opsKpiStoresSub">Current filter universe</div>
+          </div>
+          <div class="ops-card">
+            <div class="ops-label">Coverage</div>
+            <div class="ops-value" id="opsKpiCoverage">—</div>
+            <div class="ops-sub" id="opsKpiCoverageSub">Covered vs visible</div>
+          </div>
+          <div class="ops-card">
+            <div class="ops-label">Current Gaps</div>
+            <div class="ops-value" id="opsKpiGaps">—</div>
+            <div class="ops-sub">Uncovered / gap stores</div>
+          </div>
+          <div class="ops-card">
+            <div class="ops-label">RTS Hubs</div>
+            <div class="ops-value" id="opsKpiRts">—</div>
+            <div class="ops-sub">Active visible RTS count</div>
+          </div>
+        </div>
+
+        <div class="ops-card">
+          <div class="ops-section-title">
+            <span>Top Gap Regions</span>
+            <span id="opsGapMeta" class="ops-sub"></span>
+          </div>
+          <div id="opsTopGaps"></div>
+        </div>
+
+        <div class="ops-card">
+          <div class="ops-section-title">
+            <span>RTS Workload Ranking</span>
+            <span class="ops-sub">75-mile reach</span>
+          </div>
+          <div id="opsRtsWorkload"></div>
+        </div>
+
+        <div class="ops-card">
+          <div class="ops-section-title">
+            <span>Coverage Risk</span>
+            <span class="ops-sub">Manager / region risk</span>
+          </div>
+          <div id="opsRiskTable"></div>
+        </div>
+      </div>
+    `;
+
+    mapwrap.appendChild(toggle);
+    mapwrap.appendChild(drawer);
+
+    toggle.onclick = () => {
+      drawer.classList.toggle('show');
+      updateOpsIntel();
+      setTimeout(() => map?.invalidateSize?.(), 150);
+    };
+
+    drawer.querySelector('#opsCloseBtn').onclick = () => {
+      drawer.classList.remove('show');
+      setTimeout(() => map?.invalidateSize?.(), 150);
+    };
+
+    drawer.querySelector('#opsRefreshBtn').onclick = updateOpsIntel;
+  }
+
+  function fmt(n){ return Number(n || 0).toLocaleString(); }
+  function pct(n,d){ return d ? Math.round((n / d) * 1000) / 10 : 0; }
+
+  function isCovered(s){
+    const c = String(s.coverageType || s.Coverage_Type || '').toLowerCase();
+    return c && !c.includes('uncovered') && !c.includes('gap');
+  }
+
+  function isGap(s){ return !isCovered(s); }
+
+  function storeRM(s){
+    return s.regionalManager || s.RegionalManager || s.rm || s.RM || 'Unassigned RM';
+  }
+
+  function storeAM(s){
+    return s.areaManager || s.AreaManager || s.am || s.AM || 'Unassigned AM';
+  }
+
+  function storeState(s){
+    return s.state || s.State || '—';
+  }
+
+  function activeUniverse(){
+    if (Array.isArray(filteredStores) && filteredStores.length) return filteredStores;
+    if (Array.isArray(allStores)) return allStores;
+    return [];
+  }
+
+  function activeRts(){
+    const src =
+      Array.isArray(combinedRTS) && combinedRTS.length ? combinedRTS :
+      Array.isArray(premiumConfirmed) && premiumConfirmed.length ? premiumConfirmed :
+      [];
+
+    return src.filter(r => {
+      const lat = Number(r.lat ?? r.Latitude ?? r.latitude);
+      const lng = Number(r.lng ?? r.lon ?? r.Longitude ?? r.longitude);
+      return Number.isFinite(lat) && Number.isFinite(lng);
+    });
+  }
+
+  function groupBy(rows, keyFn){
+    const m = new Map();
+    rows.forEach(r => {
+      const k = keyFn(r) || 'Unassigned';
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(r);
+    });
+    return Array.from(m.entries()).map(([key, items]) => ({ key, items }));
+  }
+
+  function topGapRegions(rows){
+    const gaps = rows.filter(isGap);
+    return groupBy(gaps, s => {
+      const rm = storeRM(s);
+      const st = storeState(s);
+      return rm && rm !== 'Unassigned RM' ? rm : st;
+    })
+    .map(g => ({
+      label:g.key,
+      gaps:g.items.length,
+      states:[...new Set(g.items.map(storeState).filter(Boolean))].slice(0,4).join(', ')
+    }))
+    .sort((a,b) => b.gaps - a.gaps)
+    .slice(0,8);
+  }
+
+  function rtsWorkload(rows){
+    const rts = activeRts();
+    const radius = 75;
+
+    return rts.map(r => {
+      const lat = Number(r.lat ?? r.Latitude ?? r.latitude);
+      const lng = Number(r.lng ?? r.lon ?? r.Longitude ?? r.longitude);
+      const name = r.name || r.Name || r.rtsName || r.RTSName || r.city || 'RTS';
+      const team = r.team || r.Team || r.RTSTeam || '';
+      const covered = rows.filter(s =>
+        Number.isFinite(Number(s.lat)) &&
+        Number.isFinite(Number(s.lng)) &&
+        distMiles(lat, lng, Number(s.lat), Number(s.lng)) <= radius
+      );
+
+      const gaps = covered.filter(isGap).length;
+
+      return {
+        name,
+        team,
+        total:covered.length,
+        gaps,
+        risk:gaps >= 20 ? 'High' : gaps >= 10 ? 'Med' : 'Low'
+      };
+    })
+    .sort((a,b) => b.total - a.total)
+    .slice(0,10);
+  }
+
+  function coverageRisk(rows){
+    return groupBy(rows, s => storeAM(s) || storeRM(s))
+      .map(g => {
+        const total = g.items.length;
+        const gaps = g.items.filter(isGap).length;
+        const gapPct = pct(gaps,total);
+        return {
+          manager:g.key,
+          total,
+          gaps,
+          gapPct,
+          risk: gapPct >= 45 || gaps >= 25 ? 'High' : gapPct >= 25 || gaps >= 12 ? 'Med' : 'Low'
+        };
+      })
+      .filter(r => r.total >= 3)
+      .sort((a,b) => b.gaps - a.gaps || b.gapPct - a.gapPct)
+      .slice(0,10);
+  }
+
+  window.updateOpsIntel = function updateOpsIntel(){
+    const drawer = document.getElementById('opsDrawer');
+    if (!drawer) return;
+
+    const rows = activeUniverse();
+    const covered = rows.filter(isCovered).length;
+    const gaps = rows.length - covered;
+    const rts = activeRts();
+
+    const kStores = drawer.querySelector('#opsKpiStores');
+    const kCoverage = drawer.querySelector('#opsKpiCoverage');
+    const kCoverageSub = drawer.querySelector('#opsKpiCoverageSub');
+    const kGaps = drawer.querySelector('#opsKpiGaps');
+    const kRts = drawer.querySelector('#opsKpiRts');
+
+    if (kStores) kStores.textContent = fmt(rows.length);
+    if (kCoverage) kCoverage.textContent = `${pct(covered, rows.length)}%`;
+    if (kCoverageSub) kCoverageSub.textContent = `${fmt(covered)} covered / ${fmt(rows.length)} visible`;
+    if (kGaps) kGaps.textContent = fmt(gaps);
+    if (kRts) kRts.textContent = fmt(rts.length);
+
+    const gapRows = topGapRegions(rows);
+    drawer.querySelector('#opsTopGaps').innerHTML = gapRows.length ? `
+      <table class="ops-table">
+        <thead><tr><th>Region</th><th style="text-align:right">Gaps</th><th>States</th></tr></thead>
+        <tbody>
+          ${gapRows.map(r => `
+            <tr>
+              <td><b>${escape(r.label)}</b></td>
+              <td style="text-align:right"><b>${fmt(r.gaps)}</b></td>
+              <td>${escape(r.states || '—')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    ` : `<div class="ops-sub">No current gaps in the active view.</div>`;
+
+    const workRows = rtsWorkload(rows);
+    drawer.querySelector('#opsRtsWorkload').innerHTML = workRows.length ? `
+      <table class="ops-table">
+        <thead><tr><th>RTS</th><th style="text-align:right">Stores</th><th style="text-align:right">Gaps</th><th>Risk</th></tr></thead>
+        <tbody>
+          ${workRows.map(r => `
+            <tr>
+              <td><b>${escape(r.name)}</b><div class="ops-sub">${escape(r.team || '')}</div></td>
+              <td style="text-align:right">${fmt(r.total)}</td>
+              <td style="text-align:right">${fmt(r.gaps)}</td>
+              <td class="ops-risk-${r.risk.toLowerCase()}">${r.risk}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    ` : `<div class="ops-sub">No RTS hub data available in the active view.</div>`;
+
+    const riskRows = coverageRisk(rows);
+    drawer.querySelector('#opsRiskTable').innerHTML = riskRows.length ? `
+      <table class="ops-table">
+        <thead><tr><th>Manager / Area</th><th style="text-align:right">Gap %</th><th style="text-align:right">Gaps</th><th>Risk</th></tr></thead>
+        <tbody>
+          ${riskRows.map(r => `
+            <tr>
+              <td><b>${escape(r.manager)}</b><div class="ops-sub">${fmt(r.total)} stores</div></td>
+              <td style="text-align:right">${r.gapPct}%</td>
+              <td style="text-align:right">${fmt(r.gaps)}</td>
+              <td class="ops-risk-${r.risk.toLowerCase()}">${r.risk}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    ` : `<div class="ops-sub">No coverage risk rows found.</div>`;
+  };
+
+  /* ---------- 3) Wire live updates ---------- */
+
+  function wireOpsUpdates(){
+    const update = () => {
+      if (document.getElementById('opsDrawer')?.classList.contains('show')) {
+        window.updateOpsIntel?.();
+      }
+    };
+
+    ['covFilter','rmFilter','amFilter','hubFilter','showConfirmed','showPending','showUnilever','showPG','showTyson']
+      .forEach(x => document.getElementById(x)?.addEventListener('change', () => setTimeout(update, 80)));
+
+    ['covSearch','rmSearch','amSearch','hubSearch','searchBox']
+      .forEach(x => document.getElementById(x)?.addEventListener('input', () => setTimeout(update, 120)));
+
+    if (typeof map !== 'undefined' && map?.on) {
+      map.on('moveend zoomend', () => setTimeout(update, 80));
+    }
+
+    const oldApplyFilters = typeof applyFilters === 'function' ? applyFilters : null;
+    if (oldApplyFilters && !window.__opsApplyWrapped){
+      window.__opsApplyWrapped = true;
+      applyFilters = function(){
+        const out = oldApplyFilters.apply(this, arguments);
+        setTimeout(update, 80);
+        return out;
+      };
+    }
+  }
+
+  fixAnalysisToolsPanel();
+  addOpsDrawer();
+  wireOpsUpdates();
+  setTimeout(() => window.updateOpsIntel?.(), 250);
+
+})();
+</script>
 
 })();
 </script>
