@@ -7512,16 +7512,20 @@ function cascadeRM(){
   }
 
   /* =========================================================
-     Enterprise Polish: inline Analysis Tools + Operations Intelligence Drawer v1
-     Added for onewalmart_future_map_enterprise_polish.html
+     Enterprise Command Center v2
+     - Fixes clipped Analysis Tools by making it an inline tool list
+     - Adds Executive Summary Ribbon
+     - Adds right-side tabbed Operations Intelligence drawer
+     - Adds Current vs Future Delta mode
+     - Keeps existing IDs and core map/filter logic intact
   ========================================================= */
-  function installEnterpriseOperationsIntelligence(){
-    if (window.__opsIntelInstalled) return;
-    window.__opsIntelInstalled = true;
+  function installEnterpriseCommandCenter(){
+    if (window.__enterpriseCommandCenterInstalled) return;
+    window.__enterpriseCommandCenterInstalled = true;
 
     const opsStyle = document.createElement('style');
     opsStyle.textContent = `
-      /* Keep Analysis Tools inside the scrollable left panel instead of clipping as an absolute dropdown */
+      /* Analysis Tools should live inside the left panel; no clipped absolute menu */
       #analysisDrop{position:static !important;width:100%;display:grid;gap:6px;}
       #analysisDrop > button{width:100%;text-align:left;cursor:default;background:#f8fafc;}
       #analysisDrop .dropdown-menu{
@@ -7544,40 +7548,266 @@ function cascadeRM(){
       }
       #analysisDrop .dropdown-menu .btn{margin:0 !important;text-align:left;background:#fff;}
 
-      .ops-toggle-btn{
-        position:absolute;top:14px;right:14px;z-index:1200;border:1px solid var(--border);
-        background:rgba(255,255,255,.97);color:var(--fg);border-radius:999px;padding:8px 12px;
-        font-weight:950;box-shadow:0 8px 22px rgba(15,23,42,.14);cursor:pointer;backdrop-filter:blur(8px);
+      /* Prevent floating controls from hiding behind the sidepanel/drawer */
+      .mapwrap.command-sidepanel-open #floatingKpis{right:432px;}
+      .mapwrap.command-drawer-open #floatingKpis{display:none;}
+      .mapwrap.command-sidepanel-open .ops-toggle-btn{right:432px;}
+      .mapwrap.command-drawer-open .ops-toggle-btn{right:424px;}
+      .mapwrap.command-drawer-open .leaflet-control-container .leaflet-right{right:424px;}
+      .mapwrap.command-sidepanel-open .leaflet-control-container .leaflet-right{right:392px;}
+
+      .ops-exec-ribbon{
+        position:absolute;
+        top:12px;
+        left:12px;
+        right:128px;
+        z-index:990;
+        display:flex;
+        flex-wrap:wrap;
+        gap:8px;
+        pointer-events:none;
       }
-      .ops-toggle-btn:hover{transform:translateY(-1px);box-shadow:0 10px 26px rgba(15,23,42,.18);}
+      .mapwrap.command-sidepanel-open .ops-exec-ribbon{right:516px;}
+      .mapwrap.command-drawer-open .ops-exec-ribbon{right:516px;}
+      .ops-exec-card{
+        pointer-events:auto;
+        background:rgba(255,255,255,.96);
+        border:1px solid #dbe3ea;
+        border-radius:14px;
+        padding:8px 12px;
+        min-width:104px;
+        box-shadow:0 8px 22px rgba(15,23,42,.12);
+        backdrop-filter:blur(8px);
+      }
+      .ops-exec-card .lbl{
+        color:#64748b;
+        font-size:11px;
+        line-height:1.05;
+        font-weight:900;
+        text-transform:uppercase;
+        letter-spacing:.045em;
+        white-space:nowrap;
+      }
+      .ops-exec-card .val{
+        color:#0f172a;
+        font-size:20px;
+        line-height:1.1;
+        font-weight:950;
+        margin-top:3px;
+        white-space:nowrap;
+      }
+      .ops-exec-action{
+        pointer-events:auto;
+        align-self:center;
+        border:1px solid #dbe3ea;
+        border-radius:999px;
+        background:rgba(255,255,255,.96);
+        box-shadow:0 8px 22px rgba(15,23,42,.12);
+        padding:8px 12px;
+        font-weight:950;
+        cursor:pointer;
+      }
+      .ops-exec-action.active{
+        background:#111827;
+        color:#fff;
+        border-color:#111827;
+      }
+
+      .ops-toggle-btn{
+        position:absolute;
+        top:14px;
+        right:14px;
+        z-index:1300;
+        border:1px solid var(--border);
+        background:rgba(255,255,255,.98);
+        color:var(--fg);
+        border-radius:999px;
+        padding:8px 12px;
+        font-weight:950;
+        box-shadow:0 8px 22px rgba(15,23,42,.16);
+        cursor:pointer;
+        backdrop-filter:blur(8px);
+      }
+      .ops-toggle-btn:hover{transform:translateY(-1px);box-shadow:0 10px 26px rgba(15,23,42,.2);}
+
       .ops-drawer{
-        position:absolute;top:0;right:0;bottom:0;width:410px;max-width:92vw;z-index:1190;background:var(--panel);
-        border-left:1px solid var(--border);box-shadow:-12px 0 30px rgba(15,23,42,.18);
-        transform:translateX(104%);transition:transform .2s ease;display:flex;flex-direction:column;
+        position:absolute;
+        top:0;
+        right:0;
+        bottom:0;
+        width:420px;
+        max-width:92vw;
+        z-index:1280;
+        background:var(--panel);
+        border-left:1px solid var(--border);
+        box-shadow:-12px 0 30px rgba(15,23,42,.2);
+        transform:translateX(104%);
+        transition:transform .2s ease;
+        display:flex;
+        flex-direction:column;
       }
       .ops-drawer.show{transform:translateX(0);}
-      .ops-head{padding:12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:#f8fafc;}
-      .ops-head h3{margin:0;font-size:15px;line-height:1.2;flex:1;}
-      .ops-body{padding:10px;overflow:auto;display:grid;gap:10px;}
-      .ops-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-      .ops-card{border:1px solid var(--border);border-radius:14px;background:#fff;padding:10px;box-shadow:0 3px 12px rgba(15,23,42,.045);}
-      .ops-label{color:var(--muted);font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;}
-      .ops-value{font-size:22px;font-weight:950;line-height:1.15;margin-top:3px;color:#0f172a;}
-      .ops-sub{color:var(--muted);font-size:12px;margin-top:3px;}
-      .ops-section-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;font-size:12px;font-weight:950;text-transform:uppercase;color:#374151;letter-spacing:.035em;}
-      .ops-table{width:100%;border-collapse:collapse;font-size:12px;}
-      .ops-table th,.ops-table td{padding:6px 5px;border-bottom:1px solid #eef0f3;vertical-align:top;}
-      .ops-table th{color:var(--muted);text-align:left;font-size:11px;background:#f8fafc;position:sticky;top:0;}
+      .ops-head{
+        padding:12px;
+        border-bottom:1px solid var(--border);
+        display:flex;
+        align-items:center;
+        gap:8px;
+        background:#f8fafc;
+        flex:0 0 auto;
+      }
+      .ops-head h3{
+        margin:0;
+        font-size:15px;
+        line-height:1.2;
+        flex:1;
+      }
+      .ops-tabs{
+        display:flex;
+        gap:6px;
+        overflow-x:auto;
+        padding:8px 10px;
+        border-bottom:1px solid var(--border);
+        background:#fff;
+        flex:0 0 auto;
+      }
+      .ops-tab{
+        border:1px solid #dbe3ea;
+        background:#f8fafc;
+        border-radius:999px;
+        padding:6px 10px;
+        font-size:12px;
+        font-weight:900;
+        cursor:pointer;
+        white-space:nowrap;
+      }
+      .ops-tab.active{
+        background:#111827;
+        color:#fff;
+        border-color:#111827;
+      }
+      .ops-body{
+        padding:10px;
+        overflow:auto;
+        display:grid;
+        gap:10px;
+      }
+      .ops-pane{display:none;gap:10px;}
+      .ops-pane.active{display:grid;}
+      .ops-kpis{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:8px;
+      }
+      .ops-card{
+        border:1px solid var(--border);
+        border-radius:14px;
+        background:#fff;
+        padding:10px;
+        box-shadow:0 3px 12px rgba(15,23,42,.045);
+      }
+      .ops-label{
+        color:var(--muted);
+        font-size:11px;
+        font-weight:950;
+        text-transform:uppercase;
+        letter-spacing:.04em;
+      }
+      .ops-value{
+        font-size:22px;
+        font-weight:950;
+        line-height:1.15;
+        margin-top:3px;
+        color:#0f172a;
+      }
+      .ops-sub{
+        color:var(--muted);
+        font-size:12px;
+        margin-top:3px;
+      }
+      .ops-section-title{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:8px;
+        margin-bottom:7px;
+        font-size:12px;
+        font-weight:950;
+        text-transform:uppercase;
+        color:#374151;
+        letter-spacing:.035em;
+      }
+      .ops-table{
+        width:100%;
+        border-collapse:collapse;
+        font-size:12px;
+      }
+      .ops-table th,.ops-table td{
+        padding:6px 5px;
+        border-bottom:1px solid #eef0f3;
+        vertical-align:top;
+      }
+      .ops-table th{
+        color:var(--muted);
+        text-align:left;
+        font-size:11px;
+        background:#f8fafc;
+        position:sticky;
+        top:0;
+      }
       .ops-risk-high{color:#b91c1c;font-weight:950;}
       .ops-risk-med{color:#b45309;font-weight:950;}
       .ops-risk-low{color:#166534;font-weight:950;}
-      .ops-drawer.show ~ .sidepanel.show{display:none;}
-      @media(max-width:900px){.ops-drawer{width:350px}.ops-toggle-btn{top:10px;right:10px}.ops-kpis{grid-template-columns:1fr}}
+      .ops-delta-marker{
+        width:16px;
+        height:16px;
+        border-radius:999px;
+        border:2px solid #fff;
+        box-shadow:0 0 0 2px rgba(15,23,42,.35);
+      }
+      .ops-delta-new{background:#22c55e;}
+      .ops-delta-lost{background:#ef4444;}
+      .ops-delta-owner{background:#f59e0b;}
+      .ops-leadership-box{
+        border:1px solid #dbe3ea;
+        border-radius:12px;
+        padding:10px;
+        background:#f8fafc;
+        font-size:13px;
+        line-height:1.45;
+      }
+      @media(max-width:1100px){
+        .ops-exec-ribbon{top:66px;right:12px;}
+        .mapwrap.command-sidepanel-open .ops-exec-ribbon,
+        .mapwrap.command-drawer-open .ops-exec-ribbon{right:12px;}
+        .mapwrap.command-sidepanel-open #floatingKpis{display:none;}
+      }
+      @media(max-width:900px){
+        .ops-drawer{width:360px;}
+        .ops-toggle-btn{top:10px;right:10px !important;}
+        .ops-kpis{grid-template-columns:1fr;}
+        .ops-exec-ribbon{display:none;}
+      }
     `;
     document.head.appendChild(opsStyle);
 
     const mapwrap = document.querySelector('.mapwrap');
     if (!mapwrap || document.getElementById('opsDrawer')) return;
+
+    const deltaLayer = L.layerGroup().addTo(map);
+    let deltaModeOn = false;
+
+    const ribbon = document.createElement('div');
+    ribbon.id = 'opsExecRibbon';
+    ribbon.className = 'ops-exec-ribbon';
+    ribbon.innerHTML = `
+      <div class="ops-exec-card"><div class="lbl">Current Coverage</div><div class="val" id="opsExecCurrent">—</div></div>
+      <div class="ops-exec-card"><div class="lbl">Future Coverage</div><div class="val" id="opsExecFuture">—</div></div>
+      <div class="ops-exec-card"><div class="lbl">Gap Stores</div><div class="val" id="opsExecGaps">—</div></div>
+      <div class="ops-exec-card"><div class="lbl">Active RTS</div><div class="val" id="opsExecActive">—</div></div>
+      <div class="ops-exec-card"><div class="lbl">Highest Risk</div><div class="val" id="opsExecRisk">—</div></div>
+      <button id="opsDeltaToggle" class="ops-exec-action" type="button" title="Highlight what changes between current and future alignment">Delta Mode</button>
+    `;
 
     const toggle = document.createElement('button');
     toggle.id = 'opsDrawerToggle';
@@ -7594,34 +7824,50 @@ function cascadeRM(){
         <button id="opsRefreshBtn" class="btn" type="button">Refresh</button>
         <button id="opsCloseBtn" class="btn" type="button">×</button>
       </div>
+      <div class="ops-tabs">
+        <button class="ops-tab active" data-pane="overview" type="button">Overview</button>
+        <button class="ops-tab" data-pane="risk" type="button">Risk</button>
+        <button class="ops-tab" data-pane="workload" type="button">RTS Load</button>
+        <button class="ops-tab" data-pane="delta" type="button">Delta</button>
+        <button class="ops-tab" data-pane="leadership" type="button">Leadership</button>
+      </div>
       <div class="ops-body">
-        <div class="ops-kpis">
-          <div class="ops-card"><div class="ops-label">Visible Stores</div><div class="ops-value" id="opsKpiStores">—</div><div class="ops-sub" id="opsKpiStoresSub">Filtered + map extent</div></div>
-          <div class="ops-card"><div class="ops-label">Coverage</div><div class="ops-value" id="opsKpiCoverage">—</div><div class="ops-sub" id="opsKpiCoverageSub">Covered vs visible</div></div>
-          <div class="ops-card"><div class="ops-label">Current Gaps</div><div class="ops-value" id="opsKpiGaps">—</div><div class="ops-sub">Uncovered stores in view</div></div>
-          <div class="ops-card"><div class="ops-label">Active RTS</div><div class="ops-value" id="opsKpiRts">—</div><div class="ops-sub">Visible active hubs</div></div>
+        <div class="ops-pane active" id="opsPaneOverview">
+          <div class="ops-kpis">
+            <div class="ops-card"><div class="ops-label">Visible Stores</div><div class="ops-value" id="opsKpiStores">—</div><div class="ops-sub" id="opsKpiStoresSub">Filtered + map extent</div></div>
+            <div class="ops-card"><div class="ops-label">Coverage</div><div class="ops-value" id="opsKpiCoverage">—</div><div class="ops-sub" id="opsKpiCoverageSub">Covered vs visible</div></div>
+            <div class="ops-card"><div class="ops-label">Current Gaps</div><div class="ops-value" id="opsKpiGaps">—</div><div class="ops-sub">Uncovered stores in view</div></div>
+            <div class="ops-card"><div class="ops-label">Active RTS</div><div class="ops-value" id="opsKpiRts">—</div><div class="ops-sub">Visible active hubs</div></div>
+          </div>
+          <div class="ops-card"><div class="ops-section-title"><span>Top Gap Regions</span><span id="opsGapMeta" class="ops-sub"></span></div><div id="opsTopGaps"></div></div>
         </div>
-        <div class="ops-card"><div class="ops-section-title"><span>Top Gap Regions</span><span id="opsGapMeta" class="ops-sub"></span></div><div id="opsTopGaps"></div></div>
-        <div class="ops-card"><div class="ops-section-title"><span>RTS Workload Ranking</span><span class="ops-sub">${DEFAULT_RADIUS}-mile reach</span></div><div id="opsRtsWorkload"></div></div>
-        <div class="ops-card"><div class="ops-section-title"><span>Coverage Risk</span><span class="ops-sub">manager risk</span></div><div id="opsRiskTable"></div></div>
+
+        <div class="ops-pane" id="opsPaneRisk">
+          <div class="ops-card"><div class="ops-section-title"><span>Coverage Risk</span><span class="ops-sub">manager risk</span></div><div id="opsRiskTable"></div></div>
+          <div class="ops-card"><div class="ops-section-title"><span>Region Health Score</span><span class="ops-sub">red / yellow / green</span></div><div id="opsHealthTable"></div></div>
+        </div>
+
+        <div class="ops-pane" id="opsPaneWorkload">
+          <div class="ops-card"><div class="ops-section-title"><span>RTS Workload Ranking</span><span class="ops-sub">${DEFAULT_RADIUS}-mile reach</span></div><div id="opsRtsWorkload"></div></div>
+          <div class="ops-card"><div class="ops-section-title"><span>Balancing Flags</span><span class="ops-sub">capacity watchlist</span></div><div id="opsBalanceFlags"></div></div>
+        </div>
+
+        <div class="ops-pane" id="opsPaneDelta">
+          <div class="ops-card"><div class="ops-section-title"><span>Current vs Future Delta</span><span class="ops-sub">5/31 transition</span></div><div id="opsDeltaSummary"></div></div>
+          <div class="ops-card"><div class="ops-section-title"><span>Delta Legend</span><span class="ops-sub">map highlight</span></div>
+            <div class="ops-sub"><b style="color:#16a34a">Green</b> = newly covered/improved<br><b style="color:#dc2626">Red</b> = lost coverage/regressed<br><b style="color:#b45309">Yellow</b> = manager ownership changed</div>
+          </div>
+        </div>
+
+        <div class="ops-pane" id="opsPaneLeadership">
+          <div class="ops-card"><div class="ops-section-title"><span>Leadership Snapshot</span><span class="ops-sub">copy-ready</span></div><div id="opsLeadershipSnapshot"></div></div>
+          <div class="ops-card"><div class="ops-section-title"><span>Recommended Talking Points</span><span class="ops-sub">auto summary</span></div><div id="opsTalkingPoints"></div></div>
+        </div>
       </div>`;
 
+    mapwrap.appendChild(ribbon);
     mapwrap.appendChild(toggle);
     mapwrap.appendChild(drawer);
-
-    const scheduleOps = (()=>{ let t; return ()=>{ clearTimeout(t); t=setTimeout(updateOpsIntel, 80); }; })();
-    window.updateOpsIntel = updateOpsIntel;
-
-    toggle.onclick = ()=>{
-      drawer.classList.toggle('show');
-      updateOpsIntel();
-      setTimeout(()=> map.invalidateSize(), 180);
-    };
-    drawer.querySelector('#opsCloseBtn').onclick = ()=>{
-      drawer.classList.remove('show');
-      setTimeout(()=> map.invalidateSize(), 180);
-    };
-    drawer.querySelector('#opsRefreshBtn').onclick = updateOpsIntel;
 
     function fmt(n){ return Number(n || 0).toLocaleString(); }
     function pct(n,d){ return d ? Math.round((n / d) * 1000) / 10 : 0; }
@@ -7631,6 +7877,7 @@ function cascadeRM(){
     function rmOf(s){ return managerLabel?.(s?.regionalManager) || s?.regionalManager || 'Unassigned RM'; }
     function amOf(s){ return managerLabel?.(s?.areaManager) || s?.areaManager || 'Unassigned AM'; }
     function stOf(s){ return s?.state || '—'; }
+    function storeKey(s){ return String(s?.storeNumberStr || s?.storeNumber || s?.StoreNumber || '').replace(/\D/g,''); }
 
     function activeRowsInMapExtent(){
       let rows = Array.isArray(filteredStores) && filteredStores.length ? filteredStores : (Array.isArray(allStores) ? allStores : []);
@@ -7676,13 +7923,14 @@ function cascadeRM(){
         const lng = Number(h.coords[1]);
         const reached = rows.filter(s => Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lng)) && distMiles(lat,lng,Number(s.lat),Number(s.lng)) <= r);
         const gaps = reached.filter(gap).length;
+        const risk = reached.length >= 140 || gaps >= 20 ? 'High' : reached.length >= 105 || gaps >= 10 ? 'Med' : 'Low';
         return {
           name: hubDisplay?.(h) || h.fullName || h.name || 'RTS',
           total: reached.length,
           gaps,
-          risk: gaps >= 20 ? 'High' : gaps >= 10 ? 'Med' : 'Low'
+          risk
         };
-      }).sort((a,b)=> b.total - a.total || b.gaps - a.gaps).slice(0,10);
+      }).sort((a,b)=> b.total - a.total || b.gaps - a.gaps).slice(0,12);
     }
 
     function coverageRisk(rows){
@@ -7695,15 +7943,116 @@ function cascadeRM(){
         })
         .filter(r => r.total >= 3)
         .sort((a,b)=> b.gaps - a.gaps || b.gapPct - a.gapPct)
-        .slice(0,10);
+        .slice(0,12);
+    }
+
+    function healthRows(rows){
+      return groupBy(rows, s => {
+        const rm = rmOf(s);
+        return rm && rm !== '(Blank)' ? rm : stOf(s);
+      }).map(g=>{
+        const total = g.items.length;
+        const gaps = g.items.filter(gap).length;
+        const coverage = pct(total - gaps, total);
+        const score = Math.max(0, Math.round(coverage - Math.min(30, gaps / 2)));
+        const status = score >= 80 ? 'Low' : score >= 60 ? 'Med' : 'High';
+        return { region:g.key, total, gaps, coverage, score, status };
+      }).filter(r => r.total >= 5).sort((a,b)=> a.score - b.score || b.gaps - a.gaps).slice(0,10);
+    }
+
+    function buildDeltaSummary(){
+      const curMap = new Map((currentStores || []).map(s => [storeKey(s), s]).filter(([k])=>k));
+      const futMap = new Map((futureStores || []).map(s => [storeKey(s), s]).filter(([k])=>k));
+      const keys = [...new Set([...curMap.keys(), ...futMap.keys()])];
+
+      const out = {
+        comparable:0,
+        newlyCovered:[],
+        newlyGap:[],
+        ownerChanged:[],
+        rmChanged:[],
+        amChanged:[]
+      };
+
+      keys.forEach(k=>{
+        const c = curMap.get(k);
+        const f = futMap.get(k);
+        if (!c || !f) return;
+        out.comparable++;
+
+        const cCov = covered(c);
+        const fCov = covered(f);
+        if (!cCov && fCov) out.newlyCovered.push(f);
+        if (cCov && !fCov) out.newlyGap.push(f);
+
+        const cRM = rmOf(c), fRM = rmOf(f);
+        const cAM = amOf(c), fAM = amOf(f);
+        if (cRM !== fRM || cAM !== fAM) out.ownerChanged.push(f);
+        if (cRM !== fRM) out.rmChanged.push(f);
+        if (cAM !== fAM) out.amChanged.push(f);
+      });
+
+      return out;
+    }
+
+    function renderDeltaMarkers(){
+      deltaLayer.clearLayers();
+      if (!deltaModeOn) return;
+
+      const d = buildDeltaSummary();
+      const rows = [
+        ...d.newlyCovered.slice(0,500).map(s => ({ s, cls:'ops-delta-new', title:'Newly covered / improved' })),
+        ...d.newlyGap.slice(0,500).map(s => ({ s, cls:'ops-delta-lost', title:'Lost coverage / regressed' })),
+        ...d.ownerChanged.slice(0,700).map(s => ({ s, cls:'ops-delta-owner', title:'Manager ownership changed' }))
+      ];
+
+      const seen = new Set();
+      rows.forEach(x=>{
+        const k = storeKey(x.s) + '|' + x.cls;
+        if (seen.has(k)) return;
+        seen.add(k);
+        if (!Number.isFinite(Number(x.s.lat)) || !Number.isFinite(Number(x.s.lng))) return;
+        const icon = L.divIcon({
+          className:'',
+          html:`<div class="ops-delta-marker ${x.cls}" title="${safe(x.title)}"></div>`,
+          iconSize:[16,16],
+          iconAnchor:[8,8]
+        });
+        L.marker([Number(x.s.lat), Number(x.s.lng)], { icon, pane:'markerPane', title:x.title })
+          .bindPopup(`<b>${safe(x.title)}</b><br>Store ${safe(x.s.storeNumberStr || '')}<br>${safe(x.s.city || '')}, ${safe(x.s.state || '')}`)
+          .addTo(deltaLayer);
+      });
+    }
+
+    function syncCommandLayout(){
+      const drawerOpen = drawer.classList.contains('show');
+      const sideOpen = sidepanel?.classList.contains('show');
+      mapwrap.classList.toggle('command-drawer-open', drawerOpen);
+      mapwrap.classList.toggle('command-sidepanel-open', sideOpen && !drawerOpen);
+      setTimeout(()=> map.invalidateSize(), 120);
     }
 
     function updateOpsIntel(){
-      if (!document.getElementById('opsDrawer')) return;
       const rows = activeRowsInMapExtent();
       const coveredCount = rows.filter(covered).length;
       const gapCount = rows.length - coveredCount;
       const hubs = activeVisibleHubs();
+      const riskRows = coverageRisk(rows);
+      const worst = riskRows[0];
+
+      const currentTotal = currentStores?.length || allStores.length || 0;
+      const futureTotal = futureStores?.length || allStores.length || 0;
+      const currentCovered = (currentStores || []).filter(covered).length;
+      const futureCovered = (futureStores || []).filter(covered).length;
+      const currentPct = pct(currentCovered, currentTotal);
+      const futurePct = pct(futureCovered, futureTotal);
+      const d = buildDeltaSummary();
+
+      id('opsExecCurrent').textContent = `${currentPct || pct(coveredCount, rows.length)}%`;
+      id('opsExecFuture').textContent = `${futurePct || pct(coveredCount, rows.length)}%`;
+      id('opsExecGaps').textContent = fmt(gapCount);
+      id('opsExecActive').textContent = fmt(hubs.length);
+      id('opsExecRisk').textContent = worst ? String(worst.manager).split(',')[0].slice(0,18) : '—';
 
       drawer.querySelector('#opsKpiStores').textContent = fmt(rows.length);
       drawer.querySelector('#opsKpiCoverage').textContent = `${pct(coveredCount, rows.length)}%`;
@@ -7724,16 +8073,113 @@ function cascadeRM(){
         ${workRows.map(r => `<tr><td><b>${safe(r.name)}</b></td><td style="text-align:right">${fmt(r.total)}</td><td style="text-align:right">${fmt(r.gaps)}</td><td class="ops-risk-${r.risk.toLowerCase()}">${r.risk}</td></tr>`).join('')}
         </tbody></table>` : `<div class="ops-sub">No active RTS hub data in the current view.</div>`;
 
-      const riskRows = coverageRisk(rows);
+      drawer.querySelector('#opsBalanceFlags').innerHTML = workRows.length ? `
+        <table class="ops-table"><thead><tr><th>Flag</th><th style="text-align:right">Stores</th><th>Suggested action</th></tr></thead><tbody>
+        ${workRows.filter(r => r.risk !== 'Low').slice(0,8).map(r => `<tr><td><b>${safe(r.name)}</b><div class="ops-sub">${r.risk} workload</div></td><td style="text-align:right">${fmt(r.total)}</td><td>Review nearby gap clusters for possible split or support.</td></tr>`).join('') || `<tr><td colspan="3">No high workload flags in the active view.</td></tr>`}
+        </tbody></table>` : `<div class="ops-sub">No workload flags available.</div>`;
+
       drawer.querySelector('#opsRiskTable').innerHTML = riskRows.length ? `
         <table class="ops-table"><thead><tr><th>Manager / Area</th><th style="text-align:right">Gap %</th><th style="text-align:right">Gaps</th><th>Risk</th></tr></thead><tbody>
         ${riskRows.map(r => `<tr><td><b>${safe(r.manager)}</b><div class="ops-sub">${fmt(r.total)} stores</div></td><td style="text-align:right">${r.gapPct}%</td><td style="text-align:right">${fmt(r.gaps)}</td><td class="ops-risk-${r.risk.toLowerCase()}">${r.risk}</td></tr>`).join('')}
         </tbody></table>` : `<div class="ops-sub">No coverage risk rows found.</div>`;
+
+      const health = healthRows(rows);
+      drawer.querySelector('#opsHealthTable').innerHTML = health.length ? `
+        <table class="ops-table"><thead><tr><th>Region</th><th style="text-align:right">Score</th><th style="text-align:right">Coverage</th><th>Risk</th></tr></thead><tbody>
+        ${health.map(r => `<tr><td><b>${safe(r.region)}</b><div class="ops-sub">${fmt(r.gaps)} gaps / ${fmt(r.total)} stores</div></td><td style="text-align:right">${r.score}</td><td style="text-align:right">${r.coverage}%</td><td class="ops-risk-${r.status.toLowerCase()}">${r.status === 'Med' ? 'Watch' : r.status}</td></tr>`).join('')}
+        </tbody></table>` : `<div class="ops-sub">No health score rows available.</div>`;
+
+      drawer.querySelector('#opsDeltaSummary').innerHTML = `
+        <div class="ops-kpis">
+          <div class="ops-card"><div class="ops-label">Comparable Stores</div><div class="ops-value">${fmt(d.comparable)}</div></div>
+          <div class="ops-card"><div class="ops-label">Newly Covered</div><div class="ops-value">${fmt(d.newlyCovered.length)}</div></div>
+          <div class="ops-card"><div class="ops-label">Newly Uncovered</div><div class="ops-value">${fmt(d.newlyGap.length)}</div></div>
+          <div class="ops-card"><div class="ops-label">Ownership Changes</div><div class="ops-value">${fmt(d.ownerChanged.length)}</div></div>
+        </div>
+        <div class="ops-sub" style="margin-top:8px">Use <b>Delta Mode</b> in the executive ribbon to highlight changed stores on the map.</div>
+      `;
+
+      const lift = Math.round((futurePct - currentPct) * 10) / 10;
+      drawer.querySelector('#opsLeadershipSnapshot').innerHTML = `
+        <div class="ops-leadership-box">
+          <b>One Walmart RTS Coverage Snapshot</b><br>
+          Current coverage: <b>${currentPct}%</b><br>
+          Future coverage: <b>${futurePct}%</b><br>
+          Coverage delta: <b>${lift >= 0 ? '+' : ''}${lift} pts</b><br>
+          Active RTS hubs: <b>${fmt(hubs.length)}</b><br>
+          Current visible gaps: <b>${fmt(gapCount)}</b><br>
+          Highest risk area: <b>${safe(worst?.manager || 'None identified')}</b>
+        </div>
+      `;
+      drawer.querySelector('#opsTalkingPoints').innerHTML = `
+        <ul style="margin:0;padding-left:18px;line-height:1.45">
+          <li>The map is operating in <b>${activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart'}</b> mode.</li>
+          <li>The highest visible coverage risk is <b>${safe(worst?.manager || 'not currently flagged')}</b>.</li>
+          <li>Delta mode identifies stores with changed ownership or coverage status after the transition.</li>
+          <li>RTS workload ranking should be used to identify overloaded hubs and potential split opportunities.</li>
+        </ul>
+      `;
+
+      renderDeltaMarkers();
+      syncCommandLayout();
     }
+
+    const scheduleOps = (()=>{ let t; return ()=>{ clearTimeout(t); t=setTimeout(updateOpsIntel, 90); }; })();
+    window.updateOpsIntel = updateOpsIntel;
+
+    toggle.onclick = ()=>{
+      const willOpen = !drawer.classList.contains('show');
+      if (willOpen && sidepanel?.classList.contains('show') && typeof hideSidepanel === 'function') hideSidepanel();
+      drawer.classList.toggle('show', willOpen);
+      updateOpsIntel();
+      syncCommandLayout();
+    };
+
+    drawer.querySelector('#opsCloseBtn').onclick = ()=>{
+      drawer.classList.remove('show');
+      syncCommandLayout();
+    };
+    drawer.querySelector('#opsRefreshBtn').onclick = updateOpsIntel;
+
+    drawer.querySelectorAll('.ops-tab').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const pane = btn.dataset.pane;
+        drawer.querySelectorAll('.ops-tab').forEach(b=>b.classList.toggle('active', b === btn));
+        drawer.querySelectorAll('.ops-pane').forEach(p=>p.classList.remove('active'));
+        drawer.querySelector(`#opsPane${pane.charAt(0).toUpperCase()+pane.slice(1)}`)?.classList.add('active');
+        updateOpsIntel();
+      });
+    });
+
+    id('opsDeltaToggle').onclick = ()=>{
+      deltaModeOn = !deltaModeOn;
+      id('opsDeltaToggle').classList.toggle('active', deltaModeOn);
+      renderDeltaMarkers();
+      if (deltaModeOn && !drawer.classList.contains('show')) drawer.classList.add('show');
+      drawer.querySelector('.ops-tab[data-pane="delta"]')?.click();
+      syncCommandLayout();
+    };
 
     ['covFilter','rmFilter','amFilter','hubFilter','showConfirmed','showPending','showUnilever','showPG','showTyson','tgWithin','tgCluster'].forEach(x=> id(x)?.addEventListener('change', scheduleOps));
     ['covSearch','rmSearch','amSearch','hubSearch','searchBox'].forEach(x=> id(x)?.addEventListener('input', scheduleOps));
     map.on('moveend zoomend', scheduleOps);
+
+    const originalOpenSidepanel = openSidepanel;
+    openSidepanel = function(){
+      drawer.classList.remove('show');
+      const out = originalOpenSidepanel.apply(this, arguments);
+      syncCommandLayout();
+      scheduleOps();
+      return out;
+    };
+
+    const originalHideSidepanel = hideSidepanel;
+    hideSidepanel = function(){
+      const out = originalHideSidepanel.apply(this, arguments);
+      syncCommandLayout();
+      scheduleOps();
+      return out;
+    };
 
     const oldUpdateCounts = updateCounts;
     updateCounts = function(){
@@ -7743,9 +8189,10 @@ function cascadeRM(){
     };
 
     updateOpsIntel();
+    syncCommandLayout();
   }
 
-  installEnterpriseOperationsIntelligence();
+  installEnterpriseCommandCenter();
 
 })();
 </script>
