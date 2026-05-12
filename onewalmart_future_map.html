@@ -8041,75 +8041,63 @@ function cascadeRM(){
     }
 
 function buildDeltaSummary(){
-  const newlyCovered = [];
-  const lostCoverage = [];
-  const improvedCoverage = [];
-  const unchanged = [];
+  const curMap = new Map((currentStores || []).map(s => [storeKey(s), s]).filter(([k]) => k));
+  const futMap = new Map((futureStores || []).map(s => [storeKey(s), s]).filter(([k]) => k));
+  const keys = [...new Set([...curMap.keys(), ...futMap.keys()])];
 
-  STORES.forEach(store => {
+  const out = {
+    comparable:0,
+    newlyCovered:[],
+    lostCoverage:[],
+    newlyGap:[],
+    improvedCoverage:[],
+    ownerChanged:[],
+    rmChanged:[],
+    amChanged:[],
+    unchanged:[]
+  };
 
-    const currentTeams = getCurrentCoverageTeams(store);
-    const futureTeams = getFutureCoverageTeams(store);
+  keys.forEach(k => {
+    const c = curMap.get(k);
+    const f = futMap.get(k);
+    if (!c || !f) return;
 
-    const currentCovered = currentTeams.length > 0;
-    const futureCovered = futureTeams.length > 0;
+    out.comparable++;
 
-    // Completely uncovered -> covered
-    if(!currentCovered && futureCovered){
-      newlyCovered.push(store);
+    const cCov = covered(c);
+    const fCov = covered(f);
+
+    const cRM = rmOf(c);
+    const fRM = rmOf(f);
+    const cAM = amOf(c);
+    const fAM = amOf(f);
+
+    if (!cCov && fCov) {
+      out.newlyCovered.push(f);
       return;
     }
 
-    // Covered now -> uncovered later
-    if(currentCovered && !futureCovered){
-      lostCoverage.push(store);
+    if (cCov && !fCov) {
+      out.lostCoverage.push(f);
+      out.newlyGap.push(f);
       return;
     }
 
-    // Covered both periods
-    if(currentCovered && futureCovered){
-
-      const currentRTSCount = currentTeams.length;
-      const futureRTSCount = futureTeams.length;
-
-      const currentDistance =
-        typeof store.currentBestMiles === 'number'
-          ? store.currentBestMiles
-          : 999;
-
-      const futureDistance =
-        typeof store.futureBestMiles === 'number'
-          ? store.futureBestMiles
-          : 999;
-
-      const gainedTeam =
-        futureTeams.some(t => !currentTeams.includes(t));
-
-      const improvedDistance =
-        futureDistance < currentDistance - 5;
-
-      const improvedDepth =
-        futureRTSCount > currentRTSCount;
-
-      // ONLY mark improved if coverage meaningfully improved
-      if(gainedTeam || improvedDistance || improvedDepth){
-        improvedCoverage.push(store);
-      } else {
-        unchanged.push(store);
+    if (cCov && fCov) {
+      if (cRM !== fRM || cAM !== fAM) {
+        out.ownerChanged.push(f);
       }
 
-      return;
-    }
+      if (cRM !== fRM) out.rmChanged.push(f);
+      if (cAM !== fAM) out.amChanged.push(f);
 
-    unchanged.push(store);
+      // Placeholder for future distance-based logic.
+      // Do NOT call this newly covered.
+      out.unchanged.push(f);
+    }
   });
 
-  return {
-    newlyCovered,
-    lostCoverage,
-    improvedCoverage,
-    unchanged
-  };
+  return out;
 }
 
 function renderDeltaMarkers(){
@@ -8137,7 +8125,7 @@ function renderDeltaMarkers(){
       title:'Coverage Risk / Lost Coverage'
     })),
 
-    ...(d.ownerChanged || []).slice(0,700).map(s => ({
+    ...d.ownerChanged.slice(0,700).map(s => ({
       s,
       cls:'ops-delta-owner',
       title:'Manager Ownership Changed'
@@ -8167,11 +8155,7 @@ function renderDeltaMarkers(){
 
     L.marker(
       [Number(x.s.lat), Number(x.s.lng)],
-      {
-        icon,
-        pane:'markerPane',
-        title:x.title
-      }
+      { icon, pane:'markerPane', title:x.title }
     )
       .bindPopup(`
         <b>${safe(x.title)}</b><br>
