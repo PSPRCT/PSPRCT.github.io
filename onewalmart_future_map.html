@@ -924,6 +924,23 @@ select[multiple]{
 .transition-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .transition-detail-title{font-weight:900;margin-bottom:6px}
 .transition-handoff-note{margin-top:12px;padding:10px;border-radius:12px;background:#fff7ed;border:1px solid #fdba74;font-size:12px;line-height:1.4}
+  .leaflet-marker-pane,
+.leaflet-shadow-pane{
+  pointer-events:auto !important;
+}
+
+.leaflet-overlay-pane svg path{
+  pointer-events:auto;
+}
+
+.leaflet-popup-pane{
+  z-index:900 !important;
+}
+
+.leaflet-marker-icon,
+.leaflet-interactive{
+  cursor:pointer;
+}
 </style>
 </head>
 <body>
@@ -1649,15 +1666,20 @@ function exportHubsJson(){
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
   const hubPane = map.createPane('hubPane'); hubPane.style.zIndex = 650; hubPane.style.pointerEvents = 'auto';
 
-  const markers = L.markerClusterGroup({
-    disableClusteringAtZoom: 12,
-    spiderfyOnMaxZoom: false,
-    maxClusterRadius: z => z >= 9 ? 50 : 70,
-    iconCreateFunction: clusterIconByDominantCoverage,
-    chunkedLoading: true,
-    chunkInterval: 50,
-    chunkDelay: 25
-  });
+const markers = L.markerClusterGroup({
+  disableClusteringAtZoom: 12,
+  spiderfyOnMaxZoom: true,
+  showCoverageOnHover: false,
+  zoomToBoundsOnClick: true,
+  maxClusterRadius: z => z >= 9 ? 50 : 70,
+  iconCreateFunction: clusterIconByDominantCoverage,
+  chunkedLoading: true,
+  chunkInterval: 50,
+  chunkDelay: 25,
+  polygonOptions: {
+    interactive: false
+  }
+});
   const plainMarkers = L.layerGroup();
   const targetLayer    = L.layerGroup().addTo(map);
   const ringLayer      = L.layerGroup().addTo(map);
@@ -2774,12 +2796,48 @@ withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords
     filteredStores = allStores.filter(storeFilter);
 
     const ms = filteredStores.map(s=>{
-      const m = L.circleMarker([s.lat,s.lng], {
-        radius:5, weight:1, fillOpacity:.9, color:'#fff',
-        fillColor: COLORS[s.coverageType] || '#999'
-      });
-      m.store = s;
+  const m = L.circleMarker([s.lat,s.lng], {
+    radius:5,
+    weight:1,
+    fillOpacity:.9,
+    color:'#fff',
+    fillColor: COLORS[s.coverageType] || '#999',
+    bubblingMouseEvents:false
+  });
 
+  m.store = s;
+
+  m.bindPopup(() => {
+    try {
+      return storePopupHTML(s);
+    } catch (err) {
+      console.error('Store popup failed:', s, err);
+      return `
+        <div style="min-width:260px">
+          <b>Store ${escape(s.storeNumberStr || s.storeNumber || '')}</b><br>
+          ${escape(s.storeName || '')}<br>
+          ${escape(s.city || '')}, ${escape(s.state || '')}<br>
+          <span style="color:#b42318">Popup detail failed to load.</span>
+        </div>
+      `;
+    }
+  }, {
+    maxWidth:520,
+    minWidth:340,
+    autoPan:true,
+    closeButton:true
+  });
+
+  m.on('click', function(e){
+    if (e.originalEvent) {
+      L.DomEvent.stopPropagation(e.originalEvent);
+    }
+    this.openPopup();
+  });
+
+  markerByStore.set(s.storeNumberStr, m);
+  return m;
+});
 m.unbindPopup();
 
 m.bindPopup(() => {
