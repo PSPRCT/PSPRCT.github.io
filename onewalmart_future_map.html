@@ -5,7 +5,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>One Walmart Command Center Map</title>
-<!-- Startup performance enhancement pass v2: staged loading, lazy Ops analytics, aligned coverage math, debounced refresh, no pan/zoom analytics recalculation, cancellable chunked marker rendering. -->
+<!-- Startup performance enhancement pass v3: staged loading, lazy Ops analytics, debounced refreshes, no pan/zoom full recalculation, cancellable chunked marker rendering, canvas-backed store markers, debounced search, and leak-safe side-panel events. -->
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
@@ -1066,6 +1066,24 @@ select[multiple]{
   .command-mini-legend{display:none;}
 }
 
+/* ===== Performance-safe v3 polish ===== */
+.mapwrap.marker-rendering::after{
+  content:'Rendering visible stores…';
+  position:absolute;
+  left:12px;
+  top:12px;
+  z-index:1002;
+  background:rgba(255,255,255,.94);
+  border:1px solid #dbe3ea;
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:800;
+  color:#334155;
+  box-shadow:0 4px 14px rgba(15,23,42,.08);
+  pointer-events:none;
+}
+
 </style>
 </head>
 <body>
@@ -1790,6 +1808,7 @@ function exportHubsJson(){
 
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
+  const storeRenderer = L.canvas({ padding: 0.45 });
   const hubPane = map.createPane('hubPane'); hubPane.style.zIndex = 650; hubPane.style.pointerEvents = 'auto';
 
 const markers = L.markerClusterGroup({
@@ -1872,12 +1891,16 @@ syncLegends();
 
   // Performance-safe rendering controls. These keep marker work cancellable and spread
   // across frames so filter clicks, popups, and map movement stay responsive.
-  const MARKER_RENDER_BATCH = 350;
+  const MARKER_RENDER_BATCH = 300;
   const MARKER_RENDER_PAUSE_MS = 0;
   const HEAT_MAX_POINTS = 2500;
+  const SEARCH_DEBOUNCE_MS = 120;
   let markerRenderToken = 0;
   let pendingFitTimer = null;
   let pendingHeatTimer = null;
+  let pendingSearchTimer = null;
+  let lastMarkerRenderStartedAt = 0;
+  const mapWrapEl = document.querySelector('.mapwrap');
 
   function afterNextFrame(fn){
     requestAnimationFrame(() => setTimeout(fn, MARKER_RENDER_PAUSE_MS));
@@ -2166,7 +2189,7 @@ if (analysisDrop) {
   rebuildViewsMenu();
 
   // Floating toggles
-  tgHeat.onchange   = ()=>{ if (tgHeat.checked) deferIdle(updateHeat, 900); else clearHeat(); saveState(); };
+  tgHeat.onchange   = ()=>{ if (tgHeat.checked) scheduleHeatRefresh(80); else clearHeat(); saveState(); };
   tgRings.onchange  = ()=>{ updateRings(); saveState(); };
   tgOverlap.onchange = () => {
   if (tgOverlap.checked){
@@ -2241,7 +2264,7 @@ spRowsEl.addEventListener('click', (e)=>{
     updateInViewCount();
     // Startup/performance guard: pan/zoom should never trigger full analytics or immediate heavy layer rebuilds.
     // Heatmap refresh is deferred and only runs when the heatmap layer is actually enabled.
-    if (id('tgHeat')?.checked) deferIdle(updateHeat, 900);
+    scheduleHeatRefresh(300);
     saveState();
   });
 
@@ -2909,7 +2932,10 @@ function applyDedicatedTeamPathsToStores(rows, stores){
     showResults(out.slice(0,60));
   }
 
-  searchBox.addEventListener('input', handleSearchInput);
+  searchBox.addEventListener('input', ()=>{
+    clearTimeout(pendingSearchTimer);
+    pendingSearchTimer = setTimeout(handleSearchInput, SEARCH_DEBOUNCE_MS);
+  });
   searchBox.addEventListener('keydown', (e)=>{
     const items = searchResults._data || [];
     if (e.key === 'ArrowDown'){ e.preventDefault(); resIndex = Math.min(items.length-1,resIndex+1); highlightResult(); }
@@ -2969,7 +2995,8 @@ withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords
       fillOpacity:.9,
       color:'#fff',
       fillColor: COLORS[s.coverageType] || '#999',
-      bubblingMouseEvents:false
+      bubblingMouseEvents:false,
+      renderer: storeRenderer
     });
 
     m.store = s;
@@ -3007,6 +3034,7 @@ withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords
 
   function runFilter(){
     const token = ++markerRenderToken;
+    lastMarkerRenderStartedAt = performance.now();
 
     markerByStore.clear();
     markers.clearLayers();
@@ -3014,7 +3042,7 @@ withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords
 
     filteredStores = allStores.filter(storeFilter);
 
-    // Update the lightweight UI immediately; marker drawing continues in chunks below.
+    // Update lightweight UI immediately; marker drawing is cancellable and spread across frames.
     updateCounts();
     updateInViewCount();
     id('emptyState').hidden = filteredStores.length !== 0;
@@ -3028,6 +3056,8 @@ withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords
       plainGroup = L.layerGroup();
       plainMarkers.addLayer(plainGroup);
     }
+
+    if (mapWrapEl) mapWrapEl.classList.toggle('marker-rendering', filteredStores.length > 900);
 
     let i = 0;
     function drawChunk(){
@@ -3049,6 +3079,8 @@ withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords
       if (i < filteredStores.length){
         afterNextFrame(drawChunk);
       } else {
+        if (token !== markerRenderToken) return;
+        if (mapWrapEl) mapWrapEl.classList.remove('marker-rendering');
         updateInViewCount();
         if (tgOverlap.checked) deferIdle(drawOverlap, 900);
       }
@@ -7279,7 +7311,8 @@ function storePopupHTML(s){
       weight: 1,
       fillOpacity: .9,
       color: '#fff',
-      fillColor: COLORS[store.coverageType] || '#999'
+      fillColor: COLORS[store.coverageType] || '#999',
+      renderer: storeRenderer
     });
 
     m.store = store;
