@@ -6662,54 +6662,234 @@ s.address =
 
   // Coverage-aware popup
   function storePopupHTML(s){
-  const nearestOf = (hubs) => {
-    let best = null, dmin = Infinity;
-    hubs.forEach(h => {
-      const d = distMiles(s.lat, s.lng, h.coords[0], h.coords[1]);
-      if (d < dmin){ dmin = d; best = h; }
-    });
-    return best ? { hub: best, d: dmin } : null;
-  };
 
-  const np = nearestOf(premiumConfirmed);
-  const na = nearestOf(acostaHubs);
+  const k = storeKey(s);
 
-  const addrLine = [
-    escape(s.address || ''),
-    `${escape(s.city || '')}, ${escape(s.state || '')}`
-  ].filter(Boolean).join('<br>');
+  const currentStore =
+    (currentStores || []).find(
+      x => storeKey(x) === k
+    ) || s;
 
-  const badge = `
-    <span style="padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:${COLORS[s.coverageType] || '#eee'}22">
-      ${escape(coverageDisplayLabel(s.coverageType))}
-    </span>
-  `;
+  const futureStore =
+    (futureStores || []).find(
+      x => storeKey(x) === k
+    ) || s;
+
+  const deltaType =
+    deltaStoreType(currentStore, futureStore);
+
+  const currentNearest =
+    deltaNearestHub(currentStore);
+
+  const futureNearest =
+    deltaNearestHub(futureStore);
+
+  const currentCovered =
+    deltaCoveredByActiveHub(currentStore);
+
+  const futureCovered =
+    deltaCoveredByActiveHub(futureStore);
+
+  const currentMiles =
+    currentNearest ? currentNearest.miles : 999;
+
+  const futureMiles =
+    futureNearest ? futureNearest.miles : 999;
+
+  const distanceChange =
+    currentMiles - futureMiles;
+
+  const currentAM =
+    amOf(currentStore);
+
+  const futureAM =
+    amOf(futureStore);
+
+  const currentRM =
+    rmOf(currentStore);
+
+  const futureRM =
+    rmOf(futureStore);
+
+  const ownershipChanged =
+    deltaNormalizeName(currentAM) !== deltaNormalizeName(futureAM) ||
+    deltaNormalizeName(currentRM) !== deltaNormalizeName(futureRM);
+
+  const transitionId =
+    `transition_${safe(k).replace(/[^a-zA-Z0-9]/g,'_')}`;
 
   return `
-    <div style="font-size:13px;line-height:1.35;min-width:280px">
-      <div style="font-weight:800;margin-bottom:4px">
-        Store ${escape(s.storeNumberStr)} — ${escape(s.storeName || '')}
+  <div class="store-popup-shell">
+
+    <div class="store-popup-header">
+
+      <div>
+        <div class="store-popup-title">
+          Store ${safe(s.storeNumberStr || s.storeNumber || '')}
+        </div>
+
+        <div class="store-popup-sub">
+          ${safe(s.storeName || '')}
+        </div>
+
+        <div class="store-popup-sub">
+          ${safe(s.city || '')}, ${safe(s.state || '')}
+        </div>
       </div>
 
-      <div>${addrLine}</div>
-      <div style="margin:6px 0">${badge}</div>
-
-      ${managerPathHtml(s)}
-
-      ${np ? `<div style="margin-top:6px"><b>Nearest Active RTS:</b> ${escape(hubDisplay(np.hub))} • ${np.d.toFixed(1)} mi</div>` : ''}
-      ${na ? `<div><b>Nearest Legacy RTS:</b> ${escape(na.hub.label || na.hub.fullName || na.hub.name || '')} • ${na.d.toFixed(1)} mi</div>` : ''}
-
-      <div style="color:var(--muted);margin-top:6px">
-        Lat: ${Number(s.lat).toFixed(4)}, Lng: ${Number(s.lng).toFixed(4)}
+      <div class="store-popup-delta">
+        ${safe(deltaType)}
       </div>
 
-      <div style="margin-top:6px">
-        <b>Maps:</b>
-        <a target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(s.lat + ',' + s.lng)}">Google</a>
-        •
-        <a target="_blank" rel="noopener" href="http://maps.apple.com/?ll=${encodeURIComponent(s.lat + ',' + s.lng)}">Apple</a>
-      </div>
     </div>
+
+    <div class="store-popup-grid">
+
+      <div class="store-popup-card">
+
+        <div class="store-popup-card-title">
+          Current State
+        </div>
+
+        <div>
+          <b>Covered:</b>
+          ${currentCovered ? 'Covered' : 'Uncovered'}
+        </div>
+
+        <div>
+          <b>RTS:</b>
+          ${safe(currentNearest?.name || 'None')}
+        </div>
+
+        <div>
+          <b>Distance:</b>
+          ${
+            currentMiles === 999
+              ? '—'
+              : currentMiles.toFixed(1) + ' mi'
+          }
+        </div>
+
+      </div>
+
+      <div class="store-popup-card">
+
+        <div class="store-popup-card-title">
+          Future State
+        </div>
+
+        <div>
+          <b>Covered:</b>
+          ${futureCovered ? 'Covered' : 'Uncovered'}
+        </div>
+
+        <div>
+          <b>RTS:</b>
+          ${safe(futureNearest?.name || 'None')}
+        </div>
+
+        <div>
+          <b>Distance:</b>
+          ${
+            futureMiles === 999
+              ? '—'
+              : futureMiles.toFixed(1) + ' mi'
+          }
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="store-popup-summary">
+
+      <div>
+        <b>Distance Change:</b>
+        ${
+          currentMiles === 999 || futureMiles === 999
+            ? '—'
+            : distanceChange.toFixed(1) + ' mi'
+        }
+      </div>
+
+      <div>
+        <b>Ownership Changed:</b>
+        ${ownershipChanged ? 'Yes' : 'No'}
+      </div>
+
+    </div>
+
+    <button
+      class="transition-toggle-btn"
+      onclick="
+        const el=document.getElementById('${transitionId}');
+        if(el){
+          el.style.display =
+            el.style.display==='none'
+              ? 'block'
+              : 'none';
+        }
+      "
+    >
+      Transition Handoff Details
+    </button>
+
+    <div
+      id="${transitionId}"
+      class="transition-detail-panel"
+      style="display:none"
+    >
+
+      <div class="transition-detail-grid">
+
+        <div>
+          <div class="transition-detail-title">
+            Current Ownership
+          </div>
+
+          <div>
+            <b>AM:</b>
+            ${safe(currentAM || 'None')}
+          </div>
+
+          <div>
+            <b>RM:</b>
+            ${safe(currentRM || 'None')}
+          </div>
+        </div>
+
+        <div>
+          <div class="transition-detail-title">
+            Future Ownership
+          </div>
+
+          <div>
+            <b>AM:</b>
+            ${safe(futureAM || 'None')}
+          </div>
+
+          <div>
+            <b>RM:</b>
+            ${safe(futureRM || 'None')}
+          </div>
+        </div>
+
+      </div>
+
+      ${
+        ownershipChanged
+          ? `
+          <div class="transition-handoff-note">
+            Recommended handoff:
+            Current AM/RM → Future AM/RM coordination recommended during transition.
+          </div>
+          `
+          : ''
+      }
+
+    </div>
+
+  </div>
   `;
 }
   function ensureMarkerForStore(store){
