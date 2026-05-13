@@ -5,7 +5,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>One Walmart Command Center Map</title>
-<!-- Startup performance enhancement pass: staged loading, lazy Ops analytics, aligned coverage math, debounced refresh, no pan/zoom analytics recalculation. -->
+<!-- Startup performance enhancement pass v2: staged loading, lazy Ops analytics, aligned coverage math, debounced refresh, no pan/zoom analytics recalculation, cancellable chunked marker rendering. -->
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
@@ -1870,6 +1870,30 @@ syncLegends();
   let lastFilterChanged = null;
   const debouncedRun = (() => { let t; return () => { clearTimeout(t); t = setTimeout(runFilter, 90); }; })();
 
+  // Performance-safe rendering controls. These keep marker work cancellable and spread
+  // across frames so filter clicks, popups, and map movement stay responsive.
+  const MARKER_RENDER_BATCH = 350;
+  const MARKER_RENDER_PAUSE_MS = 0;
+  const HEAT_MAX_POINTS = 2500;
+  let markerRenderToken = 0;
+  let pendingFitTimer = null;
+  let pendingHeatTimer = null;
+
+  function afterNextFrame(fn){
+    requestAnimationFrame(() => setTimeout(fn, MARKER_RENDER_PAUSE_MS));
+  }
+
+  function scheduleFitToResults(delay=80){
+    clearTimeout(pendingFitTimer);
+    pendingFitTimer = setTimeout(() => fitToResults(), delay);
+  }
+
+  function scheduleHeatRefresh(delay=250){
+    if (!id('tgHeat')?.checked) return;
+    clearTimeout(pendingHeatTimer);
+    pendingHeatTimer = setTimeout(() => deferIdle(updateHeat, 900), delay);
+  }
+
   const getName = r => String(
     r.CandidateName ?? r.Candidate ?? r.RepName ?? r.repName ??
     r.TrainerName ?? r['Trainer Name'] ??
@@ -2024,7 +2048,7 @@ on('change', rmFilter,  ()=>{
   cascadeAM();
 
   runFilter();
-  fitToResults();
+  scheduleFitToResults();
   saveState();
   renderChips();
 
@@ -2039,7 +2063,7 @@ on('change', amFilter,  ()=>{
   cascadeRM();
 
   runFilter();
-  fitToResults();
+  scheduleFitToResults();
   saveState();
   renderChips();
 
@@ -2178,6 +2202,7 @@ tgCluster.onchange = ()=>{ refreshLayerMode(); saveState(); };
 spRowsEl.addEventListener('click', (e)=>{
   const btn = e.target.closest('button.mini');
   if (!btn) return;
+  e.stopPropagation();
   navigator.clipboard?.writeText(btn.dataset.copy || '');
   const old = btn.textContent;
   btn.textContent = 'Copied!';
@@ -2937,73 +2962,99 @@ withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords
     return covOK && rmOK && amOK && hubOK && withinOK;
   }
 
+  function makeStoreMarker(s){
+    const m = L.circleMarker([s.lat,s.lng], {
+      radius:5,
+      weight:1,
+      fillOpacity:.9,
+      color:'#fff',
+      fillColor: COLORS[s.coverageType] || '#999',
+      bubblingMouseEvents:false
+    });
+
+    m.store = s;
+
+    // Popup HTML stays lazy: it is generated only when the user opens the store.
+    m.bindPopup(() => {
+      try {
+        return storePopupHTML(s);
+      } catch (err) {
+        console.error('Store popup failed:', s, err);
+        return `
+          <div style="min-width:260px">
+            <b>Store ${escape(s.storeNumberStr || s.storeNumber || '')}</b><br>
+            ${escape(s.storeName || '')}<br>
+            ${escape(s.city || '')}, ${escape(s.state || '')}<br>
+            <span style="color:#b42318">Popup detail failed to load.</span>
+          </div>
+        `;
+      }
+    }, {
+      maxWidth:520,
+      minWidth:340,
+      autoPan:true,
+      closeButton:true
+    });
+
+    m.on('click', function(e){
+      if (e.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
+      this.openPopup();
+    });
+
+    markerByStore.set(s.storeNumberStr, m);
+    return m;
+  }
+
   function runFilter(){
+    const token = ++markerRenderToken;
+
     markerByStore.clear();
-    if(tgCluster.checked){ markers.clearLayers(); } else { plainMarkers.clearLayers(); }
+    markers.clearLayers();
+    plainMarkers.clearLayers();
 
     filteredStores = allStores.filter(storeFilter);
 
-    const ms = filteredStores.map(s=>{
-  const m = L.circleMarker([s.lat,s.lng], {
-    radius:5,
-    weight:1,
-    fillOpacity:.9,
-    color:'#fff',
-    fillColor: COLORS[s.coverageType] || '#999',
-    bubblingMouseEvents:false
-  });
-
-  m.store = s;
-
-  m.bindPopup(() => {
-    try {
-      return storePopupHTML(s);
-    } catch (err) {
-      console.error('Store popup failed:', s, err);
-      return `
-        <div style="min-width:260px">
-          <b>Store ${escape(s.storeNumberStr || s.storeNumber || '')}</b><br>
-          ${escape(s.storeName || '')}<br>
-          ${escape(s.city || '')}, ${escape(s.state || '')}<br>
-          <span style="color:#b42318">Popup detail failed to load.</span>
-        </div>
-      `;
-    }
-  }, {
-    maxWidth:520,
-    minWidth:340,
-    autoPan:true,
-    closeButton:true
-  });
-
-  m.on('click', function(e){
-    if (e.originalEvent) {
-      L.DomEvent.stopPropagation(e.originalEvent);
-    }
-    this.openPopup();
-  });
-
-  markerByStore.set(s.storeNumberStr, m);
-  return m;
-});
-
-
-    if (tgCluster.checked){ markers.addLayers(ms); }
-    else { plainMarkers.addLayer(L.layerGroup(ms)); }
-
-  updateCounts();
-
-// rebuildRMOptionsWithCounts();
-// rebuildAMOptionsWithCounts();
-
-// buildHubFilterOptions();
-
+    // Update the lightweight UI immediately; marker drawing continues in chunks below.
+    updateCounts();
     updateInViewCount();
-    if (id('tgHeat').checked) updateHeat();
+    id('emptyState').hidden = filteredStores.length !== 0;
+    scheduleHeatRefresh();
     if (id('tgRings').checked) updateRings();
 
-    // Empty state overlay
-    id('emptyState').hidden = filteredStores.length !== 0;
+    const useCluster = tgCluster.checked;
+    let plainGroup = null;
+
+    if (!useCluster){
+      plainGroup = L.layerGroup();
+      plainMarkers.addLayer(plainGroup);
+    }
+
+    let i = 0;
+    function drawChunk(){
+      if (token !== markerRenderToken) return;
+      const end = Math.min(i + MARKER_RENDER_BATCH, filteredStores.length);
+      const batch = [];
+
+      for (; i < end; i++){
+        const s = filteredStores[i];
+        const m = makeStoreMarker(s);
+        if (useCluster) batch.push(m);
+        else plainGroup.addLayer(m);
+      }
+
+      if (useCluster && batch.length){
+        markers.addLayers(batch);
+      }
+
+      if (i < filteredStores.length){
+        afterNextFrame(drawChunk);
+      } else {
+        updateInViewCount();
+        if (tgOverlap.checked) deferIdle(drawOverlap, 900);
+      }
+    }
+
+    afterNextFrame(drawChunk);
   }
 
   function updateCounts(){
@@ -3403,17 +3454,6 @@ rows.forEach((el, i) => {
   el.addEventListener('click', () => openStorePopup(s));
 });
 
-// Copy address button inside rows (use event delegation)
-spRowsEl.addEventListener('click', (e)=>{
-  const btn = e.target.closest('button.mini');
-  if (!btn) return;
-  e.stopPropagation(); // don't trigger the row click
-  const txt = btn.dataset.copy || '';
-  navigator.clipboard?.writeText(txt);
-  const old = btn.textContent;
-  btn.textContent = 'Copied!';
-  setTimeout(()=> btn.textContent = old || 'Copy', 800);
-});
 }
 
 
@@ -7875,7 +7915,13 @@ function openSandboxAt(lat, lng){
 
   // ---------- Heatmap ----------
   function updateHeat(){
-    const pts = filteredStores.map(s => [s.lat, s.lng, 0.6]);
+    const src = filteredStores || [];
+    const step = src.length > HEAT_MAX_POINTS ? Math.ceil(src.length / HEAT_MAX_POINTS) : 1;
+    const pts = [];
+    for (let i = 0; i < src.length; i += step){
+      const s = src[i];
+      pts.push([s.lat, s.lng, 0.6]);
+    }
     if (!heatLayerHolder.layer){
       heatLayerHolder.layer = L.heatLayer(pts, { radius: 25, blur: 18 });
       map.addLayer(heatLayerHolder.layer);
