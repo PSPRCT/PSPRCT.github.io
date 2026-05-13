@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Premium Retail Trainer Map</title>
+<title>One Walmart Command Center Map</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
@@ -910,20 +910,6 @@ select[multiple]{
   font-size:12px;
   line-height:1.4;
 }
-  .store-popup-shell{min-width:320px;max-width:460px}
-.store-popup-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
-.store-popup-title{font-size:20px;font-weight:900}
-.store-popup-sub{font-size:13px;color:var(--muted)}
-.store-popup-delta{border-radius:999px;padding:6px 12px;font-weight:800;background:#f8fafc;border:1px solid var(--border)}
-.store-popup-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-.store-popup-card{border:1px solid var(--border);border-radius:14px;padding:10px;background:#f8fafc}
-.store-popup-card-title{font-weight:900;margin-bottom:6px}
-.store-popup-summary{margin-top:12px;display:grid;gap:6px;font-size:13px}
-.transition-toggle-btn{margin-top:14px;width:100%;border:none;border-radius:12px;padding:10px;font-weight:800;cursor:pointer;background:#111827;color:#fff}
-.transition-detail-panel{margin-top:12px;border:1px solid var(--border);border-radius:14px;padding:12px;background:#f8fafc}
-.transition-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.transition-detail-title{font-weight:900;margin-bottom:6px}
-.transition-handoff-note{margin-top:12px;padding:10px;border-radius:12px;background:#fff7ed;border:1px solid #fdba74;font-size:12px;line-height:1.4}
   .leaflet-marker-pane,
 .leaflet-shadow-pane{
   pointer-events:auto !important;
@@ -941,6 +927,65 @@ select[multiple]{
 .leaflet-interactive{
   cursor:pointer;
 }
+
+
+/* ===== Command Center Clean v3: HUD / rail / popup-safe layout ===== */
+#floatingKpis{
+  top:12px !important;
+  right:88px !important;
+  left:auto !important;
+  max-width:calc(100% - 130px) !important;
+  padding:6px;
+  border-radius:16px;
+  background:rgba(255,255,255,.72);
+  border:1px solid rgba(226,232,240,.9);
+  box-shadow:0 8px 24px rgba(15,23,42,.12);
+  backdrop-filter:blur(10px);
+}
+#floatingKpis.hud-collapsed .kpiBox:not(:first-child){display:none;}
+#hudCollapseBtn{
+  border:1px solid #dbe3ea;background:#fff;border-radius:12px;padding:8px 10px;
+  font-weight:900;cursor:pointer;box-shadow:0 2px 8px rgba(15,23,42,.08);
+}
+.map-action-rail{
+  position:absolute;top:84px;right:14px;z-index:1002;display:flex;flex-direction:column;gap:8px;pointer-events:auto;
+}
+.map-action-rail .rail-btn{
+  border:1px solid #dbe3ea;background:rgba(255,255,255,.96);border-radius:14px;padding:9px 11px;
+  font-weight:900;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,.12);min-width:92px;
+}
+.map-action-rail .rail-btn.primary{background:#111827;color:#fff;}
+.map-action-rail .rail-btn.active{background:#2563eb;color:#fff;border-color:#2563eb;}
+.ops-exec-ribbon{left:46px !important;right:132px !important;top:12px !important;max-width:calc(100% - 200px) !important;overflow:auto;scrollbar-width:none;}
+.ops-exec-ribbon::-webkit-scrollbar{display:none;}
+.ops-exec-action,#opsDrawerToggle{display:none !important;}
+.leaflet-top.leaflet-left{top:72px !important;}
+.leaflet-popup{margin-bottom:22px;}
+.clean-mode #summary,.clean-mode #mgrRollupSummary,.clean-mode #dataStatus{display:none !important;}
+.clean-mode #floatingKpis{right:14px !important;}
+.command-mini-legend{
+  position:absolute;left:12px;bottom:12px;z-index:1001;display:flex;gap:8px;flex-wrap:wrap;
+  background:rgba(255,255,255,.94);border:1px solid #dbe3ea;border-radius:14px;padding:8px 10px;
+  box-shadow:0 8px 22px rgba(15,23,42,.12);font-size:12px;backdrop-filter:blur(8px);
+}
+.command-mini-legend .legend-item{display:inline-flex;align-items:center;gap:6px;font-weight:800;}
+.command-mini-legend .legend-swatch{width:10px;height:10px;border-radius:999px;display:inline-block;}
+.ops-transition-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.ops-transition-metric{border:1px solid #e2e8f0;border-radius:12px;padding:9px;background:#fff;}
+.ops-transition-metric .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:900;}
+.ops-transition-metric .val{font-size:20px;font-weight:950;color:#0f172a;}
+.ops-transition-list{display:grid;gap:6px;font-size:12px;}
+.ops-transition-row{border:1px solid #e2e8f0;border-radius:10px;padding:8px;background:#f8fafc;}
+.store-popup-shell{font-size:13px;line-height:1.35;}
+.store-popup-title{font-size:18px;}
+.leaflet-popup-content{margin:16px 18px;}
+@media(max-width:900px){
+  #floatingKpis,.ops-exec-ribbon{display:none !important;}
+  .map-action-rail{top:76px;right:8px;}
+  .map-action-rail .rail-btn{min-width:auto;padding:8px 9px;font-size:12px;}
+  .command-mini-legend{display:none;}
+}
+
 </style>
 </head>
 <body>
@@ -8891,6 +8936,194 @@ function renderDeltaMarkers(){
   }
 
   installEnterpriseCommandCenter();
+
+
+  // ---------- Command Center Clean v3 shell ----------
+  function installCommandCenterShellV3(attempt){
+    attempt = attempt || 0;
+    const mapwrap = document.querySelector('.mapwrap');
+    if (!mapwrap) return;
+
+    // Ops Intel is built by installEnterpriseCommandCenter; retry until it exists.
+    if (!document.getElementById('opsDrawer') && attempt < 15){
+      setTimeout(() => installCommandCenterShellV3(attempt + 1), 250);
+      return;
+    }
+
+    if (!document.getElementById('mapActionRail')){
+      const rail = document.createElement('div');
+      rail.id = 'mapActionRail';
+      rail.className = 'map-action-rail';
+      rail.innerHTML = `
+        <button id="railOpsIntel" class="rail-btn primary" type="button">Ops Intel</button>
+        <button id="railDelta" class="rail-btn" type="button">Delta</button>
+        <button id="railFit" class="rail-btn" type="button">Fit</button>
+        <button id="railLeadership" class="rail-btn" type="button">Leadership</button>
+        <button id="railField" class="rail-btn" type="button">Field View</button>
+      `;
+      mapwrap.appendChild(rail);
+    }
+
+    const hud = document.getElementById('floatingKpis');
+    if (hud && !document.getElementById('hudCollapseBtn')){
+      const btn = document.createElement('button');
+      btn.id = 'hudCollapseBtn';
+      btn.type = 'button';
+      btn.textContent = 'HUD';
+      btn.title = 'Collapse / expand executive HUD';
+      btn.onclick = () => {
+        hud.classList.toggle('hud-collapsed');
+        btn.textContent = hud.classList.contains('hud-collapsed') ? 'HUD +' : 'HUD';
+        setTimeout(() => map.invalidateSize(), 100);
+      };
+      hud.prepend(btn);
+    }
+
+    if (!document.getElementById('commandMiniLegend')){
+      const legend = document.createElement('div');
+      legend.id = 'commandMiniLegend';
+      legend.className = 'command-mini-legend';
+      legend.innerHTML = `
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--p)"></span>Covered</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--u)"></span>Gap</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--violet)"></span>Active RTS</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#9ea3a8"></span>Future RTS</span>
+      `;
+      mapwrap.appendChild(legend);
+    }
+
+    installTransitionReadinessPane();
+
+    const opsBtn = document.getElementById('railOpsIntel');
+    const deltaBtn = document.getElementById('railDelta');
+    const fitBtnRail = document.getElementById('railFit');
+    const leadershipBtn = document.getElementById('railLeadership');
+    const fieldBtn = document.getElementById('railField');
+
+    if (opsBtn && !opsBtn.dataset.wired){
+      opsBtn.dataset.wired = '1';
+      opsBtn.onclick = () => {
+        const drawer = document.getElementById('opsDrawer');
+        if (drawer) drawer.classList.toggle('show');
+        if (typeof syncCommandLayout === 'function') syncCommandLayout();
+        if (typeof updateOpsIntel === 'function') updateOpsIntel();
+        renderTransitionReadinessPane();
+      };
+    }
+
+    if (deltaBtn && !deltaBtn.dataset.wired){
+      deltaBtn.dataset.wired = '1';
+      deltaBtn.onclick = () => {
+        document.getElementById('opsDeltaToggle')?.click();
+        deltaBtn.classList.toggle('active');
+        renderTransitionReadinessPane();
+      };
+    }
+
+    if (fitBtnRail && !fitBtnRail.dataset.wired){
+      fitBtnRail.dataset.wired = '1';
+      fitBtnRail.onclick = () => document.getElementById('fitBtn')?.click();
+    }
+
+    if (leadershipBtn && !leadershipBtn.dataset.wired){
+      leadershipBtn.dataset.wired = '1';
+      leadershipBtn.onclick = () => {
+        document.body.classList.add('clean-mode');
+        const drawer = document.getElementById('opsDrawer');
+        if (drawer) drawer.classList.add('show');
+        document.querySelector('.ops-tab[data-pane="leadership"]')?.click();
+        if (typeof syncCommandLayout === 'function') syncCommandLayout();
+        setTimeout(() => map.invalidateSize(), 120);
+      };
+    }
+
+    if (fieldBtn && !fieldBtn.dataset.wired){
+      fieldBtn.dataset.wired = '1';
+      fieldBtn.onclick = () => {
+        document.body.classList.remove('clean-mode');
+        document.getElementById('opsDrawer')?.classList.remove('show');
+        if (typeof syncCommandLayout === 'function') syncCommandLayout();
+        setTimeout(() => map.invalidateSize(), 120);
+      };
+    }
+  }
+
+  function installTransitionReadinessPane(){
+    const drawer = document.getElementById('opsDrawer');
+    if (!drawer || document.getElementById('opsPaneTransition')) return;
+
+    const tabs = drawer.querySelector('.ops-tabs');
+    const body = drawer.querySelector('.ops-body');
+    if (!tabs || !body) return;
+
+    const tab = document.createElement('button');
+    tab.className = 'ops-tab';
+    tab.dataset.pane = 'transition';
+    tab.type = 'button';
+    tab.textContent = 'Transition';
+    tabs.insertBefore(tab, tabs.querySelector('[data-pane="leadership"]') || null);
+
+    const pane = document.createElement('div');
+    pane.className = 'ops-pane';
+    pane.id = 'opsPaneTransition';
+    pane.innerHTML = `
+      <div class="ops-card">
+        <div class="ops-section-title"><span>Transition Readiness</span><span class="ops-sub">handoff focus</span></div>
+        <div id="opsTransitionSummary"></div>
+      </div>
+    `;
+    body.appendChild(pane);
+
+    tab.addEventListener('click', () => {
+      drawer.querySelectorAll('.ops-tab').forEach(t => t.classList.toggle('active', t === tab));
+      drawer.querySelectorAll('.ops-pane').forEach(p => p.classList.toggle('active', p.id === 'opsPaneTransition'));
+      renderTransitionReadinessPane();
+    });
+  }
+
+  function renderTransitionReadinessPane(){
+    const el = document.getElementById('opsTransitionSummary');
+    if (!el) return;
+    let d;
+    try { d = typeof buildDeltaSummary === 'function' ? buildDeltaSummary() : null; }
+    catch(e){ d = null; }
+
+    const visible = filteredStores || [];
+    const gaps = visible.filter(s => (s.coverageType || '') === 'Uncovered').length;
+    const owner = d?.ownerChanged?.length || 0;
+    const lost = d?.lostCoverage?.length || d?.newlyGap?.length || 0;
+    const newCov = d?.newlyCovered?.length || 0;
+    const improved = d?.improvedCoverage?.length || 0;
+
+    const topManagers = new Map();
+    (d?.ownerChanged || []).forEach(s => {
+      const nm = (typeof rmOf === 'function' ? rmOf(s) : s.regionalManager) || 'Unassigned';
+      topManagers.set(nm, (topManagers.get(nm) || 0) + 1);
+    });
+    const leaders = [...topManagers.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+    el.innerHTML = `
+      <div class="ops-transition-grid">
+        <div class="ops-transition-metric"><div class="lbl">Visible Gaps</div><div class="val">${gaps.toLocaleString()}</div></div>
+        <div class="ops-transition-metric"><div class="lbl">Ownership Changes</div><div class="val">${owner.toLocaleString()}</div></div>
+        <div class="ops-transition-metric"><div class="lbl">New Coverage</div><div class="val">${newCov.toLocaleString()}</div></div>
+        <div class="ops-transition-metric"><div class="lbl">Lost / Risk</div><div class="val">${lost.toLocaleString()}</div></div>
+      </div>
+      <div class="ops-transition-row"><b>Recommended use:</b> filter to an RM or AM, then use this panel to identify handoff-heavy areas before 5/31.</div>
+      <div style="height:8px"></div>
+      <div class="ops-section-title"><span>Top ownership-change leaders</span><span class="ops-sub">future RM view</span></div>
+      <div class="ops-transition-list">
+        ${leaders.length ? leaders.map(([name,count]) => `<div class="ops-transition-row"><b>${escape(name)}</b><br><span class="ops-sub">${count.toLocaleString()} stores with ownership path change</span></div>`).join('') : '<div class="ops-transition-row">No ownership-change records found for the current delta set.</div>'}
+      </div>
+      <div style="height:8px"></div>
+      <div class="ops-transition-row"><b>Coverage Improved:</b> ${improved.toLocaleString()} &nbsp; <b>Net New:</b> ${(newCov - lost).toLocaleString()}</div>
+    `;
+  }
+
+  setTimeout(() => installCommandCenterShellV3(), 600);
+  setInterval(() => {
+    if (document.getElementById('opsPaneTransition')) renderTransitionReadinessPane();
+  }, 2500);
 
 })();
 </script>
