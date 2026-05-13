@@ -6832,7 +6832,7 @@ s.nearestMiles =
 }
 
   // Coverage-aware popup
- function storePopupHTML(s){
+function storePopupHTML(s){
   const esc = v => String(v ?? '').replace(/[&<>"']/g, m => ({
     '&':'&amp;',
     '<':'&lt;',
@@ -6851,14 +6851,11 @@ s.nearestMiles =
 
   const k = keyOf(s);
 
-  const currentStore =
-    (Array.isArray(currentStores) ? currentStores : []).find(x => keyOf(x) === k) || null;
+  const currentBase =
+    (Array.isArray(currentStores) ? currentStores : []).find(x => keyOf(x) === k) || s;
 
-  const futureStore =
+  const futureBase =
     (Array.isArray(futureStores) ? futureStores : []).find(x => keyOf(x) === k) || s;
-
-  const currentBase = currentStore || s;
-  const futureBase = futureStore || s;
 
   const managerText = (x, field) => {
     const v = x?.[field];
@@ -6871,9 +6868,11 @@ s.nearestMiles =
   const currentRM = managerText(currentBase, 'regionalManager') || 'None';
   const futureRM = managerText(futureBase, 'regionalManager') || 'None';
 
-  const coveredBySource = x => {
-    const c = String(x?.coverageType || '').trim();
-    return c && c !== 'Uncovered';
+  const addressLine = x => {
+    const a = String(x?.address || '').trim();
+    const c = String(x?.city || '').trim();
+    const st = String(x?.state || '').trim();
+    return a ? `${a}, ${c}, ${st}` : `${c}, ${st}`;
   };
 
   const nearestFromFields = x => {
@@ -6885,15 +6884,15 @@ s.nearestMiles =
     return null;
   };
 
-  const nearestFromHubs = x => {
+  const nearestFromHubs = (x, hubs) => {
     if (!x || !Number.isFinite(Number(x.lat)) || !Number.isFinite(Number(x.lng))) return null;
 
-    const hubs = Array.isArray(premiumConfirmed) ? premiumConfirmed : [];
     let best = null;
 
-    hubs.forEach(h => {
+    (hubs || []).forEach(h => {
       if (!h?.coords || !Number.isFinite(h.coords[0]) || !Number.isFinite(h.coords[1])) return;
       const miles = distMiles(Number(x.lat), Number(x.lng), h.coords[0], h.coords[1]);
+
       if (!best || miles < best.miles) {
         best = {
           name: h.name || h.fullName || 'RTS',
@@ -6906,23 +6905,30 @@ s.nearestMiles =
   };
 
   const currentNearest =
-    nearestFromFields(currentBase);
+    nearestFromFields(currentBase) ||
+    nearestFromHubs(currentBase, premiumConfirmed);
 
   const futureNearest =
     nearestFromFields(futureBase) ||
-    nearestFromHubs(futureBase);
+    nearestFromHubs(futureBase, premiumConfirmed);
 
   const currentCovered =
-    coveredBySource(currentBase);
+    !!currentNearest && currentNearest.miles <= CLASSIFY_RADIUS;
 
   const futureCovered =
-    futureNearest && futureNearest.miles <= CLASSIFY_RADIUS;
+    !!futureNearest && futureNearest.miles <= CLASSIFY_RADIUS;
 
   const currentMiles =
-    currentNearest ? currentNearest.miles : null;
+    currentCovered ? currentNearest.miles : null;
 
   const futureMiles =
-    futureNearest ? futureNearest.miles : null;
+    futureCovered ? futureNearest.miles : null;
+
+  const currentRTS =
+    currentCovered ? currentNearest.name : 'Not within 75 miles';
+
+  const futureRTS =
+    futureCovered ? futureNearest.name : 'Not within 75 miles';
 
   const ownershipChanged =
     currentAM !== futureAM ||
@@ -6957,7 +6963,7 @@ s.nearestMiles =
         <div>
           <div class="store-popup-title">Store ${esc(s?.storeNumberStr || s?.storeNumber || '')}</div>
           <div class="store-popup-sub">${esc(s?.storeName || 'Walmart')}</div>
-          <div class="store-popup-sub">${esc(s?.city || '')}, ${esc(s?.state || '')}</div>
+          <div class="store-popup-sub">${esc(addressLine(s))}</div>
         </div>
         <div class="store-popup-delta">${esc(deltaType)}</div>
       </div>
@@ -6966,14 +6972,14 @@ s.nearestMiles =
         <div class="store-popup-card">
           <div class="store-popup-card-title">Current State</div>
           <div><b>Covered:</b> ${currentCovered ? 'Covered' : 'Uncovered'}</div>
-          <div><b>RTS:</b> ${esc(currentNearest?.name || 'None')}</div>
+          <div><b>RTS:</b> ${esc(currentRTS)}</div>
           <div><b>Distance:</b> ${Number.isFinite(currentMiles) ? currentMiles.toFixed(1) + ' mi' : '—'}</div>
         </div>
 
         <div class="store-popup-card">
           <div class="store-popup-card-title">Future State</div>
           <div><b>Covered:</b> ${futureCovered ? 'Covered' : 'Uncovered'}</div>
-          <div><b>RTS:</b> ${esc(futureNearest?.name || 'None')}</div>
+          <div><b>RTS:</b> ${esc(futureRTS)}</div>
           <div><b>Distance:</b> ${Number.isFinite(futureMiles) ? futureMiles.toFixed(1) + ' mi' : '—'}</div>
         </div>
       </div>
