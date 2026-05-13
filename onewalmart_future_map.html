@@ -7812,8 +7812,12 @@ function cascadeRM(){
       .ops-delta-new{background:#22c55e;}
       .ops-delta-lost{background:#ef4444;}
       .ops-delta-owner{background:#f59e0b;}
-      .ops-delta-improved{
+    .ops-delta-improved{
   background:#2563eb;
+}
+
+.ops-delta-regressed{
+  background:#f97316;
 }
       .ops-leadership-box{
         border:1px solid #dbe3ea;
@@ -8053,6 +8057,134 @@ function cascadeRM(){
       }).filter(r => r.total >= 5).sort((a,b)=> a.score - b.score || b.gaps - a.gaps).slice(0,10);
     }
 
+function deltaNormalizeName(v){
+  return String(v || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g,' ');
+}
+
+function deltaCoveredByActiveHub(store){
+  if (!store) return false;
+
+  const explicitCoverage =
+    String(store.coverageType || '').trim();
+
+  if (
+    explicitCoverage &&
+    explicitCoverage !== 'Uncovered' &&
+    explicitCoverage !== 'Current Gap / Uncovered'
+  ){
+    return true;
+  }
+
+  const hubs = [
+    ...(premiumConfirmed || []),
+    ...(acostaHubs || [])
+  ];
+
+  return hubs.some(h =>
+    h &&
+    Array.isArray(h.coords) &&
+    Number.isFinite(Number(h.coords[0])) &&
+    Number.isFinite(Number(h.coords[1])) &&
+    Number.isFinite(Number(store.lat)) &&
+    Number.isFinite(Number(store.lng)) &&
+    distMiles(
+      Number(h.coords[0]),
+      Number(h.coords[1]),
+      Number(store.lat),
+      Number(store.lng)
+    ) <= CLASSIFY_RADIUS
+  );
+}
+
+function deltaNearestHub(store){
+  const hubs = [
+    ...(premiumConfirmed || []),
+    ...(acostaHubs || [])
+  ];
+
+  let best = null;
+
+  hubs.forEach(h => {
+    if (
+      !h ||
+      !Array.isArray(h.coords) ||
+      !Number.isFinite(Number(h.coords[0])) ||
+      !Number.isFinite(Number(h.coords[1])) ||
+      !Number.isFinite(Number(store?.lat)) ||
+      !Number.isFinite(Number(store?.lng))
+    ){
+      return;
+    }
+
+    const miles = distMiles(
+      Number(h.coords[0]),
+      Number(h.coords[1]),
+      Number(store.lat),
+      Number(store.lng)
+    );
+
+    if (!best || miles < best.miles){
+      best = {
+        hub:h,
+        name:hubDisplay?.(h) || h.fullName || h.name || 'RTS',
+        miles
+      };
+    }
+  });
+
+  return best;
+}
+
+function deltaStoreType(currentStore, futureStore){
+  const currentCovered = deltaCoveredByActiveHub(currentStore);
+  const futureCovered = deltaCoveredByActiveHub(futureStore);
+
+  const currentNearest = deltaNearestHub(currentStore);
+  const futureNearest = deltaNearestHub(futureStore);
+
+  const currentMiles = currentNearest ? currentNearest.miles : 999;
+  const futureMiles = futureNearest ? futureNearest.miles : 999;
+  const distanceChange = currentMiles - futureMiles;
+
+  const currentRM = rmOf(currentStore);
+  const futureRM = rmOf(futureStore);
+  const currentAM = amOf(currentStore);
+  const futureAM = amOf(futureStore);
+
+  const ownershipChanged =
+    deltaNormalizeName(currentRM) !== deltaNormalizeName(futureRM) ||
+    deltaNormalizeName(currentAM) !== deltaNormalizeName(futureAM);
+
+  if (!currentCovered && futureCovered){
+    return 'Newly Covered';
+  }
+
+  if (currentCovered && !futureCovered){
+    return 'Lost Coverage';
+  }
+
+  if (currentCovered && futureCovered){
+    if (distanceChange >= 15){
+      return 'Improved Coverage';
+    }
+
+    if (distanceChange <= -15){
+      return 'Coverage Regressed';
+    }
+
+    if (ownershipChanged){
+      return 'Ownership Changed';
+    }
+
+    return 'Coverage Retained';
+  }
+
+  return 'No Change';
+}
+
 function buildDeltaSummary(){
   const curMap = new Map();
   const futMap = new Map();
@@ -8072,65 +8204,47 @@ function buildDeltaSummary(){
   const out = {
     comparable:0,
     newlyCovered:[],
-    newlyGap:[],
-    lostCoverage:[],
     improvedCoverage:[],
+    lostCoverage:[],
+    newlyGap:[],
     ownerChanged:[],
+    coverageRegressed:[],
+    retained:[],
     unchanged:[]
   };
 
   keys.forEach(k => {
     const current = curMap.get(k);
     const future = futMap.get(k);
+
     if (!current || !future) return;
 
     out.comparable++;
 
-    const currentCoverageValue =
-      current.originalCoverageType ||
-      current.currentCoverageType ||
-      current.coverageType ||
-      '';
+    const type = deltaStoreType(current, future);
 
-    const futureCoverageValue =
-      future.originalCoverageType ||
-      future.futureCoverageType ||
-      future.coverageType ||
-      '';
+    future.deltaType = type;
+    future.deltaCurrentStore = current;
+    future.deltaFutureStore = future;
 
-    const currentCovered =
-      String(currentCoverageValue || '').trim() !== '' &&
-      String(currentCoverageValue || '').trim() !== 'Uncovered';
-
-    const futureCovered =
-      String(futureCoverageValue || '').trim() !== '' &&
-      String(futureCoverageValue || '').trim() !== 'Uncovered';
-
-    const currentRM = rmOf(current);
-    const futureRM = rmOf(future);
-    const currentAM = amOf(current);
-    const futureAM = amOf(future);
-
-    if (!currentCovered && futureCovered){
+    if (type === 'Newly Covered'){
       out.newlyCovered.push(future);
-      return;
     }
-
-    if (currentCovered && !futureCovered){
-      out.newlyGap.push(future);
+    else if (type === 'Improved Coverage'){
+      out.improvedCoverage.push(future);
+    }
+    else if (type === 'Lost Coverage'){
       out.lostCoverage.push(future);
-      return;
+      out.newlyGap.push(future);
     }
-
-    if (currentCovered && futureCovered){
-      if (
-        normalizeName(currentRM) !== normalizeName(futureRM) ||
-        normalizeName(currentAM) !== normalizeName(futureAM)
-      ){
-        out.ownerChanged.push(future);
-        return;
-      }
-
+    else if (type === 'Ownership Changed'){
+      out.ownerChanged.push(future);
+    }
+    else if (type === 'Coverage Regressed'){
+      out.coverageRegressed.push(future);
+    }
+    else {
+      out.retained.push(future);
       out.unchanged.push(future);
     }
   });
@@ -8160,7 +8274,13 @@ function renderDeltaMarkers(){
     ...d.lostCoverage.slice(0,500).map(s => ({
       s,
       cls:'ops-delta-lost',
-      title:'Lost Coverage / Risk'
+      title:'Lost Coverage'
+    })),
+
+    ...d.coverageRegressed.slice(0,500).map(s => ({
+      s,
+      cls:'ops-delta-regressed',
+      title:'Coverage Regressed'
     })),
 
     ...d.ownerChanged.slice(0,700).map(s => ({
@@ -8180,7 +8300,9 @@ function renderDeltaMarkers(){
     if (
       !Number.isFinite(Number(x.s.lat)) ||
       !Number.isFinite(Number(x.s.lng))
-    ) return;
+    ){
+      return;
+    }
 
     const icon = L.divIcon({
       className:'',
@@ -8193,14 +8315,84 @@ function renderDeltaMarkers(){
       [Number(x.s.lat), Number(x.s.lng)],
       { icon, pane:'markerPane', title:x.title }
     )
-      .bindPopup(`
-        <b>${safe(x.title)}</b><br>
-        Store ${safe(x.s.storeNumberStr || '')}<br>
-        ${safe(x.s.city || '')}, ${safe(x.s.state || '')}
-      `)
+      .bindPopup(deltaPopupHTML(x.s))
       .addTo(deltaLayer);
   });
 }
+
+    function deltaPopupHTML(futureStore){
+  const k = storeKey(futureStore);
+  const currentStore =
+    (currentStores || []).find(s => storeKey(s) === k) || futureStore;
+
+  const type =
+    futureStore.deltaType ||
+    deltaStoreType(currentStore, futureStore);
+
+  const currentNearest = deltaNearestHub(currentStore);
+  const futureNearest = deltaNearestHub(futureStore);
+
+  const currentCovered = deltaCoveredByActiveHub(currentStore);
+  const futureCovered = deltaCoveredByActiveHub(futureStore);
+
+  const currentMiles = currentNearest ? currentNearest.miles : 999;
+  const futureMiles = futureNearest ? futureNearest.miles : 999;
+  const distanceChange = currentMiles - futureMiles;
+
+  const currentRM = rmOf(currentStore);
+  const futureRM = rmOf(futureStore);
+  const currentAM = amOf(currentStore);
+  const futureAM = amOf(futureStore);
+
+  const ownershipChanged =
+    deltaNormalizeName(currentRM) !== deltaNormalizeName(futureRM) ||
+    deltaNormalizeName(currentAM) !== deltaNormalizeName(futureAM);
+
+  return `
+    <div style="min-width:320px;max-width:430px">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+        <div>
+          <div style="font-size:18px;font-weight:900">Store ${safe(futureStore.storeNumberStr || futureStore.storeNumber || '')}</div>
+          <div style="font-size:13px;color:var(--muted)">${safe(futureStore.storeName || '')}</div>
+          <div style="font-size:13px;color:var(--muted)">${safe(futureStore.city || '')}, ${safe(futureStore.state || '')}</div>
+        </div>
+        <div style="font-weight:900;border-radius:999px;padding:6px 10px;background:#f8fafc;border:1px solid var(--border)">
+          ${safe(type)}
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+        <div style="border:1px solid var(--border);border-radius:12px;padding:10px;background:#f8fafc">
+          <div style="font-weight:900;margin-bottom:6px">Current State</div>
+          <div><b>Covered:</b> ${currentCovered ? 'Covered' : 'Uncovered'}</div>
+          <div><b>RTS:</b> ${safe(currentNearest?.name || 'None')}</div>
+          <div><b>Distance:</b> ${currentMiles === 999 ? '—' : currentMiles.toFixed(1) + ' mi'}</div>
+        </div>
+
+        <div style="border:1px solid var(--border);border-radius:12px;padding:10px;background:#f8fafc">
+          <div style="font-weight:900;margin-bottom:6px">Future State</div>
+          <div><b>Covered:</b> ${futureCovered ? 'Covered' : 'Uncovered'}</div>
+          <div><b>RTS:</b> ${safe(futureNearest?.name || 'None')}</div>
+          <div><b>Distance:</b> ${futureMiles === 999 ? '—' : futureMiles.toFixed(1) + ' mi'}</div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;display:grid;gap:6px;font-size:13px">
+        <div><b>Distance Change:</b> ${
+          currentMiles === 999 || futureMiles === 999
+            ? '—'
+            : distanceChange.toFixed(1) + ' mi'
+        }</div>
+        <div><b>Ownership Changed:</b> ${ownershipChanged ? 'Yes' : 'No'}</div>
+        <div><b>Current AM:</b> ${safe(currentAM || 'None')}</div>
+        <div><b>Future AM:</b> ${safe(futureAM || 'None')}</div>
+        <div><b>Current RM:</b> ${safe(currentRM || 'None')}</div>
+        <div><b>Future RM:</b> ${safe(futureRM || 'None')}</div>
+      </div>
+    </div>
+  `;
+}
+
 
     function syncCommandLayout(){
       const drawerOpen = drawer.classList.contains('show');
