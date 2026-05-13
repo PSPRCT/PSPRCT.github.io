@@ -2779,24 +2779,35 @@ withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords
         fillColor: COLORS[s.coverageType] || '#999'
       });
       m.store = s;
-   m.unbindPopup();
-m.bindPopup(() => storePopupHTML(s), {
+
+m.unbindPopup();
+
+m.bindPopup(() => {
+  try {
+    return storePopupHTML(s);
+  } catch (err) {
+    console.error('Store popup failed for store', s, err);
+    return `
+      <div style="min-width:260px">
+        <b>Store ${escape(s.storeNumberStr || s.storeNumber || '')}</b><br>
+        ${escape(s.storeName || '')}<br>
+        ${escape(s.city || '')}, ${escape(s.state || '')}<br>
+        <span style="color:#b42318">Popup detail failed to load. Check console.</span>
+      </div>
+    `;
+  }
+}, {
   maxWidth: 520,
   minWidth: 340,
   autoPan: true
 });
-      m.on('click', () => {
-  m.unbindPopup();
-  m.bindPopup(() => storePopupHTML(s), {
-    maxWidth: 520,
-    minWidth: 340,
-    autoPan: true
-  });
+
+m.on('click', (e) => {
+  if (e.originalEvent) {
+    L.DomEvent.stopPropagation(e.originalEvent);
+  }
   m.openPopup();
 });
-      markerByStore.set(s.storeNumberStr, m);
-      return m;
-    });
 
     if (tgCluster.checked){ markers.addLayers(ms); }
     else { plainMarkers.addLayer(L.layerGroup(ms)); }
