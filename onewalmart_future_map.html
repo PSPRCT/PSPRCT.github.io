@@ -6829,236 +6829,135 @@ s.address =
 }
 
   // Coverage-aware popup
-  function storePopupHTML(s){
+ function storePopupHTML(s){
+  try {
+    const k = storeKey(s);
 
-  const k = storeKey(s);
+    const currentStore =
+      (currentStores || []).find(x => storeKey(x) === k) || s;
 
-  const currentStore =
-    (currentStores || []).find(
-      x => storeKey(x) === k
-    ) || s;
+    const futureStore =
+      (futureStores || []).find(x => storeKey(x) === k) || s;
 
-  const futureStore =
-    (futureStores || []).find(
-      x => storeKey(x) === k
-    ) || s;
+    const safeCall = (fn, fallback) => {
+      try { return fn(); }
+      catch(e){ console.warn('Popup helper failed:', e); return fallback; }
+    };
 
-  const deltaType =
-    deltaStoreType(currentStore, futureStore);
+    const deltaType = safeCall(
+      () => deltaStoreType(currentStore, futureStore),
+      'Transition Review'
+    );
 
-  const currentNearest =
-    deltaNearestHub(currentStore);
+    const currentNearest = safeCall(
+      () => deltaNearestHub(currentStore),
+      null
+    );
 
-  const futureNearest =
-    deltaNearestHub(futureStore);
+    const futureNearest = safeCall(
+      () => deltaNearestHub(futureStore),
+      null
+    );
 
-  const currentCovered =
-    deltaCoveredByActiveHub(currentStore);
+    const currentCovered = safeCall(
+      () => deltaCoveredByActiveHub(currentStore),
+      (currentStore.coverageType || '') !== 'Uncovered'
+    );
 
-  const futureCovered =
-    deltaCoveredByActiveHub(futureStore);
+    const futureCovered = safeCall(
+      () => deltaCoveredByActiveHub(futureStore),
+      (futureStore.coverageType || '') !== 'Uncovered'
+    );
 
-  const currentMiles =
-    currentNearest ? currentNearest.miles : 999;
+    const currentMiles = currentNearest ? currentNearest.miles : 999;
+    const futureMiles = futureNearest ? futureNearest.miles : 999;
+    const distanceChange = currentMiles - futureMiles;
 
-  const futureMiles =
-    futureNearest ? futureNearest.miles : 999;
+    const currentAM = safeCall(() => amOf(currentStore), currentStore.areaManager || 'None');
+    const futureAM = safeCall(() => amOf(futureStore), futureStore.areaManager || 'None');
+    const currentRM = safeCall(() => rmOf(currentStore), currentStore.regionalManager || 'None');
+    const futureRM = safeCall(() => rmOf(futureStore), futureStore.regionalManager || 'None');
 
-  const distanceChange =
-    currentMiles - futureMiles;
+    const ownershipChanged =
+      String(currentAM || '') !== String(futureAM || '') ||
+      String(currentRM || '') !== String(futureRM || '');
 
-  const currentAM =
-    amOf(currentStore);
+    const transitionId =
+      `transition_${String(k || s.storeNumberStr || Date.now()).replace(/[^a-zA-Z0-9]/g,'_')}`;
 
-  const futureAM =
-    amOf(futureStore);
-
-  const currentRM =
-    rmOf(currentStore);
-
-  const futureRM =
-    rmOf(futureStore);
-
-  const ownershipChanged =
-    deltaNormalizeName(currentAM) !== deltaNormalizeName(futureAM) ||
-    deltaNormalizeName(currentRM) !== deltaNormalizeName(futureRM);
-
-  const transitionId =
-    `transition_${safe(k).replace(/[^a-zA-Z0-9]/g,'_')}`;
-
-  return `
-  <div class="store-popup-shell">
-
-    <div class="store-popup-header">
-
-      <div>
-        <div class="store-popup-title">
-          Store ${safe(s.storeNumberStr || s.storeNumber || '')}
+    return `
+      <div class="store-popup-shell">
+        <div class="store-popup-header">
+          <div>
+            <div class="store-popup-title">Store ${safe(s.storeNumberStr || s.storeNumber || '')}</div>
+            <div class="store-popup-sub">${safe(s.storeName || 'Walmart')}</div>
+            <div class="store-popup-sub">${safe(s.city || '')}, ${safe(s.state || '')}</div>
+          </div>
+          <div class="store-popup-delta">${safe(deltaType)}</div>
         </div>
 
-        <div class="store-popup-sub">
-          ${safe(s.storeName || '')}
+        <div class="store-popup-grid">
+          <div class="store-popup-card">
+            <div class="store-popup-card-title">Current State</div>
+            <div><b>Covered:</b> ${currentCovered ? 'Covered' : 'Uncovered'}</div>
+            <div><b>RTS:</b> ${safe(currentNearest?.name || currentStore.nearestRTS || 'None')}</div>
+            <div><b>Distance:</b> ${currentMiles === 999 ? '—' : currentMiles.toFixed(1) + ' mi'}</div>
+          </div>
+
+          <div class="store-popup-card">
+            <div class="store-popup-card-title">Future State</div>
+            <div><b>Covered:</b> ${futureCovered ? 'Covered' : 'Uncovered'}</div>
+            <div><b>RTS:</b> ${safe(futureNearest?.name || futureStore.nearestRTS || 'None')}</div>
+            <div><b>Distance:</b> ${futureMiles === 999 ? '—' : futureMiles.toFixed(1) + ' mi'}</div>
+          </div>
         </div>
 
-        <div class="store-popup-sub">
-          ${safe(s.city || '')}, ${safe(s.state || '')}
-        </div>
-      </div>
-
-      <div class="store-popup-delta">
-        ${safe(deltaType)}
-      </div>
-
-    </div>
-
-    <div class="store-popup-grid">
-
-      <div class="store-popup-card">
-
-        <div class="store-popup-card-title">
-          Current State
-        </div>
-
-        <div>
-          <b>Covered:</b>
-          ${currentCovered ? 'Covered' : 'Uncovered'}
-        </div>
-
-        <div>
-          <b>RTS:</b>
-          ${safe(currentNearest?.name || 'None')}
-        </div>
-
-        <div>
-          <b>Distance:</b>
-          ${
-            currentMiles === 999
+        <div class="store-popup-summary">
+          <div><b>Distance Change:</b> ${
+            currentMiles === 999 || futureMiles === 999
               ? '—'
-              : currentMiles.toFixed(1) + ' mi'
+              : distanceChange.toFixed(1) + ' mi'
+          }</div>
+          <div><b>Ownership Changed:</b> ${ownershipChanged ? 'Yes' : 'No'}</div>
+        </div>
+
+        <button class="transition-toggle-btn"
+          onclick="const el=document.getElementById('${transitionId}'); if(el){el.style.display = el.style.display === 'none' ? 'block' : 'none';}">
+          Transition Handoff Details
+        </button>
+
+        <div id="${transitionId}" class="transition-detail-panel" style="display:none">
+          <div class="transition-detail-grid">
+            <div>
+              <div class="transition-detail-title">Current Ownership</div>
+              <div><b>AM:</b> ${safe(currentAM || 'None')}</div>
+              <div><b>RM:</b> ${safe(currentRM || 'None')}</div>
+            </div>
+            <div>
+              <div class="transition-detail-title">Future Ownership</div>
+              <div><b>AM:</b> ${safe(futureAM || 'None')}</div>
+              <div><b>RM:</b> ${safe(futureRM || 'None')}</div>
+            </div>
+          </div>
+          ${
+            ownershipChanged
+              ? `<div class="transition-handoff-note">Recommended handoff: Current AM/RM → Future AM/RM coordination recommended during transition.</div>`
+              : ''
           }
         </div>
-
       </div>
-
-      <div class="store-popup-card">
-
-        <div class="store-popup-card-title">
-          Future State
-        </div>
-
-        <div>
-          <b>Covered:</b>
-          ${futureCovered ? 'Covered' : 'Uncovered'}
-        </div>
-
-        <div>
-          <b>RTS:</b>
-          ${safe(futureNearest?.name || 'None')}
-        </div>
-
-        <div>
-          <b>Distance:</b>
-          ${
-            futureMiles === 999
-              ? '—'
-              : futureMiles.toFixed(1) + ' mi'
-          }
-        </div>
-
+    `;
+  } catch(err) {
+    console.error('Store popup hard failure:', s, err);
+    return `
+      <div style="min-width:260px">
+        <b>Store ${escape(s?.storeNumberStr || s?.storeNumber || '')}</b><br>
+        ${escape(s?.storeName || 'Walmart')}<br>
+        ${escape(s?.city || '')}, ${escape(s?.state || '')}<br>
+        <span style="color:#b42318">Popup detail failed to load.</span>
       </div>
-
-    </div>
-
-    <div class="store-popup-summary">
-
-      <div>
-        <b>Distance Change:</b>
-        ${
-          currentMiles === 999 || futureMiles === 999
-            ? '—'
-            : distanceChange.toFixed(1) + ' mi'
-        }
-      </div>
-
-      <div>
-        <b>Ownership Changed:</b>
-        ${ownershipChanged ? 'Yes' : 'No'}
-      </div>
-
-    </div>
-
-    <button
-      class="transition-toggle-btn"
-      onclick="
-        const el=document.getElementById('${transitionId}');
-        if(el){
-          el.style.display =
-            el.style.display==='none'
-              ? 'block'
-              : 'none';
-        }
-      "
-    >
-      Transition Handoff Details
-    </button>
-
-    <div
-      id="${transitionId}"
-      class="transition-detail-panel"
-      style="display:none"
-    >
-
-      <div class="transition-detail-grid">
-
-        <div>
-          <div class="transition-detail-title">
-            Current Ownership
-          </div>
-
-          <div>
-            <b>AM:</b>
-            ${safe(currentAM || 'None')}
-          </div>
-
-          <div>
-            <b>RM:</b>
-            ${safe(currentRM || 'None')}
-          </div>
-        </div>
-
-        <div>
-          <div class="transition-detail-title">
-            Future Ownership
-          </div>
-
-          <div>
-            <b>AM:</b>
-            ${safe(futureAM || 'None')}
-          </div>
-
-          <div>
-            <b>RM:</b>
-            ${safe(futureRM || 'None')}
-          </div>
-        </div>
-
-      </div>
-
-      ${
-        ownershipChanged
-          ? `
-          <div class="transition-handoff-note">
-            Recommended handoff:
-            Current AM/RM → Future AM/RM coordination recommended during transition.
-          </div>
-          `
-          : ''
-      }
-
-    </div>
-
-  </div>
-  `;
+    `;
+  }
 }
   function ensureMarkerForStore(store){
   let m = markerByStore.get(store.storeNumberStr);
