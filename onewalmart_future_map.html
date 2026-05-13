@@ -6885,6 +6885,124 @@ s.nearestMiles =
   );
 }
 
+  // Shared transition coverage logic used by popups, delta math, and Ops leadership.
+  // Keep this lightweight: it only evaluates one store at a time and never triggers map redraws.
+function transitionStoreKey(x){
+  return String(
+    x?.storeNumberStr ??
+    x?.storeNumber ??
+    x?.StoreNumber ??
+    x?.StoreNbr ??
+    ''
+  ).replace(/\D/g,'');
+}
+
+function transitionCoverageRaw(store){
+  return String(store?.coverageType || store?.CoverageType || '').trim();
+}
+
+function transitionExplicitCovered(store){
+  const raw = transitionCoverageRaw(store);
+  if (!raw) return null;
+  if (/uncovered|current gap/i.test(raw)) return false;
+  return true;
+}
+
+function transitionNearestFromFields(store){
+  if (!store) return null;
+  const name = String(
+    store.nearestRTS ??
+    store.NearestRTS ??
+    store.trainerCity ??
+    store.TrainerCity ??
+    store.AssignedRTS ??
+    store.AssignedRTSName ??
+    ''
+  ).trim();
+
+  const rawMiles =
+    store.nearestMiles ??
+    store.NearestMiles ??
+    store.BestMiles ??
+    store.bestMiles ??
+    store.distanceMiles ??
+    store.DistanceMiles ??
+    store.distance ??
+    store.Distance;
+
+  const miles = Number(rawMiles);
+  if (name && Number.isFinite(miles) && miles >= 0 && miles < 999) {
+    return { name, miles, source:'fields' };
+  }
+  if (name) return { name, miles:null, source:'fields' };
+  return null;
+}
+
+function transitionNearestFromHubs(store, hubs){
+  if (!store || !Number.isFinite(Number(store.lat)) || !Number.isFinite(Number(store.lng))) return null;
+
+  let best = null;
+  (hubs || []).forEach(h => {
+    if (!h?.coords || !Number.isFinite(Number(h.coords[0])) || !Number.isFinite(Number(h.coords[1]))) return;
+    const miles = distMiles(Number(store.lat), Number(store.lng), Number(h.coords[0]), Number(h.coords[1]));
+    if (!best || miles < best.miles) {
+      best = {
+        name: (typeof hubDisplay === 'function' ? hubDisplay(h) : (h.fullName || h.name || 'RTS')),
+        miles,
+        source:'hubs'
+      };
+    }
+  });
+  return best;
+}
+
+function transitionCoverageMetrics(store, hubs){
+  const explicit = transitionExplicitCovered(store);
+  const nearest = transitionNearestFromFields(store) || transitionNearestFromHubs(store, hubs);
+  const nearestWithin = !!nearest && Number.isFinite(Number(nearest.miles)) && Number(nearest.miles) <= CLASSIFY_RADIUS;
+  const covered = explicit === null ? nearestWithin : (explicit || nearestWithin);
+
+  let rts = 'Not within 75 miles';
+  if (covered) {
+    rts = nearest?.name || transitionCoverageRaw(store) || 'Covered by source data';
+  }
+
+  return {
+    covered,
+    nearest,
+    rts,
+    miles: covered && nearest && Number.isFinite(Number(nearest.miles)) ? Number(nearest.miles) : null,
+    rawCoverage: transitionCoverageRaw(store)
+  };
+}
+
+function transitionCurrentFutureForStore(store){
+  const k = transitionStoreKey(store);
+  const currentBase =
+    (Array.isArray(currentStores) ? currentStores : []).find(x => transitionStoreKey(x) === k) || store;
+
+  const futureBase =
+    (Array.isArray(futureStores) ? futureStores : []).find(x => transitionStoreKey(x) === k) || store;
+
+  // Future/pending hubs stay display-only. Only active/confirmed hubs count.
+  const activeHubs = [...(premiumConfirmed || []), ...(acostaHubs || [])].filter(h => h?.status !== 'pending');
+
+  return {
+    key:k,
+    currentBase,
+    futureBase,
+    current: transitionCoverageMetrics(currentBase, activeHubs),
+    future: transitionCoverageMetrics(futureBase, activeHubs)
+  };
+}
+
+function transitionCoverageTotals(rows){
+  const list = Array.isArray(rows) ? rows : [];
+  const total = list.length;
+  const covered = list.filter(s => transitionCoverageMetrics(s, [...(premiumConfirmed || []), ...(acostaHubs || [])]).covered).length;
+  return { total, covered, uncovered: total - covered, pct: total ? Math.round((covered / total) * 1000) / 10 : 0 };
+}
+
   // Coverage-aware popup
 function storePopupHTML(s){
   const esc = v => String(v ?? '').replace(/[&<>"']/g, m => ({
@@ -6895,21 +7013,10 @@ function storePopupHTML(s){
     "'":'&#39;'
   }[m]));
 
-  const keyOf = x => String(
-    x?.storeNumberStr ??
-    x?.storeNumber ??
-    x?.StoreNumber ??
-    x?.StoreNbr ??
-    ''
-  ).replace(/\D/g,'');
-
-  const k = keyOf(s);
-
-  const currentBase =
-    (Array.isArray(currentStores) ? currentStores : []).find(x => keyOf(x) === k) || s;
-
-  const futureBase =
-    (Array.isArray(futureStores) ? futureStores : []).find(x => keyOf(x) === k) || s;
+  const t = transitionCurrentFutureForStore(s);
+  const k = t.key;
+  const currentBase = t.currentBase;
+  const futureBase = t.futureBase;
 
   const managerText = (x, field) => {
     const v = x?.[field];
@@ -6929,60 +7036,14 @@ function storePopupHTML(s){
     return a ? `${a}, ${c}, ${st}` : `${c}, ${st}`;
   };
 
-  const nearestFromFields = x => {
-    const name = x?.nearestRTS || x?.trainerCity || '';
-    const miles = Number(x?.nearestMiles);
-    if (name && Number.isFinite(miles) && miles > 0 && miles < 999) {
-      return { name, miles };
-    }
-    return null;
-  };
+  const currentCovered = t.current.covered;
+  const futureCovered = t.future.covered;
 
-  const nearestFromHubs = (x, hubs) => {
-    if (!x || !Number.isFinite(Number(x.lat)) || !Number.isFinite(Number(x.lng))) return null;
+  const currentMiles = t.current.miles;
+  const futureMiles = t.future.miles;
 
-    let best = null;
-
-    (hubs || []).forEach(h => {
-      if (!h?.coords || !Number.isFinite(h.coords[0]) || !Number.isFinite(h.coords[1])) return;
-      const miles = distMiles(Number(x.lat), Number(x.lng), h.coords[0], h.coords[1]);
-
-      if (!best || miles < best.miles) {
-        best = {
-          name: h.name || h.fullName || 'RTS',
-          miles
-        };
-      }
-    });
-
-    return best;
-  };
-
-  const currentNearest =
-    nearestFromFields(currentBase) ||
-    nearestFromHubs(currentBase, premiumConfirmed);
-
-  const futureNearest =
-    nearestFromFields(futureBase) ||
-    nearestFromHubs(futureBase, premiumConfirmed);
-
-  const currentCovered =
-    !!currentNearest && currentNearest.miles <= CLASSIFY_RADIUS;
-
-  const futureCovered =
-    !!futureNearest && futureNearest.miles <= CLASSIFY_RADIUS;
-
-  const currentMiles =
-    currentCovered ? currentNearest.miles : null;
-
-  const futureMiles =
-    futureCovered ? futureNearest.miles : null;
-
-  const currentRTS =
-    currentCovered ? currentNearest.name : 'Not within 75 miles';
-
-  const futureRTS =
-    futureCovered ? futureNearest.name : 'Not within 75 miles';
+  const currentRTS = t.current.rts;
+  const futureRTS = t.future.rts;
 
   const ownershipChanged =
     currentAM !== futureAM ||
@@ -8447,79 +8508,11 @@ function deltaNormalizeName(v){
 }
 
 function deltaCoveredByActiveHub(store){
-  if (!store) return false;
-
-  const explicitCoverage =
-    String(store.coverageType || '').trim();
-
-  if (
-    explicitCoverage &&
-    explicitCoverage !== 'Uncovered' &&
-    explicitCoverage !== 'Current Gap / Uncovered'
-  ){
-    return true;
-  }
-
-  const hubs = [
-    ...(premiumConfirmed || []),
-    ...(acostaHubs || [])
-  ];
-
-  return hubs.some(h =>
-    h &&
-    Array.isArray(h.coords) &&
-    Number.isFinite(Number(h.coords[0])) &&
-    Number.isFinite(Number(h.coords[1])) &&
-    Number.isFinite(Number(store.lat)) &&
-    Number.isFinite(Number(store.lng)) &&
-    distMiles(
-      Number(h.coords[0]),
-      Number(h.coords[1]),
-      Number(store.lat),
-      Number(store.lng)
-    ) <= CLASSIFY_RADIUS
-  );
+  return transitionCoverageMetrics(store, [...(premiumConfirmed || []), ...(acostaHubs || [])]).covered;
 }
-
 function deltaNearestHub(store){
-  const hubs = [
-    ...(premiumConfirmed || []),
-    ...(acostaHubs || [])
-  ];
-
-  let best = null;
-
-  hubs.forEach(h => {
-    if (
-      !h ||
-      !Array.isArray(h.coords) ||
-      !Number.isFinite(Number(h.coords[0])) ||
-      !Number.isFinite(Number(h.coords[1])) ||
-      !Number.isFinite(Number(store?.lat)) ||
-      !Number.isFinite(Number(store?.lng))
-    ){
-      return;
-    }
-
-    const miles = distMiles(
-      Number(h.coords[0]),
-      Number(h.coords[1]),
-      Number(store.lat),
-      Number(store.lng)
-    );
-
-    if (!best || miles < best.miles){
-      best = {
-        hub:h,
-        name:hubDisplay?.(h) || h.fullName || h.name || 'RTS',
-        miles
-      };
-    }
-  });
-
-  return best;
+  return transitionNearestFromFields(store) || transitionNearestFromHubs(store, [...(premiumConfirmed || []), ...(acostaHubs || [])]);
 }
-
 function deltaStoreType(currentStore, futureStore){
   const currentCovered = deltaCoveredByActiveHub(currentStore);
   const futureCovered = deltaCoveredByActiveHub(futureStore);
@@ -8792,12 +8785,14 @@ function renderDeltaMarkers(){
       const riskRows = coverageRisk(rows);
       const worst = riskRows[0];
 
-      const currentTotal = currentStores?.length || allStores.length || 0;
-      const futureTotal = futureStores?.length || allStores.length || 0;
-      const currentCovered = (currentStores || []).filter(covered).length;
-      const futureCovered = (futureStores || []).filter(covered).length;
-      const currentPct = pct(currentCovered, currentTotal);
-      const futurePct = pct(futureCovered, futureTotal);
+      const currentTotals = transitionCoverageTotals(currentStores && currentStores.length ? currentStores : allStores);
+      const futureTotals = transitionCoverageTotals(futureStores && futureStores.length ? futureStores : allStores);
+      const currentTotal = currentTotals.total;
+      const futureTotal = futureTotals.total;
+      const currentCovered = currentTotals.covered;
+      const futureCovered = futureTotals.covered;
+      const currentPct = currentTotals.pct;
+      const futurePct = futureTotals.pct;
       const d = buildDeltaSummary();
 
       id('opsExecCurrent').textContent = `${currentPct || pct(coveredCount, rows.length)}%`;
@@ -8876,7 +8871,18 @@ function renderDeltaMarkers(){
       syncCommandLayout();
     }
 
-    const scheduleOps = (()=>{ let t; return ()=>{ clearTimeout(t); t=setTimeout(updateOpsIntel, 90); }; })();
+    const scheduleOps = (()=>{
+      let t;
+      return (reason='ui')=>{
+        clearTimeout(t);
+        t = setTimeout(()=>{
+          // Performance guard: do not run Ops analytics while the drawer is closed,
+          // unless Delta Mode is active. This prevents pan/zoom from triggering heavy table rebuilds.
+          if (!drawer.classList.contains('show') && !deltaModeOn) return;
+          updateOpsIntel();
+        }, 300);
+      };
+    })();
     window.updateOpsIntel = updateOpsIntel;
 
     toggle.onclick = ()=>{
@@ -8914,7 +8920,9 @@ function renderDeltaMarkers(){
 
     ['covFilter','rmFilter','amFilter','hubFilter','showConfirmed','showPending','showUnilever','showPG','showTyson','tgWithin','tgCluster'].forEach(x=> id(x)?.addEventListener('change', scheduleOps));
     ['covSearch','rmSearch','amSearch','hubSearch','searchBox'].forEach(x=> id(x)?.addEventListener('input', scheduleOps));
-    map.on('moveend zoomend', scheduleOps);
+    // Do not schedule full Ops analytics on routine pan/zoom.
+    // The main map already updates visible counts separately; Ops refreshes when opened, refreshed, or filters change.
+    // map.on('moveend zoomend', scheduleOps);
 
     const originalOpenSidepanel = openSidepanel;
     openSidepanel = function(){
@@ -9129,21 +9137,10 @@ function renderTransitionReadinessPane(){
   }
 }
 function transitionStoreClassForPanel(s){
-  const keyOf = x => String(
-    x?.storeNumberStr ??
-    x?.storeNumber ??
-    x?.StoreNumber ??
-    x?.StoreNbr ??
-    ''
-  ).replace(/\D/g,'');
-
-  const k = keyOf(s);
-
-  const currentBase =
-    (Array.isArray(currentStores) ? currentStores : []).find(x => keyOf(x) === k) || s;
-
-  const futureBase =
-    (Array.isArray(futureStores) ? futureStores : []).find(x => keyOf(x) === k) || s;
+  const t = transitionCurrentFutureForStore(s);
+  const k = t.key;
+  const currentBase = t.currentBase;
+  const futureBase = t.futureBase;
 
   const txt = (x, field) => {
     const v = x?.[field];
