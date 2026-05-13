@@ -948,7 +948,14 @@ select[multiple]{
   font-weight:900;cursor:pointer;box-shadow:0 2px 8px rgba(15,23,42,.08);
 }
 .map-action-rail{
-  position:absolute;top:84px;right:14px;z-index:1002;display:flex;flex-direction:column;gap:8px;pointer-events:auto;
+  position:absolute;
+  top:84px;
+  right:14px;
+  z-index:2000;
+  display:flex !important;
+  flex-direction:column;
+  gap:8px;
+  pointer-events:auto;
 }
 .map-action-rail .rail-btn{
   border:1px solid #dbe3ea;background:rgba(255,255,255,.96);border-radius:14px;padding:9px 11px;
@@ -958,7 +965,9 @@ select[multiple]{
 .map-action-rail .rail-btn.active{background:#2563eb;color:#fff;border-color:#2563eb;}
 .ops-exec-ribbon{left:46px !important;right:132px !important;top:12px !important;max-width:calc(100% - 200px) !important;overflow:auto;scrollbar-width:none;}
 .ops-exec-ribbon::-webkit-scrollbar{display:none;}
-.ops-exec-action,#opsDrawerToggle{display:none !important;}
+/* keep old ribbon buttons hidden, but allow Ops drawer access */
+.ops-exec-action{display:none !important;}
+#opsDrawerToggle{display:block !important;}
 .leaflet-top.leaflet-left{top:72px !important;}
 .leaflet-popup{margin-bottom:22px;}
 .clean-mode #summary,.clean-mode #mgrRollupSummary,.clean-mode #dataStatus{display:none !important;}
