@@ -9068,21 +9068,27 @@ function renderDeltaMarkers(){
     pane.id = 'opsPaneTransition';
 pane.innerHTML = `
   <div class="ops-card">
-    <div class="ops-section-title"><span>Transition Readiness</span><span class="ops-sub">handoff focus</span></div>
+    <div class="ops-section-title">
+      <span>Transition Readiness</span>
+      <span class="ops-sub">handoff focus</span>
+    </div>
 
     <div class="ops-transition-grid">
       <div class="ops-transition-metric">
         <div class="lbl">Visible Gaps</div>
         <div class="ops-value val" id="transitionVisibleGaps">0</div>
       </div>
+
       <div class="ops-transition-metric">
         <div class="lbl">Ownership Changes</div>
         <div class="ops-value val" id="transitionOwnershipChanges">0</div>
       </div>
+
       <div class="ops-transition-metric">
         <div class="lbl">New Coverage</div>
         <div class="ops-value val" id="transitionNewCoverage">0</div>
       </div>
+
       <div class="ops-transition-metric">
         <div class="lbl">Lost / Risk</div>
         <div class="ops-value val" id="transitionLostRisk">0</div>
@@ -9093,6 +9099,7 @@ pane.innerHTML = `
       <span>Top ownership-change leaders</span>
       <span class="ops-sub">future RM view</span>
     </div>
+
     <div id="transitionLeaders" class="ops-transition-list"></div>
 
     <div id="transitionFooter" class="ops-transition-row"></div>
