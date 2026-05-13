@@ -6814,8 +6814,11 @@ s.address =
       o.NearestEmail ??
       '';
 
-    s.nearestMiles =
-      Number(o.Miles ?? o.BestMiles ?? o.nearestMiles ?? '');
+    const rawNearestMiles = o.Miles ?? o.BestMiles ?? o.nearestMiles ?? null;
+s.nearestMiles =
+  rawNearestMiles === null || rawNearestMiles === ''
+    ? NaN
+    : Number(rawNearestMiles);
 
     s.lat = Number(o.lat ?? o.Lat ?? o.latitude ?? o.Latitude);
     s.lng = Number(o.lng ?? o.Lon ?? o.Lng ?? o.longitude ?? o.Longitude);
@@ -6849,10 +6852,13 @@ s.address =
   const k = keyOf(s);
 
   const currentStore =
-    (Array.isArray(currentStores) ? currentStores : []).find(x => keyOf(x) === k) || s;
+    (Array.isArray(currentStores) ? currentStores : []).find(x => keyOf(x) === k) || null;
 
   const futureStore =
     (Array.isArray(futureStores) ? futureStores : []).find(x => keyOf(x) === k) || s;
+
+  const currentBase = currentStore || s;
+  const futureBase = futureStore || s;
 
   const managerText = (x, field) => {
     const v = x?.[field];
@@ -6860,44 +6866,88 @@ s.address =
     return String(v || '').trim();
   };
 
-  const currentAM = managerText(currentStore, 'areaManager') || 'None';
-  const futureAM = managerText(futureStore, 'areaManager') || 'None';
-  const currentRM = managerText(currentStore, 'regionalManager') || 'None';
-  const futureRM = managerText(futureStore, 'regionalManager') || 'None';
+  const currentAM = managerText(currentBase, 'areaManager') || 'None';
+  const futureAM = managerText(futureBase, 'areaManager') || 'None';
+  const currentRM = managerText(currentBase, 'regionalManager') || 'None';
+  const futureRM = managerText(futureBase, 'regionalManager') || 'None';
 
-  const isCovered = x => String(x?.coverageType || '').trim() !== 'Uncovered';
+  const coveredBySource = x => {
+    const c = String(x?.coverageType || '').trim();
+    return c && c !== 'Uncovered';
+  };
 
-  const currentCovered = isCovered(currentStore);
-  const futureCovered = isCovered(futureStore);
+  const nearestFromFields = x => {
+    const name = x?.nearestRTS || x?.trainerCity || '';
+    const miles = Number(x?.nearestMiles);
+    if (name && Number.isFinite(miles) && miles > 0 && miles < 999) {
+      return { name, miles };
+    }
+    return null;
+  };
 
-  const currentRTS =
-    currentStore?.nearestRTS ||
-    currentStore?.trainerCity ||
-    'None';
+  const nearestFromHubs = x => {
+    if (!x || !Number.isFinite(Number(x.lat)) || !Number.isFinite(Number(x.lng))) return null;
 
-  const futureRTS =
-    futureStore?.nearestRTS ||
-    futureStore?.trainerCity ||
-    'None';
+    const hubs = Array.isArray(premiumConfirmed) ? premiumConfirmed : [];
+    let best = null;
 
-  const currentMiles = Number(currentStore?.nearestMiles);
-  const futureMiles = Number(futureStore?.nearestMiles);
+    hubs.forEach(h => {
+      if (!h?.coords || !Number.isFinite(h.coords[0]) || !Number.isFinite(h.coords[1])) return;
+      const miles = distMiles(Number(x.lat), Number(x.lng), h.coords[0], h.coords[1]);
+      if (!best || miles < best.miles) {
+        best = {
+          name: h.name || h.fullName || 'RTS',
+          miles
+        };
+      }
+    });
+
+    return best;
+  };
+
+  const currentNearest =
+    nearestFromFields(currentBase);
+
+  const futureNearest =
+    nearestFromFields(futureBase) ||
+    nearestFromHubs(futureBase);
+
+  const currentCovered =
+    coveredBySource(currentBase);
+
+  const futureCovered =
+    futureNearest && futureNearest.miles <= CLASSIFY_RADIUS;
+
+  const currentMiles =
+    currentNearest ? currentNearest.miles : null;
+
+  const futureMiles =
+    futureNearest ? futureNearest.miles : null;
 
   const ownershipChanged =
     currentAM !== futureAM ||
     currentRM !== futureRM;
 
+  const distanceDelta =
+    Number.isFinite(currentMiles) && Number.isFinite(futureMiles)
+      ? currentMiles - futureMiles
+      : null;
+
   let deltaType = 'Coverage Retained';
 
-  if (!currentCovered && futureCovered) deltaType = 'Newly Covered';
-  else if (currentCovered && !futureCovered) deltaType = 'Lost Coverage';
-  else if (currentCovered && futureCovered && ownershipChanged) deltaType = 'Ownership Changed';
-  else if (!currentCovered && !futureCovered) deltaType = 'Still Uncovered';
-
-  const distanceChange =
-    Number.isFinite(currentMiles) && Number.isFinite(futureMiles)
-      ? (currentMiles - futureMiles).toFixed(1) + ' mi'
-      : '—';
+  if (!currentCovered && futureCovered) {
+    deltaType = 'Newly Covered';
+  } else if (currentCovered && !futureCovered) {
+    deltaType = 'Lost Coverage';
+  } else if (currentCovered && futureCovered && Number.isFinite(distanceDelta) && distanceDelta >= 15) {
+    deltaType = 'Coverage Improved';
+  } else if (currentCovered && futureCovered && Number.isFinite(distanceDelta) && distanceDelta <= -15) {
+    deltaType = 'Coverage Regressed';
+  } else if (currentCovered && futureCovered && ownershipChanged) {
+    deltaType = 'Ownership Changed';
+  } else if (!currentCovered && !futureCovered) {
+    deltaType = 'Still Uncovered';
+  }
 
   const transitionId = `transition_${k || Math.random().toString(36).slice(2)}`;
 
@@ -6916,20 +6966,20 @@ s.address =
         <div class="store-popup-card">
           <div class="store-popup-card-title">Current State</div>
           <div><b>Covered:</b> ${currentCovered ? 'Covered' : 'Uncovered'}</div>
-          <div><b>RTS:</b> ${esc(currentRTS)}</div>
+          <div><b>RTS:</b> ${esc(currentNearest?.name || 'None')}</div>
           <div><b>Distance:</b> ${Number.isFinite(currentMiles) ? currentMiles.toFixed(1) + ' mi' : '—'}</div>
         </div>
 
         <div class="store-popup-card">
           <div class="store-popup-card-title">Future State</div>
           <div><b>Covered:</b> ${futureCovered ? 'Covered' : 'Uncovered'}</div>
-          <div><b>RTS:</b> ${esc(futureRTS)}</div>
+          <div><b>RTS:</b> ${esc(futureNearest?.name || 'None')}</div>
           <div><b>Distance:</b> ${Number.isFinite(futureMiles) ? futureMiles.toFixed(1) + ' mi' : '—'}</div>
         </div>
       </div>
 
       <div class="store-popup-summary">
-        <div><b>Distance Change:</b> ${distanceChange}</div>
+        <div><b>Distance Change:</b> ${Number.isFinite(distanceDelta) ? distanceDelta.toFixed(1) + ' mi' : '—'}</div>
         <div><b>Ownership Changed:</b> ${ownershipChanged ? 'Yes' : 'No'}</div>
       </div>
 
