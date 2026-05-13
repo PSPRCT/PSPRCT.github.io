@@ -5,6 +5,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>One Walmart Command Center Map</title>
+<!-- Performance-safe enhancement pass: UI polish, aligned coverage math, debounced Ops refresh, no pan/zoom analytics recalculation. -->
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
@@ -4672,11 +4673,17 @@ function capStatusObject(rows){
 }
 
 function calculateCoverageImpact(rows){
-  const currentCovered = allStores.filter(s => (s.coverageType || '') !== 'Uncovered').length;
-  const totalStores = allStores.length || 1;
+  // Performance-safe baseline: use the same active-confirmed RTS coverage logic used by
+  // store popups, transition/handoff, and delta math. Pending/future hubs remain display-only.
+  const baseline = (typeof transitionCoverageTotals === 'function')
+    ? transitionCoverageTotals(allStores)
+    : { covered: allStores.filter(s => (s.coverageType || '') !== 'Uncovered').length, total: allStores.length || 1 };
+
+  const currentCovered = baseline.covered;
+  const totalStores = baseline.total || allStores.length || 1;
   const currentPct = Math.round(currentCovered * 1000 / totalStores) / 10;
   const projectedNewStores = rows.reduce((a,r)=>a + (Number(r.estimatedNewStores) || 0), 0);
-  const projectedCovered = currentCovered + projectedNewStores;
+  const projectedCovered = Math.min(totalStores, currentCovered + projectedNewStores);
   const projectedPct = Math.round(projectedCovered * 1000 / totalStores) / 10;
 
   return {
@@ -5668,6 +5675,9 @@ function renderLeadershipSummary(){
   el.innerHTML = `
     <div class="priority-card">
       <b>Executive Coverage Summary</b>
+      <div style="margin-top:6px;color:var(--muted);font-size:12px;line-height:1.35">
+        Baseline uses active/confirmed RTS coverage only and matches store popup + Transition/Handoff logic. Future RTS hubs remain display-only until activated in the source JSON.
+      </div>
       <div style="display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:8px;margin-top:10px;font-size:13px">
         <div><b>Current Coverage</b><br>${impact.currentCovered} / ${impact.totalStores} (${impact.currentPct}%)</div>
         <div><b>Projected Coverage</b><br>${impact.projectedCovered} / ${impact.totalStores} (${impact.projectedPct}%)</div>
@@ -8270,6 +8280,36 @@ function cascadeRM(){
         font-size:13px;
         line-height:1.45;
       }
+      .ops-safe-banner{
+        margin:10px;
+        padding:9px 10px;
+        border:1px solid #bfdbfe;
+        background:#eff6ff;
+        color:#1e3a8a;
+        border-radius:12px;
+        font-size:12px;
+        line-height:1.35;
+      }
+      .ops-refresh-stamp{
+        font-size:11px;
+        color:#64748b;
+        white-space:nowrap;
+      }
+      .ops-list-row{
+        display:flex;
+        justify-content:space-between;
+        gap:10px;
+        border:1px solid #e2e8f0;
+        border-radius:10px;
+        padding:7px 8px;
+        background:#fff;
+      }
+      .rail-btn.safe-mode{
+        cursor:default;
+        background:#ecfdf5;
+        color:#166534;
+        border-color:#86efac;
+      }
       @media(max-width:1100px){
         .ops-exec-ribbon{top:66px;right:12px;}
         .mapwrap.command-sidepanel-open .ops-exec-ribbon,
@@ -8315,8 +8355,12 @@ function cascadeRM(){
     drawer.innerHTML = `
       <div class="ops-head">
         <h3>Operations Intelligence</h3>
+        <span id="opsLastRefresh" class="ops-refresh-stamp">Manual/debounced</span>
         <button id="opsRefreshBtn" class="btn" type="button">Refresh</button>
         <button id="opsCloseBtn" class="btn" type="button">×</button>
+      </div>
+      <div class="ops-safe-banner">
+        <b>Performance-safe mode:</b> Ops Intel refreshes on open, manual refresh, and debounced filter changes. Map pan/zoom does not trigger full analytics recalculation.
       </div>
       <div class="ops-tabs">
         <button class="ops-tab active" data-pane="overview" type="button">Overview</button>
@@ -8779,6 +8823,8 @@ function renderDeltaMarkers(){
 
     function updateOpsIntel(){
       const rows = activeRowsInMapExtent();
+      const stampEl = document.getElementById('opsLastRefresh');
+      if (stampEl) stampEl.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
       const coveredCount = rows.filter(covered).length;
       const gapCount = rows.length - coveredCount;
       const hubs = activeVisibleHubs();
@@ -8977,6 +9023,7 @@ function renderDeltaMarkers(){
         <button id="railFit" class="rail-btn" type="button">Fit</button>
         <button id="railLeadership" class="rail-btn" type="button">Leadership</button>
         <button id="railField" class="rail-btn" type="button">Field View</button>
+        <button class="rail-btn safe-mode" type="button" title="No full analytics refresh on pan/zoom">Safe Mode</button>
       `;
       mapwrap.appendChild(rail);
     }
@@ -9137,34 +9184,21 @@ function renderTransitionReadinessPane(){
   }
 }
 function transitionStoreClassForPanel(s){
-  const t = transitionCurrentFutureForStore(s);
-  const k = t.key;
-  const currentBase = t.currentBase;
-  const futureBase = t.futureBase;
+  // Use the same shared classification as Delta markers and store popups.
+  // This keeps Transition/Handoff math from drifting away from popup logic.
+  try {
+    const t = transitionCurrentFutureForStore(s);
+    if (typeof deltaStoreType === 'function') {
+      return deltaStoreType(t.currentBase, t.futureBase);
+    }
+  } catch(e) {
+    console.warn('Transition classification fallback used', e);
+  }
 
-  const txt = (x, field) => {
-    const v = x?.[field];
-    return Array.isArray(v) ? v.filter(Boolean).join(' | ') : String(v || '').trim();
-  };
-
-  const currentAM = txt(currentBase, 'areaManager');
-  const futureAM = txt(futureBase, 'areaManager');
-  const currentRM = txt(currentBase, 'regionalManager');
-  const futureRM = txt(futureBase, 'regionalManager');
-
-  const currentCovered = String(currentBase?.coverageType || '') !== 'Uncovered';
-  const futureCovered = String(futureBase?.coverageType || '') !== 'Uncovered';
-
-  const ownershipChanged =
-    currentAM !== futureAM ||
-    currentRM !== futureRM;
-
-  if (!currentCovered && futureCovered) return 'Newly Covered';
-  if (currentCovered && !futureCovered) return 'Lost Coverage';
-  if (currentCovered && futureCovered && ownershipChanged) return 'Ownership Changed';
-  if (currentCovered && futureCovered) return 'Coverage Retained';
-  return 'Still Uncovered';
+  const currentCovered = String(s?.coverageType || '') !== 'Uncovered';
+  return currentCovered ? 'Coverage Retained' : 'No Change';
 }
+
 
 function renderTransitionReadinessPanel(){
   const visible = filteredStores || [];
@@ -9173,10 +9207,10 @@ function renderTransitionReadinessPanel(){
     type:transitionStoreClassForPanel(s)
   }));
 
-  const gaps = visible.filter(s => String(s.coverageType || '') === 'Uncovered');
+  const gaps = rows.filter(x => x.type === 'No Change' || x.type === 'Still Uncovered');
   const ownership = rows.filter(x => x.type === 'Ownership Changed');
   const newly = rows.filter(x => x.type === 'Newly Covered');
-  const lost = rows.filter(x => x.type === 'Lost Coverage');
+  const lost = rows.filter(x => x.type === 'Lost Coverage' || x.type === 'Coverage Regressed');
 
   const setText = (id, val) => {
     const el = document.getElementById(id);
@@ -9220,8 +9254,9 @@ function renderTransitionReadinessPanel(){
 
   if (footer){
     footer.innerHTML =
-      `<b>Coverage Improved:</b> ${rows.filter(x => x.type === 'Coverage Improved').length.toLocaleString()}
-       &nbsp; <b>Net New:</b> ${(newly.length - lost.length).toLocaleString()}`;
+      `<b>Improved Coverage:</b> ${rows.filter(x => x.type === 'Improved Coverage').length.toLocaleString()}
+       &nbsp; <b>Net New:</b> ${(newly.length - lost.length).toLocaleString()}
+       <br><span class="ops-sub">Uses the same active RTS coverage + nearest RTS rules as store popups and Delta Mode.</span>`;
   }
 }
 
