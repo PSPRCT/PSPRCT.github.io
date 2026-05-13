@@ -9124,7 +9124,115 @@ function renderDeltaMarkers(){
   setInterval(() => {
     if (document.getElementById('opsPaneTransition')) renderTransitionReadinessPane();
   }, 2500);
+function transitionStoreClassForPanel(s){
+  const keyOf = x => String(
+    x?.storeNumberStr ??
+    x?.storeNumber ??
+    x?.StoreNumber ??
+    x?.StoreNbr ??
+    ''
+  ).replace(/\D/g,'');
 
+  const k = keyOf(s);
+
+  const currentBase =
+    (Array.isArray(currentStores) ? currentStores : []).find(x => keyOf(x) === k) || s;
+
+  const futureBase =
+    (Array.isArray(futureStores) ? futureStores : []).find(x => keyOf(x) === k) || s;
+
+  const txt = (x, field) => {
+    const v = x?.[field];
+    return Array.isArray(v) ? v.filter(Boolean).join(' | ') : String(v || '').trim();
+  };
+
+  const currentAM = txt(currentBase, 'areaManager');
+  const futureAM = txt(futureBase, 'areaManager');
+  const currentRM = txt(currentBase, 'regionalManager');
+  const futureRM = txt(futureBase, 'regionalManager');
+
+  const currentCovered = String(currentBase?.coverageType || '') !== 'Uncovered';
+  const futureCovered = String(futureBase?.coverageType || '') !== 'Uncovered';
+
+  const ownershipChanged =
+    currentAM !== futureAM ||
+    currentRM !== futureRM;
+
+  if (!currentCovered && futureCovered) return 'Newly Covered';
+  if (currentCovered && !futureCovered) return 'Lost Coverage';
+  if (currentCovered && futureCovered && ownershipChanged) return 'Ownership Changed';
+  if (currentCovered && futureCovered) return 'Coverage Retained';
+  return 'Still Uncovered';
+}
+
+function renderTransitionReadinessPanel(){
+  const visible = filteredStores || [];
+  const rows = visible.map(s => ({
+    store:s,
+    type:transitionStoreClassForPanel(s)
+  }));
+
+  const gaps = visible.filter(s => String(s.coverageType || '') === 'Uncovered');
+  const ownership = rows.filter(x => x.type === 'Ownership Changed');
+  const newly = rows.filter(x => x.type === 'Newly Covered');
+  const lost = rows.filter(x => x.type === 'Lost Coverage');
+
+  const setText = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(val);
+  };
+
+  setText('transitionVisibleGaps', gaps.length.toLocaleString());
+  setText('transitionOwnershipChanges', ownership.length.toLocaleString());
+  setText('transitionNewCoverage', newly.length.toLocaleString());
+  setText('transitionLostRisk', lost.length.toLocaleString());
+
+  const leaderEl =
+    document.getElementById('transitionLeaders') ||
+    document.getElementById('opsTransitionLeaders');
+
+  if (leaderEl){
+    const byFutureRM = new Map();
+
+    ownership.forEach(x => {
+      const k = String(x.store.regionalManager || 'Unassigned').trim() || 'Unassigned';
+      byFutureRM.set(k, (byFutureRM.get(k) || 0) + 1);
+    });
+
+    const leaders = [...byFutureRM.entries()]
+      .sort((a,b) => b[1] - a[1])
+      .slice(0,8);
+
+    leaderEl.innerHTML = leaders.length
+      ? leaders.map(([name,count]) => `
+          <div class="ops-list-row">
+            <span>${escape(name)}</span>
+            <b>${count}</b>
+          </div>
+        `).join('')
+      : `<div class="ops-sub">No ownership-change records found in the current filtered view.</div>`;
+  }
+
+  const footer =
+    document.getElementById('transitionFooter') ||
+    document.getElementById('opsTransitionFooter');
+
+  if (footer){
+    footer.innerHTML =
+      `<b>Coverage Improved:</b> ${rows.filter(x => x.type === 'Coverage Improved').length.toLocaleString()}
+       &nbsp; <b>Net New:</b> ${(newly.length - lost.length).toLocaleString()}`;
+  }
+}
+
+const oldUpdateOpsIntelForTransition = window.updateOpsIntel;
+window.updateOpsIntel = function(){
+  if (typeof oldUpdateOpsIntelForTransition === 'function') {
+    oldUpdateOpsIntelForTransition();
+  }
+  renderTransitionReadinessPanel();
+};
+
+setTimeout(renderTransitionReadinessPanel, 400);
 })();
 </script>
 </body>
