@@ -9066,12 +9066,38 @@ function renderDeltaMarkers(){
     const pane = document.createElement('div');
     pane.className = 'ops-pane';
     pane.id = 'opsPaneTransition';
-    pane.innerHTML = `
-      <div class="ops-card">
-        <div class="ops-section-title"><span>Transition Readiness</span><span class="ops-sub">handoff focus</span></div>
-        <div id="opsTransitionSummary"></div>
+pane.innerHTML = `
+  <div class="ops-card">
+    <div class="ops-section-title"><span>Transition Readiness</span><span class="ops-sub">handoff focus</span></div>
+
+    <div class="ops-transition-grid">
+      <div class="ops-transition-metric">
+        <div class="lbl">Visible Gaps</div>
+        <div class="ops-value val" id="transitionVisibleGaps">0</div>
       </div>
-    `;
+      <div class="ops-transition-metric">
+        <div class="lbl">Ownership Changes</div>
+        <div class="ops-value val" id="transitionOwnershipChanges">0</div>
+      </div>
+      <div class="ops-transition-metric">
+        <div class="lbl">New Coverage</div>
+        <div class="ops-value val" id="transitionNewCoverage">0</div>
+      </div>
+      <div class="ops-transition-metric">
+        <div class="lbl">Lost / Risk</div>
+        <div class="ops-value val" id="transitionLostRisk">0</div>
+      </div>
+    </div>
+
+    <div class="ops-section-title">
+      <span>Top ownership-change leaders</span>
+      <span class="ops-sub">future RM view</span>
+    </div>
+    <div id="transitionLeaders" class="ops-transition-list"></div>
+
+    <div id="transitionFooter" class="ops-transition-row"></div>
+  </div>
+`;
     body.appendChild(pane);
 
     tab.addEventListener('click', () => {
@@ -9082,48 +9108,11 @@ function renderDeltaMarkers(){
   }
 
   function renderTransitionReadinessPane(){
-    const el = document.getElementById('opsTransitionSummary');
-    if (!el) return;
-    let d;
-    try { d = typeof buildDeltaSummary === 'function' ? buildDeltaSummary() : null; }
-    catch(e){ d = null; }
-
-    const visible = filteredStores || [];
-    const gaps = visible.filter(s => (s.coverageType || '') === 'Uncovered').length;
-    const owner = d?.ownerChanged?.length || 0;
-    const lost = d?.lostCoverage?.length || d?.newlyGap?.length || 0;
-    const newCov = d?.newlyCovered?.length || 0;
-    const improved = d?.improvedCoverage?.length || 0;
-
-    const topManagers = new Map();
-    (d?.ownerChanged || []).forEach(s => {
-      const nm = (typeof rmOf === 'function' ? rmOf(s) : s.regionalManager) || 'Unassigned';
-      topManagers.set(nm, (topManagers.get(nm) || 0) + 1);
-    });
-    const leaders = [...topManagers.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6);
-
-    el.innerHTML = `
-      <div class="ops-transition-grid">
-        <div class="ops-transition-metric"><div class="lbl">Visible Gaps</div><div class="val">${gaps.toLocaleString()}</div></div>
-        <div class="ops-transition-metric"><div class="lbl">Ownership Changes</div><div class="val">${owner.toLocaleString()}</div></div>
-        <div class="ops-transition-metric"><div class="lbl">New Coverage</div><div class="val">${newCov.toLocaleString()}</div></div>
-        <div class="ops-transition-metric"><div class="lbl">Lost / Risk</div><div class="val">${lost.toLocaleString()}</div></div>
-      </div>
-      <div class="ops-transition-row"><b>Recommended use:</b> filter to an RM or AM, then use this panel to identify handoff-heavy areas before 5/31.</div>
-      <div style="height:8px"></div>
-      <div class="ops-section-title"><span>Top ownership-change leaders</span><span class="ops-sub">future RM view</span></div>
-      <div class="ops-transition-list">
-        ${leaders.length ? leaders.map(([name,count]) => `<div class="ops-transition-row"><b>${escape(name)}</b><br><span class="ops-sub">${count.toLocaleString()} stores with ownership path change</span></div>`).join('') : '<div class="ops-transition-row">No ownership-change records found for the current delta set.</div>'}
-      </div>
-      <div style="height:8px"></div>
-      <div class="ops-transition-row"><b>Coverage Improved:</b> ${improved.toLocaleString()} &nbsp; <b>Net New:</b> ${(newCov - lost).toLocaleString()}</div>
-    `;
+function renderTransitionReadinessPane(){
+  if (typeof renderTransitionReadinessPanel === 'function') {
+    renderTransitionReadinessPanel();
   }
-
-  setTimeout(() => installCommandCenterShellV3(), 600);
-  setInterval(() => {
-    if (document.getElementById('opsPaneTransition')) renderTransitionReadinessPane();
-  }, 2500);
+}
 function transitionStoreClassForPanel(s){
   const keyOf = x => String(
     x?.storeNumberStr ??
