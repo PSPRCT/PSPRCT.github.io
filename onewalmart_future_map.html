@@ -5,7 +5,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>One Walmart Command Center Map</title>
-<!-- Performance-safe enhancement pass: UI polish, aligned coverage math, debounced Ops refresh, no pan/zoom analytics recalculation. -->
+<!-- Startup performance enhancement pass: staged loading, lazy Ops analytics, aligned coverage math, debounced refresh, no pan/zoom analytics recalculation. -->
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
@@ -815,6 +815,41 @@ select[multiple]{
     #floatingKpis{display:none;}
     .summary#summary{max-height:84px;overflow:auto;}
   }
+/* ===== Startup performance pass ===== */
+.launch-status{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  font-size:12px;
+  color:#334155;
+  background:#fff;
+  border-bottom:1px solid #eef0f3;
+}
+.launch-status .launch-dot{
+  width:9px;
+  height:9px;
+  border-radius:999px;
+  background:#f59e0b;
+  box-shadow:0 0 0 4px rgba(245,158,11,.14);
+}
+.launch-status.ready .launch-dot{
+  background:#16a34a;
+  box-shadow:0 0 0 4px rgba(22,163,74,.14);
+}
+.launch-status .launch-step{font-weight:900;color:#0f172a;}
+.launch-status .launch-sub{color:#64748b;}
+.ops-lazy-note{
+  padding:10px 12px;
+  border:1px dashed #cbd5e1;
+  border-radius:12px;
+  background:#f8fafc;
+  color:#475569;
+  font-size:12px;
+  line-height:1.35;
+  margin-bottom:10px;
+}
+
 .store-popup-shell{
   min-width:320px;
   max-width:460px;
@@ -986,6 +1021,41 @@ select[multiple]{
 .ops-transition-metric .val{font-size:20px;font-weight:950;color:#0f172a;}
 .ops-transition-list{display:grid;gap:6px;font-size:12px;}
 .ops-transition-row{border:1px solid #e2e8f0;border-radius:10px;padding:8px;background:#f8fafc;}
+/* ===== Startup performance pass ===== */
+.launch-status{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  font-size:12px;
+  color:#334155;
+  background:#fff;
+  border-bottom:1px solid #eef0f3;
+}
+.launch-status .launch-dot{
+  width:9px;
+  height:9px;
+  border-radius:999px;
+  background:#f59e0b;
+  box-shadow:0 0 0 4px rgba(245,158,11,.14);
+}
+.launch-status.ready .launch-dot{
+  background:#16a34a;
+  box-shadow:0 0 0 4px rgba(22,163,74,.14);
+}
+.launch-status .launch-step{font-weight:900;color:#0f172a;}
+.launch-status .launch-sub{color:#64748b;}
+.ops-lazy-note{
+  padding:10px 12px;
+  border:1px dashed #cbd5e1;
+  border-radius:12px;
+  background:#f8fafc;
+  color:#475569;
+  font-size:12px;
+  line-height:1.35;
+  margin-bottom:10px;
+}
+
 .store-popup-shell{font-size:13px;line-height:1.35;}
 .store-popup-title{font-size:18px;}
 .leaflet-popup-content{margin:16px 18px;}
@@ -1180,6 +1250,7 @@ select[multiple]{
   <b>Future-State One Walmart Map:</b> PSP alignment reflects the post-5/31 One Walmart structure. Dedicated teams — Unilever, P&amp;G, and Tyson — are shown separately where applicable.
 </div>
 <div id="dataStatus" style="padding:6px 10px;color:var(--fg);font-size:12px"></div>
+<div id="launchStatus" class="launch-status"><span class="launch-dot"></span><span class="launch-step">Starting map</span><span class="launch-sub">Base map first; analytics load only when opened.</span></div>
 
 <div class="summary" id="summary">
 <span class="chip"><span class="dot" style="background:var(--pa)"></span>One Walmart Coverage: <b id="k_pa">0</b></span>
@@ -1745,6 +1816,19 @@ const markers = L.markerClusterGroup({
 
   // UI refs
   const STATUS = id('dataStatus'); const busy = id('busy');
+  const launchStatusEl = id('launchStatus');
+  function setLaunchStatus(step, sub='', ready=false){
+    if (!launchStatusEl) return;
+    launchStatusEl.classList.toggle('ready', !!ready);
+    const stepEl = launchStatusEl.querySelector('.launch-step');
+    const subEl = launchStatusEl.querySelector('.launch-sub');
+    if (stepEl) stepEl.textContent = step || '';
+    if (subEl) subEl.textContent = sub || '';
+  }
+  function deferIdle(fn, timeout=800){
+    if (typeof requestIdleCallback === 'function') return requestIdleCallback(fn, { timeout });
+    return setTimeout(fn, Math.min(timeout, 250));
+  }
   const showConfirmed = id('showConfirmed');
   const showPending   = id('showPending');
   const showAcosta    = id('showAcosta');
@@ -2058,7 +2142,7 @@ if (analysisDrop) {
   rebuildViewsMenu();
 
   // Floating toggles
-  tgHeat.onchange   = ()=>{ if (tgHeat.checked) updateHeat(); else clearHeat(); saveState(); };
+  tgHeat.onchange   = ()=>{ if (tgHeat.checked) deferIdle(updateHeat, 900); else clearHeat(); saveState(); };
   tgRings.onchange  = ()=>{ updateRings(); saveState(); };
   tgOverlap.onchange = () => {
   if (tgOverlap.checked){
@@ -2130,15 +2214,18 @@ spRowsEl.addEventListener('click', (e)=>{
   markers.on('clusterclick', (e)=>{ map.fitBounds(e.layer.getBounds()); });
   map.on('moveend zoomend', ()=>{
     updateInViewCount();
-    if (id('tgHeat').checked) requestIdleCallback?.(updateHeat) ?? updateHeat();
+    // Startup/performance guard: pan/zoom should never trigger full analytics or immediate heavy layer rebuilds.
+    // Heatmap refresh is deferred and only runs when the heatmap layer is actually enabled.
+    if (id('tgHeat')?.checked) deferIdle(updateHeat, 900);
     saveState();
   });
 
   // ---------- Load data ----------
-  showBusy(true); let spinnerFailSafe = setTimeout(()=>showBusy(false), 7000);
+  showBusy(true); setLaunchStatus('Loading data', 'Reading One Walmart store and RTS JSON files…'); let spinnerFailSafe = setTimeout(()=>showBusy(false), 7000);
   try {
     // STORES
     STATUS.textContent = `Loading ${DATA_URL} …`;
+    setLaunchStatus('Loading stores', 'Base map is ready; loading store dataset…');
     let storeRaw = null;
     try{
       const resp = await fetch(DATA_URL, { cache:'no-store' });
@@ -2153,6 +2240,7 @@ spRowsEl.addEventListener('click', (e)=>{
     }
     futureStores = normalizeStores(storeRaw);
     allStores = futureStores;
+    setLaunchStatus('Stores loaded', `${futureStores.length.toLocaleString()} stores loaded; applying alignments…`);
 
     // Load the exact current-map data set in parallel. In Current Alignment view, the map will
     // swap to these stores and their manager_paths.json rollup instead of trying to infer current
@@ -2215,6 +2303,7 @@ try {
   
 
 STATUS.textContent += `  |  ${allStores.length.toLocaleString()} stores ready`;
+setLaunchStatus('Building filters', 'Preparing RM, AM, and RTS filter options…');
 
     populateRM(allStores); populateAM(allStores);
 
@@ -2278,13 +2367,17 @@ STATUS.textContent += `  |  ${allStores.length.toLocaleString()} stores ready`;
     if (!tryLoadSnapshot()){ tryLoadLocal(); }
 
     // Compute coverage (offloaded to worker)
+    setLaunchStatus('Calculating coverage', 'Classifying stores against active RTS radius…');
     await recomputeCoverage();
 
     // Draw
+setLaunchStatus('Rendering map', 'Adding clustered store markers in performance-safe batches…');
+showBusy(false);
 runFilter();
 renderChips();
 renderHubs();
 updateRings();
+setLaunchStatus('Map ready', 'Ops Intel and analysis tools will calculate when opened.', true);
 
 // Alignment + core team switchers
 async function refreshAfterAlignmentChange(){
@@ -8994,7 +9087,15 @@ function renderDeltaMarkers(){
       return out;
     };
 
-    updateOpsIntel();
+    // Startup performance guard: do not run Ops Intel during initial page load.
+    // Ops tables are built only when the drawer is opened, refreshed, or filters change while open.
+    if (drawer.querySelector('#opsTopGaps')) {
+      const lazy = '<div class="ops-lazy-note"><b>Analytics paused for startup speed.</b><br>Open Ops Intel or click Refresh to calculate these tables.</div>';
+      ['#opsTopGaps','#opsRtsWorkload','#opsBalanceFlags','#opsRiskTable','#opsHealthTable','#opsDeltaSummary','#opsLeadershipSnapshot','#opsTalkingPoints'].forEach(sel=>{
+        const el = drawer.querySelector(sel);
+        if (el) el.innerHTML = lazy;
+      });
+    }
     syncCommandLayout();
   }
 
@@ -9268,7 +9369,8 @@ window.updateOpsIntel = function(){
   renderTransitionReadinessPanel();
 };
 
-setTimeout(renderTransitionReadinessPanel, 400);
+// Startup performance guard: do not pre-render Transition Readiness on page load.
+// It is rendered by Ops Intel / Leadership / Delta actions when needed.
 })();
 </script>
 </body>
