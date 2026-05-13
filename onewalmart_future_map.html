@@ -965,7 +965,7 @@ select[multiple]{
 .map-action-rail .rail-btn.active{background:#2563eb;color:#fff;border-color:#2563eb;}
 .ops-exec-ribbon{left:46px !important;right:132px !important;top:12px !important;max-width:calc(100% - 200px) !important;overflow:auto;scrollbar-width:none;}
 .ops-exec-ribbon::-webkit-scrollbar{display:none;}
-/* keep old ribbon buttons hidden, but allow Ops drawer access */
+/* keep legacy ribbon actions hidden, but keep Ops access available */
 .ops-exec-action{display:none !important;}
 #opsDrawerToggle{display:block !important;}
 .leaflet-top.leaflet-left{top:72px !important;}
@@ -994,6 +994,27 @@ select[multiple]{
   .map-action-rail .rail-btn{min-width:auto;padding:8px 9px;font-size:12px;}
   .command-mini-legend{display:none;}
 }
+
+
+
+/* ===== Handoff / Diagnostics Enhancement Pack ===== */
+.ops-tabs{gap:6px;overflow-x:auto;scrollbar-width:none;}
+.ops-tabs::-webkit-scrollbar{display:none;}
+.ops-tab{white-space:nowrap;}
+.ops-action-row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;}
+.ops-mini-btn{border:1px solid #dbe3ea;background:#fff;border-radius:999px;padding:6px 9px;font-size:12px;font-weight:900;cursor:pointer;}
+.ops-mini-btn.active,.ops-mini-btn:hover{background:#111827;color:#fff;border-color:#111827;}
+.ops-list-row{display:flex;justify-content:space-between;gap:10px;padding:7px 8px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;align-items:flex-start;}
+.ops-list-row small{display:block;color:#64748b;font-size:11px;line-height:1.25;margin-top:2px;}
+.ops-diagnostic-good{color:#047857;font-weight:900;}
+.ops-diagnostic-watch{color:#b45309;font-weight:900;}
+.ops-diagnostic-bad{color:#b91c1c;font-weight:900;}
+.ops-copy-box{position:relative;}
+.ops-copy-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.ops-handoff-note{padding:8px;border:1px solid #fed7aa;background:#fff7ed;border-radius:10px;font-size:12px;line-height:1.35;margin:8px 0;}
+body.clean-mode .control-panel{display:none !important;}
+body.clean-mode .workspace{display:block;}
+body.clean-mode .map-stage{height:calc(100vh - 54px);}
 
 </style>
 </head>
@@ -9057,186 +9078,524 @@ function renderDeltaMarkers(){
     }
   }
 
+  /* =========================================================
+     Handoff / Diagnostics / Leadership Accuracy Pack
+     - Keeps Delta as the map-change lens
+     - Renames Transition tab to Handoff
+     - Uses one shared current/future comparison model
+     - Adds Diagnostics and executive/copy helpers
+  ========================================================= */
+
+  let handoffFocusType = '';
+  const handoffFocusKeys = new Set();
+
+  function handoffKeyOf(x){
+    return String(
+      x?.storeNumberStr ??
+      x?.storeNumber ??
+      x?.StoreNumber ??
+      x?.StoreNbr ??
+      ''
+    ).replace(/\D/g,'');
+  }
+
+  function handoffSafe(v){
+    return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function handoffText(x, field){
+    const v = x?.[field];
+    if (Array.isArray(v)) return v.filter(Boolean).join(' | ');
+    return String(v || '').trim();
+  }
+
+  function handoffNorm(v){
+    return String(v || '').trim().toLowerCase().replace(/\s+/g,' ');
+  }
+
+  function handoffAM(s){
+    const v = handoffText(s,'areaManager');
+    return v || 'Unassigned AM';
+  }
+
+  function handoffRM(s){
+    const v = handoffText(s,'regionalManager');
+    return v || 'Unassigned RM';
+  }
+
+  function handoffCoveredByTypeOrHub(store){
+    if (!store) return false;
+
+    const explicit = String(store.coverageType || '').trim();
+    if (explicit && explicit !== 'Uncovered' && explicit !== 'Current Gap / Uncovered') return true;
+
+    const hubs = [...(premiumConfirmed || []), ...(acostaHubs || [])]
+      .filter(h => h && h.status !== 'pending' && Array.isArray(h.coords));
+
+    return hubs.some(h =>
+      Number.isFinite(Number(h.coords[0])) &&
+      Number.isFinite(Number(h.coords[1])) &&
+      Number.isFinite(Number(store.lat)) &&
+      Number.isFinite(Number(store.lng)) &&
+      distMiles(Number(h.coords[0]), Number(h.coords[1]), Number(store.lat), Number(store.lng)) <= CLASSIFY_RADIUS
+    );
+  }
+
+  function handoffNearestHub(store){
+    let best = null;
+    [...(premiumConfirmed || []), ...(acostaHubs || [])]
+      .filter(h => h && h.status !== 'pending' && Array.isArray(h.coords))
+      .forEach(h => {
+        if (!Number.isFinite(Number(store?.lat)) || !Number.isFinite(Number(store?.lng))) return;
+        const miles = distMiles(Number(h.coords[0]), Number(h.coords[1]), Number(store.lat), Number(store.lng));
+        if (!best || miles < best.miles){
+          best = { hub:h, miles, name:(typeof hubDisplay === 'function' ? hubDisplay(h) : (h.fullName || h.name || 'RTS')) };
+        }
+      });
+    return best;
+  }
+
+  function handoffCurrentFuturePair(s){
+    const k = handoffKeyOf(s);
+    const currentBase = (Array.isArray(currentStores) ? currentStores : []).find(x => handoffKeyOf(x) === k) || s;
+    const futureBase = (Array.isArray(futureStores) ? futureStores : []).find(x => handoffKeyOf(x) === k) || s;
+    return { key:k, current:currentBase, future:futureBase };
+  }
+
+  function handoffClassifyPair(currentBase, futureBase){
+    const currentCovered = handoffCoveredByTypeOrHub(currentBase);
+    const futureCovered = handoffCoveredByTypeOrHub(futureBase);
+    const currentAM = handoffAM(currentBase);
+    const futureAM = handoffAM(futureBase);
+    const currentRM = handoffRM(currentBase);
+    const futureRM = handoffRM(futureBase);
+
+    const ownershipChanged =
+      handoffNorm(currentAM) !== handoffNorm(futureAM) ||
+      handoffNorm(currentRM) !== handoffNorm(futureRM);
+
+    const curNearest = handoffNearestHub(currentBase);
+    const futNearest = handoffNearestHub(futureBase);
+    const curMiles = curNearest ? curNearest.miles : 999;
+    const futMiles = futNearest ? futNearest.miles : 999;
+    const distanceChange = curMiles - futMiles;
+
+    if (!currentCovered && futureCovered) return 'Newly Covered';
+    if (currentCovered && !futureCovered) return 'Lost Coverage';
+    if (currentCovered && futureCovered && ownershipChanged) return 'Ownership Changed';
+    if (currentCovered && futureCovered && Number.isFinite(distanceChange) && distanceChange >= 15) return 'Improved Coverage';
+    if (currentCovered && futureCovered && Number.isFinite(distanceChange) && distanceChange <= -15) return 'Coverage Regressed';
+    if (currentCovered && futureCovered) return 'Coverage Retained';
+    return 'Still Uncovered';
+  }
+
+  function transitionStoreClassForPanel(s){
+    const pair = handoffCurrentFuturePair(s);
+    return handoffClassifyPair(pair.current, pair.future);
+  }
+
+  function handoffRows(){
+    const visible = Array.isArray(filteredStores) ? filteredStores : [];
+    return visible.map(s => {
+      const pair = handoffCurrentFuturePair(s);
+      return {
+        key:pair.key,
+        store:s,
+        current:pair.current,
+        future:pair.future,
+        type:handoffClassifyPair(pair.current, pair.future)
+      };
+    });
+  }
+
   function installTransitionReadinessPane(){
     const drawer = document.getElementById('opsDrawer');
-    if (!drawer || document.getElementById('opsPaneTransition')) return;
+    if (!drawer) return;
 
     const tabs = drawer.querySelector('.ops-tabs');
     const body = drawer.querySelector('.ops-body');
     if (!tabs || !body) return;
 
+    let tab = drawer.querySelector('.ops-tab[data-pane="transition"]');
+    if (!tab){
+      tab = document.createElement('button');
+      tab.className = 'ops-tab';
+      tab.dataset.pane = 'transition';
+      tab.type = 'button';
+      tabs.insertBefore(tab, tabs.querySelector('[data-pane="leadership"]') || null);
+    }
+    tab.textContent = 'Handoff';
+
+    let pane = document.getElementById('opsPaneTransition');
+    if (!pane){
+      pane = document.createElement('div');
+      pane.className = 'ops-pane';
+      pane.id = 'opsPaneTransition';
+      body.appendChild(pane);
+    }
+
+    pane.innerHTML = `
+      <div class="ops-card">
+        <div class="ops-section-title">
+          <span>Handoff Readiness</span>
+          <span class="ops-sub">transition focus</span>
+        </div>
+
+        <div class="ops-transition-grid">
+          <div class="ops-transition-metric"><div class="lbl">Visible Gaps</div><div class="ops-value val" id="transitionVisibleGaps">0</div></div>
+          <div class="ops-transition-metric"><div class="lbl">Ownership Changes</div><div class="ops-value val" id="transitionOwnershipChanges">0</div></div>
+          <div class="ops-transition-metric"><div class="lbl">New Coverage</div><div class="ops-value val" id="transitionNewCoverage">0</div></div>
+          <div class="ops-transition-metric"><div class="lbl">Lost / Risk</div><div class="ops-value val" id="transitionLostRisk">0</div></div>
+        </div>
+
+        <div class="ops-handoff-note">
+          <b>How to use:</b> Handoff compares current alignment to future One Walmart alignment for the stores currently visible after filters. Use the focus buttons to isolate stores needing coordination before 5/31.
+        </div>
+
+        <div class="ops-action-row">
+          <button class="ops-mini-btn" type="button" data-handoff-focus="Ownership Changed">Show Ownership Changes</button>
+          <button class="ops-mini-btn" type="button" data-handoff-focus="Lost Coverage">Show Lost/Risk</button>
+          <button class="ops-mini-btn" type="button" data-handoff-focus="Newly Covered">Show New Coverage</button>
+          <button class="ops-mini-btn" type="button" data-handoff-focus="">Clear Handoff Filter</button>
+          <button class="ops-mini-btn" type="button" id="exportHandoffCsvBtn">Export Handoff CSV</button>
+        </div>
+
+        <div class="ops-section-title"><span>Top Future RMs</span><span class="ops-sub">ownership-change leaders</span></div>
+        <div id="transitionLeaders" class="ops-transition-list"></div>
+
+        <div class="ops-section-title" style="margin-top:10px"><span>Top Future AMs</span><span class="ops-sub">ownership-change leaders</span></div>
+        <div id="transitionAmLeaders" class="ops-transition-list"></div>
+
+        <div class="ops-section-title" style="margin-top:10px"><span>Top Lost/Risk Areas</span><span class="ops-sub">coverage loss watchlist</span></div>
+        <div id="transitionRiskLeaders" class="ops-transition-list"></div>
+
+        <div id="transitionFooter" class="ops-transition-row" style="margin-top:10px"></div>
+      </div>
+    `;
+
+    tab.onclick = () => {
+      drawer.querySelectorAll('.ops-tab').forEach(t => t.classList.toggle('active', t === tab));
+      drawer.querySelectorAll('.ops-pane').forEach(p => p.classList.toggle('active', p.id === 'opsPaneTransition'));
+      renderTransitionReadinessPane();
+    };
+
+    pane.querySelectorAll('[data-handoff-focus]').forEach(btn => {
+      btn.onclick = () => {
+        const focus = btn.dataset.handoffFocus || '';
+        applyHandoffFocus(focus);
+        pane.querySelectorAll('[data-handoff-focus]').forEach(b => b.classList.toggle('active', (b.dataset.handoffFocus || '') === focus && !!focus));
+      };
+    });
+
+    const exportBtn = pane.querySelector('#exportHandoffCsvBtn');
+    if (exportBtn) exportBtn.onclick = exportHandoffCsv;
+
+    installDiagnosticsPane();
+  }
+
+  function applyHandoffFocus(type){
+    handoffFocusType = type || '';
+    handoffFocusKeys.clear();
+
+    if (handoffFocusType){
+      handoffRows().filter(r => r.type === handoffFocusType).forEach(r => handoffFocusKeys.add(r.key));
+    }
+
+    if (typeof runFilter === 'function') runFilter();
+    renderTransitionReadinessPanel();
+    if (typeof map !== 'undefined') setTimeout(() => map.invalidateSize(), 80);
+  }
+
+  const baseStoreFilterForHandoff = storeFilter;
+  storeFilter = function(s){
+    const baseOk = baseStoreFilterForHandoff(s);
+    if (!baseOk) return false;
+    if (!handoffFocusType || !handoffFocusKeys.size) return true;
+    return handoffFocusKeys.has(handoffKeyOf(s));
+  };
+
+  function renderTransitionReadinessPane(){
+    renderTransitionReadinessPanel();
+  }
+
+  function countBy(rows, fn){
+    const m = new Map();
+    rows.forEach(r => {
+      const k = fn(r) || 'Unassigned';
+      m.set(k, (m.get(k) || 0) + 1);
+    });
+    return [...m.entries()].sort((a,b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
+  }
+
+  function renderLeaderList(el, entries, emptyText){
+    if (!el) return;
+    el.innerHTML = entries.length
+      ? entries.slice(0,8).map(([name,count]) => `<div class="ops-list-row"><span>${handoffSafe(name)}</span><b>${count.toLocaleString()}</b></div>`).join('')
+      : `<div class="ops-sub">${handoffSafe(emptyText)}</div>`;
+  }
+
+  function renderTransitionReadinessPanel(){
+    const rows = handoffRows();
+    const visible = Array.isArray(filteredStores) ? filteredStores : [];
+
+    const gaps = visible.filter(s => String(s.coverageType || '') === 'Uncovered');
+    const ownership = rows.filter(x => x.type === 'Ownership Changed');
+    const newly = rows.filter(x => x.type === 'Newly Covered');
+    const lost = rows.filter(x => x.type === 'Lost Coverage' || x.type === 'Coverage Regressed');
+    const retained = rows.filter(x => x.type === 'Coverage Retained');
+    const stillUncovered = rows.filter(x => x.type === 'Still Uncovered');
+    const improved = rows.filter(x => x.type === 'Improved Coverage');
+
+    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = String(val); };
+    setText('transitionVisibleGaps', gaps.length.toLocaleString());
+    setText('transitionOwnershipChanges', ownership.length.toLocaleString());
+    setText('transitionNewCoverage', newly.length.toLocaleString());
+    setText('transitionLostRisk', lost.length.toLocaleString());
+
+    renderLeaderList(document.getElementById('transitionLeaders'), countBy(ownership, r => handoffRM(r.future)), 'No ownership-change records found in the current filtered view.');
+    renderLeaderList(document.getElementById('transitionAmLeaders'), countBy(ownership, r => handoffAM(r.future)), 'No AM-level ownership-change records found in the current filtered view.');
+    renderLeaderList(document.getElementById('transitionRiskLeaders'), countBy(lost, r => handoffRM(r.future)), 'No lost/risk records found in the current filtered view.');
+
+    const footer = document.getElementById('transitionFooter');
+    if (footer){
+      const netNew = newly.length - lost.length;
+      footer.innerHTML = `
+        <b>Net New Coverage:</b> ${netNew.toLocaleString()}
+        &nbsp; <b>Retained Coverage:</b> ${retained.length.toLocaleString()}
+        &nbsp; <b>Improved:</b> ${improved.length.toLocaleString()}
+        &nbsp; <b>Still Uncovered:</b> ${stillUncovered.length.toLocaleString()}
+        <br><span class="ops-sub">Metrics reflect ${visible.length.toLocaleString()} filtered stores out of ${(allStores || []).length.toLocaleString()} total stores.</span>
+      `;
+    }
+
+    renderDiagnosticsPanel();
+    enhanceLeadershipPanel();
+  }
+
+  function exportHandoffCsv(){
+    const rows = handoffRows();
+    const csvRows = [[
+      'Store #','Store Name','City','State','Handoff Type',
+      'Current AM','Future AM','Current RM','Future RM',
+      'Current Covered','Future Covered'
+    ]];
+    rows.forEach(r => csvRows.push([
+      handoffKeyOf(r.future || r.store),
+      r.future?.storeName || r.store?.storeName || '',
+      r.future?.city || r.store?.city || '',
+      r.future?.state || r.store?.state || '',
+      r.type,
+      handoffAM(r.current), handoffAM(r.future), handoffRM(r.current), handoffRM(r.future),
+      handoffCoveredByTypeOrHub(r.current) ? 'Yes' : 'No',
+      handoffCoveredByTypeOrHub(r.future) ? 'Yes' : 'No'
+    ]));
+
+    if (typeof exportCsvWithToast === 'function') exportCsvWithToast(csvRows, `handoff_readiness_${Date.now()}.csv`);
+  }
+
+  function installDiagnosticsPane(){
+    const drawer = document.getElementById('opsDrawer');
+    if (!drawer) return;
+    const tabs = drawer.querySelector('.ops-tabs');
+    const body = drawer.querySelector('.ops-body');
+    if (!tabs || !body || document.getElementById('opsPaneDiagnostics')) return;
+
     const tab = document.createElement('button');
     tab.className = 'ops-tab';
-    tab.dataset.pane = 'transition';
+    tab.dataset.pane = 'diagnostics';
     tab.type = 'button';
-    tab.textContent = 'Transition';
+    tab.textContent = 'Diagnostics';
     tabs.insertBefore(tab, tabs.querySelector('[data-pane="leadership"]') || null);
 
     const pane = document.createElement('div');
     pane.className = 'ops-pane';
-    pane.id = 'opsPaneTransition';
-pane.innerHTML = `
-  <div class="ops-card">
-    <div class="ops-section-title">
-      <span>Transition Readiness</span>
-      <span class="ops-sub">handoff focus</span>
-    </div>
-
-    <div class="ops-transition-grid">
-      <div class="ops-transition-metric">
-        <div class="lbl">Visible Gaps</div>
-        <div class="ops-value val" id="transitionVisibleGaps">0</div>
+    pane.id = 'opsPaneDiagnostics';
+    pane.innerHTML = `
+      <div class="ops-card">
+        <div class="ops-section-title"><span>Data Diagnostics</span><span class="ops-sub">quality checks</span></div>
+        <div id="opsDiagnosticsBody"></div>
       </div>
-
-      <div class="ops-transition-metric">
-        <div class="lbl">Ownership Changes</div>
-        <div class="ops-value val" id="transitionOwnershipChanges">0</div>
-      </div>
-
-      <div class="ops-transition-metric">
-        <div class="lbl">New Coverage</div>
-        <div class="ops-value val" id="transitionNewCoverage">0</div>
-      </div>
-
-      <div class="ops-transition-metric">
-        <div class="lbl">Lost / Risk</div>
-        <div class="ops-value val" id="transitionLostRisk">0</div>
-      </div>
-    </div>
-
-    <div class="ops-section-title">
-      <span>Top ownership-change leaders</span>
-      <span class="ops-sub">future RM view</span>
-    </div>
-
-    <div id="transitionLeaders" class="ops-transition-list"></div>
-
-    <div id="transitionFooter" class="ops-transition-row"></div>
-  </div>
-`;
+    `;
     body.appendChild(pane);
 
-    tab.addEventListener('click', () => {
+    tab.onclick = () => {
       drawer.querySelectorAll('.ops-tab').forEach(t => t.classList.toggle('active', t === tab));
-      drawer.querySelectorAll('.ops-pane').forEach(p => p.classList.toggle('active', p.id === 'opsPaneTransition'));
-      renderTransitionReadinessPane();
-    });
+      drawer.querySelectorAll('.ops-pane').forEach(p => p.classList.toggle('active', p.id === 'opsPaneDiagnostics'));
+      renderDiagnosticsPanel();
+    };
   }
 
-function renderTransitionReadinessPane(){
-  if (typeof renderTransitionReadinessPanel === 'function') {
+  function diagnosticSeverity(n){
+    return n === 0 ? 'ops-diagnostic-good' : n < 50 ? 'ops-diagnostic-watch' : 'ops-diagnostic-bad';
+  }
+
+  function renderDiagnosticsPanel(){
+    const el = document.getElementById('opsDiagnosticsBody');
+    if (!el) return;
+    const current = Array.isArray(currentStores) ? currentStores : [];
+    const future = Array.isArray(futureStores) ? futureStores : [];
+    const visible = Array.isArray(filteredStores) ? filteredStores : [];
+    const rows = handoffRows();
+
+    const missingCurrentMgr = current.filter(s => !handoffText(s,'areaManager') || !handoffText(s,'regionalManager')).length;
+    const missingFutureMgr = future.filter(s => !handoffText(s,'areaManager') || !handoffText(s,'regionalManager')).length;
+    const missingRts = visible.filter(s => !handoffNearestHub(s)).length;
+    const changed = rows.filter(r => !['Coverage Retained','Still Uncovered'].includes(r.type)).length;
+    const currentOnly = current.filter(s => !future.some(f => handoffKeyOf(f) === handoffKeyOf(s))).length;
+    const futureOnly = future.filter(s => !current.some(c => handoffKeyOf(c) === handoffKeyOf(s))).length;
+
+    const checks = [
+      ['Current stores missing AM/RM', missingCurrentMgr],
+      ['Future stores missing AM/RM', missingFutureMgr],
+      ['Visible stores without active RTS reference', missingRts],
+      ['Comparable stores with changed status/path', changed],
+      ['Current-only store records', currentOnly],
+      ['Future-only store records', futureOnly]
+    ];
+
+    el.innerHTML = `
+      <table class="ops-table"><thead><tr><th>Check</th><th style="text-align:right">Count</th><th>Status</th></tr></thead><tbody>
+        ${checks.map(([label,count]) => `<tr><td><b>${handoffSafe(label)}</b></td><td style="text-align:right">${Number(count).toLocaleString()}</td><td class="${diagnosticSeverity(count)}">${count === 0 ? 'OK' : count < 50 ? 'Watch' : 'Review'}</td></tr>`).join('')}
+      </tbody></table>
+      <div class="ops-sub" style="margin-top:8px">Diagnostics are meant to identify JSON/data quality issues before relying on leader-facing outputs.</div>
+    `;
+  }
+
+  function handoffCoverageMetrics(rows){
+    const src = Array.isArray(rows) ? rows : [];
+    const covered = src.filter(handoffCoveredByTypeOrHub).length;
+    return { total:src.length, covered, pct: src.length ? Math.round((covered / src.length) * 1000) / 10 : 0 };
+  }
+
+  function enhanceLeadershipPanel(){
+    const snap = document.getElementById('opsLeadershipSnapshot');
+    const talk = document.getElementById('opsTalkingPoints');
+    if (!snap || !talk) return;
+
+    const currentMetrics = handoffCoverageMetrics((currentStores && currentStores.length) ? currentStores : allStores);
+    const futureMetrics = handoffCoverageMetrics((futureStores && futureStores.length) ? futureStores : allStores);
+    const rows = Array.isArray(filteredStores) ? filteredStores : [];
+    const gapCount = rows.filter(s => String(s.coverageType || '') === 'Uncovered').length;
+    const handoff = handoffRows();
+    const ownership = handoff.filter(r => r.type === 'Ownership Changed').length;
+    const lost = handoff.filter(r => r.type === 'Lost Coverage' || r.type === 'Coverage Regressed').length;
+    const newly = handoff.filter(r => r.type === 'Newly Covered').length;
+    const riskLeader = countBy(handoff.filter(r => r.type === 'Ownership Changed' || r.type === 'Lost Coverage' || r.type === 'Coverage Regressed'), r => handoffRM(r.future))[0]?.[0] || 'None identified';
+    const lift = Math.round((futureMetrics.pct - currentMetrics.pct) * 10) / 10;
+
+    snap.innerHTML = `
+      <div class="ops-leadership-box ops-copy-box" id="leadershipCopyText">
+        <b>One Walmart RTS Coverage Snapshot</b><br>
+        Current coverage: <b>${currentMetrics.pct}%</b><br>
+        Future coverage: <b>${futureMetrics.pct}%</b><br>
+        Coverage delta: <b>${lift >= 0 ? '+' : ''}${lift} pts</b><br>
+        Active RTS hubs: <b>${((premiumConfirmed || []).length + (acostaHubs || []).length).toLocaleString()}</b><br>
+        Current visible gaps: <b>${gapCount.toLocaleString()}</b><br>
+        Handoff ownership changes: <b>${ownership.toLocaleString()}</b><br>
+        New coverage / lost-risk: <b>${newly.toLocaleString()} / ${lost.toLocaleString()}</b><br>
+        Highest handoff-risk area: <b>${handoffSafe(riskLeader)}</b>
+      </div>
+      <div class="ops-copy-actions">
+        <button class="ops-mini-btn" type="button" id="copyLeadershipBtn">Copy Summary</button>
+        <button class="ops-mini-btn" type="button" id="execModeBtn">Executive Mode</button>
+      </div>
+    `;
+
+    talk.innerHTML = `
+      <ul style="margin:0;padding-left:18px;line-height:1.45">
+        <li>The map is operating in <b>${activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart'}</b> mode.</li>
+        <li>Future coverage is projected at <b>${futureMetrics.pct}%</b>, compared with current baseline coverage of <b>${currentMetrics.pct}%</b>.</li>
+        <li>The Handoff view identifies <b>${ownership.toLocaleString()}</b> ownership changes and <b>${lost.toLocaleString()}</b> lost/risk records in the filtered view.</li>
+        <li>Delta mode should be used to visually inspect changed stores; Handoff should be used to coordinate manager/RTS transition work.</li>
+      </ul>
+    `;
+
+    const copyBtn = document.getElementById('copyLeadershipBtn');
+    if (copyBtn){
+      copyBtn.onclick = () => {
+        const text = document.getElementById('leadershipCopyText')?.innerText || '';
+        navigator.clipboard?.writeText(text);
+        copyBtn.textContent = 'Copied';
+        setTimeout(() => copyBtn.textContent = 'Copy Summary', 900);
+      };
+    }
+
+    const execBtn = document.getElementById('execModeBtn');
+    if (execBtn){
+      execBtn.onclick = () => {
+        document.body.classList.add('clean-mode');
+        document.getElementById('opsDrawer')?.classList.add('show');
+        document.querySelector('.ops-tab[data-pane="leadership"]')?.click();
+        document.getElementById('fitBtn')?.click();
+        setTimeout(() => map.invalidateSize(), 160);
+      };
+    }
+  }
+
+  function installRailEnhancements(){
+    const rail = document.getElementById('mapActionRail');
+    if (!rail || rail.dataset.handoffEnhanced === '1') return;
+    rail.dataset.handoffEnhanced = '1';
+
+    const handoffBtn = document.createElement('button');
+    handoffBtn.id = 'railHandoff';
+    handoffBtn.className = 'rail-btn';
+    handoffBtn.type = 'button';
+    handoffBtn.textContent = 'Handoff';
+    handoffBtn.onclick = () => {
+      const drawer = document.getElementById('opsDrawer');
+      if (drawer) drawer.classList.add('show');
+      document.querySelector('.ops-tab[data-pane="transition"]')?.click();
+      renderTransitionReadinessPanel();
+    };
+
+    const resetBtn = document.createElement('button');
+    resetBtn.id = 'railResetView';
+    resetBtn.className = 'rail-btn';
+    resetBtn.type = 'button';
+    resetBtn.textContent = 'Reset View';
+    resetBtn.onclick = () => {
+      document.body.classList.remove('clean-mode');
+      handoffFocusType = '';
+      handoffFocusKeys.clear();
+      document.getElementById('resetBtn')?.click();
+      document.getElementById('opsDrawer')?.classList.remove('show');
+      setTimeout(() => map.invalidateSize(), 160);
+    };
+
+    const leadership = document.getElementById('railLeadership');
+    rail.insertBefore(handoffBtn, leadership || null);
+    rail.appendChild(resetBtn);
+  }
+
+  const oldUpdateOpsIntelForTransition = window.updateOpsIntel;
+  window.updateOpsIntel = function(){
+    if (typeof oldUpdateOpsIntelForTransition === 'function') oldUpdateOpsIntelForTransition();
     renderTransitionReadinessPanel();
-  }
-}
-function transitionStoreClassForPanel(s){
-  const keyOf = x => String(
-    x?.storeNumberStr ??
-    x?.storeNumber ??
-    x?.StoreNumber ??
-    x?.StoreNbr ??
-    ''
-  ).replace(/\D/g,'');
-
-  const k = keyOf(s);
-
-  const currentBase =
-    (Array.isArray(currentStores) ? currentStores : []).find(x => keyOf(x) === k) || s;
-
-  const futureBase =
-    (Array.isArray(futureStores) ? futureStores : []).find(x => keyOf(x) === k) || s;
-
-  const txt = (x, field) => {
-    const v = x?.[field];
-    return Array.isArray(v) ? v.filter(Boolean).join(' | ') : String(v || '').trim();
+    enhanceLeadershipPanel();
+    renderDiagnosticsPanel();
   };
 
-  const currentAM = txt(currentBase, 'areaManager');
-  const futureAM = txt(futureBase, 'areaManager');
-  const currentRM = txt(currentBase, 'regionalManager');
-  const futureRM = txt(futureBase, 'regionalManager');
+  document.addEventListener('click', e => {
+    if (e.target.closest('#opsRefreshBtn,.ops-tab,#opsDrawerToggle,#railOpsIntel,#railLeadership')){
+      setTimeout(() => {
+        installTransitionReadinessPane();
+        renderTransitionReadinessPanel();
+        enhanceLeadershipPanel();
+        renderDiagnosticsPanel();
+        installRailEnhancements();
+      }, 120);
+    }
+  }, true);
 
-  const currentCovered = String(currentBase?.coverageType || '') !== 'Uncovered';
-  const futureCovered = String(futureBase?.coverageType || '') !== 'Uncovered';
+  setTimeout(() => {
+    installTransitionReadinessPane();
+    installRailEnhancements();
+    renderTransitionReadinessPanel();
+    enhanceLeadershipPanel();
+    renderDiagnosticsPanel();
+  }, 500);
 
-  const ownershipChanged =
-    currentAM !== futureAM ||
-    currentRM !== futureRM;
-
-  if (!currentCovered && futureCovered) return 'Newly Covered';
-  if (currentCovered && !futureCovered) return 'Lost Coverage';
-  if (currentCovered && futureCovered && ownershipChanged) return 'Ownership Changed';
-  if (currentCovered && futureCovered) return 'Coverage Retained';
-  return 'Still Uncovered';
-}
-
-function renderTransitionReadinessPanel(){
-  const visible = filteredStores || [];
-  const rows = visible.map(s => ({
-    store:s,
-    type:transitionStoreClassForPanel(s)
-  }));
-
-  const gaps = visible.filter(s => String(s.coverageType || '') === 'Uncovered');
-  const ownership = rows.filter(x => x.type === 'Ownership Changed');
-  const newly = rows.filter(x => x.type === 'Newly Covered');
-  const lost = rows.filter(x => x.type === 'Lost Coverage');
-
-  const setText = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = String(val);
-  };
-
-  setText('transitionVisibleGaps', gaps.length.toLocaleString());
-  setText('transitionOwnershipChanges', ownership.length.toLocaleString());
-  setText('transitionNewCoverage', newly.length.toLocaleString());
-  setText('transitionLostRisk', lost.length.toLocaleString());
-
-  const leaderEl =
-    document.getElementById('transitionLeaders') ||
-    document.getElementById('opsTransitionLeaders');
-
-  if (leaderEl){
-    const byFutureRM = new Map();
-
-    ownership.forEach(x => {
-      const k = String(x.store.regionalManager || 'Unassigned').trim() || 'Unassigned';
-      byFutureRM.set(k, (byFutureRM.get(k) || 0) + 1);
-    });
-
-    const leaders = [...byFutureRM.entries()]
-      .sort((a,b) => b[1] - a[1])
-      .slice(0,8);
-
-    leaderEl.innerHTML = leaders.length
-      ? leaders.map(([name,count]) => `
-          <div class="ops-list-row">
-            <span>${escape(name)}</span>
-            <b>${count}</b>
-          </div>
-        `).join('')
-      : `<div class="ops-sub">No ownership-change records found in the current filtered view.</div>`;
-  }
-
-  const footer =
-    document.getElementById('transitionFooter') ||
-    document.getElementById('opsTransitionFooter');
-
-  if (footer){
-    footer.innerHTML =
-      `<b>Coverage Improved:</b> ${rows.filter(x => x.type === 'Coverage Improved').length.toLocaleString()}
-       &nbsp; <b>Net New:</b> ${(newly.length - lost.length).toLocaleString()}`;
-  }
-}
-
-const oldUpdateOpsIntelForTransition = window.updateOpsIntel;
-window.updateOpsIntel = function(){
-  if (typeof oldUpdateOpsIntelForTransition === 'function') {
-    oldUpdateOpsIntelForTransition();
-  }
-  renderTransitionReadinessPanel();
-};
-
-setTimeout(renderTransitionReadinessPanel, 400);
 })();
 </script>
 </body>
