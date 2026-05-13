@@ -9448,6 +9448,196 @@ window.updateOpsIntel = function(){
   renderTransitionReadinessPanel();
 };
 
+
+
+  /* =========================================================
+     Performance-safe View Mode Pack v4
+     - Restores Delta Mode as a visible Quick View option
+     - Adds one-click Ops / Leadership / Field View controls
+     - Keeps Delta calculations lazy: no startup run, no pan/zoom recalculation
+     - Uses existing Ops/Delta engine instead of adding new analytics loops
+  ========================================================= */
+  function installViewModePackV4(attempt){
+    attempt = attempt || 0;
+
+    const presetBar = document.getElementById('presetBar');
+    const mapwrap = document.querySelector('.mapwrap');
+
+    if ((!presetBar || !mapwrap || !document.getElementById('opsDrawer')) && attempt < 20){
+      setTimeout(() => installViewModePackV4(attempt + 1), 200);
+      return;
+    }
+
+    if (!presetBar || !mapwrap) return;
+
+    if (!document.getElementById('viewModePackV4Style')){
+      const style = document.createElement('style');
+      style.id = 'viewModePackV4Style';
+      style.textContent = `
+        #opsDeltaToggle{display:inline-flex !important; align-items:center; gap:6px;}
+        .view-mode-divider{width:1px;align-self:stretch;background:#e2e8f0;margin:0 2px;}
+        .view-mode-btn.active,
+        .rail-btn.active{
+          background:#111827 !important;
+          color:#fff !important;
+          border-color:#111827 !important;
+          box-shadow:0 4px 12px rgba(15,23,42,.18) !important;
+        }
+        .delta-status-chip{
+          display:inline-flex;
+          align-items:center;
+          gap:6px;
+          padding:3px 8px;
+          border-radius:999px;
+          border:1px solid #dbe3ea;
+          background:#fff;
+          font-size:12px;
+          font-weight:800;
+          white-space:nowrap;
+        }
+        .delta-status-chip.on{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8;}
+        .delta-pane-toolbar{
+          display:flex;
+          gap:8px;
+          flex-wrap:wrap;
+          align-items:center;
+          margin-bottom:10px;
+          padding:8px;
+          border:1px solid #e2e8f0;
+          border-radius:12px;
+          background:#f8fafc;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    if (!document.getElementById('quickDeltaBtn')){
+      const divider = document.createElement('span');
+      divider.className = 'view-mode-divider';
+      divider.setAttribute('aria-hidden','true');
+
+      const delta = document.createElement('button');
+      delta.id = 'quickDeltaBtn';
+      delta.className = 'pill compact-pill view-mode-btn';
+      delta.type = 'button';
+      delta.title = 'Highlight stores that change between current and future alignment';
+      delta.innerHTML = '<span class="dot" style="background:#2563eb"></span> Delta Mode';
+
+      const ops = document.createElement('button');
+      ops.id = 'quickOpsBtn';
+      ops.className = 'pill compact-pill view-mode-btn';
+      ops.type = 'button';
+      ops.title = 'Open Operations Intelligence without changing filters';
+      ops.textContent = 'Ops Intel';
+
+      const leadership = document.createElement('button');
+      leadership.id = 'quickLeadershipBtn';
+      leadership.className = 'pill compact-pill view-mode-btn';
+      leadership.type = 'button';
+      leadership.title = 'Open the leadership summary view';
+      leadership.textContent = 'Leadership';
+
+      const field = document.createElement('button');
+      field.id = 'quickFieldBtn';
+      field.className = 'pill compact-pill view-mode-btn';
+      field.type = 'button';
+      field.title = 'Return to normal field map view and close executive overlays';
+      field.textContent = 'Field View';
+
+      presetBar.appendChild(divider);
+      presetBar.appendChild(delta);
+      presetBar.appendChild(ops);
+      presetBar.appendChild(leadership);
+      presetBar.appendChild(field);
+    }
+
+    const deltaPane = document.getElementById('opsPaneDelta');
+    if (deltaPane && !document.getElementById('deltaPaneToolbar')){
+      const toolbar = document.createElement('div');
+      toolbar.id = 'deltaPaneToolbar';
+      toolbar.className = 'delta-pane-toolbar';
+      toolbar.innerHTML = `
+        <button id="deltaPaneToggleBtn" class="btn" type="button">Show Delta on Map</button>
+        <span id="deltaStatusChip" class="delta-status-chip">Delta Mode Off</span>
+        <span class="ops-sub">Performance-safe: markers render only when Delta Mode is opened.</span>
+      `;
+      deltaPane.insertBefore(toolbar, deltaPane.firstChild);
+    }
+
+    function drawer(){ return document.getElementById('opsDrawer'); }
+    function deltaToggle(){ return document.getElementById('opsDeltaToggle'); }
+    function deltaActive(){ return !!deltaToggle()?.classList.contains('active'); }
+
+    function openOpsPane(pane){
+      const d = drawer();
+      if (d) d.classList.add('show');
+      if (pane) document.querySelector(`.ops-tab[data-pane="${pane}"]`)?.click();
+      if (typeof updateOpsIntel === 'function') updateOpsIntel();
+      if (typeof syncCommandLayout === 'function') syncCommandLayout();
+      setTimeout(() => map.invalidateSize(), 120);
+    }
+
+    function setDeltaMode(on){
+      const t = deltaToggle();
+      if (!t) return;
+      const isOn = deltaActive();
+      if (on !== isOn) t.click();
+      if (on) openOpsPane('delta');
+      syncButtons();
+    }
+
+    function syncButtons(){
+      const on = deltaActive();
+      document.getElementById('quickDeltaBtn')?.classList.toggle('active', on);
+      document.getElementById('railDelta')?.classList.toggle('active', on);
+
+      const status = document.getElementById('deltaStatusChip');
+      if (status){
+        status.classList.toggle('on', on);
+        status.textContent = on ? 'Delta Mode On' : 'Delta Mode Off';
+      }
+
+      const paneBtn = document.getElementById('deltaPaneToggleBtn');
+      if (paneBtn) paneBtn.textContent = on ? 'Hide Delta on Map' : 'Show Delta on Map';
+    }
+
+    document.getElementById('quickDeltaBtn').onclick = () => setDeltaMode(!deltaActive());
+    document.getElementById('quickOpsBtn').onclick = () => openOpsPane('overview');
+    document.getElementById('quickLeadershipBtn').onclick = () => {
+      document.body.classList.add('clean-mode');
+      openOpsPane('leadership');
+    };
+    document.getElementById('quickFieldBtn').onclick = () => {
+      document.body.classList.remove('clean-mode');
+      drawer()?.classList.remove('show');
+      setDeltaMode(false);
+      if (typeof syncCommandLayout === 'function') syncCommandLayout();
+      setTimeout(() => map.invalidateSize(), 120);
+    };
+
+    const paneBtn = document.getElementById('deltaPaneToggleBtn');
+    if (paneBtn && !paneBtn.dataset.v4Wired){
+      paneBtn.dataset.v4Wired = '1';
+      paneBtn.onclick = () => setDeltaMode(!deltaActive());
+    }
+
+    const t = deltaToggle();
+    if (t && !t.dataset.v4Observed){
+      t.dataset.v4Observed = '1';
+      t.addEventListener('click', () => setTimeout(syncButtons, 0));
+    }
+
+    // Ensure right rail exists now that we explicitly call the shell installer.
+    if (typeof installCommandCenterShellV3 === 'function') installCommandCenterShellV3();
+
+    syncButtons();
+  }
+
+  // The shell installer existed but was not being explicitly called in some builds.
+  // Calling it here restores the right-side view rail without changing startup analytics behavior.
+  if (typeof installCommandCenterShellV3 === 'function') installCommandCenterShellV3();
+  installViewModePackV4();
+
 // Startup performance guard: do not pre-render Transition Readiness on page load.
 // It is rendered by Ops Intel / Leadership / Delta actions when needed.
 })();
