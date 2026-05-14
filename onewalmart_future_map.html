@@ -8989,7 +8989,15 @@ function deltaStoreType(currentStore, futureStore){
 }
 
 function buildDeltaSummary(){
-  ){
+  const filterKey = (filteredStores || []).map(s => storeKey(s)).filter(Boolean).join('|');
+
+  const cacheKey = JSON.stringify({
+    filterKey,
+    currentCount:(currentStores || []).length,
+    futureCount:(futureStores || []).length
+  });
+
+  if (transitionSummaryCache && transitionCacheKey === cacheKey){
     return transitionSummaryCache;
   }
 
@@ -9006,10 +9014,10 @@ function buildDeltaSummary(){
     if (k) futMap.set(k, s);
   });
 
-  const keys = [...new Set([
-    ...curMap.keys(),
-    ...futMap.keys()
-  ])];
+  const visibleKeys = new Set((filteredStores || []).map(s => storeKey(s)).filter(Boolean));
+  const keys = visibleKeys.size
+    ? [...visibleKeys]
+    : [...new Set([...curMap.keys(), ...futMap.keys()])];
 
   const out = {
     comparable:0,
@@ -9024,7 +9032,6 @@ function buildDeltaSummary(){
   };
 
   keys.forEach(k => {
-
     const current = curMap.get(k);
     const future = futMap.get(k);
 
@@ -9035,6 +9042,9 @@ function buildDeltaSummary(){
     const result = deltaStoreType(current, future);
 
     future.deltaResult = result;
+    future.deltaType = result.type;
+    future.deltaCurrentStore = current;
+    future.deltaFutureStore = future;
 
     if (result.type === 'Newly Covered'){
       out.newlyCovered.push(future);
@@ -9060,26 +9070,16 @@ function buildDeltaSummary(){
     if (result.type === 'Coverage Retained'){
       out.retained.push(future);
     }
+
+    if (result.type === 'Still Uncovered'){
+      out.unchanged.push(future);
+    }
   });
 
   transitionSummaryCache = out;
   transitionCacheKey = cacheKey;
 
   return out;
-}
-    function queueSafeRender(fn){
-
-  activeRenderToken++;
-  const token = activeRenderToken;
-
-  requestAnimationFrame(() => {
-    if (token !== activeRenderToken) return;
-
-    requestAnimationFrame(() => {
-      if (token !== activeRenderToken) return;
-      fn();
-    });
-  });
 }
 
 function renderDeltaMarkers(){
@@ -9173,9 +9173,6 @@ if (popupHtmlCache.has(cacheKey)){
   const currentStore =
     (currentStores || []).find(s => storeKey(s) === k) || futureStore;
 
-  const type =
-    futureStore.deltaType ||
-    deltaStoreType(currentStore, futureStore);
 
   const currentNearest = deltaNearestHub(currentStore);
   const futureNearest = deltaNearestHub(futureStore);
@@ -9839,6 +9836,8 @@ function renderTransitionReadinessPanel(){
         <button class="btn delta-filter-btn" type="button" data-delta-filter="improved">Improved</button>
         <span class="ops-sub">Performance-safe: markers render only when Delta Mode is opened.</span>
       `;
+      deltaPane.insertBefore(toolbar, deltaPane.firstChild);
+    }
 
     function drawer(){ return document.getElementById('opsDrawer'); }
     function deltaToggle(){ return document.getElementById('opsDeltaToggle'); }
