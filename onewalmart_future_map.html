@@ -4,8 +4,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>One Walmart Command Center Map</title>
-<!-- Startup performance enhancement pass v3: staged loading, lazy Ops analytics, debounced refreshes, no pan/zoom full recalculation, cancellable chunked marker rendering, canvas-backed store markers, debounced search, and leak-safe side-panel events. -->
+<title>One Walmart RTS Coverage Command Center</title>
+<!-- Leadership cleanup pass: RTS coverage, gaps, active RTS, manager alignment, dedicated team visibility, and performance-safe rendering. Delta/Transition ownership tools de-emphasized. -->
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
@@ -1222,6 +1222,22 @@ select[multiple]{
   }
 }
 
+
+
+/* ===== Leadership simplification cleanup pass ===== */
+.store-popup-delta.simplified{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8;}
+.leadership-popup .coverage-card{margin-top:12px;background:#fff;border-color:#dbeafe;}
+.leadership-popup .owner-grid{grid-template-columns:1fr 1fr;}
+.leadership-popup .dedicated-grid{margin-top:10px;}
+.leadership-popup .owner-card{background:#fff;}
+.leadership-popup .owner-row{padding:7px 0;border-top:1px solid #e5e7eb;}
+.leadership-popup .owner-row:first-of-type{border-top:0;}
+.leadership-popup .simplified-note{border:1px solid #e5e7eb;border-radius:12px;background:#f8fafc;padding:10px;}
+#railDelta,#quickDeltaBtn,#opsDeltaToggle,.ops-tab[data-pane="delta"]{display:none !important;}
+#opsPaneDelta{display:none !important;}
+.delta-legend,.delta-pane-toolbar,.transition-detail-panel,.transition-toggle-btn{display:none !important;}
+@media(max-width:720px){.leadership-popup .owner-grid{grid-template-columns:1fr;}}
+
 </style>
 </head>
 <body>
@@ -1414,23 +1430,23 @@ select[multiple]{
     <div class="exec-value" id="execStores">0</div>
   </div>
   <div class="exec-card">
-    <div class="exec-label">Ownership Changes</div>
-    <div class="exec-value" id="execOwnership">0</div>
+    <div class="exec-label">RTS Coverage</div>
+    <div class="exec-value" id="execCoverage">0%</div>
   </div>
   <div class="exec-card">
-    <div class="exec-label">New Coverage</div>
-    <div class="exec-value" id="execNew">0</div>
+    <div class="exec-label">Gap Stores</div>
+    <div class="exec-value" id="execGaps">0</div>
   </div>
   <div class="exec-card">
-    <div class="exec-label">Gap Risk</div>
-    <div class="exec-value" id="execRisk">0</div>
+    <div class="exec-label">Active RTS</div>
+    <div class="exec-value" id="execActiveRts">0</div>
   </div>
 </div>
 
 <div class="summary" id="summary">
-<span class="chip"><span class="dot" style="background:var(--pa)"></span>One Walmart Coverage: <b id="k_pa">0</b></span>
-<span class="chip"><span class="dot" style="background:var(--p)"></span>Active RTS Coverage: <b id="k_p">0</b></span>
-<span class="chip"><span class="dot" style="background:var(--a)"></span>Legacy Coverage: <b id="k_a">0</b></span>
+<span class="chip"><span class="dot" style="background:var(--pa)"></span>RTS Coverage: <b id="k_pa">0</b></span>
+<span class="chip"><span class="dot" style="background:var(--p)"></span>Covered Stores: <b id="k_p">0</b></span>
+<span class="chip"><span class="dot" style="background:var(--a)"></span>Reference Coverage: <b id="k_a">0</b></span>
 <span class="chip"><span class="dot" style="background:var(--u)"></span>Current Gap / Uncovered: <b id="k_u">0</b></span>
 <span class="chip">Total: <b id="k_total">0</b></span>
 <span class="chip">RTS Hubs — <b id="k_confirmed">0</b> active / <b id="k_pending">0</b> future/reference</span>
@@ -2464,28 +2480,21 @@ function buildDeltaSummary(){
 function refreshExecutiveRibbon(){
   if (!document.getElementById('executiveRibbon')) return;
 
-  let d = null;
-
-  try {
-    d = buildDeltaSummary();
-  } catch(e) {
-    d = {
-      ownerChanged:[],
-      newlyCovered:[],
-      lostCoverage:[],
-      coverageRegressed:[]
-    };
-  }
+  const rows = Array.isArray(filteredStores) ? filteredStores : [];
+  const total = rows.length;
+  const covered = rows.filter(s => String(s?.coverageType || '') !== 'Uncovered').length;
+  const gaps = total - covered;
+  const pctVal = total ? Math.round((covered / total) * 1000) / 10 : 0;
 
   const set = (idv,val) => {
     const el = document.getElementById(idv);
-    if (el) el.textContent = Number(val || 0).toLocaleString();
+    if (el) el.textContent = val;
   };
 
-  set('execStores', (filteredStores || []).length);
-  set('execOwnership', d.ownerChanged?.length || 0);
-  set('execNew', d.newlyCovered?.length || 0);
-  set('execRisk', (d.lostCoverage?.length || 0) + (d.coverageRegressed?.length || 0));
+  set('execStores', total.toLocaleString());
+  set('execCoverage', `${pctVal}%`);
+  set('execGaps', gaps.toLocaleString());
+  set('execActiveRts', String((premiumConfirmed?.length || 0) + (acostaHubs?.length || 0)));
 }
   function updateEnhancedUi(){
     const rmC = selectedCount(rmFilter);
@@ -4365,7 +4374,7 @@ return `
         <div><b>Covered Combined:</b> ${combinedCovered} (${pct(combinedCovered)}%)</div>
         <div><b>Current Gap:</b> ${uncovered} (${pct(uncovered)}%)</div>
 
-        <div><b>Active RTS Coverage:</b> ${premiumCovered} (${pct(premiumCovered)}%)</div>
+        <div><b>Covered Stores:</b> ${premiumCovered} (${pct(premiumCovered)}%)</div>
         <div><b>Legacy Legacy:</b> ${acostaCovered} (${pct(acostaCovered)}%)</div>
         <div><b>Shared P+A Coverage:</b> ${paCount} (${pct(paCount)}%)</div>
       </div>
@@ -7678,20 +7687,8 @@ function storePopupHTML(s){
   }[m]));
 
   const t = transitionCurrentFutureForStore(s);
-  const k = t.key;
-  const currentBase = t.currentBase;
-  const futureBase = t.futureBase;
-
-  const managerText = (x, field) => {
-    const v = x?.[field];
-    if (Array.isArray(v)) return v.filter(Boolean).join(' | ');
-    return String(v || '').trim();
-  };
-
-  const currentAM = managerText(currentBase, 'areaManager') || 'None';
-  const futureAM = managerText(futureBase, 'areaManager') || 'None';
-  const currentRM = managerText(currentBase, 'regionalManager') || 'None';
-  const futureRM = managerText(futureBase, 'regionalManager') || 'None';
+  const currentBase = t.currentBase || s;
+  const futureBase = t.futureBase || s;
 
   const addressLine = x => {
     const a = String(x?.address || '').trim();
@@ -7700,92 +7697,110 @@ function storePopupHTML(s){
     return a ? `${a}, ${c}, ${st}` : `${c}, ${st}`;
   };
 
+  const firstClean = (...vals) => vals.map(v => String(v || '').trim()).find(Boolean) || '';
+  const cleanTeamLabel = p => {
+    const typ = getTeamType(p);
+    if (typ === 'unilever') return 'Unilever';
+    if (typ === 'pg') return 'P&G';
+    if (typ === 'tyson') return 'Tyson';
+    if (typ === 'premium') return 'Premium PSP';
+    if (typ === 'acosta') return 'Acosta PSP';
+    if (typ === 'crossmark') return 'Crossmark PSP';
+    if (typ === 'onewalmart') return 'One Walmart';
+    return firstClean(p?.teamName, p?.team, p?.managementGroupName, p?.ManagementGroupName, p?.legacyBrand, p?.LegacyBrand, 'Team');
+  };
+
+  const pathRows = (store, mode, dedicatedOnly=false) => {
+    const paths = Array.isArray(store?.managerPaths) ? store.managerPaths : [];
+    let selected = paths.filter(p => dedicatedOnly ? isDedicatedTeamPath(p) : !isDedicatedTeamPath(p));
+
+    if (!dedicatedOnly) {
+      if (mode === 'future') {
+        selected = selected.filter(p => getTeamType(p) === 'onewalmart' || ['premium','acosta','crossmark'].includes(currentTeamType(p)));
+      } else {
+        selected = selected.filter(p => ['premium','acosta','crossmark'].includes(currentTeamType(p)));
+      }
+    } else {
+      selected = selected.filter(p => dedicatedTeamVisible(cleanTeamLabel(p)));
+    }
+
+    const seen = new Set();
+    return selected.map(p => {
+      const team = dedicatedOnly ? cleanTeamLabel(p) : (mode === 'future' ? 'One Walmart' : cleanTeamLabel(p));
+      const am = firstClean(p?.areaManager, p?.AreaManager, p?.am, p?.AM, p?.['Mgr 1 Name']);
+      const rm = firstClean(p?.regionalManager, p?.RegionalManager, p?.rm, p?.RM, p?.['Mgr 2 Name']);
+      const sig = [team, am, rm].join('|');
+      if (seen.has(sig)) return null;
+      seen.add(sig);
+      return { team, am, rm };
+    }).filter(Boolean);
+  };
+
+  const fallbackOwner = (store, label) => {
+    const am = firstClean(store?.areaManager, store?.AreaManager, store?.am, store?.AM);
+    const rm = firstClean(store?.regionalManager, store?.RegionalManager, store?.rm, store?.RM);
+    return (am || rm) ? [{ team: label, am, rm }] : [];
+  };
+
+  const renderOwnerBlock = (title, rows, emptyText) => `
+    <div class="store-popup-card owner-card">
+      <div class="store-popup-card-title">${esc(title)}</div>
+      ${rows.length ? rows.map(r => `
+        <div class="owner-row">
+          <div><b>${esc(r.team || 'Team')}</b></div>
+          <div><b>AM:</b> ${esc(r.am || '—')}</div>
+          <div><b>RM:</b> ${esc(r.rm || '—')}</div>
+        </div>
+      `).join('') : `<div class="store-popup-sub">${esc(emptyText)}</div>`}
+    </div>`;
+
+  let currentCore = pathRows(currentBase, 'current', false);
+  if (!currentCore.length) currentCore = fallbackOwner(currentBase, 'Core PSP');
+  let futureCore = pathRows(futureBase, 'future', false);
+  if (!futureCore.length) futureCore = fallbackOwner(futureBase, 'One Walmart');
+  const currentDedicated = pathRows(currentBase, 'current', true);
+  const futureDedicated = pathRows(futureBase, 'future', true);
+
   const currentCovered = t.current.covered;
   const futureCovered = t.future.covered;
-
   const currentMiles = t.current.miles;
   const futureMiles = t.future.miles;
-
   const currentRTS = t.current.rts;
   const futureRTS = t.future.rts;
-
-  const ownershipResult = deltaOwnerCompare(currentBase, futureBase);
-  const ownershipChanged = ownershipResult.changed;
-
-  const distanceDelta =
-    Number.isFinite(currentMiles) && Number.isFinite(futureMiles)
-      ? currentMiles - futureMiles
-      : null;
-
-  let deltaType = 'Coverage Retained';
-
-  if (!currentCovered && futureCovered) {
-    deltaType = 'Reassigned';
-  } else if (currentCovered && !futureCovered) {
-    deltaType = 'Lost Coverage';
-  } else if (currentCovered && futureCovered && Number.isFinite(distanceDelta) && distanceDelta >= 15) {
-    deltaType = 'Coverage Improved';
-  } else if (currentCovered && futureCovered && Number.isFinite(distanceDelta) && distanceDelta <= -15) {
-    deltaType = 'Coverage Regressed';
-  } else if (currentCovered && futureCovered && ownershipChanged) {
-    deltaType = 'Alignment Changed';
-  } else if (!currentCovered && !futureCovered) {
-    deltaType = 'Still Uncovered';
-  }
-
-  const transitionId = `transition_${k || Math.random().toString(36).slice(2)}`;
+  const viewLabel = activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart';
+  const activeCoverage = activeAlignmentMode === 'current' ? t.current : t.future;
 
   return `
-    <div class="store-popup-shell">
+    <div class="store-popup-shell leadership-popup">
       <div class="store-popup-header">
         <div>
           <div class="store-popup-title">Store ${esc(s?.storeNumberStr || s?.storeNumber || '')}</div>
           <div class="store-popup-sub">${esc(s?.storeName || 'Walmart')}</div>
           <div class="store-popup-sub">${esc(addressLine(s))}</div>
         </div>
-        <div class="store-popup-delta">${esc(deltaType)}</div>
+        <div class="store-popup-delta simplified">${esc(viewLabel)}</div>
       </div>
 
-      <div class="store-popup-grid">
-        <div class="store-popup-card">
-          <div class="store-popup-card-title">Current State</div>
-          <div><b>Covered:</b> ${currentCovered ? 'Covered' : 'Uncovered'}</div>
-          <div><b>RTS:</b> ${esc(currentRTS)}</div>
-          <div><b>Distance:</b> ${Number.isFinite(currentMiles) ? currentMiles.toFixed(1) + ' mi' : '—'}</div>
-        </div>
-
-        <div class="store-popup-card">
-          <div class="store-popup-card-title">Future State</div>
-          <div><b>Covered:</b> ${futureCovered ? 'Covered' : 'Uncovered'}</div>
-          <div><b>RTS:</b> ${esc(futureRTS)}</div>
-          <div><b>Distance:</b> ${Number.isFinite(futureMiles) ? futureMiles.toFixed(1) + ' mi' : '—'}</div>
-        </div>
+      <div class="store-popup-card coverage-card">
+        <div class="store-popup-card-title">RTS Coverage</div>
+        <div><b>Status:</b> ${activeCoverage.covered ? 'Covered' : 'Gap / Uncovered'}</div>
+        <div><b>RTS:</b> ${esc(activeCoverage.rts || '—')}</div>
+        <div><b>Distance:</b> ${Number.isFinite(activeCoverage.miles) ? activeCoverage.miles.toFixed(1) + ' mi' : '—'}</div>
       </div>
 
-      <div class="store-popup-summary">
-        <div><b>Distance Change:</b> ${Number.isFinite(distanceDelta) ? distanceDelta.toFixed(1) + ' mi' : '—'}</div>
-        <div><b>Alignment Changed:</b> ${ownershipChanged ? 'Yes' : 'No'}</div>
+      <div class="store-popup-grid owner-grid">
+        ${renderOwnerBlock('Current Alignment — Core PSP Owner', currentCore, 'No current core PSP owner found')}
+        ${renderOwnerBlock('Future Alignment — One Walmart Owner', futureCore, 'No future One Walmart owner found')}
       </div>
 
-      <button class="transition-toggle-btn"
-        onclick="const el=document.getElementById('${transitionId}'); if(el){el.style.display = el.style.display === 'none' ? 'block' : 'none';}">
-        Transition Handoff Details
-      </button>
+      <div class="store-popup-grid owner-grid dedicated-grid">
+        ${renderOwnerBlock('Current Dedicated Team Owner(s)', currentDedicated, 'No dedicated team owner listed')}
+        ${renderOwnerBlock('Future Dedicated Team Owner(s)', futureDedicated, 'No dedicated team owner listed')}
+      </div>
 
-      <div id="${transitionId}" class="transition-detail-panel" style="display:none">
-        <div class="transition-detail-grid">
-          <div>
-            <div class="transition-detail-title">Current Ownership</div>
-            <div><b>AM:</b> ${esc(currentAM)}</div>
-            <div><b>RM:</b> ${esc(currentRM)}</div>
-          </div>
-          <div>
-            <div class="transition-detail-title">Future Ownership</div>
-            <div><b>AM:</b> ${esc(futureAM)}</div>
-            <div><b>RM:</b> ${esc(futureRM)}</div>
-          </div>
-        </div>
-        ${ownershipChanged ? `<div class="transition-handoff-note">Recommended handoff: Current AM/RM → Future AM/RM coordination recommended during transition.</div>` : ''}
+      <div class="store-popup-summary simplified-note">
+        <div><b>Alignment note:</b> Premium + Acosta + Crossmark PSP roll into One Walmart. Dedicated teams — Unilever, P&amp;G, and Tyson — remain visible separately where applicable.</div>
+        <div class="store-popup-sub"><b>Reference:</b> Current RTS ${currentCovered ? 'covered' : 'gap'}${Number.isFinite(currentMiles) ? ` (${currentMiles.toFixed(1)} mi)` : ''}; Future RTS ${futureCovered ? 'covered' : 'gap'}${Number.isFinite(futureMiles) ? ` (${futureMiles.toFixed(1)} mi)` : ''}.</div>
       </div>
     </div>
   `;
@@ -9000,12 +9015,11 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
     ribbon.id = 'opsExecRibbon';
     ribbon.className = 'ops-exec-ribbon';
     ribbon.innerHTML = `
-      <div class="ops-exec-card"><div class="lbl">Current Coverage</div><div class="val" id="opsExecCurrent">—</div></div>
-      <div class="ops-exec-card"><div class="lbl">Future Coverage</div><div class="val" id="opsExecFuture">—</div></div>
+      <div class="ops-exec-card"><div class="lbl">RTS Coverage</div><div class="val" id="opsExecCurrent">—</div></div>
       <div class="ops-exec-card"><div class="lbl">Gap Stores</div><div class="val" id="opsExecGaps">—</div></div>
       <div class="ops-exec-card"><div class="lbl">Active RTS</div><div class="val" id="opsExecActive">—</div></div>
       <div class="ops-exec-card"><div class="lbl">Highest Risk</div><div class="val" id="opsExecRisk">—</div></div>
-      <button id="opsDeltaToggle" class="ops-exec-action" type="button" title="Highlight what changes between current and future alignment">Alignment Mode</button>
+      <button id="opsDeltaToggle" class="ops-exec-action" type="button" title="Delta tooling is disabled in the leadership cleanup view">Alignment Mode</button>
     `;
 
     const toggle = document.createElement('button');
@@ -9031,7 +9045,6 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
         <button class="ops-tab active" data-pane="overview" type="button">Overview</button>
         <button class="ops-tab" data-pane="risk" type="button">Risk</button>
         <button class="ops-tab" data-pane="workload" type="button">RTS Load</button>
-        <button class="ops-tab" data-pane="delta" type="button">Delta</button>
         <button class="ops-tab" data-pane="leadership" type="button">Leadership</button>
       </div>
       <div class="ops-body">
@@ -9679,18 +9692,9 @@ if (popupHtmlCache.has(cacheKey)){
       const riskRows = coverageRisk(rows);
       const worst = riskRows[0];
 
-      const currentTotals = transitionCoverageTotals(currentStores && currentStores.length ? currentStores : allStores);
-      const futureTotals = transitionCoverageTotals(futureStores && futureStores.length ? futureStores : allStores);
-      const currentTotal = currentTotals.total;
-      const futureTotal = futureTotals.total;
-      const currentCovered = currentTotals.covered;
-      const futureCovered = futureTotals.covered;
-      const currentPct = currentTotals.pct;
-      const futurePct = futureTotals.pct;
-      const d = buildDeltaSummary();
+      const currentPct = pct(coveredCount, rows.length);
 
-      id('opsExecCurrent').textContent = `${currentPct || pct(coveredCount, rows.length)}%`;
-      id('opsExecFuture').textContent = `${futurePct || pct(coveredCount, rows.length)}%`;
+      id('opsExecCurrent').textContent = `${currentPct}%`;
       id('opsExecGaps').textContent = fmt(gapCount);
       id('opsExecActive').textContent = fmt(hubs.length);
       id('opsExecRisk').textContent = worst ? String(worst.manager).split(',')[0].slice(0,18) : '—';
@@ -9730,25 +9734,16 @@ if (popupHtmlCache.has(cacheKey)){
         ${health.map(r => `<tr><td><b>${safe(r.region)}</b><div class="ops-sub">${fmt(r.gaps)} gaps / ${fmt(r.total)} stores</div></td><td style="text-align:right">${r.score}</td><td style="text-align:right">${r.coverage}%</td><td class="ops-risk-${r.status.toLowerCase()}">${r.status === 'Med' ? 'Watch' : r.status}</td></tr>`).join('')}
         </tbody></table>` : `<div class="ops-sub">No health score rows available.</div>`;
 
-      drawer.querySelector('#opsDeltaSummary').innerHTML = `
-        <div class="ops-kpis">
-          <div class="ops-card"><div class="ops-label">Comparable Stores</div><div class="ops-value">${fmt(d.comparable)}</div></div>
-          <div class="ops-card"><div class="ops-label">Reassigned</div><div class="ops-value">${fmt(d.newlyCovered.length)}</div></div>
-          <div class="ops-card"><div class="ops-label">Newly Uncovered</div><div class="ops-value">${fmt(d.newlyGap.length)}</div></div>
-          <div class="ops-card"><div class="ops-label">Ownership Changes</div><div class="ops-value">${fmt(d.ownerChanged.length)}</div></div>
-        </div>
-        <div class="ops-sub" style="margin-top:8px">Use <b>Alignment Mode</b> in the executive ribbon to highlight changed stores on the map.</div>
-      `;
+      const deltaPane = drawer.querySelector('#opsDeltaSummary');
+      if (deltaPane) deltaPane.innerHTML = `<div class="ops-sub">Delta/Transition metrics are intentionally hidden in this leadership view. Use RTS coverage, gaps, active RTS, and manager alignment as the operating focus.</div>`;
 
-      const lift = Math.round((futurePct - currentPct) * 10) / 10;
       drawer.querySelector('#opsLeadershipSnapshot').innerHTML = `
         <div class="ops-leadership-box">
           <b>One Walmart RTS Coverage Snapshot</b><br>
-          Current coverage: <b>${currentPct}%</b><br>
-          Future coverage: <b>${futurePct}%</b><br>
-          Coverage delta: <b>${lift >= 0 ? '+' : ''}${lift} pts</b><br>
+          Active alignment view: <b>${activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart'}</b><br>
+          RTS coverage: <b>${currentPct}%</b><br>
           Active RTS hubs: <b>${fmt(hubs.length)}</b><br>
-          Current visible gaps: <b>${fmt(gapCount)}</b><br>
+          Visible gap stores: <b>${fmt(gapCount)}</b><br>
           Highest risk area: <b>${safe(worst?.manager || 'None identified')}</b>
         </div>
       `;
@@ -9756,12 +9751,11 @@ if (popupHtmlCache.has(cacheKey)){
         <ul style="margin:0;padding-left:18px;line-height:1.45">
           <li>The map is operating in <b>${activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart'}</b> mode.</li>
           <li>The highest visible coverage risk is <b>${safe(worst?.manager || 'not currently flagged')}</b>.</li>
-          <li>Delta mode identifies stores with changed ownership or coverage status after the transition.</li>
+          <li>Dedicated teams — Unilever, P&amp;G, and Tyson — remain visible separately from the One Walmart PSP alignment.</li>
           <li>RTS workload ranking should be used to identify overloaded hubs and potential split opportunities.</li>
         </ul>
       `;
 
-      renderDeltaMarkers();
       syncCommandLayout();
     }
 
@@ -9803,12 +9797,9 @@ if (popupHtmlCache.has(cacheKey)){
       });
     });
 
-    id('opsDeltaToggle').onclick = ()=>{
-      deltaModeOn = !deltaModeOn;
-      id('opsDeltaToggle').classList.toggle('active', deltaModeOn);
-      renderDeltaMarkers();
-      if (deltaModeOn && !drawer.classList.contains('show')) drawer.classList.add('show');
-      drawer.querySelector('.ops-tab[data-pane="delta"]')?.click();
+    if (id('opsDeltaToggle')) id('opsDeltaToggle').onclick = ()=>{
+      deltaModeOn = false;
+      deltaLayer.clearLayers();
       syncCommandLayout();
     };
 
@@ -9875,7 +9866,6 @@ if (popupHtmlCache.has(cacheKey)){
       rail.className = 'map-action-rail';
       rail.innerHTML = `
         <button id="railOpsIntel" class="rail-btn primary" type="button">Ops Intel</button>
-        <button id="railDelta" class="rail-btn" type="button">Delta</button>
         <button id="railFit" class="rail-btn" type="button">Fit</button>
         <button id="railLeadership" class="rail-btn" type="button">Leadership</button>
         <button id="railField" class="rail-btn" type="button">Field View</button>
