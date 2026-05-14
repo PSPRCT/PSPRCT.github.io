@@ -1140,6 +1140,88 @@ select[multiple]{
   #floatingKpis{ display:none !important; }
 }
 
+/* ===== Transition Intelligence v4 polish ===== */
+#opsIntelDrawer,
+#opsDrawer{
+  width:420px;
+  max-width:38vw;
+  overflow:hidden;
+}
+
+.ops-pane{
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+
+.delta-pane-toolbar{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+}
+
+.delta-filter-btn.active{
+  background:#111827;
+  color:#fff;
+  border-color:#111827;
+}
+
+.exec-ribbon{
+  display:flex;
+  gap:8px;
+  padding:8px 10px;
+  background:#fff;
+  border-bottom:1px solid #e5e7eb;
+  overflow:auto;
+  scrollbar-width:none;
+}
+
+.exec-ribbon::-webkit-scrollbar{
+  display:none;
+}
+
+.exec-card{
+  background:#fff;
+  border:1px solid #dbe3ea;
+  border-radius:12px;
+  padding:7px 11px;
+  min-width:118px;
+  box-shadow:0 2px 8px rgba(15,23,42,.04);
+}
+
+.exec-label{
+  font-size:10px;
+  color:#64748b;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  font-weight:900;
+}
+
+.exec-value{
+  font-size:20px;
+  font-weight:950;
+  color:#0f172a;
+  line-height:1.1;
+}
+
+@media (max-width:1450px){
+  #opsIntelDrawer,
+  #opsDrawer{
+    width:360px;
+    max-width:42vw;
+  }
+
+  .ops-transition-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+@media (max-width:900px){
+  .exec-ribbon{
+    display:none;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1325,6 +1407,25 @@ select[multiple]{
 </div>
 <div id="dataStatus" style="padding:6px 10px;color:var(--fg);font-size:12px"></div>
 <div id="launchStatus" class="launch-status"><span class="launch-dot"></span><span class="launch-step">Starting map</span><span class="launch-sub">Base map first; analytics load only when opened.</span></div>
+
+<div id="executiveRibbon" class="exec-ribbon">
+  <div class="exec-card">
+    <div class="exec-label">Stores In View</div>
+    <div class="exec-value" id="execStores">0</div>
+  </div>
+  <div class="exec-card">
+    <div class="exec-label">Ownership Changes</div>
+    <div class="exec-value" id="execOwnership">0</div>
+  </div>
+  <div class="exec-card">
+    <div class="exec-label">New Coverage</div>
+    <div class="exec-value" id="execNew">0</div>
+  </div>
+  <div class="exec-card">
+    <div class="exec-label">Coverage Risk</div>
+    <div class="exec-value" id="execRisk">0</div>
+  </div>
+</div>
 
 <div class="summary" id="summary">
 <span class="chip"><span class="dot" style="background:var(--pa)"></span>One Walmart Coverage: <b id="k_pa">0</b></span>
@@ -1962,6 +2063,7 @@ syncLegends();
 // TRANSITION CACHE + RENDER STATE
 // =====================================================
 
+let activeDeltaFilter = 'all';
 let transitionSummaryCache = null;
 let transitionCacheKey = '';
 let deltaMarkersRendered = false;
@@ -2084,7 +2186,32 @@ const DELTA_MIN_ZOOM = 5;
     const chip = id(chipId);
     if (chip) chip.classList.toggle('filter-count-hot', count > 0);
   }
+function refreshExecutiveRibbon(){
+  if (!document.getElementById('executiveRibbon')) return;
 
+  let d = null;
+
+  try {
+    d = buildDeltaSummary();
+  } catch(e) {
+    d = {
+      ownerChanged:[],
+      newlyCovered:[],
+      lostCoverage:[],
+      coverageRegressed:[]
+    };
+  }
+
+  const set = (idv,val) => {
+    const el = document.getElementById(idv);
+    if (el) el.textContent = Number(val || 0).toLocaleString();
+  };
+
+  set('execStores', (filteredStores || []).length);
+  set('execOwnership', d.ownerChanged?.length || 0);
+  set('execNew', d.newlyCovered?.length || 0);
+  set('execRisk', (d.lostCoverage?.length || 0) + (d.coverageRegressed?.length || 0));
+}
   function updateEnhancedUi(){
     const rmC = selectedCount(rmFilter);
     const amC = selectedCount(amFilter);
@@ -2104,7 +2231,11 @@ const DELTA_MIN_ZOOM = 5;
     if (id('floatVisible')) id('floatVisible').textContent = visible.toLocaleString();
     if (id('floatGaps')) id('floatGaps').textContent = gaps.toLocaleString();
     if (id('floatRts')) id('floatRts').textContent = String((premiumConfirmed?.length || 0) + (acostaHubs?.length || 0));
-    if (id('floatMode')) id('floatMode').textContent = activeAlignmentMode === 'current' ? 'Current' : 'Future';
+      if (id('floatMode')) id('floatMode').textContent = activeAlignmentMode === 'current' ? 'Current' : 'Future';
+
+    if (typeof refreshExecutiveRibbon === 'function') {
+      requestAnimationFrame(refreshExecutiveRibbon);
+    }
   }
 
   window.updateEnhancedUi = updateEnhancedUi;
@@ -2333,9 +2464,16 @@ spRowsEl.addEventListener('click', (e)=>{
   markers.on('clusterclick', (e)=>{ map.fitBounds(e.layer.getBounds()); });
   map.on('moveend zoomend', ()=>{
     updateInViewCount();
-    // Startup/performance guard: pan/zoom should never trigger full analytics or immediate heavy layer rebuilds.
-    // Heatmap refresh is deferred and only runs when the heatmap layer is actually enabled.
+
     scheduleHeatRefresh(300);
+
+    if (typeof deltaModeOn !== 'undefined' && deltaModeOn && typeof renderDeltaMarkers === 'function') {
+      clearTimeout(window.__deltaMoveTimer);
+      window.__deltaMoveTimer = setTimeout(() => {
+        renderDeltaMarkers();
+      }, 180);
+    }
+
     saveState();
   });
 
@@ -8975,7 +9113,16 @@ function renderDeltaMarkers(){
 
     const bounds = map.getBounds();
 
-    const visibleRows = rows
+        const filteredDeltaRows = rows.filter(x => {
+      if (activeDeltaFilter === 'all') return true;
+      if (activeDeltaFilter === 'owner') return x.title === 'Ownership Changed';
+      if (activeDeltaFilter === 'new') return x.title === 'Newly Covered';
+      if (activeDeltaFilter === 'lost') return x.title === 'Lost Coverage' || x.title === 'Coverage Regressed';
+      if (activeDeltaFilter === 'improved') return x.title === 'Improved Coverage';
+      return true;
+    });
+
+    const visibleRows = filteredDeltaRows
       .filter(x => bounds.contains([x.s.lat, x.s.lng]))
       .slice(0, DELTA_RENDER_LIMIT);
 
@@ -9049,10 +9196,23 @@ if (popupHtmlCache.has(cacheKey)){
     deltaNormalizeName(currentRM) !== deltaNormalizeName(futureRM) ||
     deltaNormalizeName(currentAM) !== deltaNormalizeName(futureAM);
 
-      popupHtmlCache.set(cacheKey, html);
-return html;
+  const result =
+    futureStore.deltaResult ||
+    deltaStoreType(currentStore, futureStore);
 
-  return `
+  const type = result.type || result;
+
+  const flags = [];
+
+  if (result.ownershipChanged) flags.push('Ownership Changed');
+  if (type === 'Improved Coverage') flags.push('Improved');
+  if (type === 'Coverage Regressed') flags.push('Regressed');
+  if (type === 'Newly Covered') flags.push('New Coverage');
+  if (type === 'Lost Coverage') flags.push('Lost Coverage');
+
+  const deltaLabel = flags.length ? flags.join(' • ') : type;
+
+  const html = `
     <div style="min-width:320px;max-width:430px">
       <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
         <div>
@@ -9061,7 +9221,7 @@ return html;
           <div style="font-size:13px;color:var(--muted)">${safe(futureStore.city || '')}, ${safe(futureStore.state || '')}</div>
         </div>
         <div style="font-weight:900;border-radius:999px;padding:6px 10px;background:#f8fafc;border:1px solid var(--border)">
-          ${safe(type)}
+                 ${safe(deltaLabel)}
         </div>
       </div>
 
@@ -9095,6 +9255,9 @@ return html;
       </div>
     </div>
   `;
+
+  popupHtmlCache.set(cacheKey, html);
+  return html;
 }
 
 
@@ -9477,8 +9640,6 @@ function renderTransitionReadinessPane(){
   }
 }
 function transitionStoreClassForPanel(s){
-  // Use the same shared classification as Delta markers and store popups.
-  // This keeps Transition/Handoff math from drifting away from popup logic.
   try {
     const t = transitionCurrentFutureForStore(s);
     if (typeof deltaStoreType === 'function') {
@@ -9489,21 +9650,25 @@ function transitionStoreClassForPanel(s){
   }
 
   const currentCovered = String(s?.coverageType || '') !== 'Uncovered';
-  return currentCovered ? 'Coverage Retained' : 'No Change';
-}
 
+  return {
+    type: currentCovered ? 'Coverage Retained' : 'Still Uncovered',
+    ownershipChanged:false
+  };
+}
 
 function renderTransitionReadinessPanel(){
   const visible = filteredStores || [];
   const rows = visible.map(s => ({
     store:s,
-    type:transitionStoreClassForPanel(s)
+    result:transitionStoreClassForPanel(s)
   }));
 
-  const gaps = rows.filter(x => x.type === 'No Change' || x.type === 'Still Uncovered');
-  const ownership = rows.filter(x => x.type === 'Ownership Changed');
-  const newly = rows.filter(x => x.type === 'Newly Covered');
-  const lost = rows.filter(x => x.type === 'Lost Coverage' || x.type === 'Coverage Regressed');
+  const gaps = rows.filter(x => x.result.type === 'Still Uncovered' || x.result.type === 'No Change');
+  const ownership = rows.filter(x => x.result.ownershipChanged);
+  const newly = rows.filter(x => x.result.type === 'Newly Covered');
+  const lost = rows.filter(x => x.result.type === 'Lost Coverage' || x.result.type === 'Coverage Regressed');
+  const improved = rows.filter(x => x.result.type === 'Improved Coverage');
 
   const setText = (id, val) => {
     const el = document.getElementById(id);
@@ -9547,19 +9712,14 @@ function renderTransitionReadinessPanel(){
 
   if (footer){
     footer.innerHTML =
-      `<b>Improved Coverage:</b> ${rows.filter(x => x.type === 'Improved Coverage').length.toLocaleString()}
+      `<b>Improved Coverage:</b> ${improved.length.toLocaleString()}
+       &nbsp; <b>Ownership Changes:</b> ${ownership.length.toLocaleString()}
        &nbsp; <b>Net New:</b> ${(newly.length - lost.length).toLocaleString()}
-       <br><span class="ops-sub">Uses the same active RTS coverage + nearest RTS rules as store popups and Delta Mode.</span>`;
+       <br><span class="ops-sub">Ownership changes are now counted separately from coverage improvement/regression.</span>`;
   }
-}
 
-const oldUpdateOpsIntelForTransition = window.updateOpsIntel;
-window.updateOpsIntel = function(){
-  if (typeof oldUpdateOpsIntelForTransition === 'function') {
-    oldUpdateOpsIntelForTransition();
-  }
-  renderTransitionReadinessPanel();
-};
+  refreshExecutiveRibbon?.();
+}
 
 
 
@@ -9672,10 +9832,13 @@ window.updateOpsIntel = function(){
       toolbar.innerHTML = `
         <button id="deltaPaneToggleBtn" class="btn" type="button">Show Delta on Map</button>
         <span id="deltaStatusChip" class="delta-status-chip">Delta Mode Off</span>
+        <button class="btn delta-filter-btn" type="button" data-delta-filter="all">All</button>
+        <button class="btn delta-filter-btn" type="button" data-delta-filter="owner">Ownership</button>
+        <button class="btn delta-filter-btn" type="button" data-delta-filter="new">New</button>
+        <button class="btn delta-filter-btn" type="button" data-delta-filter="lost">Lost</button>
+        <button class="btn delta-filter-btn" type="button" data-delta-filter="improved">Improved</button>
         <span class="ops-sub">Performance-safe: markers render only when Delta Mode is opened.</span>
       `;
-      deltaPane.insertBefore(toolbar, deltaPane.firstChild);
-    }
 
     function drawer(){ return document.getElementById('opsDrawer'); }
     function deltaToggle(){ return document.getElementById('opsDeltaToggle'); }
@@ -9709,6 +9872,28 @@ window.updateOpsIntel = function(){
         status.classList.toggle('on', on);
         status.textContent = on ? 'Delta Mode On' : 'Delta Mode Off';
       }
+
+          document.querySelectorAll('.delta-filter-btn').forEach(btn => {
+      if (btn.dataset.v4FilterWired) return;
+      btn.dataset.v4FilterWired = '1';
+
+      btn.onclick = () => {
+        activeDeltaFilter = btn.dataset.deltaFilter || 'all';
+
+        document.querySelectorAll('.delta-filter-btn').forEach(b => {
+          b.classList.toggle('active', b === btn);
+        });
+
+        if (typeof renderDeltaMarkers === 'function') {
+          deltaLayer?.clearLayers?.();
+          renderDeltaMarkers();
+        }
+
+        refreshExecutiveRibbon?.();
+      };
+    });
+
+    document.querySelector('.delta-filter-btn[data-delta-filter="all"]')?.classList.add('active');
 
       const paneBtn = document.getElementById('deltaPaneToggleBtn');
       if (paneBtn) paneBtn.textContent = on ? 'Hide Delta on Map' : 'Show Delta on Map';
