@@ -1958,6 +1958,21 @@ syncLegends();
   let lastMarkerRenderStartedAt = 0;
   const mapWrapEl = document.querySelector('.mapwrap');
 
+  // =====================================================
+// TRANSITION CACHE + RENDER STATE
+// =====================================================
+
+let transitionSummaryCache = null;
+let transitionCacheKey = '';
+let deltaMarkersRendered = false;
+let deltaRenderQueued = false;
+let popupHtmlCache = new Map();
+let activeRenderToken = 0;
+
+const DELTA_RENDER_LIMIT = 900;
+const DELTA_RENDER_CHUNK = 120;
+const DELTA_MIN_ZOOM = 5;
+
   function afterNextFrame(fn){
     requestAnimationFrame(() => setTimeout(fn, MARKER_RENDER_PAUSE_MS));
   }
@@ -8794,6 +8809,7 @@ function deltaStoreType(currentStore, futureStore){
 
   const currentMiles = currentNearest ? currentNearest.miles : 999;
   const futureMiles = futureNearest ? futureNearest.miles : 999;
+
   const distanceChange = currentMiles - futureMiles;
 
   const currentRM = rmOf(currentStore);
@@ -8805,34 +8821,40 @@ function deltaStoreType(currentStore, futureStore){
     deltaNormalizeName(currentRM) !== deltaNormalizeName(futureRM) ||
     deltaNormalizeName(currentAM) !== deltaNormalizeName(futureAM);
 
+  let type = 'Coverage Retained';
+
   if (!currentCovered && futureCovered){
-    return 'Newly Covered';
+    type = 'Newly Covered';
+  }
+  else if (currentCovered && !futureCovered){
+    type = 'Lost Coverage';
+  }
+  else if (currentCovered && futureCovered && distanceChange >= 15){
+    type = 'Improved Coverage';
+  }
+  else if (currentCovered && futureCovered && distanceChange <= -15){
+    type = 'Coverage Regressed';
+  }
+  else if (!currentCovered && !futureCovered){
+    type = 'Still Uncovered';
   }
 
-  if (currentCovered && !futureCovered){
-    return 'Lost Coverage';
-  }
-
-  if (currentCovered && futureCovered){
-    if (distanceChange >= 15){
-      return 'Improved Coverage';
-    }
-
-    if (distanceChange <= -15){
-      return 'Coverage Regressed';
-    }
-
-    if (ownershipChanged){
-      return 'Ownership Changed';
-    }
-
-    return 'Coverage Retained';
-  }
-
-  return 'No Change';
+  return {
+    type,
+    ownershipChanged,
+    distanceChange,
+    currentCovered,
+    futureCovered,
+    currentMiles,
+    futureMiles
+  };
 }
 
 function buildDeltaSummary(){
+  ){
+    return transitionSummaryCache;
+  }
+
   const curMap = new Map();
   const futMap = new Map();
 
@@ -8846,7 +8868,10 @@ function buildDeltaSummary(){
     if (k) futMap.set(k, s);
   });
 
-  const keys = [...new Set([...curMap.keys(), ...futMap.keys()])];
+  const keys = [...new Set([
+    ...curMap.keys(),
+    ...futMap.keys()
+  ])];
 
   const out = {
     comparable:0,
@@ -8861,6 +8886,7 @@ function buildDeltaSummary(){
   };
 
   keys.forEach(k => {
+
     const current = curMap.get(k);
     const future = futMap.get(k);
 
@@ -8868,106 +8894,134 @@ function buildDeltaSummary(){
 
     out.comparable++;
 
-    const type = deltaStoreType(current, future);
+    const result = deltaStoreType(current, future);
 
-    future.deltaType = type;
-    future.deltaCurrentStore = current;
-    future.deltaFutureStore = future;
+    future.deltaResult = result;
 
-    if (type === 'Newly Covered'){
+    if (result.type === 'Newly Covered'){
       out.newlyCovered.push(future);
     }
-    else if (type === 'Improved Coverage'){
+
+    if (result.type === 'Improved Coverage'){
       out.improvedCoverage.push(future);
     }
-    else if (type === 'Lost Coverage'){
+
+    if (result.type === 'Lost Coverage'){
       out.lostCoverage.push(future);
       out.newlyGap.push(future);
     }
-    else if (type === 'Ownership Changed'){
-      out.ownerChanged.push(future);
-    }
-    else if (type === 'Coverage Regressed'){
+
+    if (result.type === 'Coverage Regressed'){
       out.coverageRegressed.push(future);
     }
-    else {
+
+    if (result.ownershipChanged){
+      out.ownerChanged.push(future);
+    }
+
+    if (result.type === 'Coverage Retained'){
       out.retained.push(future);
-      out.unchanged.push(future);
     }
   });
 
+  transitionSummaryCache = out;
+  transitionCacheKey = cacheKey;
+
   return out;
+}
+    function queueSafeRender(fn){
+
+  activeRenderToken++;
+  const token = activeRenderToken;
+
+  requestAnimationFrame(() => {
+    if (token !== activeRenderToken) return;
+
+    requestAnimationFrame(() => {
+      if (token !== activeRenderToken) return;
+      fn();
+    });
+  });
 }
 
 function renderDeltaMarkers(){
-  deltaLayer.clearLayers();
-  if (!deltaModeOn) return;
 
-  const d = buildDeltaSummary();
+  if (!deltaModeOn) {
+    deltaLayer.clearLayers();
+    return;
+  }
 
-  const rows = [
-    ...d.newlyCovered.slice(0,500).map(s => ({
-      s,
-      cls:'ops-delta-new',
-      title:'Newly Covered'
-    })),
+  if (map.getZoom() < DELTA_MIN_ZOOM){
+    deltaLayer.clearLayers();
+    return;
+  }
 
-    ...d.improvedCoverage.slice(0,500).map(s => ({
-      s,
-      cls:'ops-delta-improved',
-      title:'Improved Coverage'
-    })),
+  if (deltaRenderQueued) return;
+  deltaRenderQueued = true;
 
-    ...d.lostCoverage.slice(0,500).map(s => ({
-      s,
-      cls:'ops-delta-lost',
-      title:'Lost Coverage'
-    })),
+  queueSafeRender(() => {
 
-    ...d.coverageRegressed.slice(0,500).map(s => ({
-      s,
-      cls:'ops-delta-regressed',
-      title:'Coverage Regressed'
-    })),
+    deltaLayer.clearLayers();
 
-    ...d.ownerChanged.slice(0,700).map(s => ({
-      s,
-      cls:'ops-delta-owner',
-      title:'Ownership Changed'
-    }))
-  ];
+    const d = buildDeltaSummary();
 
-  const seen = new Set();
+    const rows = [
+      ...d.newlyCovered.map(s => ({ s, cls:'ops-delta-new', title:'Newly Covered' })),
+      ...d.improvedCoverage.map(s => ({ s, cls:'ops-delta-improved', title:'Improved Coverage' })),
+      ...d.lostCoverage.map(s => ({ s, cls:'ops-delta-lost', title:'Lost Coverage' })),
+      ...d.coverageRegressed.map(s => ({ s, cls:'ops-delta-regressed', title:'Coverage Regressed' })),
+      ...d.ownerChanged.map(s => ({ s, cls:'ops-delta-owner', title:'Ownership Changed' }))
+    ];
 
-  rows.forEach(x => {
-    const k = storeKey(x.s) + '|' + x.cls;
-    if (seen.has(k)) return;
-    seen.add(k);
+    const bounds = map.getBounds();
 
-    if (
-      !Number.isFinite(Number(x.s.lat)) ||
-      !Number.isFinite(Number(x.s.lng))
-    ){
-      return;
+    const visibleRows = rows
+      .filter(x => bounds.contains([x.s.lat, x.s.lng]))
+      .slice(0, DELTA_RENDER_LIMIT);
+
+    let i = 0;
+
+    function renderChunk(){
+
+      const end = Math.min(i + DELTA_RENDER_CHUNK, visibleRows.length);
+
+      for (; i < end; i++){
+
+        const x = visibleRows[i];
+
+        const icon = L.divIcon({
+          className:'',
+          html:`<div class="ops-delta-marker ${x.cls}"></div>`,
+          iconSize:[16,16],
+          iconAnchor:[8,8]
+        });
+
+        L.marker(
+          [Number(x.s.lat), Number(x.s.lng)],
+          { icon }
+        )
+          .bindPopup(deltaPopupHTML(x.s))
+          .addTo(deltaLayer);
+      }
+
+      if (i < visibleRows.length){
+        requestAnimationFrame(renderChunk);
+      }
+      else {
+        deltaRenderQueued = false;
+      }
     }
 
-    const icon = L.divIcon({
-      className:'',
-      html:`<div class="ops-delta-marker ${x.cls}" title="${safe(x.title)}"></div>`,
-      iconSize:[16,16],
-      iconAnchor:[8,8]
-    });
-
-    L.marker(
-      [Number(x.s.lat), Number(x.s.lng)],
-      { icon, pane:'markerPane', title:x.title }
-    )
-      .bindPopup(deltaPopupHTML(x.s))
-      .addTo(deltaLayer);
+    renderChunk();
   });
 }
 
     function deltaPopupHTML(futureStore){
+      const cacheKey = storeKey(futureStore) + '|' + (futureStore.deltaType || '');
+
+if (popupHtmlCache.has(cacheKey)){
+  return popupHtmlCache.get(cacheKey);
+}
   const k = storeKey(futureStore);
   const currentStore =
     (currentStores || []).find(s => storeKey(s) === k) || futureStore;
@@ -8994,6 +9048,9 @@ function renderDeltaMarkers(){
   const ownershipChanged =
     deltaNormalizeName(currentRM) !== deltaNormalizeName(futureRM) ||
     deltaNormalizeName(currentAM) !== deltaNormalizeName(futureAM);
+
+      popupHtmlCache.set(cacheKey, html);
+return html;
 
   return `
     <div style="min-width:320px;max-width:430px">
