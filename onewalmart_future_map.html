@@ -1084,6 +1084,62 @@ select[multiple]{
   pointer-events:none;
 }
 
+
+
+/* ===== Performance-safe UI stabilization pack v5: right rail + drawer collision fixes ===== */
+:root{ --opsDrawerW:390px; }
+#opsDrawerToggle{ display:none !important; }
+.ops-toggle-btn{ display:none !important; }
+.ops-drawer{
+  width:min(var(--opsDrawerW),92vw) !important;
+  max-width:92vw !important;
+  z-index:2600 !important;
+  box-shadow:-10px 0 28px rgba(15,23,42,.18) !important;
+}
+.map-action-rail{
+  top:92px !important;
+  right:14px !important;
+  z-index:1200 !important;
+  padding:6px !important;
+  border:1px solid rgba(219,227,234,.95) !important;
+  border-radius:18px !important;
+  background:rgba(255,255,255,.72) !important;
+  box-shadow:0 8px 24px rgba(15,23,42,.12) !important;
+  backdrop-filter:blur(10px) !important;
+  max-width:112px !important;
+}
+.map-action-rail .rail-btn{
+  min-width:96px !important;
+  max-width:96px !important;
+  padding:8px 9px !important;
+  font-size:12px !important;
+  line-height:1.1 !important;
+  white-space:normal !important;
+  border-radius:12px !important;
+}
+/* The drawer is already the active view selector; hiding the rail while open prevents stacked/overlapping buttons. */
+.mapwrap.command-drawer-open .map-action-rail{ display:none !important; }
+.mapwrap.command-drawer-open #floatingKpis{ display:none !important; }
+.mapwrap.command-drawer-open .ops-exec-ribbon{ right:calc(var(--opsDrawerW) + 24px) !important; }
+.mapwrap.command-sidepanel-open .map-action-rail{ right:404px !important; }
+.mapwrap.command-sidepanel-open #floatingKpis{ right:432px !important; }
+#floatingKpis{ right:132px !important; max-width:calc(100% - 170px) !important; }
+.ops-exec-ribbon{ right:132px !important; max-height:54px !important; overflow:hidden !important; }
+.ops-exec-card{ min-width:92px !important; padding:7px 10px !important; }
+.ops-exec-card .val{ font-size:18px !important; }
+.command-mini-legend{ bottom:14px !important; left:12px !important; z-index:900 !important; }
+.modal{ z-index:7000 !important; }
+.leaflet-popup-pane{ z-index:2800 !important; }
+@media(max-width:1100px){
+  .map-action-rail{ top:78px !important; right:8px !important; max-width:96px !important; }
+  .map-action-rail .rail-btn{ min-width:80px !important; max-width:80px !important; font-size:11px !important; padding:7px 8px !important; }
+  .ops-exec-ribbon{ display:none !important; }
+}
+@media(max-width:720px){
+  .map-action-rail{ display:none !important; }
+  #floatingKpis{ display:none !important; }
+}
+
 </style>
 </head>
 <body>
@@ -9637,6 +9693,109 @@ window.updateOpsIntel = function(){
   // Calling it here restores the right-side view rail without changing startup analytics behavior.
   if (typeof installCommandCenterShellV3 === 'function') installCommandCenterShellV3();
   installViewModePackV4();
+
+
+  /* ===== Performance-safe interaction patch v5 =====
+     Reduces click lag by throttling heavy Ops analytics refreshes and hides the right rail
+     while the Ops drawer is open so buttons/windows never stack on top of each other.
+  */
+  function installPerformanceSafeInteractionPatchV5(attempt){
+    attempt = attempt || 0;
+    const mapwrap = document.querySelector('.mapwrap');
+    const drawer = document.getElementById('opsDrawer');
+    const rail = document.getElementById('mapActionRail');
+
+    if ((!mapwrap || !drawer || !rail) && attempt < 25){
+      setTimeout(() => installPerformanceSafeInteractionPatchV5(attempt + 1), 160);
+      return;
+    }
+    if (!mapwrap) return;
+
+    // Keep layout classes accurate even if a button toggles the drawer without calling the original sync helper.
+    const syncLight = () => {
+      const d = document.getElementById('opsDrawer');
+      const sp = document.getElementById('sidepanel');
+      mapwrap.classList.toggle('command-drawer-open', !!d?.classList.contains('show'));
+      mapwrap.classList.toggle('command-sidepanel-open', !!sp?.classList.contains('show') && !d?.classList.contains('show'));
+    };
+
+    // Throttle expensive Ops rebuilds. Manual/open/filter refresh still happens, but click handlers are no longer blocked.
+    if (typeof window.updateOpsIntel === 'function' && !window.updateOpsIntel.__perfSafeV5){
+      const rawUpdateOpsIntel = window.updateOpsIntel;
+      let opsTimer = null;
+      const wrapped = function(){
+        const d = document.getElementById('opsDrawer');
+        if (!d || !d.classList.contains('show')) return;
+        clearTimeout(opsTimer);
+        opsTimer = setTimeout(() => {
+          requestAnimationFrame(() => {
+            try { rawUpdateOpsIntel(); }
+            catch(err){ console.warn('Ops Intel refresh skipped after error:', err); }
+          });
+        }, 140);
+      };
+      wrapped.__perfSafeV5 = true;
+      window.updateOpsIntel = wrapped;
+    }
+
+    // Re-wire rail buttons with lightweight click behavior. This prevents repeated immediate analytics rebuilds.
+    const opsBtn = document.getElementById('railOpsIntel');
+    if (opsBtn && !opsBtn.dataset.perfV5){
+      opsBtn.dataset.perfV5 = '1';
+      opsBtn.onclick = () => {
+        const d = document.getElementById('opsDrawer');
+        d?.classList.toggle('show');
+        syncLight();
+        if (d?.classList.contains('show')) window.updateOpsIntel?.();
+        setTimeout(() => map.invalidateSize(), 80);
+      };
+    }
+
+    const leadershipBtn = document.getElementById('railLeadership');
+    if (leadershipBtn && !leadershipBtn.dataset.perfV5){
+      leadershipBtn.dataset.perfV5 = '1';
+      leadershipBtn.onclick = () => {
+        document.body.classList.add('clean-mode');
+        const d = document.getElementById('opsDrawer');
+        d?.classList.add('show');
+        document.querySelector('.ops-tab[data-pane="leadership"]')?.click();
+        syncLight();
+        window.updateOpsIntel?.();
+        setTimeout(() => map.invalidateSize(), 80);
+      };
+    }
+
+    const fieldBtn = document.getElementById('railField');
+    if (fieldBtn && !fieldBtn.dataset.perfV5){
+      fieldBtn.dataset.perfV5 = '1';
+      fieldBtn.onclick = () => {
+        document.body.classList.remove('clean-mode');
+        document.getElementById('opsDrawer')?.classList.remove('show');
+        syncLight();
+        setTimeout(() => map.invalidateSize(), 80);
+      };
+    }
+
+    const closeBtn = document.getElementById('opsCloseBtn');
+    if (closeBtn && !closeBtn.dataset.perfV5){
+      closeBtn.dataset.perfV5 = '1';
+      closeBtn.addEventListener('click', () => { setTimeout(syncLight, 0); setTimeout(() => map.invalidateSize(), 80); });
+    }
+
+    document.querySelectorAll('.ops-tab').forEach(tab => {
+      if (tab.dataset.perfV5) return;
+      tab.dataset.perfV5 = '1';
+      tab.addEventListener('click', () => {
+        syncLight();
+        // Refresh only after the tab has changed and only while drawer is visible.
+        setTimeout(() => window.updateOpsIntel?.(), 80);
+      });
+    });
+
+    syncLight();
+  }
+
+  installPerformanceSafeInteractionPatchV5();
 
 // Startup performance guard: do not pre-render Transition Readiness on page load.
 // It is rendered by Ops Intel / Leadership / Delta actions when needed.
