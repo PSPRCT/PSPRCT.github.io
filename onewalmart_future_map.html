@@ -2075,6 +2075,281 @@ const DELTA_RENDER_LIMIT = 900;
 const DELTA_RENDER_CHUNK = 120;
 const DELTA_MIN_ZOOM = 5;
 
+/* ===== Global Transition/Delta engine fix =====
+   These functions intentionally live in the main IIFE scope.
+   A previous enhancement defined the Delta helpers inside the Ops drawer builder, which meant
+   startup calls such as transitionInvalidateCache?.(...) and ribbon calls to buildDeltaSummary()
+   could fail or silently return 0. Keep these global-to-the-IIFE and lightweight/cached.
+*/
+function transitionInvalidateCache(reason='unknown'){
+  transitionSummaryCache = null;
+  transitionCacheKey = '';
+  if (popupHtmlCache && typeof popupHtmlCache.clear === 'function') popupHtmlCache.clear();
+  if (typeof console !== 'undefined' && console.debug) {
+    console.debug('[TransitionDelta] cache cleared:', reason);
+  }
+}
+
+function deltaNormalizeName(v){
+  return String(v ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/&amp;/g,'&')
+    .replace(/\([^)]*\)/g,' ')
+    .replace(/[^a-z0-9&]+/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function deltaCleanDisplay(v){
+  if (Array.isArray(v)) return v.filter(Boolean).map(x => String(x).trim()).filter(Boolean).join(' | ');
+  return String(v ?? '').trim();
+}
+
+function deltaPushIfValue(arr, v){
+  const text = deltaCleanDisplay(v);
+  if (!text) return;
+  text.split(/\s*[|;]\s*/).map(x => x.trim()).filter(Boolean).forEach(x => arr.push(x));
+}
+
+function deltaComparableSet(values){
+  const out = [...new Set((values || []).map(deltaNormalizeName).filter(Boolean))];
+  return out.length ? out.sort().join('|') : '__blank__';
+}
+
+function deltaStoreManagerFields(store){
+  const ams = [];
+  const rms = [];
+  const teams = [];
+  const groups = [];
+
+  // Flattened store fields.
+  deltaPushIfValue(ams, store?.areaManager ?? store?.AreaManager ?? store?.am ?? store?.AM);
+  deltaPushIfValue(rms, store?.regionalManager ?? store?.RegionalManager ?? store?.rm ?? store?.RM);
+  deltaPushIfValue(teams, store?.teamName ?? store?.team ?? store?.Team ?? store?.TeamName);
+  deltaPushIfValue(groups, store?.managementGroupName ?? store?.ManagementGroupName ?? store?.managementGroup ?? store?.ManagementGroup);
+  deltaPushIfValue(groups, store?.managementGroupId ?? store?.ManagementGroupID ?? store?.teamId ?? store?.TeamID);
+
+  // Manager-path arrays are safer when alignment switching overwrites areaManager/regionalManager.
+  const paths = Array.isArray(store?.managerPaths) ? store.managerPaths : [];
+  paths.forEach(path => {
+    deltaPushIfValue(ams, path?.areaManager ?? path?.AreaManager ?? path?.am ?? path?.AM ?? path?.['Mgr 1 Name']);
+    deltaPushIfValue(rms, path?.regionalManager ?? path?.RegionalManager ?? path?.rm ?? path?.RM ?? path?.['Mgr 2 Name']);
+    deltaPushIfValue(teams, path?.teamName ?? path?.TeamName ?? path?.team ?? path?.Team ?? path?.legacyBrand ?? path?.LegacyBrand);
+    deltaPushIfValue(groups, path?.managementGroupName ?? path?.ManagementGroupName ?? path?.managementGroup ?? path?.ManagementGroup ?? path?.['Mngnt Grp Name']);
+    deltaPushIfValue(groups, path?.managementGroupId ?? path?.ManagementGroupID ?? path?.teamId ?? path?.TeamID ?? path?.['Mngnt Grp Id']);
+  });
+
+  return {
+    amDisplay: deltaCleanDisplay(ams.length ? [...new Set(ams)].join(' | ') : ''),
+    rmDisplay: deltaCleanDisplay(rms.length ? [...new Set(rms)].join(' | ') : ''),
+    teamDisplay: deltaCleanDisplay(teams.length ? [...new Set(teams)].join(' | ') : ''),
+    groupDisplay: deltaCleanDisplay(groups.length ? [...new Set(groups)].join(' | ') : ''),
+    amKey: deltaComparableSet(ams),
+    rmKey: deltaComparableSet(rms),
+    teamKey: deltaComparableSet(teams),
+    groupKey: deltaComparableSet(groups)
+  };
+}
+
+function deltaOwnerCompare(currentStore, futureStore){
+  const current = deltaStoreManagerFields(currentStore);
+  const future = deltaStoreManagerFields(futureStore);
+  const amChanged = current.amKey !== future.amKey;
+  const rmChanged = current.rmKey !== future.rmKey;
+  const teamChanged = current.teamKey !== future.teamKey;
+  const groupChanged = current.groupKey !== future.groupKey;
+
+  return {
+    changed: amChanged || rmChanged || teamChanged || groupChanged,
+    amChanged,
+    rmChanged,
+    teamChanged,
+    groupChanged,
+    current,
+    future
+  };
+}
+
+function deltaCoveredByActiveHub(store){
+  try {
+    return transitionCoverageMetrics(store, [...(premiumConfirmed || []), ...(acostaHubs || [])]).covered;
+  } catch(e) {
+    return String(store?.coverageType || '').trim() !== 'Uncovered';
+  }
+}
+
+function deltaNearestHub(store){
+  try {
+    return transitionNearestFromFields(store) || transitionNearestFromHubs(store, [...(premiumConfirmed || []), ...(acostaHubs || [])]);
+  } catch(e) {
+    return null;
+  }
+}
+
+function deltaStoreType(currentStore, futureStore){
+  const currentCovered = deltaCoveredByActiveHub(currentStore);
+  const futureCovered = deltaCoveredByActiveHub(futureStore);
+
+  const currentNearest = deltaNearestHub(currentStore);
+  const futureNearest = deltaNearestHub(futureStore);
+
+  const currentMiles = currentNearest && Number.isFinite(Number(currentNearest.miles)) ? Number(currentNearest.miles) : 999;
+  const futureMiles = futureNearest && Number.isFinite(Number(futureNearest.miles)) ? Number(futureNearest.miles) : 999;
+
+  const distanceChange = currentMiles - futureMiles;
+  const ownership = deltaOwnerCompare(currentStore, futureStore);
+  const ownershipChanged = ownership.changed;
+
+  let type = 'Coverage Retained';
+
+  if (!currentCovered && futureCovered){
+    type = 'Newly Covered';
+  } else if (currentCovered && !futureCovered){
+    type = 'Lost Coverage';
+  } else if (currentCovered && futureCovered && distanceChange >= 15){
+    type = 'Improved Coverage';
+  } else if (currentCovered && futureCovered && distanceChange <= -15){
+    type = 'Coverage Regressed';
+  } else if (!currentCovered && !futureCovered){
+    type = 'Still Uncovered';
+  }
+
+  return {
+    type,
+    ownershipChanged,
+    ownership,
+    distanceChange,
+    currentCovered,
+    futureCovered,
+    currentMiles,
+    futureMiles
+  };
+}
+
+function buildDeltaSummary(){
+  const curMap = new Map();
+  const futMap = new Map();
+
+  (currentStores || []).forEach(s => {
+    const k = transitionStoreKey(s);
+    if (k) curMap.set(k, s);
+  });
+
+  (futureStores || []).forEach(s => {
+    const k = transitionStoreKey(s);
+    if (k) futMap.set(k, s);
+  });
+
+  const visibleKeys = new Set((filteredStores || []).map(s => transitionStoreKey(s)).filter(Boolean));
+  const keys = visibleKeys.size
+    ? [...visibleKeys]
+    : [...new Set([...curMap.keys(), ...futMap.keys()])];
+
+  const cacheKey = JSON.stringify({
+    activeAlignmentMode,
+    activeCoreTeamMode,
+    filterKey: keys.join('|'),
+    currentCount:(currentStores || []).length,
+    futureCount:(futureStores || []).length,
+    activeHubCount:(premiumConfirmed || []).length + (acostaHubs || []).length,
+    currentManagerRows: currentManagerRollupMap?.size || 0,
+    futureManagerRows: futureManagerRollupMap?.size || 0
+  });
+
+  if (transitionSummaryCache && transitionCacheKey === cacheKey){
+    return transitionSummaryCache;
+  }
+
+  const out = {
+    comparable:0,
+    missingCurrent:0,
+    missingFuture:0,
+    newlyCovered:[],
+    improvedCoverage:[],
+    lostCoverage:[],
+    newlyGap:[],
+    ownerChanged:[],
+    coverageRegressed:[],
+    retained:[],
+    unchanged:[],
+    ownershipBreakdown:{ am:0, rm:0, team:0, group:0 },
+    sampleOwnershipChanges:[]
+  };
+
+  keys.forEach(k => {
+    const current = curMap.get(k);
+    const future = futMap.get(k);
+
+    if (!current) { out.missingCurrent++; return; }
+    if (!future) { out.missingFuture++; return; }
+
+    out.comparable++;
+
+    const result = deltaStoreType(current, future);
+
+    future.deltaResult = result;
+    future.deltaType = result.type;
+    future.deltaCurrentStore = current;
+    future.deltaFutureStore = future;
+
+    if (result.type === 'Newly Covered') out.newlyCovered.push(future);
+    if (result.type === 'Improved Coverage') out.improvedCoverage.push(future);
+    if (result.type === 'Lost Coverage') {
+      out.lostCoverage.push(future);
+      out.newlyGap.push(future);
+    }
+    if (result.type === 'Coverage Regressed') out.coverageRegressed.push(future);
+    if (result.type === 'Coverage Retained') out.retained.push(future);
+    if (result.type === 'Still Uncovered') out.unchanged.push(future);
+
+    if (result.ownershipChanged) {
+      out.ownerChanged.push(future);
+      if (result.ownership?.amChanged) out.ownershipBreakdown.am++;
+      if (result.ownership?.rmChanged) out.ownershipBreakdown.rm++;
+      if (result.ownership?.teamChanged) out.ownershipBreakdown.team++;
+      if (result.ownership?.groupChanged) out.ownershipBreakdown.group++;
+      if (out.sampleOwnershipChanges.length < 12) {
+        out.sampleOwnershipChanges.push({
+          store:k,
+          city: future.city || current.city || '',
+          state: future.state || current.state || '',
+          currentAM: result.ownership.current.amDisplay || '',
+          futureAM: result.ownership.future.amDisplay || '',
+          currentRM: result.ownership.current.rmDisplay || '',
+          futureRM: result.ownership.future.rmDisplay || '',
+          currentTeam: result.ownership.current.teamDisplay || result.ownership.current.groupDisplay || '',
+          futureTeam: result.ownership.future.teamDisplay || result.ownership.future.groupDisplay || ''
+        });
+      }
+    }
+  });
+
+  transitionSummaryCache = out;
+  transitionCacheKey = cacheKey;
+
+  if (typeof console !== 'undefined' && console.groupCollapsed) {
+    console.groupCollapsed('[TransitionDelta] current vs future audit');
+    console.table({
+      comparable: out.comparable,
+      missingCurrent: out.missingCurrent,
+      missingFuture: out.missingFuture,
+      ownerChanged: out.ownerChanged.length,
+      newlyCovered: out.newlyCovered.length,
+      lostCoverage: out.lostCoverage.length,
+      coverageRegressed: out.coverageRegressed.length,
+      retained: out.retained.length,
+      unchanged: out.unchanged.length
+    });
+    console.table(out.ownershipBreakdown);
+    if (out.sampleOwnershipChanges.length) console.table(out.sampleOwnershipChanges);
+    console.groupEnd();
+  }
+
+  return out;
+}
+
+
   function afterNextFrame(fn){
     requestAnimationFrame(() => setTimeout(fn, MARKER_RENDER_PAUSE_MS));
   }
