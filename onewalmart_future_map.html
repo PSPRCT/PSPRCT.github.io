@@ -1422,7 +1422,7 @@ select[multiple]{
     <div class="exec-value" id="execNew">0</div>
   </div>
   <div class="exec-card">
-    <div class="exec-label">Coverage Risk</div>
+    <div class="exec-label">Gap Risk</div>
     <div class="exec-value" id="execRisk">0</div>
   </div>
 </div>
@@ -2204,7 +2204,7 @@ function deltaStoreType(currentStore, futureStore){
   let type = 'Coverage Retained';
 
   if (!currentCovered && futureCovered){
-    type = 'Newly Covered';
+    type = 'Reassigned';
   } else if (currentCovered && !futureCovered){
     type = 'Lost Coverage';
   } else if (currentCovered && futureCovered && distanceChange >= 15){
@@ -2293,7 +2293,7 @@ function buildDeltaSummary(){
     future.deltaCurrentStore = current;
     future.deltaFutureStore = future;
 
-    if (result.type === 'Newly Covered') out.newlyCovered.push(future);
+    if (result.type === 'Reassigned') out.newlyCovered.push(future);
     if (result.type === 'Improved Coverage') out.improvedCoverage.push(future);
     if (result.type === 'Lost Coverage') {
       out.lostCoverage.push(future);
@@ -7720,7 +7720,7 @@ function storePopupHTML(s){
   let deltaType = 'Coverage Retained';
 
   if (!currentCovered && futureCovered) {
-    deltaType = 'Newly Covered';
+    deltaType = 'Reassigned';
   } else if (currentCovered && !futureCovered) {
     deltaType = 'Lost Coverage';
   } else if (currentCovered && futureCovered && Number.isFinite(distanceDelta) && distanceDelta >= 15) {
@@ -7728,7 +7728,7 @@ function storePopupHTML(s){
   } else if (currentCovered && futureCovered && Number.isFinite(distanceDelta) && distanceDelta <= -15) {
     deltaType = 'Coverage Regressed';
   } else if (currentCovered && futureCovered && ownershipChanged) {
-    deltaType = 'Ownership Changed';
+    deltaType = 'Alignment Changed';
   } else if (!currentCovered && !futureCovered) {
     deltaType = 'Still Uncovered';
   }
@@ -7764,7 +7764,7 @@ function storePopupHTML(s){
 
       <div class="store-popup-summary">
         <div><b>Distance Change:</b> ${Number.isFinite(distanceDelta) ? distanceDelta.toFixed(1) + ' mi' : '—'}</div>
-        <div><b>Ownership Changed:</b> ${ownershipChanged ? 'Yes' : 'No'}</div>
+        <div><b>Alignment Changed:</b> ${ownershipChanged ? 'Yes' : 'No'}</div>
       </div>
 
       <button class="transition-toggle-btn"
@@ -8673,7 +8673,11 @@ function cascadeRM(){
      Enterprise Command Center v2
      - Fixes clipped Analysis Tools by making it an inline tool list
      - Adds Executive Summary Ribbon
-     - Adds right-side tabbed Operations Intelligence drawer
+     - Adds right-side tabbed Operations Intelligence
+<div style="font-size:11px;color:#666;padding:4px 0 0 0;">
+Alignment Mode highlights manager/reassignment changes only. Coverage calculations remain based on unchanged RTS radius logic.
+</div>
+ drawer
      - Adds Current vs Future Delta mode
      - Keeps existing IDs and core map/filter logic intact
   ========================================================= */
@@ -9001,7 +9005,7 @@ function cascadeRM(){
       <div class="ops-exec-card"><div class="lbl">Gap Stores</div><div class="val" id="opsExecGaps">—</div></div>
       <div class="ops-exec-card"><div class="lbl">Active RTS</div><div class="val" id="opsExecActive">—</div></div>
       <div class="ops-exec-card"><div class="lbl">Highest Risk</div><div class="val" id="opsExecRisk">—</div></div>
-      <button id="opsDeltaToggle" class="ops-exec-action" type="button" title="Highlight what changes between current and future alignment">Delta Mode</button>
+      <button id="opsDeltaToggle" class="ops-exec-action" type="button" title="Highlight what changes between current and future alignment">Alignment Mode</button>
     `;
 
     const toggle = document.createElement('button');
@@ -9042,7 +9046,7 @@ function cascadeRM(){
         </div>
 
         <div class="ops-pane" id="opsPaneRisk">
-          <div class="ops-card"><div class="ops-section-title"><span>Coverage Risk</span><span class="ops-sub">manager risk</span></div><div id="opsRiskTable"></div></div>
+          <div class="ops-card"><div class="ops-section-title"><span>Gap Risk</span><span class="ops-sub">manager risk</span></div><div id="opsRiskTable"></div></div>
           <div class="ops-card"><div class="ops-section-title"><span>Region Health Score</span><span class="ops-sub">red / yellow / green</span></div><div id="opsHealthTable"></div></div>
         </div>
 
@@ -9072,7 +9076,7 @@ function cascadeRM(){
       <div class="delta-item">
         <span class="delta-dot delta-new"></span>
         <div>
-          <strong>Newly Covered</strong><br>
+          <strong>Reassigned</strong><br>
           Current uncovered → future covered.
         </div>
       </div>
@@ -9096,7 +9100,7 @@ function cascadeRM(){
       <div class="delta-item">
         <span class="delta-dot delta-owner"></span>
         <div>
-          <strong>Ownership Changed</strong><br>
+          <strong>Alignment Changed</strong><br>
           Store remains covered, but RM/AM path changes.
         </div>
       </div>
@@ -9309,7 +9313,7 @@ function deltaStoreType(currentStore, futureStore){
   let type = 'Coverage Retained';
 
   if (!currentCovered && futureCovered){
-    type = 'Newly Covered';
+    type = 'Reassigned';
   }
   else if (currentCovered && !futureCovered){
     type = 'Lost Coverage';
@@ -9409,7 +9413,7 @@ function buildDeltaSummary(){
     future.deltaCurrentStore = current;
     future.deltaFutureStore = future;
 
-    if (result.type === 'Newly Covered') out.newlyCovered.push(future);
+    if (result.type === 'Reassigned') out.newlyCovered.push(future);
     if (result.type === 'Improved Coverage') out.improvedCoverage.push(future);
     if (result.type === 'Lost Coverage'){
       out.lostCoverage.push(future);
@@ -9497,17 +9501,17 @@ function renderDeltaMarkers(){
         return;
       }
       if (!existing.titles.includes(title)) existing.titles.push(title);
-      if (title === 'Ownership Changed' && existing.title === 'Coverage Retained') {
+      if (title === 'Alignment Changed' && existing.title === 'Coverage Retained') {
         existing.cls = cls;
         existing.title = title;
       }
     };
 
-    d.newlyCovered.forEach(s => addDeltaRow(s, 'ops-delta-new', 'Newly Covered'));
+    d.newlyCovered.forEach(s => addDeltaRow(s, 'ops-delta-new', 'Reassigned'));
     d.improvedCoverage.forEach(s => addDeltaRow(s, 'ops-delta-improved', 'Improved Coverage'));
     d.lostCoverage.forEach(s => addDeltaRow(s, 'ops-delta-lost', 'Lost Coverage'));
     d.coverageRegressed.forEach(s => addDeltaRow(s, 'ops-delta-regressed', 'Coverage Regressed'));
-    d.ownerChanged.forEach(s => addDeltaRow(s, 'ops-delta-owner', 'Ownership Changed'));
+    d.ownerChanged.forEach(s => addDeltaRow(s, 'ops-delta-owner', 'Alignment Changed'));
 
     const rows = [...deltaRowMap.values()];
 
@@ -9515,8 +9519,8 @@ function renderDeltaMarkers(){
 
         const filteredDeltaRows = rows.filter(x => {
       if (activeDeltaFilter === 'all') return true;
-      if (activeDeltaFilter === 'owner') return x.title === 'Ownership Changed';
-      if (activeDeltaFilter === 'new') return x.title === 'Newly Covered';
+      if (activeDeltaFilter === 'owner') return x.title === 'Alignment Changed';
+      if (activeDeltaFilter === 'new') return x.title === 'Reassigned';
       if (activeDeltaFilter === 'lost') return x.title === 'Lost Coverage' || x.title === 'Coverage Regressed';
       if (activeDeltaFilter === 'improved') return x.title === 'Improved Coverage';
       return true;
@@ -9600,10 +9604,10 @@ if (popupHtmlCache.has(cacheKey)){
 
   const flags = [];
 
-  if (result.ownershipChanged) flags.push('Ownership Changed');
+  if (result.ownershipChanged) flags.push('Alignment Changed');
   if (type === 'Improved Coverage') flags.push('Improved');
   if (type === 'Coverage Regressed') flags.push('Regressed');
-  if (type === 'Newly Covered') flags.push('New Coverage');
+  if (type === 'Reassigned') flags.push('New Coverage');
   if (type === 'Lost Coverage') flags.push('Lost Coverage');
 
   const deltaLabel = flags.length ? flags.join(' • ') : type;
@@ -9643,7 +9647,7 @@ if (popupHtmlCache.has(cacheKey)){
             ? '—'
             : distanceChange.toFixed(1) + ' mi'
         }</div>
-        <div><b>Ownership Changed:</b> ${ownershipChanged ? 'Yes' : 'No'}</div>
+        <div><b>Alignment Changed:</b> ${ownershipChanged ? 'Yes' : 'No'}</div>
         <div><b>Current AM:</b> ${safe(currentAM || 'None')}</div>
         <div><b>Future AM:</b> ${safe(futureAM || 'None')}</div>
         <div><b>Current RM:</b> ${safe(currentRM || 'None')}</div>
@@ -9729,11 +9733,11 @@ if (popupHtmlCache.has(cacheKey)){
       drawer.querySelector('#opsDeltaSummary').innerHTML = `
         <div class="ops-kpis">
           <div class="ops-card"><div class="ops-label">Comparable Stores</div><div class="ops-value">${fmt(d.comparable)}</div></div>
-          <div class="ops-card"><div class="ops-label">Newly Covered</div><div class="ops-value">${fmt(d.newlyCovered.length)}</div></div>
+          <div class="ops-card"><div class="ops-label">Reassigned</div><div class="ops-value">${fmt(d.newlyCovered.length)}</div></div>
           <div class="ops-card"><div class="ops-label">Newly Uncovered</div><div class="ops-value">${fmt(d.newlyGap.length)}</div></div>
           <div class="ops-card"><div class="ops-label">Ownership Changes</div><div class="ops-value">${fmt(d.ownerChanged.length)}</div></div>
         </div>
-        <div class="ops-sub" style="margin-top:8px">Use <b>Delta Mode</b> in the executive ribbon to highlight changed stores on the map.</div>
+        <div class="ops-sub" style="margin-top:8px">Use <b>Alignment Mode</b> in the executive ribbon to highlight changed stores on the map.</div>
       `;
 
       const lift = Math.round((futurePct - currentPct) * 10) / 10;
@@ -9767,7 +9771,7 @@ if (popupHtmlCache.has(cacheKey)){
         clearTimeout(t);
         t = setTimeout(()=>{
           // Performance guard: do not run Ops analytics while the drawer is closed,
-          // unless Delta Mode is active. This prevents pan/zoom from triggering heavy table rebuilds.
+          // unless Alignment Mode is active. This prevents pan/zoom from triggering heavy table rebuilds.
           if (!drawer.classList.contains('show') && !deltaModeOn) return;
           updateOpsIntel();
         }, 300);
@@ -10006,7 +10010,7 @@ pane.innerHTML = `
       </div>
 
       <div class="ops-transition-metric">
-        <div class="lbl">Lost / Risk</div>
+        <div class="lbl">Gap Risk</div>
         <div class="ops-value val" id="transitionLostRisk">0</div>
       </div>
     </div>
@@ -10062,7 +10066,7 @@ function renderTransitionReadinessPanel(){
 
   const gaps = rows.filter(x => x.result.type === 'Still Uncovered' || x.result.type === 'No Change');
   const ownership = rows.filter(x => x.result.ownershipChanged);
-  const newly = rows.filter(x => x.result.type === 'Newly Covered');
+  const newly = rows.filter(x => x.result.type === 'Reassigned');
   const lost = rows.filter(x => x.result.type === 'Lost Coverage' || x.result.type === 'Coverage Regressed');
   const improved = rows.filter(x => x.result.type === 'Improved Coverage');
 
@@ -10121,7 +10125,7 @@ function renderTransitionReadinessPanel(){
 
   /* =========================================================
      Performance-safe View Mode Pack v4
-     - Restores Delta Mode as a visible Quick View option
+     - Restores Alignment Mode as a visible Quick View option
      - Adds one-click Ops / Leadership / Field View controls
      - Keeps Delta calculations lazy: no startup run, no pan/zoom recalculation
      - Uses existing Ops/Delta engine instead of adding new analytics loops
@@ -10190,7 +10194,7 @@ function renderTransitionReadinessPanel(){
       delta.className = 'pill compact-pill view-mode-btn';
       delta.type = 'button';
       delta.title = 'Highlight stores that change between current and future alignment';
-      delta.innerHTML = '<span class="dot" style="background:#2563eb"></span> Delta Mode';
+      delta.innerHTML = '<span class="dot" style="background:#2563eb"></span> Alignment Mode';
 
       const ops = document.createElement('button');
       ops.id = 'quickOpsBtn';
@@ -10227,13 +10231,13 @@ function renderTransitionReadinessPanel(){
       toolbar.className = 'delta-pane-toolbar';
       toolbar.innerHTML = `
         <button id="deltaPaneToggleBtn" class="btn" type="button">Show Delta on Map</button>
-        <span id="deltaStatusChip" class="delta-status-chip">Delta Mode Off</span>
+        <span id="deltaStatusChip" class="delta-status-chip">Alignment Mode Off</span>
         <button class="btn delta-filter-btn" type="button" data-delta-filter="all">All</button>
         <button class="btn delta-filter-btn" type="button" data-delta-filter="owner">Ownership</button>
         <button class="btn delta-filter-btn" type="button" data-delta-filter="new">New</button>
         <button class="btn delta-filter-btn" type="button" data-delta-filter="lost">Lost</button>
         <button class="btn delta-filter-btn" type="button" data-delta-filter="improved">Improved</button>
-        <span class="ops-sub">Performance-safe: markers render only when Delta Mode is opened.</span>
+        <span class="ops-sub">Performance-safe: markers render only when Alignment Mode is opened.</span>
       `;
       deltaPane.insertBefore(toolbar, deltaPane.firstChild);
     }
@@ -10268,7 +10272,7 @@ function renderTransitionReadinessPanel(){
       const status = document.getElementById('deltaStatusChip');
       if (status){
         status.classList.toggle('on', on);
-        status.textContent = on ? 'Delta Mode On' : 'Delta Mode Off';
+        status.textContent = on ? 'Alignment Mode On' : 'Alignment Mode Off';
       }
 
           document.querySelectorAll('.delta-filter-btn').forEach(btn => {
