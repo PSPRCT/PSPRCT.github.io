@@ -2638,6 +2638,7 @@ setLaunchStatus('Map ready', 'Ops Intel and analysis tools will calculate when o
 
 // Alignment + core team switchers
 async function refreshAfterAlignmentChange(){
+  transitionInvalidateCache?.('alignment changed');
   invalidateManagerCascadeCache();
   buildSearchIndex();
   populateRM(allStores);
@@ -3242,6 +3243,7 @@ withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords
   }
 
   function runFilter(){
+    transitionInvalidateCache?.('filter changed');
     const token = ++markerRenderToken;
     lastMarkerRenderStartedAt = performance.now();
 
@@ -3432,43 +3434,45 @@ function hubDisplay(h){
   spLink.onclick = copyHubLink;
 
   function renderHubs(){
-  // clear current markers
+  // Lightweight/lazy hub rendering. There are only ~56 hubs, but scheduling this
+  // outside the click stack prevents the right rail/drawer from feeling sticky during filter changes.
   hubLayer.clearLayers();
-
-  // get the hubs that should be visible under current filters
   const vis = visibleHubs();
-  vis.forEach(h => {
-    // base class by status
-    const base =
-      h.status === 'confirmed' ? 'confirmed' :
-      h.status === 'pending'   ? 'pending'   : 'acosta';
+  const token = ++activeRenderToken;
+  let i = 0;
 
-    // pinned state class
-    const isPinned = pinnedHubs.some(x => x.id === h.id);
-    const cls = `hub ${base}${isPinned ? ' pinned' : ''}`;
+  function drawHubChunk(){
+    if (token !== activeRenderToken) return;
+    const end = Math.min(i + 20, vis.length);
 
-    // marker icon
-    const icon = L.divIcon({
-      className: '',
-      html: `<div class="${cls}"></div>`,
-      iconSize: [20, 20],
-      iconAnchor: [10, 10]
-    });
+    for (; i < end; i++){
+      const h = vis[i];
+      const base =
+        h.status === 'confirmed' ? 'confirmed' :
+        h.status === 'pending'   ? 'pending'   : 'acosta';
 
-    // create marker
-    const m = L.marker(h.coords, { icon, title: hubDisplay(h), pane: 'hubPane' }).addTo(hubLayer);
-    m.hub = h;
+      const isPinned = pinnedHubs.some(x => x.id === h.id);
+      const cls = `hub ${base}${isPinned ? ' pinned' : ''}`;
 
-    // left-click: open panel or toggle pin in compare mode
-    m.on('click', () => compareMode ? togglePin(h) : openSidepanel(h));
+      const icon = L.divIcon({
+        className: '',
+        html: `<div class="${cls}"></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
 
-    // hover tooltip
-    m.on('mouseover', () => m.bindTooltip(hubDisplay(h), { direction: 'top', offset: [0, -8] }).openTooltip());
-    m.on('mouseout',  () => m.closeTooltip());
+      const m = L.marker(h.coords, { icon, title: hubDisplay(h), pane: 'hubPane' }).addTo(hubLayer);
+      m.hub = h;
+      m.on('click', () => compareMode ? togglePin(h) : openSidepanel(h));
+      m.on('mouseover', () => m.bindTooltip(hubDisplay(h), { direction: 'top', offset: [0, -8] }).openTooltip());
+      m.on('mouseout',  () => m.closeTooltip());
+      m.on('contextmenu', (e) => showHubMenu(e, h, m));
+    }
 
-    // right-click: edit menu (only acts if editMode is ON in showHubMenu)
-    m.on('contextmenu', (e) => showHubMenu(e, h, m));
-  });
+    if (i < vis.length) requestAnimationFrame(drawHubChunk);
+  }
+
+  requestAnimationFrame(drawHubChunk);
 }
 
 
@@ -3528,6 +3532,7 @@ function hubDisplay(h){
     // apply coverage
     const mapC = new Map(res.coverage); // [[id,'Premium Only'], ...]
     allStores.forEach(s => { s.coverageType = mapC.get(s.storeNumberStr) || 'Uncovered'; });
+    transitionInvalidateCache?.('coverage recomputed');
   }
 
   // ---------- Sidepanel ----------
@@ -7429,9 +7434,8 @@ function storePopupHTML(s){
   const currentRTS = t.current.rts;
   const futureRTS = t.future.rts;
 
-  const ownershipChanged =
-    currentAM !== futureAM ||
-    currentRM !== futureRM;
+  const ownershipResult = deltaOwnerCompare(currentBase, futureBase);
+  const ownershipChanged = ownershipResult.changed;
 
   const distanceDelta =
     Number.isFinite(currentMiles) && Number.isFinite(futureMiles)
@@ -7858,6 +7862,7 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
   }
 
   function handleHubVisibilityChange(){
+    transitionInvalidateCache?.('hub visibility changed');
     lastFilterChanged = 'visibility';
     renderHubs();
         buildHubFilterOptions(); // NEW: rebuild the hub list to match toggles
@@ -8926,10 +8931,84 @@ function cascadeRM(){
     }
 
 function deltaNormalizeName(v){
-  return String(v || '')
+  return String(v ?? '')
     .trim()
     .toLowerCase()
-    .replace(/\s+/g,' ');
+    .replace(/&amp;/g,'&')
+    .replace(/\([^)]*\)/g,' ')
+    .replace(/[^a-z0-9&]+/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function deltaCleanDisplay(v){
+  if (Array.isArray(v)) return v.filter(Boolean).map(x => String(x).trim()).filter(Boolean).join(' | ');
+  return String(v ?? '').trim();
+}
+
+function deltaPushIfValue(arr, v){
+  const text = deltaCleanDisplay(v);
+  if (!text) return;
+  text.split(/\s*[|;]\s*/).map(x => x.trim()).filter(Boolean).forEach(x => arr.push(x));
+}
+
+function deltaComparableSet(values){
+  const out = [...new Set((values || []).map(deltaNormalizeName).filter(Boolean))];
+  return out.length ? out.sort().join('|') : '__blank__';
+}
+
+function deltaStoreManagerFields(store){
+  const ams = [];
+  const rms = [];
+  const teams = [];
+  const groups = [];
+
+  // Direct flattened fields first. These are what the current/future popups usually display.
+  deltaPushIfValue(ams, store?.areaManager ?? store?.AreaManager ?? store?.am ?? store?.AM);
+  deltaPushIfValue(rms, store?.regionalManager ?? store?.RegionalManager ?? store?.rm ?? store?.RM);
+  deltaPushIfValue(teams, store?.teamName ?? store?.team ?? store?.Team ?? store?.TeamName);
+  deltaPushIfValue(groups, store?.managementGroupName ?? store?.ManagementGroupName ?? store?.managementGroup ?? store?.ManagementGroup);
+  deltaPushIfValue(groups, store?.managementGroupId ?? store?.ManagementGroupID ?? store?.teamId ?? store?.TeamID);
+
+  // Manager-path arrays are the safer source when the alignment switch has overwritten areaManager/regionalManager.
+  const paths = Array.isArray(store?.managerPaths) ? store.managerPaths : [];
+  paths.forEach(path => {
+    deltaPushIfValue(ams, path?.areaManager ?? path?.AreaManager ?? path?.am ?? path?.AM ?? path?.['Mgr 1 Name']);
+    deltaPushIfValue(rms, path?.regionalManager ?? path?.RegionalManager ?? path?.rm ?? path?.RM ?? path?.['Mgr 2 Name']);
+    deltaPushIfValue(teams, path?.teamName ?? path?.TeamName ?? path?.team ?? path?.Team ?? path?.legacyBrand ?? path?.LegacyBrand);
+    deltaPushIfValue(groups, path?.managementGroupName ?? path?.ManagementGroupName ?? path?.managementGroup ?? path?.ManagementGroup ?? path?.['Mngnt Grp Name']);
+    deltaPushIfValue(groups, path?.managementGroupId ?? path?.ManagementGroupID ?? path?.teamId ?? path?.TeamID ?? path?.['Mngnt Grp Id']);
+  });
+
+  return {
+    amDisplay: deltaCleanDisplay(ams.length ? [...new Set(ams)].join(' | ') : ''),
+    rmDisplay: deltaCleanDisplay(rms.length ? [...new Set(rms)].join(' | ') : ''),
+    teamDisplay: deltaCleanDisplay(teams.length ? [...new Set(teams)].join(' | ') : ''),
+    groupDisplay: deltaCleanDisplay(groups.length ? [...new Set(groups)].join(' | ') : ''),
+    amKey: deltaComparableSet(ams),
+    rmKey: deltaComparableSet(rms),
+    teamKey: deltaComparableSet(teams),
+    groupKey: deltaComparableSet(groups)
+  };
+}
+
+function deltaOwnerCompare(currentStore, futureStore){
+  const current = deltaStoreManagerFields(currentStore);
+  const future = deltaStoreManagerFields(futureStore);
+  const amChanged = current.amKey !== future.amKey;
+  const rmChanged = current.rmKey !== future.rmKey;
+  const teamChanged = current.teamKey !== future.teamKey;
+  const groupChanged = current.groupKey !== future.groupKey;
+
+  return {
+    changed: amChanged || rmChanged || teamChanged || groupChanged,
+    amChanged,
+    rmChanged,
+    teamChanged,
+    groupChanged,
+    current,
+    future
+  };
 }
 
 function deltaCoveredByActiveHub(store){
@@ -8945,19 +9024,12 @@ function deltaStoreType(currentStore, futureStore){
   const currentNearest = deltaNearestHub(currentStore);
   const futureNearest = deltaNearestHub(futureStore);
 
-  const currentMiles = currentNearest ? currentNearest.miles : 999;
-  const futureMiles = futureNearest ? futureNearest.miles : 999;
+  const currentMiles = currentNearest ? Number(currentNearest.miles) : 999;
+  const futureMiles = futureNearest ? Number(futureNearest.miles) : 999;
 
   const distanceChange = currentMiles - futureMiles;
-
-  const currentRM = rmOf(currentStore);
-  const futureRM = rmOf(futureStore);
-  const currentAM = amOf(currentStore);
-  const futureAM = amOf(futureStore);
-
-  const ownershipChanged =
-    deltaNormalizeName(currentRM) !== deltaNormalizeName(futureRM) ||
-    deltaNormalizeName(currentAM) !== deltaNormalizeName(futureAM);
+  const ownership = deltaOwnerCompare(currentStore, futureStore);
+  const ownershipChanged = ownership.changed;
 
   let type = 'Coverage Retained';
 
@@ -8980,6 +9052,7 @@ function deltaStoreType(currentStore, futureStore){
   return {
     type,
     ownershipChanged,
+    ownership,
     distanceChange,
     currentCovered,
     futureCovered,
@@ -8988,19 +9061,14 @@ function deltaStoreType(currentStore, futureStore){
   };
 }
 
+function transitionInvalidateCache(reason='unknown'){
+  transitionSummaryCache = null;
+  transitionCacheKey = '';
+  popupHtmlCache?.clear?.();
+  if (typeof console !== 'undefined' && console.debug) console.debug('[TransitionDelta] cache cleared:', reason);
+}
+
 function buildDeltaSummary(){
-  const filterKey = (filteredStores || []).map(s => storeKey(s)).filter(Boolean).join('|');
-
-  const cacheKey = JSON.stringify({
-    filterKey,
-    currentCount:(currentStores || []).length,
-    futureCount:(futureStores || []).length
-  });
-
-  if (transitionSummaryCache && transitionCacheKey === cacheKey){
-    return transitionSummaryCache;
-  }
-
   const curMap = new Map();
   const futMap = new Map();
 
@@ -9019,8 +9087,25 @@ function buildDeltaSummary(){
     ? [...visibleKeys]
     : [...new Set([...curMap.keys(), ...futMap.keys()])];
 
+  const cacheKey = JSON.stringify({
+    activeAlignmentMode,
+    activeCoreTeamMode,
+    filterKey: keys.join('|'),
+    currentCount:(currentStores || []).length,
+    futureCount:(futureStores || []).length,
+    activeHubCount:(premiumConfirmed || []).length + (acostaHubs || []).length,
+    currentManagerRows: currentManagerRollupMap?.size || 0,
+    futureManagerRows: futureManagerRollupMap?.size || 0
+  });
+
+  if (transitionSummaryCache && transitionCacheKey === cacheKey){
+    return transitionSummaryCache;
+  }
+
   const out = {
     comparable:0,
+    missingCurrent:0,
+    missingFuture:0,
     newlyCovered:[],
     improvedCoverage:[],
     lostCoverage:[],
@@ -9028,14 +9113,17 @@ function buildDeltaSummary(){
     ownerChanged:[],
     coverageRegressed:[],
     retained:[],
-    unchanged:[]
+    unchanged:[],
+    ownershipBreakdown:{ am:0, rm:0, team:0, group:0 },
+    sampleOwnershipChanges:[]
   };
 
   keys.forEach(k => {
     const current = curMap.get(k);
     const future = futMap.get(k);
 
-    if (!current || !future) return;
+    if (!current) { out.missingCurrent++; return; }
+    if (!future) { out.missingFuture++; return; }
 
     out.comparable++;
 
@@ -9046,39 +9134,60 @@ function buildDeltaSummary(){
     future.deltaCurrentStore = current;
     future.deltaFutureStore = future;
 
-    if (result.type === 'Newly Covered'){
-      out.newlyCovered.push(future);
-    }
-
-    if (result.type === 'Improved Coverage'){
-      out.improvedCoverage.push(future);
-    }
-
+    if (result.type === 'Newly Covered') out.newlyCovered.push(future);
+    if (result.type === 'Improved Coverage') out.improvedCoverage.push(future);
     if (result.type === 'Lost Coverage'){
       out.lostCoverage.push(future);
       out.newlyGap.push(future);
     }
-
-    if (result.type === 'Coverage Regressed'){
-      out.coverageRegressed.push(future);
-    }
+    if (result.type === 'Coverage Regressed') out.coverageRegressed.push(future);
 
     if (result.ownershipChanged){
       out.ownerChanged.push(future);
+      if (result.ownership?.amChanged) out.ownershipBreakdown.am++;
+      if (result.ownership?.rmChanged) out.ownershipBreakdown.rm++;
+      if (result.ownership?.teamChanged) out.ownershipBreakdown.team++;
+      if (result.ownership?.groupChanged) out.ownershipBreakdown.group++;
+      if (out.sampleOwnershipChanges.length < 12){
+        out.sampleOwnershipChanges.push({
+          store:k,
+          currentAM:result.ownership.current.amDisplay || 'None',
+          futureAM:result.ownership.future.amDisplay || 'None',
+          currentRM:result.ownership.current.rmDisplay || 'None',
+          futureRM:result.ownership.future.rmDisplay || 'None',
+          currentTeam:result.ownership.current.teamDisplay || result.ownership.current.groupDisplay || 'None',
+          futureTeam:result.ownership.future.teamDisplay || result.ownership.future.groupDisplay || 'None'
+        });
+      }
     }
 
-    if (result.type === 'Coverage Retained'){
-      out.retained.push(future);
-    }
-
-    if (result.type === 'Still Uncovered'){
-      out.unchanged.push(future);
-    }
+    if (result.type === 'Coverage Retained') out.retained.push(future);
+    if (result.type === 'Still Uncovered') out.unchanged.push(future);
   });
 
   transitionSummaryCache = out;
   transitionCacheKey = cacheKey;
 
+  console.groupCollapsed('[TransitionDelta] summary');
+  console.table({
+    visibleKeys: keys.length,
+    comparable: out.comparable,
+    missingCurrent: out.missingCurrent,
+    missingFuture: out.missingFuture,
+    ownershipChanges: out.ownerChanged.length,
+    amChanges: out.ownershipBreakdown.am,
+    rmChanges: out.ownershipBreakdown.rm,
+    teamChanges: out.ownershipBreakdown.team,
+    groupChanges: out.ownershipBreakdown.group,
+    newlyCovered: out.newlyCovered.length,
+    improvedCoverage: out.improvedCoverage.length,
+    lostCoverage: out.lostCoverage.length,
+    coverageRegressed: out.coverageRegressed.length
+  });
+  if (out.sampleOwnershipChanges.length) console.table(out.sampleOwnershipChanges);
+  console.groupEnd();
+
+  window.__lastTransitionDeltaSummary = out;
   return out;
 }
 
@@ -9103,13 +9212,29 @@ function renderDeltaMarkers(){
 
     const d = buildDeltaSummary();
 
-    const rows = [
-      ...d.newlyCovered.map(s => ({ s, cls:'ops-delta-new', title:'Newly Covered' })),
-      ...d.improvedCoverage.map(s => ({ s, cls:'ops-delta-improved', title:'Improved Coverage' })),
-      ...d.lostCoverage.map(s => ({ s, cls:'ops-delta-lost', title:'Lost Coverage' })),
-      ...d.coverageRegressed.map(s => ({ s, cls:'ops-delta-regressed', title:'Coverage Regressed' })),
-      ...d.ownerChanged.map(s => ({ s, cls:'ops-delta-owner', title:'Ownership Changed' }))
-    ];
+    const deltaRowMap = new Map();
+    const addDeltaRow = (s, cls, title) => {
+      const k = storeKey(s);
+      if (!k) return;
+      const existing = deltaRowMap.get(k);
+      if (!existing) {
+        deltaRowMap.set(k, { s, cls, title, titles:[title] });
+        return;
+      }
+      if (!existing.titles.includes(title)) existing.titles.push(title);
+      if (title === 'Ownership Changed' && existing.title === 'Coverage Retained') {
+        existing.cls = cls;
+        existing.title = title;
+      }
+    };
+
+    d.newlyCovered.forEach(s => addDeltaRow(s, 'ops-delta-new', 'Newly Covered'));
+    d.improvedCoverage.forEach(s => addDeltaRow(s, 'ops-delta-improved', 'Improved Coverage'));
+    d.lostCoverage.forEach(s => addDeltaRow(s, 'ops-delta-lost', 'Lost Coverage'));
+    d.coverageRegressed.forEach(s => addDeltaRow(s, 'ops-delta-regressed', 'Coverage Regressed'));
+    d.ownerChanged.forEach(s => addDeltaRow(s, 'ops-delta-owner', 'Ownership Changed'));
+
+    const rows = [...deltaRowMap.values()];
 
     const bounds = map.getBounds();
 
@@ -9189,9 +9314,8 @@ if (popupHtmlCache.has(cacheKey)){
   const currentAM = amOf(currentStore);
   const futureAM = amOf(futureStore);
 
-  const ownershipChanged =
-    deltaNormalizeName(currentRM) !== deltaNormalizeName(futureRM) ||
-    deltaNormalizeName(currentAM) !== deltaNormalizeName(futureAM);
+  const ownershipResult = deltaOwnerCompare(currentStore, futureStore);
+  const ownershipChanged = ownershipResult.changed;
 
   const result =
     futureStore.deltaResult ||
