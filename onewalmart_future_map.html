@@ -1266,6 +1266,13 @@ select[multiple]{
   pointer-events:none !important;
 }
 
+
+/* ===== Dedicated-team filter enhancement pack ===== */
+#dedicatedFilterPanel .picker{margin-bottom:8px;}
+#dedicatedFilterPanel .dedicated-help{font-size:12px;color:#64748b;line-height:1.35;margin-bottom:8px;}
+.dedicated-chip{background:#f8fafc;border-color:#cbd5e1;}
+.ops-dedicated-row{border:1px solid #e2e8f0;border-radius:10px;padding:8px;background:#fff;display:flex;justify-content:space-between;gap:8px;}
+
 </style>
 </head>
 <body>
@@ -1393,6 +1400,34 @@ select[multiple]{
       <label class="toggle core-team-current" style="display:none"><input type="radio" name="coreTeamMode" value="premium"> Premium PSP</label>
       <label class="toggle core-team-current" style="display:none"><input type="radio" name="coreTeamMode" value="acosta"> Acosta PSP</label>
       <label class="toggle core-team-current" style="display:none"><input type="radio" name="coreTeamMode" value="crossmark"> Crossmark PSP</label>
+    </div>
+  </div>
+</section>
+
+<section class="control-section" id="dedicatedFilterSection">
+  <h4>Dedicated Team Filters</h4>
+  <div id="dedicatedFilterPanel">
+    <div class="dedicated-help">Use this only when you want to isolate Unilever, P&amp;G, or Tyson alignment. Main RM/AM filters stay focused on the core One Walmart hierarchy.</div>
+    <div class="picker">
+      <input id="dedTeamSearch" type="text" placeholder="Search dedicated team…" />
+      <select id="dedTeamFilter" multiple>
+        <option value="All" selected>All Dedicated Teams</option>
+        <option value="unilever">Unilever</option>
+        <option value="pg">P&amp;G</option>
+        <option value="tyson">Tyson</option>
+      </select>
+    </div>
+    <div class="picker">
+      <input id="dedRmSearch" type="text" placeholder="Filter dedicated regional managers…" />
+      <select id="dedRmFilter" multiple><option value="All" selected>All</option></select>
+    </div>
+    <div class="picker">
+      <input id="dedAmSearch" type="text" placeholder="Filter dedicated area managers…" />
+      <select id="dedAmFilter" multiple><option value="All" selected>All</option></select>
+    </div>
+    <div class="summary">
+      <span class="chip dedicated-chip">Dedicated Stores: <b id="dedStoreCount">0</b></span>
+      <span class="chip dedicated-chip">Dedicated Gaps: <b id="dedGapCount">0</b></span>
     </div>
   </div>
 </section>
@@ -2071,6 +2106,9 @@ const markers = L.markerClusterGroup({
   const rmFilter  = id('rmFilter');  const rmSearch  = id('rmSearch');
   const amFilter  = id('amFilter');  const amSearch  = id('amSearch');
   const hubFilter = id('hubFilter'); const hubSearch = id('hubSearch');
+  const dedTeamFilter = id('dedTeamFilter'); const dedTeamSearch = id('dedTeamSearch');
+  const dedRmFilter = id('dedRmFilter'); const dedRmSearch = id('dedRmSearch');
+  const dedAmFilter = id('dedAmFilter'); const dedAmSearch = id('dedAmSearch');
   const k = { pa:id('k_pa'), p:id('k_p'), a:id('k_a'), u:id('k_u'), total:id('k_total'), confirmed:id('k_confirmed'), pending:id('k_pending'), inView:id('inView') };
 
   // Side panel refs
@@ -2538,6 +2576,8 @@ function refreshExecutiveRibbon(){
     setCountChip('hubCountChip', hubC);
     setCountChip('covCountChip', covC);
 
+    refreshDedicatedFilterMetrics();
+
     const visible = filteredStores?.length || 0;
     const gaps = (filteredStores || []).filter(s => (s.coverageType || '') === 'Uncovered').length;
     if (id('floatVisible')) id('floatVisible').textContent = visible.toLocaleString();
@@ -2578,6 +2618,13 @@ function refreshExecutiveRibbon(){
   on('input', rmSearch,  ()=> filterSelect(rmFilter,  rmSearch.value));
   on('input', amSearch,  ()=> filterSelect(amFilter,  amSearch.value));
   on('input', hubSearch, ()=> filterSelect(hubFilter, hubSearch.value));
+  on('input', dedTeamSearch, ()=> filterSelect(dedTeamFilter, dedTeamSearch.value));
+  on('input', dedRmSearch, ()=> filterSelect(dedRmFilter, dedRmSearch.value));
+  on('input', dedAmSearch, ()=> filterSelect(dedAmFilter, dedAmSearch.value));
+
+  on('change', dedTeamFilter, ()=>{ lastFilterChanged='dedTeamFilter'; rebuildDedicatedFilterOptions(); runFilter(); saveState(); renderChips(); });
+  on('change', dedRmFilter, ()=>{ lastFilterChanged='dedRmFilter'; rebuildDedicatedFilterOptions(); runFilter(); saveState(); renderChips(); });
+  on('change', dedAmFilter, ()=>{ lastFilterChanged='dedAmFilter'; rebuildDedicatedFilterOptions(); runFilter(); saveState(); renderChips(); });
 
 on('change', rmFilter,  ()=>{
   lastFilterChanged='rmFilter';
@@ -2620,6 +2667,7 @@ on('change', amFilter,  ()=>{
   const el = id(idv);
   if (el) {
     el.addEventListener('change', () => {
+      rebuildDedicatedFilterOptions();
       runFilter();
       renderChips();
       saveState();
@@ -2874,7 +2922,7 @@ try {
 STATUS.textContent += `  |  ${allStores.length.toLocaleString()} stores ready`;
 setLaunchStatus('Building filters', 'Preparing RM, AM, and RTS filter options…');
 
-    populateRM(allStores); populateAM(allStores);
+    populateRM(allStores); populateAM(allStores); rebuildDedicatedFilterOptions();
 
     // ONE WALMART RTS HUBS
     try {
@@ -2955,6 +3003,7 @@ async function refreshAfterAlignmentChange(){
   buildSearchIndex();
   populateRM(allStores);
   populateAM(allStores);
+  rebuildDedicatedFilterOptions();
   buildHubFilterOptions();
 
   await recomputeCoverage();
@@ -3507,7 +3556,9 @@ const hubsNow = [...premiumConfirmed, ...acostaHubs];
 withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
     }
 
-    return covOK && rmOK && amOK && hubOK && withinOK;
+    const dedicatedOK = dedicatedSelectionMatches(s);
+
+    return covOK && rmOK && amOK && hubOK && withinOK && dedicatedOK;
   }
 
   function makeStoreMarker(s){
@@ -8160,11 +8211,17 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
     const rm  = Array.from(rmFilter.selectedOptions).map(o=>o.value).filter(v=>v!=='All');
     const am  = Array.from(amFilter.selectedOptions).map(o=>o.value).filter(v=>v!=='All');
     const hb  = Array.from(hubFilter.selectedOptions).map(o=>o.textContent);
+    const dedTeam = selectedValues(dedTeamFilter).filter(v=>v && v !== 'All');
+    const dedRm = selectedValues(dedRmFilter).filter(v=>v && v !== 'All');
+    const dedAm = selectedValues(dedAmFilter).filter(v=>v && v !== 'All');
 
     if (cov.length) chips.push(`<span class="chip">Coverage: <b>${cov.length}</b> selected</span>`);
     if (rm.length)  chips.push(`<span class="chip">RM: <b>${rm.length}</b> selected</span>`);
     if (am.length)  chips.push(`<span class="chip">AM: <b>${am.length}</b> selected</span>`);
     if (hb.length)  chips.push(`<span class="chip">Hubs: <b>${hb.length}</b> selected</span>`);
+    if (dedTeam.length) chips.push(`<span class="chip dedicated-chip">Dedicated Team: <b>${dedTeam.length}</b> selected</span>`);
+    if (dedRm.length) chips.push(`<span class="chip dedicated-chip">Dedicated RM: <b>${dedRm.length}</b> selected</span>`);
+    if (dedAm.length) chips.push(`<span class="chip dedicated-chip">Dedicated AM: <b>${dedAm.length}</b> selected</span>`);
     if (tgWithin.checked) chips.push(`<span class="chip">Within hubs</span>`);
 
     id('activeChips').innerHTML = chips.join('') || '<span class="muted" style="margin-left:10px">No active chips</span>';
@@ -8183,6 +8240,7 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
     setMulti(covFilter, ['All']);
     setMulti(rmFilter, ['All']); setMulti(amFilter, ['All']);
     setMulti(hubFilter, []);
+    setMulti(dedTeamFilter, ['All']); setMulti(dedRmFilter, ['All']); setMulti(dedAmFilter, ['All']);
     const searchBox = id('searchBox');
     searchBox.value=''; localStorage.removeItem(LS_LAST_QUERY); hideResults(); clearTarget();
     map.setView(HOME_VIEW.center, HOME_VIEW.zoom);
@@ -8510,6 +8568,87 @@ function openSandboxAt(lat, lng){
       heatLayerHolder.layer = null;
     }
   }
+
+// ---------- Dedicated team filter helpers ----------
+function dedicatedTeamLabel(type){
+  if (type === 'unilever') return 'Unilever';
+  if (type === 'pg') return 'P&G';
+  if (type === 'tyson') return 'Tyson';
+  return type || '';
+}
+
+function dedicatedManagerPathsForStore(s){
+  return managerPathsForStore(s).filter(p => {
+    const typ = getTeamType(p);
+    return (typ === 'unilever' || typ === 'pg' || typ === 'tyson') && dedicatedTeamVisible(p.teamName || dedicatedTeamLabel(typ));
+  });
+}
+
+function dedicatedSelectionMatches(s){
+  const teamSel = selectedValues(dedTeamFilter).filter(v => v && v !== 'All');
+  const rmSel = selectedValues(dedRmFilter).filter(v => v && v !== 'All');
+  const amSel = selectedValues(dedAmFilter).filter(v => v && v !== 'All');
+
+  if (!teamSel.length && !rmSel.length && !amSel.length) return true;
+
+  return dedicatedManagerPathsForStore(s).some(p => {
+    const typ = getTeamType(p);
+    const teamOK = !teamSel.length || teamSel.includes(typ);
+    const rmOK = !rmSel.length || rmSel.includes(String(p.regionalManager || '').trim());
+    const amOK = !amSel.length || amSel.includes(String(p.areaManager || '').trim());
+    return teamOK && rmOK && amOK;
+  });
+}
+
+function rebuildDedicatedFilterOptions(){
+  if (!dedTeamFilter || !dedRmFilter || !dedAmFilter) return;
+
+  const selectedTeams = new Set(selectedValues(dedTeamFilter).filter(v => v && v !== 'All'));
+  const selectedRms = new Set(selectedValues(dedRmFilter).filter(v => v && v !== 'All'));
+  const selectedAms = new Set(selectedValues(dedAmFilter).filter(v => v && v !== 'All'));
+
+  const teamCounts = { unilever:0, pg:0, tyson:0 };
+  const rmCounts = new Map();
+  const amCounts = new Map();
+
+  (allStores || []).forEach(s => {
+    dedicatedManagerPathsForStore(s).forEach(p => {
+      const typ = getTeamType(p);
+      if (!teamCounts.hasOwnProperty(typ)) return;
+      teamCounts[typ]++;
+
+      const teamOKForManagers = !selectedTeams.size || selectedTeams.has(typ);
+      if (!teamOKForManagers) return;
+
+      const rm = String(p.regionalManager || '').trim();
+      const am = String(p.areaManager || '').trim();
+      if (rm) rmCounts.set(rm, (rmCounts.get(rm) || 0) + 1);
+      if (am) amCounts.set(am, (amCounts.get(am) || 0) + 1);
+    });
+  });
+
+  const keepSelected = (value, selectedSet) => selectedSet.has(value) ? ' selected' : '';
+  const teamOptions = ['<option value="All"' + (!selectedTeams.size ? ' selected' : '') + '>All Dedicated Teams</option>']
+    .concat(['unilever','pg','tyson'].map(t => `<option value="${t}"${keepSelected(t, selectedTeams)}>${escape(dedicatedTeamLabel(t))} — ${teamCounts[t] || 0}</option>`));
+  dedTeamFilter.innerHTML = teamOptions.join('');
+
+  const rmNames = [...rmCounts.keys()].sort((a,b)=>a.localeCompare(b));
+  dedRmFilter.innerHTML = ['<option value="All"' + (!selectedRms.size ? ' selected' : '') + '>All</option>']
+    .concat(rmNames.map(n => `<option value="${escape(n)}"${keepSelected(n, selectedRms)}>${escape(n)} — ${rmCounts.get(n)}</option>`)).join('');
+
+  const amNames = [...amCounts.keys()].sort((a,b)=>a.localeCompare(b));
+  dedAmFilter.innerHTML = ['<option value="All"' + (!selectedAms.size ? ' selected' : '') + '>All</option>']
+    .concat(amNames.map(n => `<option value="${escape(n)}"${keepSelected(n, selectedAms)}>${escape(n)} — ${amCounts.get(n)}</option>`)).join('');
+
+  refreshDedicatedFilterMetrics();
+}
+
+function refreshDedicatedFilterMetrics(){
+  const matching = (filteredStores || []).filter(s => dedicatedManagerPathsForStore(s).length > 0);
+  const gaps = matching.filter(s => String(s.coverageType || '') === 'Uncovered');
+  if (id('dedStoreCount')) id('dedStoreCount').textContent = matching.length.toLocaleString();
+  if (id('dedGapCount')) id('dedGapCount').textContent = gaps.length.toLocaleString();
+}
 
 // ---------- Cascade AM by RM ----------
 function populateRM(stores){
@@ -10035,6 +10174,33 @@ if (popupHtmlCache.has(cacheKey)){
       mgrEl.innerHTML = managers.length
         ? managers.map(([name,count]) => `<div class="ops-list-row"><span>${escape(name)}</span><b>${count.toLocaleString()}</b></div>`).join('')
         : `<div class="ops-sub">No manager gap exposure in the current filtered view.</div>`;
+    }
+
+    const actionCard = document.querySelector('.ops-action-card');
+    let dedicatedBlock = document.getElementById('actionDedicatedExposure');
+    if (actionCard && !dedicatedBlock) {
+      dedicatedBlock = document.createElement('div');
+      dedicatedBlock.id = 'actionDedicatedExposure';
+      dedicatedBlock.innerHTML = '<div class="ops-section-title" style="margin-top:10px"><span>Dedicated Team Exposure</span><span class="ops-sub">Unilever / P&G / Tyson</span></div><div id="actionDedicatedRows" class="ops-transition-list"></div>';
+      const footerAnchor = document.getElementById('actionFooter');
+      actionCard.insertBefore(dedicatedBlock, footerAnchor || null);
+    }
+    const dedRows = document.getElementById('actionDedicatedRows');
+    if (dedRows) {
+      const byTeam = new Map();
+      visible.forEach(s => {
+        dedicatedManagerPathsForStore(s).forEach(p => {
+          const typ = getTeamType(p);
+          const label = dedicatedTeamLabel(typ);
+          if (!label) return;
+          const cur = byTeam.get(label) || { stores:new Set(), gaps:new Set() };
+          cur.stores.add(s.storeNumberStr);
+          if (String(s.coverageType || '') === 'Uncovered') cur.gaps.add(s.storeNumberStr);
+          byTeam.set(label, cur);
+        });
+      });
+      const rows = [...byTeam.entries()].sort((a,b)=>b[1].stores.size-a[1].stores.size);
+      dedRows.innerHTML = rows.length ? rows.map(([label,v]) => `<div class="ops-dedicated-row"><span>${escape(label)}</span><b>${v.stores.size.toLocaleString()} stores / ${v.gaps.size.toLocaleString()} gaps</b></div>`).join('') : '<div class="ops-sub">No dedicated-team stores in current view.</div>';
     }
 
     const footer = document.getElementById('actionFooter');
