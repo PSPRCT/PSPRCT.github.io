@@ -1252,6 +1252,20 @@ select[multiple]{
 }
 .ops-tab[data-pane="transition"],#opsPaneTransition{display:none !important;}
 
+
+/* ===== HARD REMOVE Transition / Delta tabs from Ops Intel ===== */
+.ops-tab[data-pane="transition"],
+.ops-tab[data-pane="delta"],
+#opsPaneTransition,
+#opsPaneDelta,
+#railDelta,
+#quickDeltaBtn,
+#opsDeltaToggle {
+  display:none !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+}
+
 </style>
 </head>
 <body>
@@ -9092,59 +9106,6 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
           <div class="ops-card"><div class="ops-section-title"><span>Balancing Flags</span><span class="ops-sub">capacity watchlist</span></div><div id="opsBalanceFlags"></div></div>
         </div>
 
-        <div class="ops-pane" id="opsPaneDelta">
-  <div class="ops-card">
-    <div class="ops-section-title">
-      <span>Current vs Future Delta</span>
-      <span class="ops-sub">5/31 transition</span>
-    </div>
-
-    <div id="opsDeltaSummary"></div>
-  </div>
-
-  <div class="ops-card">
-    <div class="ops-section-title">
-      <span>Delta Legend</span>
-      <span class="ops-sub">map highlight</span>
-    </div>
-
-    <div class="delta-legend">
-
-      <div class="delta-item">
-        <span class="delta-dot delta-new"></span>
-        <div>
-          <strong>Reassigned</strong><br>
-          Current uncovered → future covered.
-        </div>
-      </div>
-
-      <div class="delta-item">
-        <span class="delta-dot delta-improved"></span>
-        <div>
-          <strong>Improved Coverage</strong><br>
-          Already covered, but future coverage improves.
-        </div>
-      </div>
-
-      <div class="delta-item">
-        <span class="delta-dot delta-lost"></span>
-        <div>
-          <strong>Lost Coverage / Risk</strong><br>
-          Current covered → future uncovered.
-        </div>
-      </div>
-
-      <div class="delta-item">
-        <span class="delta-dot delta-owner"></span>
-        <div>
-          <strong>Alignment Changed</strong><br>
-          Store remains covered, but RM/AM path changes.
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
         <div class="ops-pane" id="opsPaneLeadership">
           <div class="ops-card"><div class="ops-section-title"><span>Leadership Snapshot</span><span class="ops-sub">copy-ready</span></div><div id="opsLeadershipSnapshot"></div></div>
           <div class="ops-card"><div class="ops-section-title"><span>Recommended Talking Points</span><span class="ops-sub">auto summary</span></div><div id="opsTalkingPoints"></div></div>
@@ -10409,6 +10370,43 @@ if (popupHtmlCache.has(cacheKey)){
   }
 
   installPerformanceSafeInteractionPatchV5();
+
+  // ===== HARD REMOVE Transition / Delta tabs from Ops Intel =====
+  // This is intentionally defensive because older cached/enhanced builds created the tab
+  // dynamically after the drawer rendered. Keep Ops Intel focused on coverage, risk,
+  // RTS load, action planning, and leadership.
+  function removeTransitionAndDeltaTabs(){
+    const drawer = document.getElementById('opsDrawer');
+    if (!drawer) return;
+
+    drawer.querySelectorAll('.ops-tab, button').forEach(btn => {
+      const pane = String(btn.dataset?.pane || '').toLowerCase();
+      const text = String(btn.textContent || '').trim().toLowerCase();
+      if (pane === 'transition' || pane === 'delta' || text === 'transition' || text.includes('delta/transition')) {
+        btn.remove();
+      }
+    });
+
+    ['opsPaneTransition','opsPaneDelta','opsDeltaSummary','opsDeltaToggle','railDelta','quickDeltaBtn'].forEach(idv => {
+      document.getElementById(idv)?.remove();
+    });
+
+    // Make sure a visible tab is active after removal.
+    const active = drawer.querySelector('.ops-tab.active');
+    if (!active || active.offsetParent === null) {
+      const first = drawer.querySelector('.ops-tab');
+      first?.classList.add('active');
+      const pane = first?.dataset?.pane;
+      if (pane) {
+        drawer.querySelectorAll('.ops-pane').forEach(p => p.classList.remove('active'));
+        drawer.querySelector('#opsPane' + pane.charAt(0).toUpperCase() + pane.slice(1))?.classList.add('active');
+      }
+    }
+  }
+
+  removeTransitionAndDeltaTabs();
+  const transitionTabObserver = new MutationObserver(removeTransitionAndDeltaTabs);
+  transitionTabObserver.observe(document.body, { childList:true, subtree:true });
 
 // Startup performance guard: do not pre-render Transition Readiness on page load.
 // It is rendered by Ops Intel / Leadership / Delta actions when needed.
