@@ -1410,7 +1410,6 @@ select[multiple]{
         <button id="rollupBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Manager Rollups</button>
         <button id="coverageBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Coverage Priorities</button>
         <button id="suggestRtsBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Suggest RTS City</button>
-        <button id="alignmentQABtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Store Alignment QA</button>
       </div>
     </div>
     <button id="helpBtn" class="btn" type="button" title="Quick tips and shortcuts">Help</button>
@@ -1807,27 +1806,6 @@ select[multiple]{
         Mark placements as <b>Replace</b> in Final Plan Review Mode first. This protects Approved/Maybe/Pending rows and suggests one-for-one swaps only for those Replace-marked hubs, keeping the total 100-slot cap intact.
       </div>
       <div id="replaceSwapResults" style="max-height:65vh;overflow:auto"></div>
-    </div>
-  </div>
-</div>
-
-
-<!-- Store Alignment QA modal -->
-<div class="modal" id="alignmentQAModal" aria-modal="true" role="dialog">
-  <div class="card" style="max-width:1200px;width:96vw">
-    <header>
-      <h3>Store Alignment QA</h3>
-      <button id="alignmentQAClose" class="btn" type="button">Close</button>
-    </header>
-    <div class="body" style="grid-template-columns:1fr;">
-      <div class="priority-tools">
-        <button id="alignmentQARefresh" class="btn" type="button">Refresh Scan</button>
-        <button id="alignmentQAExport" class="btn" type="button">Export QA CSV</button>
-      </div>
-      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
-        Scans the current filtered store set for missing current core PSP owners, missing future One Walmart owners, and dedicated-team visibility gaps. This is designed for quick validation before leadership review.
-      </div>
-      <div id="alignmentQAResults" style="max-height:65vh;overflow:auto"></div>
     </div>
   </div>
 </div>
@@ -3101,19 +3079,19 @@ function getTeamType(path){
   const teamId = String(path?.teamId || path?.ManagementGroupID || path?.managementGroupId || '').trim();
   const text = getManagerText(path);
 
-  // Dedicated client teams must win first so they never get swallowed by One Walmart/core Walmart labels.
+  // Dedicated client teams must win first and stay separate from core PSP / One Walmart.
   if (team.includes('unilever') || /\bunilv\b/.test(text) || /\bunvil\b/.test(text)) return 'unilever';
   if (team.includes('tyson') || /\bwmtyson\b/.test(text) || /\btyson\b/.test(text)) return 'tyson';
   if (team.includes('p&g') || team.includes('p and g') || team.includes('drt - p&g') || /\bpg\b/.test(text) || /\bp&g\b/.test(text)) return 'pg';
 
-  // Current-state core teams can be supplied either by the current map's manager_paths.json
-  // or by the future One Walmart flattened file using LegacyBrand.
+  // Future-state core team must win before LegacyBrand. Some future files carry LegacyBrand
+  // for source lineage, but the actual future owner is the single One Walmart path.
+  if (team === 'wm - one walmart' || team.includes('one walmart') || teamId === '242') return 'onewalmart';
+
+  // Current-state core teams.
   if (legacy === 'premium' || team === 'dedicated - walmart psp' || teamId === '64') return 'premium';
   if (legacy === 'acosta' || team === 'wm - walmart/sams psp' || team === 'wm - walmart/sam psp' || teamId === '95') return 'acosta';
   if (legacy === 'crossmark' || team === 'crossmark walmart psp') return 'crossmark';
-
-  // Future-state core team
-  if (team === 'wm - one walmart' || team.includes('one walmart') || teamId === '242') return 'onewalmart';
 
   return 'other';
 }
@@ -3184,32 +3162,30 @@ function currentTeamType(p){
   const legacy = String(p?.legacyBrand || p?.LegacyBrand || '').trim().toLowerCase();
   const text = `${team} ${rm} ${am}`.toLowerCase();
 
-  // Dedicated/client teams first.
+  // Dedicated/client teams first
   if (/unilv|unilever/i.test(text)) return 'unilever';
   if (/tyson/i.test(text)) return 'tyson';
   if (/\bp&g\b|\bpg\b/i.test(text)) return 'pg';
 
-  // Explicit IDs/names must win before the all-caps Crossmark heuristic.
-  // Some valid Premium/Acosta rows can have uppercase manager formatting, so
-  // checking uppercase first can incorrectly swallow a real Premium owner.
-  if (teamId === '64' || legacy === 'premium' || team.includes('dedicated - walmart psp') || team.includes('premium')) return 'premium';
-  if (teamId === '95' || legacy === 'acosta' || team.includes('walmart/sams') || team.includes('walmart/sam') || team.includes('acosta')) return 'acosta';
-  if (legacy === 'crossmark' || team.includes('crossmark')) return 'crossmark';
-
-  // CURRENT Premium RMs are ONLY these three when the source lacks a team ID.
+  // CURRENT Premium RMs are ONLY these three
   if (personNameMatches(rm, ['Angel Bruce', 'Roy Anders', 'Sherry Blankenhorn'])) {
     return 'premium';
   }
 
-  // CURRENT Crossmark AMs commonly appear in ALL CAPS, e.g. ABEDRABBO, IMAD.
+  // CURRENT Crossmark AMs commonly appear in ALL CAPS
   if (looksLikeAllCapsManagerName(am) || looksLikeAllCapsManagerName(rm)) {
     return 'crossmark';
   }
 
+  // Explicit IDs/names if available
+  if (teamId === '64' || legacy === 'premium' || team.includes('dedicated - walmart psp')) return 'premium';
+  if (teamId === '95' || legacy === 'acosta' || team.includes('walmart/sams') || team.includes('walmart/sam')) return 'acosta';
+  if (legacy === 'crossmark' || team.includes('crossmark')) return 'crossmark';
+
   // If it is not Premium and not all-caps Crossmark, treat current Walmart/Sams PSP as Acosta
-  // only when the row actually has manager content. Blank rows stay unknown.
-  if (!team && !teamId && !legacy) return (rm || am) ? 'acosta' : 'other';
-  if (rm || am) return 'acosta';
+if (!team && !teamId && !legacy) return 'other';
+
+if (rm || am) return 'acosta';
 
   return 'other';
 }
@@ -7092,24 +7068,26 @@ function buildManagerRollupMap(rows){
 }
 
 function pathMatchesCoreTeam(p){
-  const t = currentTeamType(p);
+  const futureType = getTeamType(p);
+  const currentType = currentTeamType(p);
 
-  // One Walmart mode intentionally shows all core PSP teams.
+  // Future One Walmart mode should use the future One Walmart owner only.
+  // Do not roll legacy Premium/Acosta/Crossmark paths into multiple future popup rows.
   if (activeCoreTeamMode === 'onewalmart') {
-    return ['premium','acosta','crossmark'].includes(t);
+    return futureType === 'onewalmart';
   }
 
-  // Strict explicit matching only.
+  // Current alignment stays strict by legacy team.
   if (activeCoreTeamMode === 'premium') {
-    return t === 'premium';
+    return currentType === 'premium';
   }
 
   if (activeCoreTeamMode === 'acosta') {
-    return t === 'acosta';
+    return currentType === 'acosta';
   }
 
   if (activeCoreTeamMode === 'crossmark') {
-    return t === 'crossmark';
+    return currentType === 'crossmark';
   }
 
   return false;
@@ -7713,7 +7691,6 @@ function storePopupHTML(s){
   const t = transitionCurrentFutureForStore(s);
   const currentBase = t.currentBase || s;
   const futureBase = t.futureBase || s;
-  const storeKey = transitionStoreKey(s);
 
   const addressLine = x => {
     const a = String(x?.address || '').trim();
@@ -7735,138 +7712,32 @@ function storePopupHTML(s){
     return firstClean(p?.teamName, p?.team, p?.managementGroupName, p?.ManagementGroupName, p?.legacyBrand, p?.LegacyBrand, 'Team');
   };
 
-  const normalizePopupPath = p => {
-    if (!p || typeof p !== 'object') return null;
-    const teamId = String(p.teamId ?? p.TeamID ?? p.ManagementGroupID ?? p.managementGroupId ?? p['Mngnt Grp Id'] ?? '').trim();
-    const teamName = String(p.teamName ?? p.TeamName ?? p.team ?? p.managementGroupName ?? p.ManagementGroupName ?? p['Mngnt Grp Name'] ?? '').trim();
-    const legacyBrand = String(p.legacyBrand ?? p.LegacyBrand ?? p.brand ?? '').trim();
-    const regionalManager = String(p.regionalManager ?? p.RegionalManager ?? p.rm ?? p.RM ?? p['Regional Manager'] ?? p['Mgr 4 Name'] ?? p['Mgr 3 Name'] ?? p['Mgr 2 Name'] ?? '').trim();
-    const areaManager = String(p.areaManager ?? p.AreaManager ?? p.am ?? p.AM ?? p['Area Manager'] ?? p['Mgr 2 Name'] ?? p['Mgr 1 Name'] ?? '').trim();
-    if (!teamId && !teamName && !legacyBrand && !regionalManager && !areaManager) return null;
-    return { teamId, teamName, legacyBrand, regionalManager, areaManager };
-  };
+  const pathRows = (store, mode, dedicatedOnly=false) => {
+    const paths = Array.isArray(store?.managerPaths) ? store.managerPaths : [];
+    let selected = paths.filter(p => dedicatedOnly ? isDedicatedTeamPath(p) : !isDedicatedTeamPath(p));
 
-  const addPaths = (bucket, value) => {
-    normalizeManagerPaths(value).forEach(p => bucket.push(p));
-    if (Array.isArray(value)) value.map(normalizePopupPath).filter(Boolean).forEach(p => bucket.push(p));
-  };
-
-  const lookupRollupPaths = (store, mapObj) => {
-    const out = [];
-    const keys = storeLookupKeys(store?.storeNumberStr ?? store?.storeNumber ?? store?.StoreNumber ?? storeKey ?? '');
-    for (const k of keys){
-      const roll = mapObj && mapObj.get ? mapObj.get(k) : null;
-      if (roll && Array.isArray(roll.managerPaths)) out.push(...roll.managerPaths.map(normalizePopupPath).filter(Boolean));
+    if (!dedicatedOnly) {
+      if (mode === 'future') {
+        // Future owner is a single One Walmart path. Legacy current PSP paths may still exist
+        // in source data for audit/reference, but should not render as multiple future managers.
+        selected = selected.filter(p => getTeamType(p) === 'onewalmart');
+      } else {
+        selected = selected.filter(p => ['premium','acosta','crossmark'].includes(currentTeamType(p)));
+      }
+    } else {
+      selected = selected.filter(p => dedicatedTeamVisible(cleanTeamLabel(p)));
     }
-    return out;
-  };
 
-  const dedicatedRowsForStore = (store) => {
-    const out = [];
-    const keys = new Set(storeLookupKeys(store?.storeNumberStr ?? store?.storeNumber ?? store?.StoreNumber ?? storeKey ?? '').map(normalizeStoreNumberValue));
-    (Array.isArray(window.dedicatedTeamRows) ? window.dedicatedTeamRows : []).forEach(r => {
-      const key = normalizeStoreNumberValue(r.StoreKey ?? r.storeNumberStr ?? r.StoreNumber ?? r.StoreNbr ?? r['Store Number'] ?? '');
-      if (!key || !keys.has(key)) return;
-      const p = normalizePopupPath({
-        teamId: r.ManagementGroupID ?? r.teamId ?? r['Mngnt Grp Id'] ?? '',
-        teamName: r.teamName ?? r.TeamName ?? r['Mngnt Grp Name'] ?? r.ManagementGroup ?? '',
-        regionalManager: r.regionalManager ?? r.RegionalManager ?? r['Mgr 2 Name'] ?? r.SourceRegionalManager ?? '',
-        areaManager: r.areaManager ?? r.AreaManager ?? r['Mgr 1 Name'] ?? r.DistrictManager ?? ''
-      });
-      if (p && isDedicatedTeamPath(p)) out.push(p);
-    });
-    return out;
-  };
-
-  const allCurrentCandidatePaths = () => {
-    const paths = [];
-    addPaths(paths, currentBase?.managerPaths);
-    paths.push(...lookupRollupPaths(currentBase, currentManagerRollupMap));
-
-    // Safety merge: if the exact current-map source is missing a legacy team row, use the
-    // future store's embedded legacyBrand/team rows as a backfill. This fixes store popups
-    // where a current Premium/Acosta/Crossmark owner exists but was absent from the current file.
-    addPaths(paths, futureBase?.managerPaths);
-    paths.push(...lookupRollupPaths(futureBase, futureManagerRollupMap));
-
-    return dedupePopupPaths(paths);
-  };
-
-  const allFutureCandidatePaths = () => {
-    const paths = [];
-    addPaths(paths, futureBase?.managerPaths);
-    paths.push(...lookupRollupPaths(futureBase, futureManagerRollupMap));
-    // Keep legacy rows available as a fallback when the One Walmart manager path is incomplete.
-    addPaths(paths, currentBase?.managerPaths);
-    paths.push(...lookupRollupPaths(currentBase, currentManagerRollupMap));
-    return dedupePopupPaths(paths);
-  };
-
-  function dedupePopupPaths(paths){
     const seen = new Set();
-    return (paths || []).map(normalizePopupPath).filter(Boolean).filter(p => {
-      const sig = [currentTeamType(p), getTeamType(p), cleanTeamLabel(p), p.areaManager, p.regionalManager].map(x => String(x || '').toLowerCase().trim()).join('|');
-      if (seen.has(sig)) return false;
+    return selected.map(p => {
+      const team = dedicatedOnly ? cleanTeamLabel(p) : (mode === 'future' ? 'One Walmart' : cleanTeamLabel(p));
+      const am = firstClean(p?.areaManager, p?.AreaManager, p?.am, p?.AM, p?.['Mgr 1 Name']);
+      const rm = firstClean(p?.regionalManager, p?.RegionalManager, p?.rm, p?.RM, p?.['Mgr 2 Name']);
+      const sig = [team, am, rm].join('|');
+      if (seen.has(sig)) return null;
       seen.add(sig);
-      return true;
-    });
-  }
-
-  const rowFromPath = (p, teamOverride=null) => ({
-    team: teamOverride || cleanTeamLabel(p),
-    am: firstClean(p?.areaManager, p?.AreaManager, p?.am, p?.AM, p?.['Mgr 1 Name']),
-    rm: firstClean(p?.regionalManager, p?.RegionalManager, p?.rm, p?.RM, p?.['Mgr 2 Name'])
-  });
-
-  const dedupeRows = rows => {
-    const seen = new Set();
-    return (rows || []).filter(r => {
-      if (!r || (!r.team && !r.am && !r.rm)) return false;
-      const sig = [r.team, r.am, r.rm].map(x => String(x || '').toLowerCase().trim()).join('|');
-      if (seen.has(sig)) return false;
-      seen.add(sig);
-      return true;
-    });
-  };
-
-  const currentCoreRows = () => dedupeRows(
-    allCurrentCandidatePaths()
-      .filter(p => ['premium','acosta','crossmark'].includes(currentTeamType(p)))
-      .map(p => rowFromPath(p))
-  );
-
-  const futureCoreRows = () => {
-    const futurePaths = allFutureCandidatePaths();
-    const oneWalmartDirect = futurePaths
-      .filter(p => getTeamType(p) === 'onewalmart')
-      .map(p => rowFromPath(p, 'One Walmart'));
-
-    if (oneWalmartDirect.length) return dedupeRows(oneWalmartDirect);
-
-    // Fallback: One Walmart rolls up Premium + Acosta + Crossmark. If a dedicated future
-    // manager-path file does not have the store, show the available core owner(s) under One Walmart.
-    return dedupeRows(
-      futurePaths
-        .filter(p => ['premium','acosta','crossmark'].includes(currentTeamType(p)))
-        .map(p => rowFromPath(p, 'One Walmart'))
-    );
-  };
-
-  const currentDedicatedRows = () => dedupeRows([
-    ...allCurrentCandidatePaths().filter(p => isDedicatedTeamPath(p)).map(p => rowFromPath(p)),
-    ...dedicatedRowsForStore(currentBase).map(p => rowFromPath(p)),
-    ...dedicatedRowsForStore(futureBase).map(p => rowFromPath(p))
-  ].filter(r => dedicatedTeamVisible(r.team)));
-
-  const futureDedicatedRows = () => {
-    // Dedicated teams remain separate in the future state. Use future rows when present,
-    // but mirror current/client overlay rows so Unilever/P&G/Tyson never disappear just
-    // because One Walmart core alignment changed.
-    return dedupeRows([
-      ...allFutureCandidatePaths().filter(p => isDedicatedTeamPath(p)).map(p => rowFromPath(p)),
-      ...dedicatedRowsForStore(futureBase).map(p => rowFromPath(p)),
-      ...currentDedicatedRows()
-    ].filter(r => dedicatedTeamVisible(r.team)));
+      return { team, am, rm };
+    }).filter(Boolean);
   };
 
   const fallbackOwner = (store, label) => {
@@ -7875,10 +7746,9 @@ function storePopupHTML(s){
     return (am || rm) ? [{ team: label, am, rm }] : [];
   };
 
-  const renderOwnerBlock = (title, rows, emptyText, note='') => `
+  const renderOwnerBlock = (title, rows, emptyText) => `
     <div class="store-popup-card owner-card">
       <div class="store-popup-card-title">${esc(title)}</div>
-      ${note ? `<div class="store-popup-sub" style="margin-bottom:6px">${esc(note)}</div>` : ''}
       ${rows.length ? rows.map(r => `
         <div class="owner-row">
           <div><b>${esc(r.team || 'Team')}</b></div>
@@ -7888,31 +7758,34 @@ function storePopupHTML(s){
       `).join('') : `<div class="store-popup-sub">${esc(emptyText)}</div>`}
     </div>`;
 
-  let currentCore = currentCoreRows();
+  let currentCore = pathRows(currentBase, 'current', false);
   if (!currentCore.length) currentCore = fallbackOwner(currentBase, 'Core PSP');
-  let futureCore = futureCoreRows();
+  let futureCore = pathRows(futureBase, 'future', false);
+  if (futureCore.length > 1) futureCore = [futureCore[0]];
   if (!futureCore.length) futureCore = fallbackOwner(futureBase, 'One Walmart');
-  const currentDedicated = currentDedicatedRows();
-  const futureDedicated = futureDedicatedRows();
+  if (futureCore.length > 1) futureCore = [futureCore[0]];
+
+  const currentDedicated = pathRows(currentBase, 'current', true);
+  // Dedicated team alignments do not roll into One Walmart. Use the latest dedicated team
+  // source as the future/state-of-record and mirror current when future has no separate row.
+  let futureDedicated = pathRows(futureBase, 'future', true);
+  if (!futureDedicated.length && currentDedicated.length) futureDedicated = currentDedicated;
 
   const currentCovered = t.current.covered;
   const futureCovered = t.future.covered;
   const currentMiles = t.current.miles;
   const futureMiles = t.future.miles;
+  const currentRTS = t.current.rts;
+  const futureRTS = t.future.rts;
   const viewLabel = activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart';
   const activeCoverage = activeAlignmentMode === 'current' ? t.current : t.future;
-
-  const storeNum = firstClean(s?.storeNumberStr, s?.storeNumber, s?.StoreNumber);
-  const cityState = [firstClean(s?.city, s?.City), firstClean(s?.state, s?.State)].filter(Boolean).join(', ');
-  const mapsQuery = encodeURIComponent([firstClean(s?.address, s?.Address), cityState].filter(Boolean).join(', '));
-  const copyText = `Store ${storeNum} - ${firstClean(s?.storeName, s?.StoreName, 'Walmart')} - ${addressLine(s)}`;
 
   return `
     <div class="store-popup-shell leadership-popup">
       <div class="store-popup-header">
         <div>
-          <div class="store-popup-title">Store ${esc(storeNum)}</div>
-          <div class="store-popup-sub">${esc(firstClean(s?.storeName, s?.StoreName, 'Walmart'))}</div>
+          <div class="store-popup-title">Store ${esc(s?.storeNumberStr || s?.storeNumber || '')}</div>
+          <div class="store-popup-sub">${esc(s?.storeName || 'Walmart')}</div>
           <div class="store-popup-sub">${esc(addressLine(s))}</div>
         </div>
         <div class="store-popup-delta simplified">${esc(viewLabel)}</div>
@@ -7921,12 +7794,8 @@ function storePopupHTML(s){
       <div class="store-popup-card coverage-card">
         <div class="store-popup-card-title">RTS Coverage</div>
         <div><b>Status:</b> ${activeCoverage.covered ? 'Covered' : 'Gap / Uncovered'}</div>
-        <div><b>RTS:</b> ${esc(activeCoverage.rts || 'Not within 75 miles')}</div>
+        <div><b>RTS:</b> ${esc(activeCoverage.rts || '—')}</div>
         <div><b>Distance:</b> ${Number.isFinite(activeCoverage.miles) ? activeCoverage.miles.toFixed(1) + ' mi' : '—'}</div>
-        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-          <button class="mini" type="button" onclick="navigator.clipboard && navigator.clipboard.writeText('${esc(copyText)}')">Copy store</button>
-          <a class="mini" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" style="text-decoration:none;color:inherit">Google Maps</a>
-        </div>
       </div>
 
       <div class="store-popup-grid owner-grid">
@@ -7936,7 +7805,7 @@ function storePopupHTML(s){
 
       <div class="store-popup-grid owner-grid dedicated-grid">
         ${renderOwnerBlock('Current Dedicated Team Owner(s)', currentDedicated, 'No dedicated team owner listed')}
-        ${renderOwnerBlock('Future Dedicated Team Owner(s)', futureDedicated, 'No dedicated team owner listed', 'Dedicated teams remain separate after the One Walmart roll-up.')}
+        ${renderOwnerBlock('Dedicated Team Owner(s) — unchanged', futureDedicated, 'No dedicated team owner listed')}
       </div>
 
       <div class="store-popup-summary simplified-note">
@@ -7946,92 +7815,6 @@ function storePopupHTML(s){
     </div>
   `;
 }
-
-let lastAlignmentQARows = [];
-function storeByTransitionKey(list, key){
-  return (Array.isArray(list) ? list : []).find(x => transitionStoreKey(x) === key) || null;
-}
-function popupQAPathsForStore(store){
-  const key = transitionStoreKey(store);
-  const cur = storeByTransitionKey(currentStores, key) || store;
-  const fut = storeByTransitionKey(futureStores, key) || store;
-  const collect = (x) => Array.isArray(x?.managerPaths) ? x.managerPaths : [];
-  const currentPaths = [...collect(cur), ...collect(fut)];
-  const futurePaths = [...collect(fut), ...collect(cur)];
-  return { key, cur, fut, currentPaths, futurePaths };
-}
-function runAlignmentQAScan(){
-  const safe = v => String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const rows = (filteredStores || []).map(s => {
-    const data = popupQAPathsForStore(s);
-    const currentCore = data.currentPaths.filter(p => ['premium','acosta','crossmark'].includes(currentTeamType(p)));
-    const futureCore = data.futurePaths.filter(p => getTeamType(p) === 'onewalmart' || ['premium','acosta','crossmark'].includes(currentTeamType(p)));
-    const currentDedicated = data.currentPaths.filter(p => isDedicatedTeamPath(p) && dedicatedTeamVisible(p.teamName));
-    const futureDedicated = data.futurePaths.filter(p => isDedicatedTeamPath(p) && dedicatedTeamVisible(p.teamName));
-    const hasDedicatedMismatch = currentDedicated.length > 0 && futureDedicated.length === 0;
-    const issues = [];
-    if (!currentCore.length) issues.push('Missing current core owner');
-    if (!futureCore.length) issues.push('Missing future One Walmart owner');
-    if (hasDedicatedMismatch) issues.push('Dedicated visible current / missing future');
-    return {
-      store:s.storeNumberStr || s.storeNumber || '',
-      name:s.storeName || '',
-      city:s.city || '',
-      state:s.state || '',
-      currentCore:currentCore.length,
-      futureCore:futureCore.length,
-      currentDedicated:currentDedicated.length,
-      futureDedicated:futureDedicated.length || currentDedicated.length,
-      issues:issues.join('; ')
-    };
-  });
-  lastAlignmentQARows = rows;
-  const issueRows = rows.filter(r => r.issues);
-  const el = document.getElementById('alignmentQAResults');
-  if (!el) return;
-  el.innerHTML = `
-    <div class="summary" style="margin-bottom:10px;padding:0">
-      <span class="chip">Stores scanned: <b>${rows.length.toLocaleString()}</b></span>
-      <span class="chip">Issues flagged: <b>${issueRows.length.toLocaleString()}</b></span>
-      <span class="chip">Clean: <b>${(rows.length - issueRows.length).toLocaleString()}</b></span>
-    </div>
-    ${issueRows.length ? `
-      <table class="priority-table">
-        <thead><tr><th>Store</th><th>City</th><th>Current Core</th><th>Future Core</th><th>Current Dedicated</th><th>Future Dedicated</th><th>Issue</th></tr></thead>
-        <tbody>${issueRows.slice(0,350).map(r => `
-          <tr>
-            <td><b>${safe(r.store)}</b><br>${safe(r.name)}</td>
-            <td>${safe(r.city)}, ${safe(r.state)}</td>
-            <td>${r.currentCore}</td>
-            <td>${r.futureCore}</td>
-            <td>${r.currentDedicated}</td>
-            <td>${r.futureDedicated}</td>
-            <td>${safe(r.issues)}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-      ${issueRows.length > 350 ? `<div class="muted" style="margin-top:8px">Showing first 350 issue rows. Export CSV for full list.</div>` : ''}
-    ` : '<div class="priority-card">No alignment visibility issues found in the current filtered set.</div>'}
-  `;
-}
-function exportAlignmentQACsv(){
-  if (!lastAlignmentQARows.length) runAlignmentQAScan();
-  const rows = [['Store #','Name','City','State','Current Core Count','Future Core Count','Current Dedicated Count','Future Dedicated Count','Issues'],
-    ...lastAlignmentQARows.map(r => [r.store,r.name,r.city,r.state,r.currentCore,r.futureCore,r.currentDedicated,r.futureDedicated,r.issues])];
-  exportCsvWithToast(rows, `store_alignment_qa_${Date.now()}.csv`);
-}
-setTimeout(() => {
-  const qaBtn = document.getElementById('alignmentQABtn');
-  const qaModal = document.getElementById('alignmentQAModal');
-  if (qaBtn && qaModal) qaBtn.onclick = () => { qaModal.classList.add('show'); runAlignmentQAScan(); };
-  const close = document.getElementById('alignmentQAClose');
-  if (close) close.onclick = () => qaModal?.classList.remove('show');
-  const refresh = document.getElementById('alignmentQARefresh');
-  if (refresh) refresh.onclick = runAlignmentQAScan;
-  const exp = document.getElementById('alignmentQAExport');
-  if (exp) exp.onclick = exportAlignmentQACsv;
-}, 0);
-
   function ensureMarkerForStore(store){
   let m = markerByStore.get(store.storeNumberStr);
 
