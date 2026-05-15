@@ -5,7 +5,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>One Walmart RTS Coverage Command Center</title>
-<!-- Leadership cleanup pass: RTS coverage, gaps, active RTS, manager alignment, dedicated team visibility, and performance-safe rendering. Delta/Transition ownership tools de-emphasized. -->
+<!-- Leadership cleanup pass: RTS coverage, gaps, active RTS, manager alignment, dedicated team visibility, and performance-safe rendering. Delta/Transition ownership tools removed from the leadership workflow; RTS coverage action planning emphasized. -->
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
@@ -1237,6 +1237,20 @@ select[multiple]{
 #opsPaneDelta{display:none !important;}
 .delta-legend,.delta-pane-toolbar,.transition-detail-panel,.transition-toggle-btn{display:none !important;}
 @media(max-width:720px){.leadership-popup .owner-grid{grid-template-columns:1fr;}}
+
+
+/* ===== RTS Coverage Action Plan cleanup ===== */
+.ops-action-note{
+  padding:9px 10px;
+  margin-bottom:10px;
+  border:1px solid #bfdbfe;
+  background:#eff6ff;
+  color:#1e3a8a;
+  border-radius:12px;
+  font-size:12px;
+  line-height:1.35;
+}
+.ops-tab[data-pane="transition"],#opsPaneTransition{display:none !important;}
 
 </style>
 </head>
@@ -9912,7 +9926,7 @@ if (popupHtmlCache.has(cacheKey)){
       mapwrap.appendChild(legend);
     }
 
-    installTransitionReadinessPane();
+    installCoverageActionPane();
 
     const opsBtn = document.getElementById('railOpsIntel');
     const deltaBtn = document.getElementById('railDelta');
@@ -9968,9 +9982,9 @@ if (popupHtmlCache.has(cacheKey)){
     }
   }
 
-  function installTransitionReadinessPane(){
+  function installCoverageActionPane(){
     const drawer = document.getElementById('opsDrawer');
-    if (!drawer || document.getElementById('opsPaneTransition')) return;
+    if (!drawer || document.getElementById('opsPaneActionPlan')) return;
 
     const tabs = drawer.querySelector('.ops-tabs');
     const body = drawer.querySelector('.ops-body');
@@ -9978,150 +9992,106 @@ if (popupHtmlCache.has(cacheKey)){
 
     const tab = document.createElement('button');
     tab.className = 'ops-tab';
-    tab.dataset.pane = 'transition';
+    tab.dataset.pane = 'actionplan';
     tab.type = 'button';
-    tab.textContent = 'Transition';
+    tab.textContent = 'Action Plan';
     tabs.insertBefore(tab, tabs.querySelector('[data-pane="leadership"]') || null);
 
     const pane = document.createElement('div');
     pane.className = 'ops-pane';
-    pane.id = 'opsPaneTransition';
-pane.innerHTML = `
-  <div class="ops-card">
-    <div class="ops-section-title">
-      <span>Transition Readiness</span>
-      <span class="ops-sub">handoff focus</span>
-    </div>
-
-    <div class="ops-transition-grid">
-      <div class="ops-transition-metric">
-        <div class="lbl">Visible Gaps</div>
-        <div class="ops-value val" id="transitionVisibleGaps">0</div>
+    pane.id = 'opsPaneActionPlan';
+    pane.innerHTML = `
+      <div class="ops-card ops-action-card">
+        <div class="ops-section-title">
+          <span>RTS Coverage Action Plan</span>
+          <span class="ops-sub">visible-filter focus</span>
+        </div>
+        <div class="ops-action-note">
+          This replaces the old Transition tab. It focuses on the items that matter operationally: current coverage, gap volume, manager exposure, and where an RTS placement would help most.
+        </div>
+        <div class="ops-transition-grid">
+          <div class="ops-transition-metric"><div class="lbl">Visible Stores</div><div class="ops-value val" id="actionVisibleStores">0</div></div>
+          <div class="ops-transition-metric"><div class="lbl">RTS Coverage</div><div class="ops-value val" id="actionCoveragePct">0%</div></div>
+          <div class="ops-transition-metric"><div class="lbl">Gap Stores</div><div class="ops-value val" id="actionGapStores">0</div></div>
+          <div class="ops-transition-metric"><div class="lbl">Active RTS</div><div class="ops-value val" id="actionActiveRts">0</div></div>
+        </div>
+        <div class="ops-section-title"><span>Top Gap States</span><span class="ops-sub">uncovered stores</span></div>
+        <div id="actionGapStates" class="ops-transition-list"></div>
+        <div class="ops-section-title" style="margin-top:10px"><span>Top Manager Gap Focus</span><span class="ops-sub">future/current filter aware</span></div>
+        <div id="actionGapManagers" class="ops-transition-list"></div>
+        <div id="actionFooter" class="ops-transition-row"></div>
       </div>
-
-      <div class="ops-transition-metric">
-        <div class="lbl">Ownership Changes</div>
-        <div class="ops-value val" id="transitionOwnershipChanges">0</div>
-      </div>
-
-      <div class="ops-transition-metric">
-        <div class="lbl">New Coverage</div>
-        <div class="ops-value val" id="transitionNewCoverage">0</div>
-      </div>
-
-      <div class="ops-transition-metric">
-        <div class="lbl">Gap Risk</div>
-        <div class="ops-value val" id="transitionLostRisk">0</div>
-      </div>
-    </div>
-
-    <div class="ops-section-title">
-      <span>Top ownership-change leaders</span>
-      <span class="ops-sub">future RM view</span>
-    </div>
-
-    <div id="transitionLeaders" class="ops-transition-list"></div>
-
-    <div id="transitionFooter" class="ops-transition-row"></div>
-  </div>
-`;
+    `;
     body.appendChild(pane);
 
     tab.addEventListener('click', () => {
       drawer.querySelectorAll('.ops-tab').forEach(t => t.classList.toggle('active', t === tab));
-      drawer.querySelectorAll('.ops-pane').forEach(p => p.classList.toggle('active', p.id === 'opsPaneTransition'));
-      renderTransitionReadinessPane();
+      drawer.querySelectorAll('.ops-pane').forEach(p => p.classList.toggle('active', p.id === 'opsPaneActionPlan'));
+      renderCoverageActionPane();
     });
   }
 
-function renderTransitionReadinessPane(){
-  if (typeof renderTransitionReadinessPanel === 'function') {
-    renderTransitionReadinessPanel();
-  }
-}
-function transitionStoreClassForPanel(s){
-  try {
-    const t = transitionCurrentFutureForStore(s);
-    if (typeof deltaStoreType === 'function') {
-      return deltaStoreType(t.currentBase, t.futureBase);
+  function renderCoverageActionPane(){
+    const visible = Array.isArray(filteredStores) ? filteredStores : [];
+    const total = visible.length;
+    const covered = visible.filter(s => String(s?.coverageType || '') !== 'Uncovered').length;
+    const gaps = visible.filter(s => String(s?.coverageType || '') === 'Uncovered');
+    const pct = total ? Math.round((covered / total) * 1000) / 10 : 0;
+
+    const setText = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = String(val);
+    };
+
+    setText('actionVisibleStores', total.toLocaleString());
+    setText('actionCoveragePct', `${pct}%`);
+    setText('actionGapStores', gaps.length.toLocaleString());
+    setText('actionActiveRts', String((premiumConfirmed?.length || 0) + (acostaHubs?.length || 0)));
+
+    const stateMap = new Map();
+    gaps.forEach(s => {
+      const k = String(s.state || 'Unknown').trim() || 'Unknown';
+      stateMap.set(k, (stateMap.get(k) || 0) + 1);
+    });
+    const topStates = [...stateMap.entries()].sort((a,b) => b[1] - a[1]).slice(0,8);
+    const statesEl = document.getElementById('actionGapStates');
+    if (statesEl) {
+      statesEl.innerHTML = topStates.length
+        ? topStates.map(([name,count]) => `<div class="ops-list-row"><span>${escape(name)}</span><b>${count.toLocaleString()}</b></div>`).join('')
+        : `<div class="ops-sub">No uncovered stores in the current filtered view.</div>`;
     }
-  } catch(e) {
-    console.warn('Transition classification fallback used', e);
-  }
 
-  const currentCovered = String(s?.coverageType || '') !== 'Uncovered';
-
-  return {
-    type: currentCovered ? 'Coverage Retained' : 'Still Uncovered',
-    ownershipChanged:false
-  };
-}
-
-function renderTransitionReadinessPanel(){
-  const visible = filteredStores || [];
-  const rows = visible.map(s => ({
-    store:s,
-    result:transitionStoreClassForPanel(s)
-  }));
-
-  const gaps = rows.filter(x => x.result.type === 'Still Uncovered' || x.result.type === 'No Change');
-  const ownership = rows.filter(x => x.result.ownershipChanged);
-  const newly = rows.filter(x => x.result.type === 'Reassigned');
-  const lost = rows.filter(x => x.result.type === 'Lost Coverage' || x.result.type === 'Coverage Regressed');
-  const improved = rows.filter(x => x.result.type === 'Improved Coverage');
-
-  const setText = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = String(val);
-  };
-
-  setText('transitionVisibleGaps', gaps.length.toLocaleString());
-  setText('transitionOwnershipChanges', ownership.length.toLocaleString());
-  setText('transitionNewCoverage', newly.length.toLocaleString());
-  setText('transitionLostRisk', lost.length.toLocaleString());
-
-  const leaderEl =
-    document.getElementById('transitionLeaders') ||
-    document.getElementById('opsTransitionLeaders');
-
-  if (leaderEl){
-    const byFutureRM = new Map();
-
-    ownership.forEach(x => {
-      const k = String(x.store.regionalManager || 'Unassigned').trim() || 'Unassigned';
-      byFutureRM.set(k, (byFutureRM.get(k) || 0) + 1);
+    const mgrMap = new Map();
+    gaps.forEach(s => {
+      const rm = String(s.regionalManager || '').trim();
+      const am = String(s.areaManager || '').trim();
+      const key = rm || am || 'Unassigned';
+      mgrMap.set(key, (mgrMap.get(key) || 0) + 1);
     });
+    const managers = [...mgrMap.entries()].sort((a,b) => b[1] - a[1]).slice(0,8);
+    const mgrEl = document.getElementById('actionGapManagers');
+    if (mgrEl) {
+      mgrEl.innerHTML = managers.length
+        ? managers.map(([name,count]) => `<div class="ops-list-row"><span>${escape(name)}</span><b>${count.toLocaleString()}</b></div>`).join('')
+        : `<div class="ops-sub">No manager gap exposure in the current filtered view.</div>`;
+    }
 
-    const leaders = [...byFutureRM.entries()]
-      .sort((a,b) => b[1] - a[1])
-      .slice(0,8);
+    const footer = document.getElementById('actionFooter');
+    if (footer) {
+      const coverageGap = total ? (100 - pct).toFixed(1) : '0.0';
+      footer.innerHTML = `<b>Recommended next step:</b> Use Current Gap Finder or Suggest RTS City for the highest-gap state/manager above. <br><span class="ops-sub">Coverage gap: ${coverageGap}% across the current visible/filter scope. Transition/ownership-change analytics have been removed from the leadership workflow.</span>`;
+    }
 
-    leaderEl.innerHTML = leaders.length
-      ? leaders.map(([name,count]) => `
-          <div class="ops-list-row">
-            <span>${escape(name)}</span>
-            <b>${count}</b>
-          </div>
-        `).join('')
-      : `<div class="ops-sub">No ownership-change records found in the current filtered view.</div>`;
+    refreshExecutiveRibbon?.();
   }
 
-  const footer =
-    document.getElementById('transitionFooter') ||
-    document.getElementById('opsTransitionFooter');
-
-  if (footer){
-    footer.innerHTML =
-      `<b>Improved Coverage:</b> ${improved.length.toLocaleString()}
-       &nbsp; <b>Ownership Changes:</b> ${ownership.length.toLocaleString()}
-       &nbsp; <b>Net New:</b> ${(newly.length - lost.length).toLocaleString()}
-       <br><span class="ops-sub">Ownership changes are now counted separately from coverage improvement/regression.</span>`;
+  // Backward-compatible no-ops for older button handlers that still call the old Transition renderer.
+  function renderTransitionReadinessPane(){
+    renderCoverageActionPane();
   }
-
-  refreshExecutiveRibbon?.();
-}
-
-
+  function renderTransitionReadinessPanel(){
+    renderCoverageActionPane();
+  }
 
   /* =========================================================
      Performance-safe View Mode Pack v4
@@ -10147,7 +10117,8 @@ function renderTransitionReadinessPanel(){
       const style = document.createElement('style');
       style.id = 'viewModePackV4Style';
       style.textContent = `
-        #opsDeltaToggle{display:inline-flex !important; align-items:center; gap:6px;}
+        #opsDeltaToggle,#quickDeltaBtn{display:none !important;}
+        .view-mode-divider{display:none !important;}
         .view-mode-divider{width:1px;align-self:stretch;background:#e2e8f0;margin:0 2px;}
         .view-mode-btn.active,
         .rail-btn.active{
@@ -10217,8 +10188,6 @@ function renderTransitionReadinessPanel(){
       field.title = 'Return to normal field map view and close executive overlays';
       field.textContent = 'Field View';
 
-      presetBar.appendChild(divider);
-      presetBar.appendChild(delta);
       presetBar.appendChild(ops);
       presetBar.appendChild(leadership);
       presetBar.appendChild(field);
@@ -10260,7 +10229,7 @@ function renderTransitionReadinessPanel(){
       if (!t) return;
       const isOn = deltaActive();
       if (on !== isOn) t.click();
-      if (on) openOpsPane('delta');
+      if (on) openOpsPane('overview');
       syncButtons();
     }
 
