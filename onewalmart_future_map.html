@@ -1273,6 +1273,25 @@ select[multiple]{
 .dedicated-chip{background:#f8fafc;border-color:#cbd5e1;}
 .ops-dedicated-row{border:1px solid #e2e8f0;border-radius:10px;padding:8px;background:#fff;display:flex;justify-content:space-between;gap:8px;}
 
+
+/* ===== Dedicated Gap Command package ===== */
+.popup-gap-badge{display:inline-block;margin-top:6px;padding:4px 9px;border-radius:999px;font-size:12px;font-weight:900;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;}
+.popup-gap-badge.covered{background:#ecfdf5;border-color:#10b981;color:#065f46;}
+.popup-gap-badge.near{background:#fffbeb;border-color:#f59e0b;color:#92400e;}
+.popup-gap-badge.high{background:#fef2f2;border-color:#ef4444;color:#991b1b;}
+.ded-rollup-kpis{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:8px;margin-bottom:10px;}
+.ded-rollup-kpi{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:10px;}
+.ded-rollup-kpi .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:900;}
+.ded-rollup-kpi .val{font-size:22px;font-weight:950;color:#0f172a;}
+.ded-rollup-table{width:100%;border-collapse:collapse;font-size:13px;}
+.ded-rollup-table th,.ded-rollup-table td{border-bottom:1px solid #eef2f7;padding:7px 8px;vertical-align:top;}
+.ded-rollup-table th{position:sticky;top:0;background:#f8fafc;text-align:left;z-index:1;}
+.ded-rollup-table td.num,.ded-rollup-table th.num{text-align:right;font-variant-numeric:tabular-nums;}
+.action-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px;margin-bottom:8px;}
+.action-card .title{font-weight:900;}
+.action-card .sub{font-size:12px;color:#64748b;line-height:1.35;margin-top:3px;}
+@media(max-width:900px){.ded-rollup-kpis{grid-template-columns:1fr 1fr;}}
+
 </style>
 </head>
 <body>
@@ -1330,6 +1349,7 @@ select[multiple]{
     <span class="dot" style="background:var(--u)"></span> Gaps
   </button>
   <button id="presetHubs" class="pill compact-pill" type="button" title="Show only stores within any visible hub radius">RTS Coverage</button>
+  <button id="presetDedicatedGaps" class="pill compact-pill" type="button" title="Show uncovered stores that have dedicated Unilever, P&G, or Tyson alignment">Dedicated Gaps</button>
   <button id="snapBtn" class="pill compact-pill" type="button" title="Copy a shareable URL">Save Link</button>
 </div>
 </section>
@@ -1472,6 +1492,7 @@ select[multiple]{
         <button id="gapBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Current Gap Finder</button>
         <button id="rollupBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Manager Rollups</button>
         <button id="coverageBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Coverage Priorities</button>
+        <button id="dedRollupBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Dedicated Team Rollup</button>
         <button id="suggestRtsBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Suggest RTS City</button>
       </div>
     </div>
@@ -1869,6 +1890,33 @@ select[multiple]{
         Mark placements as <b>Replace</b> in Final Plan Review Mode first. This protects Approved/Maybe/Pending rows and suggests one-for-one swaps only for those Replace-marked hubs, keeping the total 100-slot cap intact.
       </div>
       <div id="replaceSwapResults" style="max-height:65vh;overflow:auto"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Dedicated Team Rollup modal -->
+<div class="modal" id="dedRollupModal" aria-modal="true" role="dialog">
+  <div class="card" style="max-width:1200px;width:96vw">
+    <header>
+      <h3>Dedicated Team Rollup</h3>
+      <button id="dedRollupClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body" style="grid-template-columns:1fr;">
+      <div class="priority-tools">
+        <label class="toggle"><input type="radio" name="dedRollBy" id="dedRollByTeam" checked> By Team</label>
+        <label class="toggle"><input type="radio" name="dedRollBy" id="dedRollByRM"> By Dedicated RM</label>
+        <label class="toggle"><input type="radio" name="dedRollBy" id="dedRollByAM"> By Dedicated AM</label>
+        <label class="toggle" title="When checked, uses the stores currently visible after filters. When unchecked, uses all stores.">
+          <input id="dedRollUseFilters" type="checkbox"> Use current filters
+        </label>
+        <button id="dedRollRefresh" class="btn" type="button">Refresh</button>
+        <button id="dedRollExport" class="btn" type="button">Export CSV</button>
+      </div>
+      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
+        Dedicated teams remain separate from the core One Walmart hierarchy. This rollup isolates Unilever, P&amp;G, and Tyson coverage/gap exposure without mixing those managers into the main RM/AM filters.
+      </div>
+      <div id="dedRollupResults" style="max-height:68vh;overflow:auto"></div>
     </div>
   </div>
 </div>
@@ -7858,6 +7906,7 @@ function storePopupHTML(s){
   const futureRTS = t.future.rts;
   const viewLabel = activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart';
   const activeCoverage = activeAlignmentMode === 'current' ? t.current : t.future;
+  const gapBadge = gapSeverityForStore(s);
 
   return `
     <div class="store-popup-shell leadership-popup">
@@ -7873,6 +7922,7 @@ function storePopupHTML(s){
       <div class="store-popup-card coverage-card">
         <div class="store-popup-card-title">RTS Coverage</div>
         <div><b>Status:</b> ${activeCoverage.covered ? 'Covered' : 'Gap / Uncovered'}</div>
+        <div class="popup-gap-badge ${gapBadge.className}">${esc(gapBadge.label)}</div>
         <div><b>RTS:</b> ${esc(activeCoverage.rts || '—')}</div>
         <div><b>Distance:</b> ${Number.isFinite(activeCoverage.miles) ? activeCoverage.miles.toFixed(1) + ' mi' : '—'}</div>
       </div>
@@ -10487,7 +10537,268 @@ if (popupHtmlCache.has(cacheKey)){
         d?.classList.toggle('show');
         syncLight();
         if (d?.classList.contains('show')) window.updateOpsIntel?.();
-        setTimeout(() => map.invalidateSize(), 80);
+        setTimeout(
+/* ===== Dedicated Gap Command package ===== */
+function activeDedicatedPathsForStore(store){
+  const paths = Array.isArray(store?.managerPaths) ? store.managerPaths : [];
+  return paths.filter(p => isDedicatedTeamPath(p) && dedicatedTeamVisible(p.teamName));
+}
+
+function hasDedicatedPath(store){
+  return activeDedicatedPathsForStore(store).length > 0;
+}
+
+function gapSeverityForStore(store){
+  if (!store || String(store.coverageType || '') !== 'Uncovered') {
+    return { label:'Covered', className:'covered', nearby:0 };
+  }
+  const nearbyGaps = (allStores || []).filter(s =>
+    s && s.storeNumberStr !== store.storeNumberStr &&
+    String(s.coverageType || '') === 'Uncovered' &&
+    Number.isFinite(Number(s.lat)) &&
+    Number.isFinite(Number(s.lng)) &&
+    distMiles(store.lat, store.lng, s.lat, s.lng) <= 35
+  ).length;
+
+  if (nearbyGaps >= 12) return { label:`High Gap Area (${nearbyGaps} nearby)`, className:'high', nearby:nearbyGaps };
+  if (nearbyGaps >= 4) return { label:`Near Gap Cluster (${nearbyGaps} nearby)`, className:'near', nearby:nearbyGaps };
+  return { label:'Isolated Gap', className:'near', nearby:nearbyGaps };
+}
+
+function setAllSelect(selectEl){
+  if (!selectEl) return;
+  Array.from(selectEl.options).forEach(o => o.selected = (o.value === 'All'));
+}
+
+function applyDedicatedGapsQuickView(){
+  if (covFilter) setMulti(covFilter, ['Uncovered']);
+  setAllSelect(rmFilter);
+  setAllSelect(amFilter);
+  setAllSelect(hubFilter);
+  setAllSelect(dedRmFilter);
+  setAllSelect(dedAmFilter);
+  if (dedTeamFilter) setMulti(dedTeamFilter, ['unilever','pg','tyson']);
+  if (tgWithin) tgWithin.checked = false;
+  rebuildDedicatedFilterOptions?.();
+  cascadeRM?.();
+  cascadeAM?.();
+  buildHubFilterOptions?.();
+  runFilter?.();
+  renderChips?.();
+  scheduleFitToResults?.();
+  saveState?.();
+}
+
+const dedicatedGapBtn = id('presetDedicatedGaps');
+if (dedicatedGapBtn && !dedicatedGapBtn.dataset.wired) {
+  dedicatedGapBtn.dataset.wired = '1';
+  dedicatedGapBtn.addEventListener('click', applyDedicatedGapsQuickView);
+}
+
+function dedicatedTeamLabelFromType(t){
+  if (t === 'unilever') return 'Unilever';
+  if (t === 'pg') return 'P&G';
+  if (t === 'tyson') return 'Tyson';
+  return t || 'Dedicated';
+}
+
+function buildDedicatedRollupRows(useFilters=false, by='team'){
+  const source = useFilters ? (filteredStores || []) : (allStores || []);
+  const groups = new Map();
+
+  source.forEach(store => {
+    const paths = activeDedicatedPathsForStore(store);
+    if (!paths.length) return;
+
+    paths.forEach(path => {
+      const type = getTeamType(path);
+      const team = dedicatedTeamLabelFromType(type);
+      const rm = String(path.regionalManager || path.RegionalManager || path.rm || path.RM || path['Mgr 2 Name'] || '').trim();
+      const am = String(path.areaManager || path.AreaManager || path.am || path.AM || path['Mgr 1 Name'] || '').trim();
+
+      const key = by === 'rm'
+        ? (rm || 'Unassigned Dedicated RM')
+        : by === 'am'
+          ? (am || 'Unassigned Dedicated AM')
+          : team;
+
+      const g = groups.get(key) || {
+        key,
+        teamSet:new Set(),
+        rmSet:new Set(),
+        amSet:new Set(),
+        stores:new Set(),
+        covered:0,
+        gaps:0,
+        highGap:0
+      };
+
+      g.teamSet.add(team);
+      if (rm) g.rmSet.add(rm);
+      if (am) g.amSet.add(am);
+
+      if (!g.stores.has(store.storeNumberStr)) {
+        g.stores.add(store.storeNumberStr);
+        if (String(store.coverageType || '') === 'Uncovered') {
+          g.gaps++;
+          if (gapSeverityForStore(store).className === 'high') g.highGap++;
+        } else {
+          g.covered++;
+        }
+      }
+
+      groups.set(key, g);
+    });
+  });
+
+  return Array.from(groups.values()).map(g => {
+    const total = g.stores.size || 0;
+    return {
+      key:g.key,
+      teams:Array.from(g.teamSet).sort().join(', '),
+      rms:Array.from(g.rmSet).sort().join('; ') || '—',
+      ams:Array.from(g.amSet).sort().join('; ') || '—',
+      total,
+      covered:g.covered,
+      gaps:g.gaps,
+      highGap:g.highGap,
+      coveragePct: total ? Math.round((g.covered / total) * 1000) / 10 : 0
+    };
+  }).sort((a,b) => b.gaps - a.gaps || b.total - a.total || String(a.key).localeCompare(String(b.key)));
+}
+
+let lastDedicatedRollupRows = [];
+
+function renderDedicatedRollup(){
+  const modal = id('dedRollupModal');
+  const results = id('dedRollupResults');
+  if (!results) return;
+
+  const useFilters = !!id('dedRollUseFilters')?.checked;
+  const by = id('dedRollByRM')?.checked ? 'rm' : id('dedRollByAM')?.checked ? 'am' : 'team';
+  const rows = buildDedicatedRollupRows(useFilters, by);
+  lastDedicatedRollupRows = rows;
+
+  const totals = rows.reduce((a,r) => {
+    a.groups++;
+    a.stores += r.total;
+    a.covered += r.covered;
+    a.gaps += r.gaps;
+    a.highGap += r.highGap;
+    return a;
+  }, { groups:0, stores:0, covered:0, gaps:0, highGap:0 });
+
+  const pct = totals.stores ? Math.round((totals.covered / totals.stores) * 1000) / 10 : 0;
+
+  results.innerHTML = `
+    <div class="ded-rollup-kpis">
+      <div class="ded-rollup-kpi"><div class="lbl">Groups</div><div class="val">${totals.groups.toLocaleString()}</div></div>
+      <div class="ded-rollup-kpi"><div class="lbl">Dedicated Stores</div><div class="val">${totals.stores.toLocaleString()}</div></div>
+      <div class="ded-rollup-kpi"><div class="lbl">Coverage</div><div class="val">${pct}%</div></div>
+      <div class="ded-rollup-kpi"><div class="lbl">Dedicated Gaps</div><div class="val">${totals.gaps.toLocaleString()}</div></div>
+    </div>
+    ${rows.length ? `
+      <table class="ded-rollup-table">
+        <thead>
+          <tr>
+            <th>${by === 'rm' ? 'Dedicated RM' : by === 'am' ? 'Dedicated AM' : 'Dedicated Team'}</th>
+            <th>Team(s)</th>
+            <th>Dedicated RM(s)</th>
+            <th>Dedicated AM(s)</th>
+            <th class="num">Stores</th>
+            <th class="num">Covered</th>
+            <th class="num">Gaps</th>
+            <th class="num">High Gap</th>
+            <th class="num">Coverage %</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td><b>${escape(r.key)}</b></td>
+              <td>${escape(r.teams)}</td>
+              <td>${escape(r.rms)}</td>
+              <td>${escape(r.ams)}</td>
+              <td class="num">${r.total.toLocaleString()}</td>
+              <td class="num">${r.covered.toLocaleString()}</td>
+              <td class="num"><b>${r.gaps.toLocaleString()}</b></td>
+              <td class="num">${r.highGap.toLocaleString()}</td>
+              <td class="num">${r.coveragePct}%</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    ` : `<div style="color:var(--muted)">No dedicated team stores found for the current view.</div>`}
+  `;
+}
+
+function exportDedicatedRollup(){
+  if (!lastDedicatedRollupRows.length) renderDedicatedRollup();
+  const rows = [[
+    'Group','Teams','Dedicated RMs','Dedicated AMs','Stores','Covered','Gaps','High Gap','Coverage %'
+  ]];
+  lastDedicatedRollupRows.forEach(r => rows.push([
+    r.key, r.teams, r.rms, r.ams, r.total, r.covered, r.gaps, r.highGap, r.coveragePct
+  ]));
+  exportCsvWithToast(rows, `dedicated_team_rollup_${Date.now()}.csv`);
+}
+
+function renderActionNeededCards(){
+  const target = id('opsActionNeededList') || id('analyticsDock');
+  if (!target) return;
+  const groups = new Map();
+  (filteredStores || allStores || []).forEach(s => {
+    if (String(s.coverageType || '') !== 'Uncovered') return;
+    const rmList = asManagerArray(s.regionalManager);
+    (rmList.length ? rmList : ['Unassigned RM']).forEach(rm => {
+      const g = groups.get(rm) || { rm, count:0, stores:[] };
+      g.count++;
+      g.stores.push(s);
+      groups.set(rm,g);
+    });
+  });
+  const top = Array.from(groups.values()).sort((a,b)=>b.count-a.count).slice(0,5);
+  if (!top.length) return;
+  const html = `
+    <div class="ops-action-note"><b>Action Needed:</b> Top RM gap exposure based on the current filter view.</div>
+    ${top.map(g => {
+      const cityCounts = new Map();
+      g.stores.forEach(s => {
+        const key = `${s.city || 'Unknown'}, ${s.state || ''}`;
+        cityCounts.set(key, (cityCounts.get(key) || 0) + 1);
+      });
+      const best = Array.from(cityCounts.entries()).sort((a,b)=>b[1]-a[1])[0];
+      return `<div class="action-card"><div class="title">${escape(g.rm)} — ${g.count.toLocaleString()} gaps</div><div class="sub">Best first review area: <b>${escape(best ? best[0] : '—')}</b>${best ? ` (${best[1]} gap stores)` : ''}</div></div>`;
+    }).join('')}
+  `;
+  if (id('opsActionNeededList')) target.innerHTML = html;
+}
+
+const dedRollBtn = id('dedRollupBtn');
+if (dedRollBtn && !dedRollBtn.dataset.wired) {
+  dedRollBtn.dataset.wired = '1';
+  dedRollBtn.addEventListener('click', () => {
+    id('dedRollupModal')?.classList.add('show');
+    renderDedicatedRollup();
+  });
+}
+id('dedRollupClose')?.addEventListener('click', () => id('dedRollupModal')?.classList.remove('show'));
+id('dedRollRefresh')?.addEventListener('click', renderDedicatedRollup);
+id('dedRollExport')?.addEventListener('click', exportDedicatedRollup);
+['dedRollByTeam','dedRollByRM','dedRollByAM','dedRollUseFilters'].forEach(x => id(x)?.addEventListener('change', renderDedicatedRollup));
+
+// Defensive cleanup: remove any Transition/Delta tab buttons dynamically added by older code.
+function hardRemoveLegacyTransitionTabs(){
+  document.querySelectorAll('.ops-tab[data-pane="transition"],.ops-tab[data-pane="delta"],#opsPaneTransition,#opsPaneDelta,#railDelta,#quickDeltaBtn,#opsDeltaToggle').forEach(el => el.remove());
+  document.querySelectorAll('button,.pill,.rail-btn').forEach(el => {
+    const t = String(el.textContent || '').trim().toLowerCase();
+    if (t === 'transition' || t === 'delta') el.remove();
+  });
+}
+setTimeout(hardRemoveLegacyTransitionTabs, 0);
+setTimeout(hardRemoveLegacyTransitionTabs, 500);
+
+() => map.invalidateSize(), 80);
       };
     }
 
