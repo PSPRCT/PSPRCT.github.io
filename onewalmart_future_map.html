@@ -10886,6 +10886,143 @@ setTimeout(hardRemoveLegacyTransitionTabs, 500);
 
 
 
+
+
+/* ===== Quick View + Dedicated Rollup reliability patch =====
+   Uses delegated clicks so buttons keep working even when Quick Views / Analysis Tools
+   are rebuilt dynamically by earlier enhancement packs. */
+function resetCoreManagerAndHubFiltersForQuickView(){
+  try { setAllSelect?.(rmFilter); } catch(e) {}
+  try { setAllSelect?.(amFilter); } catch(e) {}
+  try { setAllSelect?.(hubFilter); } catch(e) {}
+}
+
+function refreshAfterQuickView(){
+  try { rebuildDedicatedFilterOptions?.(); } catch(e) {}
+  try { cascadeRM?.(); } catch(e) {}
+  try { cascadeAM?.(); } catch(e) {}
+  try { buildHubFilterOptions?.(); } catch(e) {}
+  try { runFilter?.(); } catch(e) {}
+  try { renderChips?.(); } catch(e) {}
+  try { scheduleFitToResults?.(120); } catch(e) {}
+  try { saveState?.(); } catch(e) {}
+  try { updateEnhancedUi?.(); } catch(e) {}
+}
+
+function applyGapsQuickViewReliable(){
+  try { setMulti(covFilter, ['Uncovered']); } catch(e) {}
+  resetCoreManagerAndHubFiltersForQuickView();
+  try { if (dedTeamFilter) setMulti(dedTeamFilter, ['All']); } catch(e) {}
+  try { setAllSelect?.(dedRmFilter); } catch(e) {}
+  try { setAllSelect?.(dedAmFilter); } catch(e) {}
+  try { if (tgWithin) tgWithin.checked = false; } catch(e) {}
+  try { if (tgRings) tgRings.checked = true; } catch(e) {}
+  try { if (tgHeat) tgHeat.checked = true; updateHeat?.(); } catch(e) {}
+  refreshAfterQuickView();
+}
+
+function applyRtsCoverageQuickViewReliable(){
+  try { setMulti(covFilter, ['All']); } catch(e) {}
+  resetCoreManagerAndHubFiltersForQuickView();
+  try { if (dedTeamFilter) setMulti(dedTeamFilter, ['All']); } catch(e) {}
+  try { setAllSelect?.(dedRmFilter); } catch(e) {}
+  try { setAllSelect?.(dedAmFilter); } catch(e) {}
+  try { if (tgWithin) tgWithin.checked = true; } catch(e) {}
+  try { if (tgRings) tgRings.checked = true; } catch(e) {}
+  refreshAfterQuickView();
+}
+
+function applyDedicatedGapsQuickViewReliable(){
+  try { setMulti(covFilter, ['Uncovered']); } catch(e) {}
+  resetCoreManagerAndHubFiltersForQuickView();
+  try { if (dedTeamFilter) setMulti(dedTeamFilter, ['unilever','pg','tyson']); } catch(e) {}
+  try { setAllSelect?.(dedRmFilter); } catch(e) {}
+  try { setAllSelect?.(dedAmFilter); } catch(e) {}
+  try { if (tgWithin) tgWithin.checked = false; } catch(e) {}
+  try { if (tgRings) tgRings.checked = true; } catch(e) {}
+  refreshAfterQuickView();
+}
+
+function openOpsDrawerPaneReliable(pane){
+  try { installCommandCenterShellV3?.(); } catch(e) {}
+  const drawer = document.getElementById('opsDrawer');
+  if (drawer) drawer.classList.add('show');
+  if (pane) document.querySelector(`.ops-tab[data-pane="${pane}"]`)?.click();
+  try { window.updateOpsIntel?.(); } catch(e) {}
+  try { syncCommandLayout?.(); } catch(e) {}
+  try { setTimeout(() => map.invalidateSize(), 100); } catch(e) {}
+}
+
+function openDedicatedRollupReliable(){
+  const modal = document.getElementById('dedRollupModal');
+  if (modal) modal.classList.add('show');
+  try { renderDedicatedRollup?.(); } catch(err) { console.warn('Dedicated rollup could not render:', err); }
+}
+
+if (!window.__quickViewReliabilityPatchInstalled) {
+  window.__quickViewReliabilityPatchInstalled = true;
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const bid = btn.id || '';
+
+    if (bid === 'presetUncov') {
+      e.preventDefault(); e.stopPropagation();
+      applyGapsQuickViewReliable();
+      return;
+    }
+    if (bid === 'presetHubs') {
+      e.preventDefault(); e.stopPropagation();
+      applyRtsCoverageQuickViewReliable();
+      return;
+    }
+    if (bid === 'presetDedicatedGaps') {
+      e.preventDefault(); e.stopPropagation();
+      applyDedicatedGapsQuickViewReliable();
+      return;
+    }
+    if (bid === 'quickOpsBtn') {
+      e.preventDefault(); e.stopPropagation();
+      openOpsDrawerPaneReliable('overview');
+      return;
+    }
+    if (bid === 'quickLeadershipBtn') {
+      e.preventDefault(); e.stopPropagation();
+      document.body.classList.add('clean-mode');
+      openOpsDrawerPaneReliable('leadership');
+      return;
+    }
+    if (bid === 'quickFieldBtn') {
+      e.preventDefault(); e.stopPropagation();
+      document.body.classList.remove('clean-mode');
+      document.getElementById('opsDrawer')?.classList.remove('show');
+      try { syncCommandLayout?.(); } catch(err) {}
+      try { setTimeout(() => map.invalidateSize(), 100); } catch(err) {}
+      return;
+    }
+    if (bid === 'dedRollupBtn') {
+      e.preventDefault(); e.stopPropagation();
+      openDedicatedRollupReliable();
+      return;
+    }
+    if (bid === 'dedRollupClose') {
+      e.preventDefault(); e.stopPropagation();
+      document.getElementById('dedRollupModal')?.classList.remove('show');
+      return;
+    }
+    if (bid === 'dedRollRefresh') {
+      e.preventDefault(); e.stopPropagation();
+      try { renderDedicatedRollup?.(); } catch(err) {}
+      return;
+    }
+    if (bid === 'dedRollExport') {
+      e.preventDefault(); e.stopPropagation();
+      try { exportDedicatedRollup?.(); } catch(err) {}
+      return;
+    }
+  }, true);
+}
+
 // Startup performance guard: do not pre-render Transition Readiness on page load.
 // It is rendered by Ops Intel / Leadership / Delta actions when needed.
 })();
