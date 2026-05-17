@@ -3101,7 +3101,14 @@ setLaunchStatus('Building filters', 'Preparing RM, AM, and RTS filter options…
             state,
             coords: [lat, lng],
             status: isFuture ? 'pending' : 'confirmed',
-            statusLabel: isFuture ? 'Future / Pending' : 'Active'
+            statusLabel: isFuture ? 'Future / Pending' : 'Active',
+            // Preserve source/legacy team lineage for Blended RTS Reach insights.
+            // This is informational only and does not change 75-mile coverage classification.
+            sourceTeam: String(
+              r.SourceTeam ?? r.sourceTeam ?? r.LegacyTeam ?? r.legacyTeam ??
+              r.Team ?? r.team ?? r.TeamName ?? r.teamName ?? r.RTSTeam ?? r.rtsTeam ??
+              r.Organization ?? r.organization ?? r.Brand ?? r.brand ?? r.Source ?? r.source ?? ''
+            ).trim()
           };
         })
         .filter(Boolean);
@@ -4388,7 +4395,221 @@ function printSidepanelList() {
       <tbody>${htmlRows}</tbody>
     </table>
     <script>window.addEventListener('load',()=>{ setTimeout(()=>{ window.print(); }, 60); });<\/script>
-  </body></html>`);
+  
+
+
+<style>
+/* ===== Unified Operational Intelligence Enhancement Pack v1 ===== */
+.ops-blended-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.ops-blended-kpi{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:10px;}
+.ops-blended-kpi .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+.ops-blended-kpi .val{font-size:22px;font-weight:950;color:#0f172a;line-height:1.1;margin-top:2px;}
+.ops-blended-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;font-size:12px;line-height:1.35;margin-bottom:10px;}
+.ops-manager-link{border:0;background:transparent;color:#1d4ed8;font-weight:900;text-decoration:underline;cursor:pointer;padding:0;font:inherit;}
+.ops-manager-link:hover{color:#0f172a;}
+.popup-gap-reason{margin-top:6px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;padding:7px 8px;font-size:12px;line-height:1.35;color:#334155;}
+.gap-severe-marker{filter:saturate(1.35) brightness(.9);}
+@media(max-width:720px){.ops-blended-kpis{grid-template-columns:1fr;}}
+</style>
+
+<style>
+/* ===== Ops Intel Rail Hotfix + UX Tightening v2 ===== */
+/* Reduce duplicate entry points: Operating View + right rail are now the primary view controls. */
+#presetBar #quickOpsBtn,
+#presetBar #quickLeadershipBtn,
+#presetBar #quickFieldBtn{
+  display:none !important;
+}
+/* Make the Ops drawer more usable on leadership screens and reduce horizontal tab friction. */
+#opsDrawer.ops-drawer{
+  width:min(560px,94vw) !important;
+  max-width:94vw !important;
+}
+#opsDrawer .ops-tabs{
+  position:sticky;
+  top:0;
+  z-index:3;
+  background:#fff;
+  border-bottom:1px solid #e5e7eb;
+  padding-bottom:8px;
+}
+#opsDrawer .ops-body{
+  overflow:auto;
+}
+#opsDrawer .ops-tab{
+  white-space:nowrap;
+}
+.map-action-rail .rail-btn.primary{
+  background:#111827 !important;
+  color:#fff !important;
+}
+.map-action-rail .rail-btn.primary.ops-hotfix-active{
+  background:#2563eb !important;
+  border-color:#2563eb !important;
+}
+@media(max-width:1200px){
+  #opsDrawer.ops-drawer{width:min(500px,94vw) !important;}
+}
+</style>
+<script>
+/* ===== Ops Intel Rail Hotfix v2 =====
+   Purpose: make the right-side Ops Intel button deterministic even when earlier
+   quick-view/accordion handlers have already been installed. This runs last and
+   captures the click before older target-level toggle handlers can cancel it. */
+(function(){
+  if (window.__opsIntelRailHotfixV2) return;
+  window.__opsIntelRailHotfixV2 = true;
+
+  const $ = id => document.getElementById(id);
+  const qa = sel => Array.from(document.querySelectorAll(sel));
+
+  function setOperatingView(mode){
+    document.body.classList.remove('opcx-coverage','opcx-gaps','opcx-dedicated','opcx-ops','opcx-leadership');
+    document.body.classList.add('opcx-' + mode);
+    qa('.opcx-viewbtn').forEach(b => b.classList.toggle('active', b.dataset.opcxView === mode));
+    try { localStorage.setItem('opcx_last_view_v1', mode); } catch(_) {}
+  }
+
+  function ensureOpsDrawer(){
+    let drawer = $('opsDrawer');
+    if (drawer) return drawer;
+
+    const wrap = document.querySelector('.mapwrap') || document.body;
+    drawer = document.createElement('aside');
+    drawer.id = 'opsDrawer';
+    drawer.className = 'ops-drawer show';
+    drawer.innerHTML = `
+      <div class="ops-head">
+        <h3>Operations Intelligence</h3>
+        <span class="ops-refresh-stamp">Drawer restored</span>
+        <button id="opsCloseBtn" class="btn" type="button">×</button>
+      </div>
+      <div class="ops-body">
+        <div class="ops-pane active show">
+          <div class="ops-card"><b>Ops Intel</b><br>The Operations Intelligence drawer shell was restored. Refresh/reopen after data finishes loading.</div>
+        </div>
+      </div>`;
+    wrap.appendChild(drawer);
+    return drawer;
+  }
+
+  function openOpsIntel(pane='overview'){
+    const drawer = ensureOpsDrawer();
+    const wrap = document.querySelector('.mapwrap');
+
+    document.body.classList.remove('clean-mode','opcx-leadership');
+    setOperatingView('ops');
+
+    drawer.classList.add('show');
+    drawer.style.transform = 'translateX(0)';
+    if (wrap) wrap.classList.add('command-drawer-open');
+
+    qa('.rail-btn').forEach(b => b.classList.remove('active','ops-hotfix-active'));
+    $('railOpsIntel')?.classList.add('active','ops-hotfix-active');
+
+    const targetPane = pane === 'leadership' ? 'leadership' : pane;
+    const tab = document.querySelector(`.ops-tab[data-pane="${targetPane}"]`) || document.querySelector('.ops-tab[data-pane="overview"]');
+    if (tab) tab.click();
+
+    try { window.updateOpsIntel?.(); } catch(err) { console.warn('Ops Intel refresh skipped:', err); }
+    try { window.dispatchEvent(new Event('resize')); } catch(_) {}
+    setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch(_) {} }, 120);
+  }
+
+  function openLeadership(){
+    const drawer = ensureOpsDrawer();
+    document.body.classList.add('clean-mode');
+    setOperatingView('leadership');
+    drawer.classList.add('show');
+    drawer.style.transform = 'translateX(0)';
+    document.querySelector('.mapwrap')?.classList.add('command-drawer-open');
+    document.querySelector('.ops-tab[data-pane="leadership"]')?.click();
+    try { window.updateOpsIntel?.(); } catch(_) {}
+    setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch(_) {} }, 120);
+  }
+
+  function closeOpsIntel(){
+    const drawer = $('opsDrawer');
+    if (drawer) {
+      drawer.classList.remove('show');
+      drawer.style.transform = '';
+    }
+    document.querySelector('.mapwrap')?.classList.remove('command-drawer-open');
+    $('railOpsIntel')?.classList.remove('active','ops-hotfix-active');
+    setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch(_) {} }, 100);
+  }
+
+  function fieldView(){
+    document.body.classList.remove('clean-mode','opcx-leadership','opcx-ops');
+    setOperatingView('coverage');
+    closeOpsIntel();
+  }
+
+  function handleCapturedClick(e){
+    const btn = e.target.closest?.('button');
+    if (!btn) return;
+
+    const id = btn.id || '';
+    if (id === 'railOpsIntel' || id === 'opsDrawerToggle' || id === 'quickOpsBtn' || id === 'opcxOpsView'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openOpsIntel('overview');
+      return false;
+    }
+    if (id === 'railLeadership' || id === 'quickLeadershipBtn' || id === 'opcxLeadershipView'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openLeadership();
+      return false;
+    }
+    if (id === 'railField' || id === 'quickFieldBtn'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      fieldView();
+      return false;
+    }
+    if (id === 'opsCloseBtn'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      closeOpsIntel();
+      return false;
+    }
+  }
+
+  function bindDirectButtons(){
+    ['railOpsIntel','opsDrawerToggle','quickOpsBtn','opcxOpsView'].forEach(id => {
+      const b = $(id);
+      if (!b || b.dataset.opsIntelHotfixV2 === '1') return;
+      b.dataset.opsIntelHotfixV2 = '1';
+      b.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter' || ev.key === ' '){
+          ev.preventDefault();
+          openOpsIntel('overview');
+        }
+      });
+    });
+  }
+
+  document.addEventListener('click', handleCapturedClick, true);
+  document.addEventListener('pointerup', function(e){
+    const btn = e.target.closest?.('button');
+    if (btn && btn.id === 'railOpsIntel'){
+      // Pointer fallback for environments where a prior script swallows click.
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openOpsIntel('overview');
+      return false;
+    }
+  }, true);
+
+  bindDirectButtons();
+  setTimeout(bindDirectButtons, 400);
+  setTimeout(bindDirectButtons, 1200);
+  setTimeout(bindDirectButtons, 2500);
+})();
+</script>
+
+</body></html>`);
   w.document.close();
 }
 
@@ -4466,7 +4687,206 @@ function printSidepanelList() {
       <tbody>${htmlRows}</tbody>
     </table>
     <script>window.addEventListener('load',()=>{ setTimeout(()=>{ window.print(); }, 50); });<\/script>
-  </body></html>`);
+  
+
+<style>
+/* ===== Ops Intel Rail Hotfix + UX Tightening v2 ===== */
+/* Reduce duplicate entry points: Operating View + right rail are now the primary view controls. */
+#presetBar #quickOpsBtn,
+#presetBar #quickLeadershipBtn,
+#presetBar #quickFieldBtn{
+  display:none !important;
+}
+/* Make the Ops drawer more usable on leadership screens and reduce horizontal tab friction. */
+#opsDrawer.ops-drawer{
+  width:min(560px,94vw) !important;
+  max-width:94vw !important;
+}
+#opsDrawer .ops-tabs{
+  position:sticky;
+  top:0;
+  z-index:3;
+  background:#fff;
+  border-bottom:1px solid #e5e7eb;
+  padding-bottom:8px;
+}
+#opsDrawer .ops-body{
+  overflow:auto;
+}
+#opsDrawer .ops-tab{
+  white-space:nowrap;
+}
+.map-action-rail .rail-btn.primary{
+  background:#111827 !important;
+  color:#fff !important;
+}
+.map-action-rail .rail-btn.primary.ops-hotfix-active{
+  background:#2563eb !important;
+  border-color:#2563eb !important;
+}
+@media(max-width:1200px){
+  #opsDrawer.ops-drawer{width:min(500px,94vw) !important;}
+}
+</style>
+<script>
+/* ===== Ops Intel Rail Hotfix v2 =====
+   Purpose: make the right-side Ops Intel button deterministic even when earlier
+   quick-view/accordion handlers have already been installed. This runs last and
+   captures the click before older target-level toggle handlers can cancel it. */
+(function(){
+  if (window.__opsIntelRailHotfixV2) return;
+  window.__opsIntelRailHotfixV2 = true;
+
+  const $ = id => document.getElementById(id);
+  const qa = sel => Array.from(document.querySelectorAll(sel));
+
+  function setOperatingView(mode){
+    document.body.classList.remove('opcx-coverage','opcx-gaps','opcx-dedicated','opcx-ops','opcx-leadership');
+    document.body.classList.add('opcx-' + mode);
+    qa('.opcx-viewbtn').forEach(b => b.classList.toggle('active', b.dataset.opcxView === mode));
+    try { localStorage.setItem('opcx_last_view_v1', mode); } catch(_) {}
+  }
+
+  function ensureOpsDrawer(){
+    let drawer = $('opsDrawer');
+    if (drawer) return drawer;
+
+    const wrap = document.querySelector('.mapwrap') || document.body;
+    drawer = document.createElement('aside');
+    drawer.id = 'opsDrawer';
+    drawer.className = 'ops-drawer show';
+    drawer.innerHTML = `
+      <div class="ops-head">
+        <h3>Operations Intelligence</h3>
+        <span class="ops-refresh-stamp">Drawer restored</span>
+        <button id="opsCloseBtn" class="btn" type="button">×</button>
+      </div>
+      <div class="ops-body">
+        <div class="ops-pane active show">
+          <div class="ops-card"><b>Ops Intel</b><br>The Operations Intelligence drawer shell was restored. Refresh/reopen after data finishes loading.</div>
+        </div>
+      </div>`;
+    wrap.appendChild(drawer);
+    return drawer;
+  }
+
+  function openOpsIntel(pane='overview'){
+    const drawer = ensureOpsDrawer();
+    const wrap = document.querySelector('.mapwrap');
+
+    document.body.classList.remove('clean-mode','opcx-leadership');
+    setOperatingView('ops');
+
+    drawer.classList.add('show');
+    drawer.style.transform = 'translateX(0)';
+    if (wrap) wrap.classList.add('command-drawer-open');
+
+    qa('.rail-btn').forEach(b => b.classList.remove('active','ops-hotfix-active'));
+    $('railOpsIntel')?.classList.add('active','ops-hotfix-active');
+
+    const targetPane = pane === 'leadership' ? 'leadership' : pane;
+    const tab = document.querySelector(`.ops-tab[data-pane="${targetPane}"]`) || document.querySelector('.ops-tab[data-pane="overview"]');
+    if (tab) tab.click();
+
+    try { window.updateOpsIntel?.(); } catch(err) { console.warn('Ops Intel refresh skipped:', err); }
+    try { window.dispatchEvent(new Event('resize')); } catch(_) {}
+    setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch(_) {} }, 120);
+  }
+
+  function openLeadership(){
+    const drawer = ensureOpsDrawer();
+    document.body.classList.add('clean-mode');
+    setOperatingView('leadership');
+    drawer.classList.add('show');
+    drawer.style.transform = 'translateX(0)';
+    document.querySelector('.mapwrap')?.classList.add('command-drawer-open');
+    document.querySelector('.ops-tab[data-pane="leadership"]')?.click();
+    try { window.updateOpsIntel?.(); } catch(_) {}
+    setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch(_) {} }, 120);
+  }
+
+  function closeOpsIntel(){
+    const drawer = $('opsDrawer');
+    if (drawer) {
+      drawer.classList.remove('show');
+      drawer.style.transform = '';
+    }
+    document.querySelector('.mapwrap')?.classList.remove('command-drawer-open');
+    $('railOpsIntel')?.classList.remove('active','ops-hotfix-active');
+    setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch(_) {} }, 100);
+  }
+
+  function fieldView(){
+    document.body.classList.remove('clean-mode','opcx-leadership','opcx-ops');
+    setOperatingView('coverage');
+    closeOpsIntel();
+  }
+
+  function handleCapturedClick(e){
+    const btn = e.target.closest?.('button');
+    if (!btn) return;
+
+    const id = btn.id || '';
+    if (id === 'railOpsIntel' || id === 'opsDrawerToggle' || id === 'quickOpsBtn' || id === 'opcxOpsView'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openOpsIntel('overview');
+      return false;
+    }
+    if (id === 'railLeadership' || id === 'quickLeadershipBtn' || id === 'opcxLeadershipView'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openLeadership();
+      return false;
+    }
+    if (id === 'railField' || id === 'quickFieldBtn'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      fieldView();
+      return false;
+    }
+    if (id === 'opsCloseBtn'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      closeOpsIntel();
+      return false;
+    }
+  }
+
+  function bindDirectButtons(){
+    ['railOpsIntel','opsDrawerToggle','quickOpsBtn','opcxOpsView'].forEach(id => {
+      const b = $(id);
+      if (!b || b.dataset.opsIntelHotfixV2 === '1') return;
+      b.dataset.opsIntelHotfixV2 = '1';
+      b.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter' || ev.key === ' '){
+          ev.preventDefault();
+          openOpsIntel('overview');
+        }
+      });
+    });
+  }
+
+  document.addEventListener('click', handleCapturedClick, true);
+  document.addEventListener('pointerup', function(e){
+    const btn = e.target.closest?.('button');
+    if (btn && btn.id === 'railOpsIntel'){
+      // Pointer fallback for environments where a prior script swallows click.
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openOpsIntel('overview');
+      return false;
+    }
+  }, true);
+
+  bindDirectButtons();
+  setTimeout(bindDirectButtons, 400);
+  setTimeout(bindDirectButtons, 1200);
+  setTimeout(bindDirectButtons, 2500);
+})();
+</script>
+
+</body></html>`);
   w.document.close();
 }
 
@@ -8022,6 +8442,7 @@ function storePopupHTML(s){
         <div class="store-popup-card-title">RTS Coverage</div>
         <div><b>Status:</b> ${activeCoverage.covered ? 'Covered' : 'Gap / Uncovered'}</div>
         <div class="popup-gap-badge ${gapBadge.className}">${esc(gapBadge.label)}</div>
+        ${!activeCoverage.covered ? `<div class="popup-gap-reason"><b>Why this is a gap:</b> ${esc(gapBadge.reason || 'No active RTS within the 75-mile operating radius.')}</div>` : ''}
         <div><b>RTS:</b> ${esc(activeCoverage.rts || '—')}</div>
         <div><b>Distance:</b> ${Number.isFinite(activeCoverage.miles) ? activeCoverage.miles.toFixed(1) + ' mi' : '—'}</div>
       </div>
@@ -8654,7 +9075,206 @@ const projectedCoveragePct = allStores.length
           <tbody>${rows}</tbody>
         </table>
         <script>window.print()<\\/script>
-      </body></html>`);
+      
+
+<style>
+/* ===== Ops Intel Rail Hotfix + UX Tightening v2 ===== */
+/* Reduce duplicate entry points: Operating View + right rail are now the primary view controls. */
+#presetBar #quickOpsBtn,
+#presetBar #quickLeadershipBtn,
+#presetBar #quickFieldBtn{
+  display:none !important;
+}
+/* Make the Ops drawer more usable on leadership screens and reduce horizontal tab friction. */
+#opsDrawer.ops-drawer{
+  width:min(560px,94vw) !important;
+  max-width:94vw !important;
+}
+#opsDrawer .ops-tabs{
+  position:sticky;
+  top:0;
+  z-index:3;
+  background:#fff;
+  border-bottom:1px solid #e5e7eb;
+  padding-bottom:8px;
+}
+#opsDrawer .ops-body{
+  overflow:auto;
+}
+#opsDrawer .ops-tab{
+  white-space:nowrap;
+}
+.map-action-rail .rail-btn.primary{
+  background:#111827 !important;
+  color:#fff !important;
+}
+.map-action-rail .rail-btn.primary.ops-hotfix-active{
+  background:#2563eb !important;
+  border-color:#2563eb !important;
+}
+@media(max-width:1200px){
+  #opsDrawer.ops-drawer{width:min(500px,94vw) !important;}
+}
+</style>
+<script>
+/* ===== Ops Intel Rail Hotfix v2 =====
+   Purpose: make the right-side Ops Intel button deterministic even when earlier
+   quick-view/accordion handlers have already been installed. This runs last and
+   captures the click before older target-level toggle handlers can cancel it. */
+(function(){
+  if (window.__opsIntelRailHotfixV2) return;
+  window.__opsIntelRailHotfixV2 = true;
+
+  const $ = id => document.getElementById(id);
+  const qa = sel => Array.from(document.querySelectorAll(sel));
+
+  function setOperatingView(mode){
+    document.body.classList.remove('opcx-coverage','opcx-gaps','opcx-dedicated','opcx-ops','opcx-leadership');
+    document.body.classList.add('opcx-' + mode);
+    qa('.opcx-viewbtn').forEach(b => b.classList.toggle('active', b.dataset.opcxView === mode));
+    try { localStorage.setItem('opcx_last_view_v1', mode); } catch(_) {}
+  }
+
+  function ensureOpsDrawer(){
+    let drawer = $('opsDrawer');
+    if (drawer) return drawer;
+
+    const wrap = document.querySelector('.mapwrap') || document.body;
+    drawer = document.createElement('aside');
+    drawer.id = 'opsDrawer';
+    drawer.className = 'ops-drawer show';
+    drawer.innerHTML = `
+      <div class="ops-head">
+        <h3>Operations Intelligence</h3>
+        <span class="ops-refresh-stamp">Drawer restored</span>
+        <button id="opsCloseBtn" class="btn" type="button">×</button>
+      </div>
+      <div class="ops-body">
+        <div class="ops-pane active show">
+          <div class="ops-card"><b>Ops Intel</b><br>The Operations Intelligence drawer shell was restored. Refresh/reopen after data finishes loading.</div>
+        </div>
+      </div>`;
+    wrap.appendChild(drawer);
+    return drawer;
+  }
+
+  function openOpsIntel(pane='overview'){
+    const drawer = ensureOpsDrawer();
+    const wrap = document.querySelector('.mapwrap');
+
+    document.body.classList.remove('clean-mode','opcx-leadership');
+    setOperatingView('ops');
+
+    drawer.classList.add('show');
+    drawer.style.transform = 'translateX(0)';
+    if (wrap) wrap.classList.add('command-drawer-open');
+
+    qa('.rail-btn').forEach(b => b.classList.remove('active','ops-hotfix-active'));
+    $('railOpsIntel')?.classList.add('active','ops-hotfix-active');
+
+    const targetPane = pane === 'leadership' ? 'leadership' : pane;
+    const tab = document.querySelector(`.ops-tab[data-pane="${targetPane}"]`) || document.querySelector('.ops-tab[data-pane="overview"]');
+    if (tab) tab.click();
+
+    try { window.updateOpsIntel?.(); } catch(err) { console.warn('Ops Intel refresh skipped:', err); }
+    try { window.dispatchEvent(new Event('resize')); } catch(_) {}
+    setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch(_) {} }, 120);
+  }
+
+  function openLeadership(){
+    const drawer = ensureOpsDrawer();
+    document.body.classList.add('clean-mode');
+    setOperatingView('leadership');
+    drawer.classList.add('show');
+    drawer.style.transform = 'translateX(0)';
+    document.querySelector('.mapwrap')?.classList.add('command-drawer-open');
+    document.querySelector('.ops-tab[data-pane="leadership"]')?.click();
+    try { window.updateOpsIntel?.(); } catch(_) {}
+    setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch(_) {} }, 120);
+  }
+
+  function closeOpsIntel(){
+    const drawer = $('opsDrawer');
+    if (drawer) {
+      drawer.classList.remove('show');
+      drawer.style.transform = '';
+    }
+    document.querySelector('.mapwrap')?.classList.remove('command-drawer-open');
+    $('railOpsIntel')?.classList.remove('active','ops-hotfix-active');
+    setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch(_) {} }, 100);
+  }
+
+  function fieldView(){
+    document.body.classList.remove('clean-mode','opcx-leadership','opcx-ops');
+    setOperatingView('coverage');
+    closeOpsIntel();
+  }
+
+  function handleCapturedClick(e){
+    const btn = e.target.closest?.('button');
+    if (!btn) return;
+
+    const id = btn.id || '';
+    if (id === 'railOpsIntel' || id === 'opsDrawerToggle' || id === 'quickOpsBtn' || id === 'opcxOpsView'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openOpsIntel('overview');
+      return false;
+    }
+    if (id === 'railLeadership' || id === 'quickLeadershipBtn' || id === 'opcxLeadershipView'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openLeadership();
+      return false;
+    }
+    if (id === 'railField' || id === 'quickFieldBtn'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      fieldView();
+      return false;
+    }
+    if (id === 'opsCloseBtn'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      closeOpsIntel();
+      return false;
+    }
+  }
+
+  function bindDirectButtons(){
+    ['railOpsIntel','opsDrawerToggle','quickOpsBtn','opcxOpsView'].forEach(id => {
+      const b = $(id);
+      if (!b || b.dataset.opsIntelHotfixV2 === '1') return;
+      b.dataset.opsIntelHotfixV2 = '1';
+      b.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter' || ev.key === ' '){
+          ev.preventDefault();
+          openOpsIntel('overview');
+        }
+      });
+    });
+  }
+
+  document.addEventListener('click', handleCapturedClick, true);
+  document.addEventListener('pointerup', function(e){
+    const btn = e.target.closest?.('button');
+    if (btn && btn.id === 'railOpsIntel'){
+      // Pointer fallback for environments where a prior script swallows click.
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openOpsIntel('overview');
+      return false;
+    }
+  }, true);
+
+  bindDirectButtons();
+  setTimeout(bindDirectButtons, 400);
+  setTimeout(bindDirectButtons, 1200);
+  setTimeout(bindDirectButtons, 2500);
+})();
+</script>
+
+</body></html>`);
     win.document.close();
   };
 }
@@ -9369,6 +9989,7 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
       </div>
       <div class="ops-tabs">
         <button class="ops-tab active" data-pane="overview" type="button">Overview</button>
+        <button class="ops-tab" data-pane="blended" type="button">Blended Reach</button>
         <button class="ops-tab" data-pane="risk" type="button">Risk</button>
         <button class="ops-tab" data-pane="workload" type="button">RTS Load</button>
         <button class="ops-tab" data-pane="leadership" type="button">Leadership</button>
@@ -9382,6 +10003,11 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
             <div class="ops-card"><div class="ops-label">Active RTS</div><div class="ops-value" id="opsKpiRts">—</div><div class="ops-sub">Visible active hubs</div></div>
           </div>
           <div class="ops-card"><div class="ops-section-title"><span>Top Gap Regions</span><span id="opsGapMeta" class="ops-sub"></span></div><div id="opsTopGaps"></div></div>
+        </div>
+
+        <div class="ops-pane" id="opsPaneBlended">
+          <div class="ops-card"><div class="ops-section-title"><span>Blended RTS Reach</span><span class="ops-sub">cross-network flexibility</span></div><div id="opsBlendedReach"></div></div>
+          <div class="ops-card"><div class="ops-section-title"><span>Operational Flexibility Markets</span><span class="ops-sub">top blended opportunities</span></div><div id="opsBlendedMarkets"></div></div>
         </div>
 
         <div class="ops-pane" id="opsPaneRisk">
@@ -9428,6 +10054,72 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
       return hubs.filter(h => h && h.status !== 'pending' && Array.isArray(h.coords) && Number.isFinite(Number(h.coords[0])) && Number.isFinite(Number(h.coords[1])));
     }
 
+    function hubLegacyTeam(h){
+      const raw = String(h?.sourceTeam || h?.legacyTeam || h?.team || h?.Team || h?.brand || h?.source || '').toLowerCase();
+      if (/acosta|mosaic|asm/.test(raw)) return 'acosta';
+      if (/premium|prs|premium retail/.test(raw)) return 'premium';
+      if (/crossmark/.test(raw)) return 'crossmark';
+      return '';
+    }
+
+    function storeLegacyTeamForReach(s){
+      const key = storeKey(s);
+      const cur = (currentStores || []).find(x => storeKey(x) === key) || s;
+      const paths = Array.isArray(cur?.managerPaths) ? cur.managerPaths : [];
+      for (const p of paths){
+        const t = typeof currentTeamType === 'function' ? currentTeamType(p) : (typeof getTeamType === 'function' ? getTeamType(p) : '');
+        if (['premium','acosta','crossmark'].includes(t)) return t;
+      }
+      const txt = `${cur?.legacyBrand || ''} ${cur?.teamName || ''} ${cur?.managementGroupName || ''}`.toLowerCase();
+      if (/premium/.test(txt)) return 'premium';
+      if (/acosta/.test(txt)) return 'acosta';
+      if (/crossmark/.test(txt)) return 'crossmark';
+      return 'unknown';
+    }
+
+    function reachByTeamForStore(s){
+      const active = activeVisibleHubs();
+      const by = { premium:false, acosta:false, crossmark:false, unknown:false };
+      const r = CLASSIFY_RADIUS || DEFAULT_RADIUS || 75;
+      active.forEach(h => {
+        const team = hubLegacyTeam(h) || 'unknown';
+        if (Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lng)) && distMiles(Number(s.lat), Number(s.lng), Number(h.coords[0]), Number(h.coords[1])) <= r){
+          by[team] = true;
+        }
+      });
+      return by;
+    }
+
+    function blendedReachSummary(rows){
+      const active = activeVisibleHubs();
+      const teamKnown = active.some(h => ['premium','acosta','crossmark'].includes(hubLegacyTeam(h)));
+      const out = { teamKnown, premiumGainAcosta:0, acostaGainPremium:0, crossmarkGainAny:0, dualNetwork:0, stillIsolated:0, unknownOwner:0, marketRows:[] };
+      const markets = new Map();
+      (rows || []).forEach(s => {
+        const owner = storeLegacyTeamForReach(s);
+        const reach = reachByTeamForStore(s);
+        const anyKnownReach = reach.premium || reach.acosta || reach.crossmark;
+        const networkCount = ['premium','acosta','crossmark'].filter(k => reach[k]).length;
+        if (networkCount >= 2) out.dualNetwork++;
+        if (!anyKnownReach && !reach.unknown) out.stillIsolated++;
+        if (owner === 'premium' && reach.acosta) out.premiumGainAcosta++;
+        else if (owner === 'acosta' && reach.premium) out.acostaGainPremium++;
+        else if (owner === 'crossmark' && (reach.premium || reach.acosta)) out.crossmarkGainAny++;
+        else if (owner === 'unknown') out.unknownOwner++;
+        if ((owner === 'premium' && reach.acosta) || (owner === 'acosta' && reach.premium) || networkCount >= 2){
+          const mk = `${s.city || 'Unknown'}, ${s.state || ''}`;
+          const g = markets.get(mk) || { market:mk, premiumGainAcosta:0, acostaGainPremium:0, dual:0, total:0 };
+          g.total++;
+          if (owner === 'premium' && reach.acosta) g.premiumGainAcosta++;
+          if (owner === 'acosta' && reach.premium) g.acostaGainPremium++;
+          if (networkCount >= 2) g.dual++;
+          markets.set(mk,g);
+        }
+      });
+      out.marketRows = Array.from(markets.values()).sort((a,b)=>b.total-a.total || b.dual-a.dual).slice(0,10);
+      return out;
+    }
+
     function groupBy(rows, keyFn){
       const m = new Map();
       rows.forEach(r=>{
@@ -9456,16 +10148,26 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
       return hubs.map(h=>{
         const lat = Number(h.coords[0]);
         const lng = Number(h.coords[1]);
-        const reached = rows.filter(s => Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lng)) && distMiles(lat,lng,Number(s.lat),Number(s.lng)) <= r);
-        const gaps = reached.filter(gap).length;
-        const risk = reached.length >= 140 || gaps >= 20 ? 'High' : reached.length >= 105 || gaps >= 10 ? 'Med' : 'Low';
+        const reached = rows.filter(s => Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lng)) && distMiles(lat,lng,Number(s.lat),Number(s.lng)) <= r)
+          .map(s => ({ store:s, miles:distMiles(lat,lng,Number(s.lat),Number(s.lng)) }));
+        const gaps = reached.filter(x=>gap(x.store)).length;
+        const total = reached.length;
+        const avgMiles = total ? reached.reduce((a,x)=>a+x.miles,0) / total : 0;
+        const maxMiles = total ? Math.max(...reached.map(x=>x.miles)) : 0;
+        const fringe = reached.filter(x => x.miles >= 62).length;
+        const stressScore = Math.min(100, Math.round((total/1.6) + (avgMiles/1.2) + (fringe*1.2) + (gaps*1.5)));
+        const risk = stressScore >= 85 || total >= 145 || gaps >= 25 ? 'High' : stressScore >= 62 || total >= 105 || gaps >= 10 ? 'Med' : 'Low';
         return {
           name: hubDisplay?.(h) || h.fullName || h.name || 'RTS',
-          total: reached.length,
+          total,
           gaps,
+          avgMiles,
+          maxMiles,
+          fringe,
+          stressScore,
           risk
         };
-      }).sort((a,b)=> b.total - a.total || b.gaps - a.gaps).slice(0,12);
+      }).sort((a,b)=> b.stressScore - a.stressScore || b.total - a.total).slice(0,12);
     }
 
     function coverageRisk(rows){
@@ -9985,10 +10687,27 @@ if (popupHtmlCache.has(cacheKey)){
         ${gapRows.map(r => `<tr><td><b>${safe(r.label)}</b></td><td style="text-align:right"><b>${fmt(r.gaps)}</b></td><td>${safe(r.states || '—')}</td></tr>`).join('')}
         </tbody></table>` : `<div class="ops-sub">No current gaps in the active map view.</div>`;
 
+      const blended = blendedReachSummary(rows);
+      const br = drawer.querySelector('#opsBlendedReach');
+      if (br) br.innerHTML = `
+        <div class="ops-blended-note"><b>Blended Reach framing:</b> This does not claim stores became newly covered. It shows where operational flexibility increases because legacy Premium, Acosta, or Crossmark-aligned stores are now reachable by the broader RTS network within the same 75-mile rule.</div>
+        ${blended.teamKnown ? '' : '<div class="ops-blended-note"><b>Source team note:</b> The RTS JSON does not expose reliable legacy team labels for every RTS, so cross-network counts may be understated until sourceTeam/legacyTeam is added to the RTS file.</div>'}
+        <div class="ops-blended-kpis">
+          <div class="ops-blended-kpi"><div class="lbl">Premium stores gaining Acosta reach</div><div class="val">${fmt(blended.premiumGainAcosta)}</div></div>
+          <div class="ops-blended-kpi"><div class="lbl">Acosta stores gaining Premium reach</div><div class="val">${fmt(blended.acostaGainPremium)}</div></div>
+          <div class="ops-blended-kpi"><div class="lbl">Dual-network reachable stores</div><div class="val">${fmt(blended.dualNetwork)}</div></div>
+          <div class="ops-blended-kpi"><div class="lbl">Still isolated from known RTS teams</div><div class="val">${fmt(blended.stillIsolated)}</div></div>
+        </div>`;
+      const bm = drawer.querySelector('#opsBlendedMarkets');
+      if (bm) bm.innerHTML = blended.marketRows.length ? `
+        <table class="ops-table"><thead><tr><th>Market</th><th style="text-align:right">Total</th><th style="text-align:right">Premium→Acosta</th><th style="text-align:right">Acosta→Premium</th><th style="text-align:right">Dual</th></tr></thead><tbody>
+        ${blended.marketRows.map(r => `<tr><td><b>${safe(r.market)}</b></td><td style="text-align:right">${fmt(r.total)}</td><td style="text-align:right">${fmt(r.premiumGainAcosta)}</td><td style="text-align:right">${fmt(r.acostaGainPremium)}</td><td style="text-align:right">${fmt(r.dual)}</td></tr>`).join('')}
+        </tbody></table>` : `<div class="ops-sub">No cross-network reach markets found in the active view, or legacy RTS source-team labels are unavailable.</div>`;
+
       const workRows = rtsWorkload(rows);
       drawer.querySelector('#opsRtsWorkload').innerHTML = workRows.length ? `
-        <table class="ops-table"><thead><tr><th>RTS</th><th style="text-align:right">Stores</th><th style="text-align:right">Gaps</th><th>Risk</th></tr></thead><tbody>
-        ${workRows.map(r => `<tr><td><b>${safe(r.name)}</b></td><td style="text-align:right">${fmt(r.total)}</td><td style="text-align:right">${fmt(r.gaps)}</td><td class="ops-risk-${r.risk.toLowerCase()}">${r.risk}</td></tr>`).join('')}
+        <table class="ops-table"><thead><tr><th>RTS</th><th style="text-align:right">Stores</th><th style="text-align:right">Avg mi</th><th style="text-align:right">Max mi</th><th style="text-align:right">Stress</th><th>Risk</th></tr></thead><tbody>
+        ${workRows.map(r => `<tr><td><b>${safe(r.name)}</b><div class="ops-sub">${fmt(r.gaps)} current gaps · ${fmt(r.fringe)} fringe stores</div></td><td style="text-align:right">${fmt(r.total)}</td><td style="text-align:right">${r.avgMiles.toFixed(1)}</td><td style="text-align:right">${r.maxMiles.toFixed(1)}</td><td style="text-align:right"><b>${r.stressScore}</b></td><td class="ops-risk-${r.risk.toLowerCase()}">${r.risk}</td></tr>`).join('')}
         </tbody></table>` : `<div class="ops-sub">No active RTS hub data in the current view.</div>`;
 
       drawer.querySelector('#opsBalanceFlags').innerHTML = workRows.length ? `
@@ -10026,6 +10745,7 @@ if (popupHtmlCache.has(cacheKey)){
           <li>The highest visible coverage risk is <b>${safe(worst?.manager || 'not currently flagged')}</b>.</li>
           <li>Dedicated teams — Unilever, P&amp;G, and Tyson — remain visible separately from the One Walmart PSP alignment.</li>
           <li>RTS workload ranking should be used to identify overloaded hubs and potential split opportunities.</li>
+          <li>Blended Reach should be used to explain where operational flexibility improved, not as a claim that geography-based coverage rules changed.</li>
         </ul>
       `;
 
@@ -10745,9 +11465,9 @@ function gapSeverityForStore(store){
     distMiles(store.lat, store.lng, s.lat, s.lng) <= 35
   ).length;
 
-  if (nearbyGaps >= 12) return { label:`High Gap Area (${nearbyGaps} nearby)`, className:'high', nearby:nearbyGaps };
-  if (nearbyGaps >= 4) return { label:`Near Gap Cluster (${nearbyGaps} nearby)`, className:'near', nearby:nearbyGaps };
-  return { label:'Isolated Gap', className:'near', nearby:nearbyGaps };
+  if (nearbyGaps >= 12) return { label:`Metro / Dense Gap Area (${nearbyGaps} nearby)`, className:'high', nearby:nearbyGaps, reason:'Multiple uncovered stores are clustered nearby, suggesting a market-level RTS coverage opportunity rather than a single isolated store.' };
+  if (nearbyGaps >= 4) return { label:`Sparse Coverage Gap (${nearbyGaps} nearby)`, className:'near', nearby:nearbyGaps, reason:'Several uncovered stores sit near each other, indicating partial regional coverage but insufficient 75-mile RTS reach.' };
+  return { label:'Isolated Rural / Fringe Gap', className:'near', nearby:nearbyGaps, reason:'No active RTS is within 75 miles and few other uncovered stores are nearby, suggesting a rural or fringe geography issue.' };
 }
 
 function setAllSelect(selectEl){
@@ -11641,5 +12361,212 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 })();
 
 </script>
+
+
+<style>
+/* ===== Ops Intel Rail Hotfix + UX Tightening v2 ===== */
+/* Reduce duplicate entry points: Operating View + right rail are now the primary view controls. */
+#presetBar #quickOpsBtn,
+#presetBar #quickLeadershipBtn,
+#presetBar #quickFieldBtn{
+  display:none !important;
+}
+/* Make the Ops drawer more usable on leadership screens and reduce horizontal tab friction. */
+#opsDrawer.ops-drawer{
+  width:min(560px,94vw) !important;
+  max-width:94vw !important;
+}
+#opsDrawer .ops-tabs{
+  position:sticky;
+  top:0;
+  z-index:3;
+  background:#fff;
+  border-bottom:1px solid #e5e7eb;
+  padding-bottom:8px;
+}
+#opsDrawer .ops-body{
+  overflow:auto;
+}
+#opsDrawer .ops-tab{
+  white-space:nowrap;
+}
+.map-action-rail .rail-btn.primary{
+  background:#111827 !important;
+  color:#fff !important;
+}
+.map-action-rail .rail-btn.primary.ops-hotfix-active{
+  background:#2563eb !important;
+  border-color:#2563eb !important;
+}
+@media(max-width:1200px){
+  #opsDrawer.ops-drawer{width:min(500px,94vw) !important;}
+}
+</style>
+<script>
+/* ===== Ops Intel Rail Hotfix v2 =====
+   Purpose: make the right-side Ops Intel button deterministic even when earlier
+   quick-view/accordion handlers have already been installed. This runs last and
+   captures the click before older target-level toggle handlers can cancel it. */
+(function(){
+  if (window.__opsIntelRailHotfixV2) return;
+  window.__opsIntelRailHotfixV2 = true;
+
+  const $ = id => document.getElementById(id);
+  const qa = sel => Array.from(document.querySelectorAll(sel));
+
+  function setOperatingView(mode){
+    document.body.classList.remove('opcx-coverage','opcx-gaps','opcx-dedicated','opcx-ops','opcx-leadership');
+    document.body.classList.add('opcx-' + mode);
+    qa('.opcx-viewbtn').forEach(b => b.classList.toggle('active', b.dataset.opcxView === mode));
+    try { localStorage.setItem('opcx_last_view_v1', mode); } catch(_) {}
+  }
+
+  function ensureOpsDrawer(){
+    let drawer = $('opsDrawer');
+    if (drawer) return drawer;
+
+    const wrap = document.querySelector('.mapwrap') || document.body;
+    drawer = document.createElement('aside');
+    drawer.id = 'opsDrawer';
+    drawer.className = 'ops-drawer show';
+    drawer.innerHTML = `
+      <div class="ops-head">
+        <h3>Operations Intelligence</h3>
+        <span class="ops-refresh-stamp">Drawer restored</span>
+        <button id="opsCloseBtn" class="btn" type="button">×</button>
+      </div>
+      <div class="ops-body">
+        <div class="ops-pane active show">
+          <div class="ops-card"><b>Ops Intel</b><br>The Operations Intelligence drawer shell was restored. Refresh/reopen after data finishes loading.</div>
+        </div>
+      </div>`;
+    wrap.appendChild(drawer);
+    return drawer;
+  }
+
+  function openOpsIntel(pane='overview'){
+    const drawer = ensureOpsDrawer();
+    const wrap = document.querySelector('.mapwrap');
+
+    document.body.classList.remove('clean-mode','opcx-leadership');
+    setOperatingView('ops');
+
+    drawer.classList.add('show');
+    drawer.style.transform = 'translateX(0)';
+    if (wrap) wrap.classList.add('command-drawer-open');
+
+    qa('.rail-btn').forEach(b => b.classList.remove('active','ops-hotfix-active'));
+    $('railOpsIntel')?.classList.add('active','ops-hotfix-active');
+
+    const targetPane = pane === 'leadership' ? 'leadership' : pane;
+    const tab = document.querySelector(`.ops-tab[data-pane="${targetPane}"]`) || document.querySelector('.ops-tab[data-pane="overview"]');
+    if (tab) tab.click();
+
+    try { window.updateOpsIntel?.(); } catch(err) { console.warn('Ops Intel refresh skipped:', err); }
+    try { window.dispatchEvent(new Event('resize')); } catch(_) {}
+    setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch(_) {} }, 120);
+  }
+
+  function openLeadership(){
+    const drawer = ensureOpsDrawer();
+    document.body.classList.add('clean-mode');
+    setOperatingView('leadership');
+    drawer.classList.add('show');
+    drawer.style.transform = 'translateX(0)';
+    document.querySelector('.mapwrap')?.classList.add('command-drawer-open');
+    document.querySelector('.ops-tab[data-pane="leadership"]')?.click();
+    try { window.updateOpsIntel?.(); } catch(_) {}
+    setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch(_) {} }, 120);
+  }
+
+  function closeOpsIntel(){
+    const drawer = $('opsDrawer');
+    if (drawer) {
+      drawer.classList.remove('show');
+      drawer.style.transform = '';
+    }
+    document.querySelector('.mapwrap')?.classList.remove('command-drawer-open');
+    $('railOpsIntel')?.classList.remove('active','ops-hotfix-active');
+    setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch(_) {} }, 100);
+  }
+
+  function fieldView(){
+    document.body.classList.remove('clean-mode','opcx-leadership','opcx-ops');
+    setOperatingView('coverage');
+    closeOpsIntel();
+  }
+
+  function handleCapturedClick(e){
+    const btn = e.target.closest?.('button');
+    if (!btn) return;
+
+    const id = btn.id || '';
+    if (id === 'railOpsIntel' || id === 'opsDrawerToggle' || id === 'quickOpsBtn' || id === 'opcxOpsView'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openOpsIntel('overview');
+      return false;
+    }
+    if (id === 'railLeadership' || id === 'quickLeadershipBtn' || id === 'opcxLeadershipView'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openLeadership();
+      return false;
+    }
+    if (id === 'railField' || id === 'quickFieldBtn'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      fieldView();
+      return false;
+    }
+    if (id === 'opsCloseBtn'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      closeOpsIntel();
+      return false;
+    }
+  }
+
+  function bindDirectButtons(){
+    ['railOpsIntel','opsDrawerToggle','quickOpsBtn','opcxOpsView'].forEach(id => {
+      const b = $(id);
+      if (!b || b.dataset.opsIntelHotfixV2 === '1') return;
+      b.dataset.opsIntelHotfixV2 = '1';
+      b.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter' || ev.key === ' '){
+          ev.preventDefault();
+          openOpsIntel('overview');
+        }
+      });
+    });
+  }
+
+  document.addEventListener('click', handleCapturedClick, true);
+  document.addEventListener('pointerup', function(e){
+    const btn = e.target.closest?.('button');
+    if (btn && btn.id === 'railOpsIntel'){
+      // Pointer fallback for environments where a prior script swallows click.
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openOpsIntel('overview');
+      return false;
+    }
+  }, true);
+
+  bindDirectButtons();
+  setTimeout(bindDirectButtons, 400);
+  setTimeout(bindDirectButtons, 1200);
+  setTimeout(bindDirectButtons, 2500);
+})();
+</script>
+
+
+<style>
+/* ===== Right rail cleanup for Unified Operational Intelligence v1 ===== */
+#railLeadership,#railField{display:none !important;}
+.map-action-rail{max-width:112px !important;}
+.map-layers-panel label[title*="overlap"], .map-layers-panel label:has(#tgOverlap){ }
+</style>
+
 </body>
 </html>
