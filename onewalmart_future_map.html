@@ -1292,6 +1292,105 @@ select[multiple]{
 .action-card .sub{font-size:12px;color:#64748b;line-height:1.35;margin-top:3px;}
 @media(max-width:900px){.ded-rollup-kpis{grid-template-columns:1fr 1fr;}}
 
+
+
+/* ===== Operational Consolidation + UX Stabilization Package v1 ===== */
+.opcx-viewbar{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  padding:7px 10px;
+  background:#ffffff;
+  border-bottom:1px solid #e5e7eb;
+  box-shadow:0 2px 8px rgba(15,23,42,.04);
+  z-index:9;
+}
+.opcx-viewbar .opcx-label{
+  font-size:11px;
+  font-weight:950;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:#64748b;
+  margin-right:2px;
+}
+.opcx-viewbtn{
+  border:1px solid #dbe3ea;
+  background:#f8fafc;
+  color:#0f172a;
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:850;
+  cursor:pointer;
+  box-shadow:0 1px 4px rgba(15,23,42,.04);
+}
+.opcx-viewbtn:hover{background:#eef6ff;border-color:#bfdbfe;}
+.opcx-viewbtn.active{
+  background:#111827;
+  border-color:#111827;
+  color:#fff;
+}
+.opcx-viewbar .opcx-note{
+  margin-left:auto;
+  color:#64748b;
+  font-size:12px;
+  line-height:1.25;
+}
+.opcx-context-banner{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  padding:6px 10px;
+  background:#eff6ff;
+  border-bottom:1px solid #bfdbfe;
+  color:#1e3a8a;
+  font-size:12px;
+  line-height:1.3;
+}
+.opcx-context-banner b{color:#0f172a;}
+.opcx-context-banner .opcx-chip{
+  display:inline-flex;
+  align-items:center;
+  border:1px solid #bfdbfe;
+  background:#fff;
+  color:#1d4ed8;
+  border-radius:999px;
+  padding:3px 8px;
+  font-weight:850;
+}
+body.opcx-leadership .control-panel{display:none !important;}
+body.opcx-leadership .topbar{display:none !important;}
+body.opcx-leadership .opcx-viewbar{position:sticky;top:0;z-index:3000;box-shadow:0 6px 18px rgba(15,23,42,.12);}
+body.opcx-leadership .opcx-context-banner{display:none !important;}
+body.opcx-leadership #launchStatus,
+body.opcx-leadership #dataStatus,
+body.opcx-leadership #summary,
+body.opcx-leadership #mgrRollupSummary{display:none !important;}
+body.opcx-ops .opcx-viewbar{border-bottom-color:#bfdbfe;background:#f8fbff;}
+body.opcx-dedicated .opcx-viewbar{border-bottom-color:#e9d5ff;background:#faf5ff;}
+body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
+.opcx-density-note{
+  padding:8px 10px;
+  margin:8px 0;
+  border:1px solid #dbe3ea;
+  border-radius:12px;
+  background:#f8fafc;
+  color:#475569;
+  font-size:12px;
+  line-height:1.35;
+}
+/* Reframe shared coverage as density/visibility rather than a negative overlap issue. */
+#overlapKey div{font-weight:800;}
+#comparePanel .chip{font-size:12px;}
+.ops-drawer .opcx-density-note{margin:10px;}
+@media(max-width:720px){
+  .opcx-viewbar{gap:5px;padding:6px;}
+  .opcx-viewbtn{font-size:11px;padding:5px 8px;}
+  .opcx-viewbar .opcx-note{flex-basis:100%;margin-left:0;}
+}
+
 </style>
 </head>
 <body>
@@ -11273,6 +11372,272 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install); else install();
   setTimeout(install,500); setTimeout(install,1500); setTimeout(install,3000);
+})();
+
+
+
+/* ===== Operational Consolidation + UX Stabilization Package v1 =====
+   Purpose: consolidate existing tools into clear operating modes without adding heavy analytics.
+   This layer uses existing controls and click handlers so the established calculations remain the source of truth.
+*/
+(function(){
+  const $ = id => document.getElementById(id);
+  const q = sel => document.querySelector(sel);
+  const qa = sel => Array.from(document.querySelectorAll(sel));
+
+  function esc(v){
+    return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function fire(el, type='change'){
+    if (!el) return;
+    el.dispatchEvent(new Event(type, { bubbles:true }));
+  }
+  function selectedValues(id){
+    const el = typeof id === 'string' ? $(id) : id;
+    return Array.from(el?.selectedOptions || []).map(o => o.value);
+  }
+  function setMulti(id, vals){
+    const el = $(id); if (!el) return;
+    const want = new Set(vals || []);
+    Array.from(el.options).forEach(o => { o.selected = want.has(o.value); });
+    fire(el);
+  }
+  function setCheck(id, checked){
+    const el = $(id); if (!el) return;
+    if (el.checked !== !!checked){ el.checked = !!checked; fire(el); }
+  }
+  function closeMenus(){ qa('.dropdown-menu').forEach(m => m.style.display='none'); }
+  function click(id){ const el=$(id); if (el) el.click(); }
+  function fitSoon(){ setTimeout(()=>click('fitBtn'), 140); }
+  function mapResizeSoon(){ setTimeout(()=>{ try { window.dispatchEvent(new Event('resize')); } catch(_){} }, 120); }
+  function toast(msg){
+    let wrap = $('toasts');
+    if (!wrap){ wrap=document.createElement('div'); wrap.id='toasts'; wrap.className='toasts'; document.body.appendChild(wrap); }
+    const t=document.createElement('div');
+    t.className='toast';
+    t.textContent=msg;
+    wrap.appendChild(t);
+    setTimeout(()=>t.remove(),1900);
+  }
+
+  function ensureViewBar(){
+    if ($('opcxViewBar')) return;
+    const topbar = q('.topbar');
+    const bar = document.createElement('div');
+    bar.id = 'opcxViewBar';
+    bar.className = 'opcx-viewbar';
+    bar.innerHTML = `
+      <span class="opcx-label">Operating View</span>
+      <button id="opcxCoverageView" class="opcx-viewbtn active" type="button" data-opcx-view="coverage">Coverage</button>
+      <button id="opcxGapsView" class="opcx-viewbtn" type="button" data-opcx-view="gaps">Gaps</button>
+      <button id="opcxDedicatedView" class="opcx-viewbtn" type="button" data-opcx-view="dedicated">Dedicated</button>
+      <button id="opcxOpsView" class="opcx-viewbtn" type="button" data-opcx-view="ops">Operations</button>
+      <button id="opcxLeadershipView" class="opcx-viewbtn" type="button" data-opcx-view="leadership">Leadership</button>
+      <span class="opcx-note">Consolidated around one blended RTS team and 75-mile active coverage.</span>
+    `;
+    if (topbar && topbar.parentNode) topbar.parentNode.insertBefore(bar, topbar.nextSibling);
+    else document.body.insertBefore(bar, document.body.firstChild);
+
+    const banner = document.createElement('div');
+    banner.id = 'opcxContextBanner';
+    banner.className = 'opcx-context-banner';
+    banner.innerHTML = `
+      <span class="opcx-chip">75-mile RTS coverage</span>
+      <span><b>Operating model:</b> active RTS hubs are treated as one blended field-training network. Dedicated teams stay visible for alignment, but coverage logic remains simple: covered if within 75 miles of an active RTS.</span>
+    `;
+    bar.parentNode.insertBefore(banner, bar.nextSibling);
+  }
+
+  function setActiveView(mode){
+    document.body.classList.remove('opcx-coverage','opcx-gaps','opcx-dedicated','opcx-ops','opcx-leadership');
+    document.body.classList.add('opcx-' + mode);
+    qa('.opcx-viewbtn').forEach(b => b.classList.toggle('active', b.dataset.opcxView === mode));
+    try { localStorage.setItem('opcx_last_view_v1', mode); } catch(_) {}
+  }
+
+  function normalShell(){
+    document.body.classList.remove('clean-mode','opcx-leadership');
+    q('.workspace')?.classList.remove('panel-collapsed');
+    q('.mapwrap')?.classList.remove('command-drawer-open');
+    $('opsDrawer')?.classList.remove('show');
+    mapResizeSoon();
+  }
+
+  function applyCoverageView(){
+    closeMenus();
+    normalShell();
+    setActiveView('coverage');
+    setMulti('covFilter', ['All']);
+    setMulti('rmFilter', ['All']);
+    setMulti('amFilter', ['All']);
+    setMulti('hubFilter', []);
+    setMulti('dedTeamFilter', ['All']);
+    setMulti('dedRmFilter', ['All']);
+    setMulti('dedAmFilter', ['All']);
+    setCheck('showConfirmed', true);
+    setCheck('showPending', true);
+    setCheck('tgWithin', false);
+    setCheck('tgRings', false);
+    setCheck('tgHeat', false);
+    fitSoon();
+    toast('Coverage view applied');
+  }
+
+  function applyGapsView(){
+    closeMenus();
+    normalShell();
+    setActiveView('gaps');
+    // Prefer the existing working quick view logic; fall back if it is not present.
+    if ($('presetUncov')) click('presetUncov');
+    else {
+      setMulti('covFilter', ['Uncovered']);
+      setCheck('tgWithin', false);
+      setCheck('tgRings', true);
+      setCheck('tgHeat', true);
+      fitSoon();
+    }
+  }
+
+  function applyDedicatedView(){
+    closeMenus();
+    normalShell();
+    setActiveView('dedicated');
+    ['showUnilever','showPG','showTyson'].forEach(id => setCheck(id, true));
+    setMulti('covFilter', ['All']);
+    setMulti('rmFilter', ['All']);
+    setMulti('amFilter', ['All']);
+    setMulti('hubFilter', []);
+    setMulti('dedTeamFilter', ['unilever','pg','tyson']);
+    setMulti('dedRmFilter', ['All']);
+    setMulti('dedAmFilter', ['All']);
+    setCheck('tgWithin', false);
+    setCheck('tgRings', true);
+    setCheck('tgHeat', false);
+    fitSoon();
+    toast('Dedicated view applied');
+  }
+
+  function openOpsView(pane='overview'){
+    closeMenus();
+    document.body.classList.remove('clean-mode','opcx-leadership');
+    setActiveView('ops');
+    const ops = $('railOpsIntel') || $('quickOpsBtn') || $('opsDrawerToggle');
+    if (ops) ops.click();
+    else $('opsDrawer')?.classList.add('show');
+    setTimeout(()=>{
+      const tab = q(`.ops-tab[data-pane="${pane}"]`);
+      if (tab) tab.click();
+      enhanceOpsDrawerCopy();
+      mapResizeSoon();
+    },160);
+    toast('Operations view opened');
+  }
+
+  function openLeadershipView(){
+    closeMenus();
+    setActiveView('leadership');
+    document.body.classList.add('clean-mode','opcx-leadership');
+    const btn = $('railLeadership') || $('quickLeadershipBtn');
+    if (btn) btn.click();
+    setTimeout(()=>{
+      const drawer = $('opsDrawer');
+      if (drawer) drawer.classList.add('show');
+      q('.mapwrap')?.classList.add('command-drawer-open');
+      const tab = q('.ops-tab[data-pane="leadership"]');
+      if (tab) tab.click();
+      enhanceOpsDrawerCopy();
+      mapResizeSoon();
+    },160);
+    toast('Leadership snapshot view opened');
+  }
+
+  function reframeOverlapLanguage(){
+    const tg = $('tgOverlap');
+    if (tg){
+      const lbl = tg.closest('label');
+      if (lbl){
+        for (const node of Array.from(lbl.childNodes)){
+          if (node.nodeType === Node.TEXT_NODE && /Overlap/i.test(node.textContent)) node.textContent = 'RTS density';
+        }
+        lbl.title = 'Highlight stores covered by more than one active RTS within the selected radius. This is visibility only, not a duplicate-coverage problem.';
+      }
+    }
+    const key = $('overlapKey');
+    if (key) key.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;border:2px solid #111;display:inline-block"></span>RTS density: 2+ active RTS within radius</div>`;
+    const cmp = $('comparePanel');
+    if (cmp && !cmp.dataset.opcxReframed){
+      cmp.dataset.opcxReframed='1';
+      const title = cmp.querySelector('div[style*="font-weight"]');
+      if (title) title.textContent = 'Compare RTS Reach';
+    }
+  }
+
+  function enhanceOpsDrawerCopy(){
+    const drawer = $('opsDrawer');
+    if (!drawer) return;
+    if (!$('opcxOpsDensityNote')){
+      const note = document.createElement('div');
+      note.id='opcxOpsDensityNote';
+      note.className='opcx-density-note';
+      note.innerHTML = `<b>Consolidated interpretation:</b> shared RTS reach is treated as coverage density/resiliency visibility, not a penalty. Primary planning focus is 75-mile active coverage, uncovered gaps, dedicated-team exposure, and RTS workload.`;
+      const safe = drawer.querySelector('.ops-safe-banner');
+      if (safe && safe.parentNode) safe.parentNode.insertBefore(note, safe.nextSibling);
+      else drawer.prepend(note);
+    }
+    qa('.ops-tab').forEach(tab => {
+      if (tab.textContent.trim() === 'Risk') tab.textContent = 'Gaps';
+      if (tab.textContent.trim() === 'RTS Load') tab.textContent = 'RTS Load';
+    });
+  }
+
+  function updateViewFromLegacyButtons(btnId){
+    if (btnId === 'presetUncov') setActiveView('gaps');
+    if (btnId === 'presetDedicatedGaps') setActiveView('dedicated');
+    if (btnId === 'presetHubs') setActiveView('coverage');
+    if (btnId === 'railOpsIntel' || btnId === 'quickOpsBtn' || btnId === 'opsDrawerToggle') setActiveView('ops');
+    if (btnId === 'railLeadership' || btnId === 'quickLeadershipBtn') setActiveView('leadership');
+    if (btnId === 'railField' || btnId === 'quickFieldBtn') setActiveView('coverage');
+  }
+
+  function handleClick(e){
+    const btn = e.target.closest?.('button');
+    if (!btn) return;
+    switch(btn.id){
+      case 'opcxCoverageView': e.preventDefault(); applyCoverageView(); break;
+      case 'opcxGapsView': e.preventDefault(); applyGapsView(); break;
+      case 'opcxDedicatedView': e.preventDefault(); applyDedicatedView(); break;
+      case 'opcxOpsView': e.preventDefault(); openOpsView('overview'); break;
+      case 'opcxLeadershipView': e.preventDefault(); openLeadershipView(); break;
+      default: updateViewFromLegacyButtons(btn.id);
+    }
+    reframeOverlapLanguage();
+    enhanceOpsDrawerCopy();
+  }
+
+  function applyRestoredView(){
+    const last = (()=>{ try { return localStorage.getItem('opcx_last_view_v1'); } catch(_) { return ''; } })();
+    if (!last || last === 'coverage') { setActiveView('coverage'); return; }
+    // Do not auto-open drawers/modals on reload; only keep visual mode state when safe.
+    if (['gaps','dedicated','ops'].includes(last)) setActiveView(last);
+  }
+
+  function install(){
+    ensureViewBar();
+    reframeOverlapLanguage();
+    enhanceOpsDrawerCopy();
+    document.removeEventListener('click', handleClick, true);
+    document.addEventListener('click', handleClick, true);
+    applyRestoredView();
+    // Keep wording corrected after dynamic drawer/rail creation.
+    setTimeout(reframeOverlapLanguage, 500);
+    setTimeout(enhanceOpsDrawerCopy, 900);
+    setTimeout(reframeOverlapLanguage, 1600);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install);
+  else install();
+  setTimeout(install, 800);
+  setTimeout(install, 2500);
 })();
 
 </script>
