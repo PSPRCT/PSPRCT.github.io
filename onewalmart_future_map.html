@@ -10538,6 +10538,92 @@ if (popupHtmlCache.has(cacheKey)){
         syncLight();
         if (d?.classList.contains('show')) window.updateOpsIntel?.();
         setTimeout(
+() => map.invalidateSize(), 80);
+      };
+    }
+
+    const leadershipBtn = document.getElementById('railLeadership');
+    if (leadershipBtn && !leadershipBtn.dataset.perfV5){
+      leadershipBtn.dataset.perfV5 = '1';
+      leadershipBtn.onclick = () => {
+        document.body.classList.add('clean-mode');
+        const d = document.getElementById('opsDrawer');
+        d?.classList.add('show');
+        document.querySelector('.ops-tab[data-pane="leadership"]')?.click();
+        syncLight();
+        window.updateOpsIntel?.();
+        setTimeout(() => map.invalidateSize(), 80);
+      };
+    }
+
+    const fieldBtn = document.getElementById('railField');
+    if (fieldBtn && !fieldBtn.dataset.perfV5){
+      fieldBtn.dataset.perfV5 = '1';
+      fieldBtn.onclick = () => {
+        document.body.classList.remove('clean-mode');
+        document.getElementById('opsDrawer')?.classList.remove('show');
+        syncLight();
+        setTimeout(() => map.invalidateSize(), 80);
+      };
+    }
+
+    const closeBtn = document.getElementById('opsCloseBtn');
+    if (closeBtn && !closeBtn.dataset.perfV5){
+      closeBtn.dataset.perfV5 = '1';
+      closeBtn.addEventListener('click', () => { setTimeout(syncLight, 0); setTimeout(() => map.invalidateSize(), 80); });
+    }
+
+    document.querySelectorAll('.ops-tab').forEach(tab => {
+      if (tab.dataset.perfV5) return;
+      tab.dataset.perfV5 = '1';
+      tab.addEventListener('click', () => {
+        syncLight();
+        // Refresh only after the tab has changed and only while drawer is visible.
+        setTimeout(() => window.updateOpsIntel?.(), 80);
+      });
+    });
+
+    syncLight();
+  }
+
+  installPerformanceSafeInteractionPatchV5();
+
+  // ===== HARD REMOVE Transition / Delta tabs from Ops Intel =====
+  // This is intentionally defensive because older cached/enhanced builds created the tab
+  // dynamically after the drawer rendered. Keep Ops Intel focused on coverage, risk,
+  // RTS load, action planning, and leadership.
+  function removeTransitionAndDeltaTabs(){
+    const drawer = document.getElementById('opsDrawer');
+    if (!drawer) return;
+
+    drawer.querySelectorAll('.ops-tab, button').forEach(btn => {
+      const pane = String(btn.dataset?.pane || '').toLowerCase();
+      const text = String(btn.textContent || '').trim().toLowerCase();
+      if (pane === 'transition' || pane === 'delta' || text === 'transition' || text.includes('delta/transition')) {
+        btn.remove();
+      }
+    });
+
+    ['opsPaneTransition','opsPaneDelta','opsDeltaSummary','opsDeltaToggle','railDelta','quickDeltaBtn'].forEach(idv => {
+      document.getElementById(idv)?.remove();
+    });
+
+    // Make sure a visible tab is active after removal.
+    const active = drawer.querySelector('.ops-tab.active');
+    if (!active || active.offsetParent === null) {
+      const first = drawer.querySelector('.ops-tab');
+      first?.classList.add('active');
+      const pane = first?.dataset?.pane;
+      if (pane) {
+        drawer.querySelectorAll('.ops-pane').forEach(p => p.classList.remove('active'));
+        drawer.querySelector('#opsPane' + pane.charAt(0).toUpperCase() + pane.slice(1))?.classList.add('active');
+      }
+    }
+  }
+
+  removeTransitionAndDeltaTabs();
+  const transitionTabObserver = new MutationObserver(removeTransitionAndDeltaTabs);
+  transitionTabObserver.observe(document.body, { childList:true, subtree:true });
 /* ===== Dedicated Gap Command package ===== */
 function activeDedicatedPathsForStore(store){
   const paths = Array.isArray(store?.managerPaths) ? store.managerPaths : [];
@@ -10798,92 +10884,7 @@ function hardRemoveLegacyTransitionTabs(){
 setTimeout(hardRemoveLegacyTransitionTabs, 0);
 setTimeout(hardRemoveLegacyTransitionTabs, 500);
 
-() => map.invalidateSize(), 80);
-      };
-    }
 
-    const leadershipBtn = document.getElementById('railLeadership');
-    if (leadershipBtn && !leadershipBtn.dataset.perfV5){
-      leadershipBtn.dataset.perfV5 = '1';
-      leadershipBtn.onclick = () => {
-        document.body.classList.add('clean-mode');
-        const d = document.getElementById('opsDrawer');
-        d?.classList.add('show');
-        document.querySelector('.ops-tab[data-pane="leadership"]')?.click();
-        syncLight();
-        window.updateOpsIntel?.();
-        setTimeout(() => map.invalidateSize(), 80);
-      };
-    }
-
-    const fieldBtn = document.getElementById('railField');
-    if (fieldBtn && !fieldBtn.dataset.perfV5){
-      fieldBtn.dataset.perfV5 = '1';
-      fieldBtn.onclick = () => {
-        document.body.classList.remove('clean-mode');
-        document.getElementById('opsDrawer')?.classList.remove('show');
-        syncLight();
-        setTimeout(() => map.invalidateSize(), 80);
-      };
-    }
-
-    const closeBtn = document.getElementById('opsCloseBtn');
-    if (closeBtn && !closeBtn.dataset.perfV5){
-      closeBtn.dataset.perfV5 = '1';
-      closeBtn.addEventListener('click', () => { setTimeout(syncLight, 0); setTimeout(() => map.invalidateSize(), 80); });
-    }
-
-    document.querySelectorAll('.ops-tab').forEach(tab => {
-      if (tab.dataset.perfV5) return;
-      tab.dataset.perfV5 = '1';
-      tab.addEventListener('click', () => {
-        syncLight();
-        // Refresh only after the tab has changed and only while drawer is visible.
-        setTimeout(() => window.updateOpsIntel?.(), 80);
-      });
-    });
-
-    syncLight();
-  }
-
-  installPerformanceSafeInteractionPatchV5();
-
-  // ===== HARD REMOVE Transition / Delta tabs from Ops Intel =====
-  // This is intentionally defensive because older cached/enhanced builds created the tab
-  // dynamically after the drawer rendered. Keep Ops Intel focused on coverage, risk,
-  // RTS load, action planning, and leadership.
-  function removeTransitionAndDeltaTabs(){
-    const drawer = document.getElementById('opsDrawer');
-    if (!drawer) return;
-
-    drawer.querySelectorAll('.ops-tab, button').forEach(btn => {
-      const pane = String(btn.dataset?.pane || '').toLowerCase();
-      const text = String(btn.textContent || '').trim().toLowerCase();
-      if (pane === 'transition' || pane === 'delta' || text === 'transition' || text.includes('delta/transition')) {
-        btn.remove();
-      }
-    });
-
-    ['opsPaneTransition','opsPaneDelta','opsDeltaSummary','opsDeltaToggle','railDelta','quickDeltaBtn'].forEach(idv => {
-      document.getElementById(idv)?.remove();
-    });
-
-    // Make sure a visible tab is active after removal.
-    const active = drawer.querySelector('.ops-tab.active');
-    if (!active || active.offsetParent === null) {
-      const first = drawer.querySelector('.ops-tab');
-      first?.classList.add('active');
-      const pane = first?.dataset?.pane;
-      if (pane) {
-        drawer.querySelectorAll('.ops-pane').forEach(p => p.classList.remove('active'));
-        drawer.querySelector('#opsPane' + pane.charAt(0).toUpperCase() + pane.slice(1))?.classList.add('active');
-      }
-    }
-  }
-
-  removeTransitionAndDeltaTabs();
-  const transitionTabObserver = new MutationObserver(removeTransitionAndDeltaTabs);
-  transitionTabObserver.observe(document.body, { childList:true, subtree:true });
 
 // Startup performance guard: do not pre-render Transition Readiness on page load.
 // It is rendered by Ops Intel / Leadership / Delta actions when needed.
