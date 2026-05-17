@@ -11025,287 +11025,256 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 
 
 
-/* ===== Final Stable Button Wiring Patch v8 =====
-   Purpose: make Quick Views, Ops/Leadership/Field buttons, Save Link, and Dedicated Team Rollup
-   work even when prior enhancement packs created duplicate or stale onclick handlers.
-   This patch intentionally runs last and uses capture + stopImmediatePropagation so earlier handlers
-   cannot override or break the intended action. Transition/Delta remains removed. */
-function installFinalStableButtonWiringV8(){
-  if (window.__finalStableButtonWiringV8) return;
-  window.__finalStableButtonWiringV8 = true;
-
-  const q = (sel) => document.querySelector(sel);
-  const qa = (sel) => Array.from(document.querySelectorAll(sel));
-  const byId = (x) => document.getElementById(x);
-
-  function closeOpenDropdowns(){
-    qa('.dropdown-menu').forEach(m => { m.style.display = 'none'; });
-  }
-
-  function ensureQuickModeButtons(){
-    const presetBar = byId('presetBar');
-    if (!presetBar) return;
-
-    const addBtn = (idv, text, title) => {
-      if (byId(idv)) return;
-      const b = document.createElement('button');
-      b.id = idv;
-      b.className = 'pill compact-pill view-mode-btn';
-      b.type = 'button';
-      b.title = title || text;
-      b.textContent = text;
-      presetBar.appendChild(b);
-    };
-
-    addBtn('quickOpsBtn', 'Ops Intel', 'Open Operations Intelligence');
-    addBtn('quickLeadershipBtn', 'Leadership', 'Open the Leadership view');
-    addBtn('quickFieldBtn', 'Field View', 'Return to normal Field View');
-  }
-
-  function hardRemoveTransitionDeltaAgain(){
-    qa('.ops-tab[data-pane="transition"],.ops-tab[data-pane="delta"],#opsPaneTransition,#opsPaneDelta,#railDelta,#quickDeltaBtn,#opsDeltaToggle').forEach(el => el.remove());
-  }
-
-  function normalizeSelectAll(selectEl){
-    if (!selectEl) return;
-    Array.from(selectEl.options).forEach(o => { o.selected = (o.value === 'All'); });
-  }
-
-  function setSelectValues(selectEl, values){
-    if (!selectEl) return;
-    const vals = new Set(values || []);
-    Array.from(selectEl.options).forEach(o => { o.selected = vals.has(o.value); });
-  }
-
-  function setDedicatedVisibilityAllOn(){
-    ['showUnilever','showPG','showTyson'].forEach(idv => {
-      const el = byId(idv);
-      if (el) el.checked = true;
-    });
-  }
-
-  function clearCoreFilters(){
-    normalizeSelectAll(byId('rmFilter'));
-    normalizeSelectAll(byId('amFilter'));
-    const hub = byId('hubFilter');
-    if (hub) Array.from(hub.options).forEach(o => { o.selected = false; });
-  }
-
-  function clearDedicatedManagerFilters(){
-    normalizeSelectAll(byId('dedRmFilter'));
-    normalizeSelectAll(byId('dedAmFilter'));
-  }
-
-  function refreshMapAfterButtonAction(fit=true){
-    try { rebuildDedicatedFilterOptions?.(); } catch(e) { console.warn('Dedicated filters refresh skipped:', e); }
-    try { cascadeRM?.(); } catch(e) { console.warn('RM cascade skipped:', e); }
-    try { cascadeAM?.(); } catch(e) { console.warn('AM cascade skipped:', e); }
-    try { buildHubFilterOptions?.(); } catch(e) { console.warn('Hub options refresh skipped:', e); }
-    try { runFilter?.(); } catch(e) { console.warn('Filter refresh skipped:', e); }
-    try { renderChips?.(); } catch(e) { console.warn('Chip refresh skipped:', e); }
-    try { updateRings?.(); } catch(e) {}
-    try { if (byId('tgHeat')?.checked) updateHeat?.(); } catch(e) {}
-    try { updateEnhancedUi?.(); } catch(e) {}
-    try { saveState?.(); } catch(e) {}
-    if (fit) {
-      try { scheduleFitToResults?.(160); } catch(e) { try { setTimeout(() => fitToResults?.(), 160); } catch(_) {} }
-    }
-  }
-
-  function applyGapsQuickViewV8(){
-    setSelectValues(byId('covFilter'), ['Uncovered']);
-    clearCoreFilters();
-    setSelectValues(byId('dedTeamFilter'), ['All']);
-    clearDedicatedManagerFilters();
-    if (byId('tgWithin')) byId('tgWithin').checked = false;
-    if (byId('tgRings')) byId('tgRings').checked = true;
-    if (byId('tgHeat')) byId('tgHeat').checked = true;
-    closeOpenDropdowns();
-    refreshMapAfterButtonAction(true);
-  }
-
-  function applyRtsCoverageQuickViewV8(){
-    setSelectValues(byId('covFilter'), ['All']);
-    clearCoreFilters();
-    setSelectValues(byId('dedTeamFilter'), ['All']);
-    clearDedicatedManagerFilters();
-    if (byId('showConfirmed')) byId('showConfirmed').checked = true;
-    if (byId('tgWithin')) byId('tgWithin').checked = true;
-    if (byId('tgRings')) byId('tgRings').checked = true;
-    closeOpenDropdowns();
-    refreshMapAfterButtonAction(true);
-  }
-
-  function applyDedicatedGapsQuickViewV8(){
-    setDedicatedVisibilityAllOn();
-    setSelectValues(byId('covFilter'), ['Uncovered']);
-    clearCoreFilters();
-    setSelectValues(byId('dedTeamFilter'), ['unilever','pg','tyson']);
-    clearDedicatedManagerFilters();
-    if (byId('tgWithin')) byId('tgWithin').checked = false;
-    if (byId('tgRings')) byId('tgRings').checked = true;
-    closeOpenDropdowns();
-    refreshMapAfterButtonAction(true);
-  }
-
-  function copyStableMapLinkV8(){
-    try { saveState?.(); } catch(e) {}
-    let st = {};
-    try { st = JSON.parse(localStorage.getItem(LS_STATE) || '{}'); } catch(e) { st = {}; }
-    try {
-      st.quickView = {
-        coverage:Array.from(byId('covFilter')?.selectedOptions || []).map(o => o.value),
-        dedicated:Array.from(byId('dedTeamFilter')?.selectedOptions || []).map(o => o.value),
-        within:!!byId('tgWithin')?.checked,
-        rings:!!byId('tgRings')?.checked
-      };
-    } catch(e) {}
-    const hash = btoa(unescape(encodeURIComponent(JSON.stringify(st))));
-    const url = `${location.origin}${location.pathname}#${hash}`;
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(url).then(() => toast?.('Link copied to clipboard')).catch(() => prompt('Copy this link:', url));
-    } else {
-      prompt('Copy this link:', url);
-    }
-  }
-
-  function ensureOpsDrawerExistsV8(){
-    try { installEnterpriseCommandCenter?.(); } catch(e) {}
-    try { installCommandCenterShellV3?.(); } catch(e) {}
-    try { installViewModePackV4?.(); } catch(e) {}
-    ensureQuickModeButtons();
-    hardRemoveTransitionDeltaAgain();
-    return byId('opsDrawer');
-  }
-
-  function openOpsPaneV8(pane){
-    const drawer = ensureOpsDrawerExistsV8();
-    if (drawer) drawer.classList.add('show');
-
-    if (pane) {
-      const tab = document.querySelector(`.ops-tab[data-pane="${pane}"]`);
-      if (tab) tab.click();
-    }
-
-    try { window.updateOpsIntel?.(); } catch(e) { console.warn('Ops Intel refresh skipped:', e); }
-    try { syncCommandLayout?.(); } catch(e) {}
-    try {
-      document.querySelector('.mapwrap')?.classList.toggle('command-drawer-open', !!drawer?.classList.contains('show'));
-      setTimeout(() => map.invalidateSize(), 90);
-    } catch(e) {}
-  }
-
-  function openLeadershipV8(){
-    document.body.classList.add('clean-mode');
-    openOpsPaneV8('leadership');
-  }
-
-  function openFieldViewV8(){
-    document.body.classList.remove('clean-mode');
-    byId('opsDrawer')?.classList.remove('show');
-    try { syncCommandLayout?.(); } catch(e) {}
-    try {
-      document.querySelector('.mapwrap')?.classList.remove('command-drawer-open');
-      setTimeout(() => map.invalidateSize(), 90);
-    } catch(e) {}
-  }
-
-  function openDedicatedRollupV8(){
-    closeOpenDropdowns();
-    const modal = byId('dedRollupModal');
-    if (modal) modal.classList.add('show');
-    try { renderDedicatedRollup?.(); } catch(e) { console.warn('Dedicated Team Rollup render failed:', e); }
-  }
-
-  function handleButtonClickV8(e){
-    const btn = e.target.closest?.('button');
-    if (!btn) return;
-    const bid = btn.id || '';
-    const actions = {
-      presetUncov: applyGapsQuickViewV8,
-      presetHubs: applyRtsCoverageQuickViewV8,
-      presetDedicatedGaps: applyDedicatedGapsQuickViewV8,
-      snapBtn: copyStableMapLinkV8,
-      quickOpsBtn: () => openOpsPaneV8('overview'),
-      railOpsIntel: () => openOpsPaneV8('overview'),
-      quickLeadershipBtn: openLeadershipV8,
-      railLeadership: openLeadershipV8,
-      quickFieldBtn: openFieldViewV8,
-      railField: openFieldViewV8,
-      railFit: () => { try { fitToResults?.(); } catch(_) { byId('fitBtn')?.click(); } },
-      dedRollupBtn: openDedicatedRollupV8,
-      dedRollupClose: () => byId('dedRollupModal')?.classList.remove('show'),
-      dedRollRefresh: () => { try { renderDedicatedRollup?.(); } catch(err) { console.warn(err); } },
-      dedRollExport: () => { try { exportDedicatedRollup?.(); } catch(err) { console.warn(err); } }
-    };
-
-    if (!actions[bid]) return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
-    actions[bid]();
-  }
-
-  ensureQuickModeButtons();
-  hardRemoveTransitionDeltaAgain();
-
-  // Capture phase must win over old target onclick handlers.
-  document.addEventListener('click', handleButtonClickV8, true);
-
-  // Also directly assign onclicks for browsers/tools that bypass capture in unusual embedded views.
-  const direct = {
-    presetUncov: applyGapsQuickViewV8,
-    presetHubs: applyRtsCoverageQuickViewV8,
-    presetDedicatedGaps: applyDedicatedGapsQuickViewV8,
-    snapBtn: copyStableMapLinkV8,
-    quickOpsBtn: () => openOpsPaneV8('overview'),
-    quickLeadershipBtn: openLeadershipV8,
-    quickFieldBtn: openFieldViewV8,
-    dedRollupBtn: openDedicatedRollupV8,
-    dedRollupClose: () => byId('dedRollupModal')?.classList.remove('show'),
-    dedRollRefresh: () => renderDedicatedRollup?.(),
-    dedRollExport: () => exportDedicatedRollup?.()
-  };
-  Object.entries(direct).forEach(([idv, fn]) => {
-    const el = byId(idv);
-    if (el) el.onclick = (ev) => { ev?.preventDefault?.(); ev?.stopPropagation?.(); fn(); };
-  });
-
-  // If the rail is created after this patch, wire it again once it appears.
-  const railObserver = new MutationObserver(() => {
-    ensureQuickModeButtons();
-    hardRemoveTransitionDeltaAgain();
-    ['railOpsIntel','railLeadership','railField','railFit'].forEach(idv => {
-      const el = byId(idv);
-      if (el && !el.dataset.finalV8) {
-        el.dataset.finalV8 = '1';
-        if (idv === 'railOpsIntel') el.onclick = (ev) => { ev.preventDefault(); openOpsPaneV8('overview'); };
-        if (idv === 'railLeadership') el.onclick = (ev) => { ev.preventDefault(); openLeadershipV8(); };
-        if (idv === 'railField') el.onclick = (ev) => { ev.preventDefault(); openFieldViewV8(); };
-        if (idv === 'railFit') el.onclick = (ev) => { ev.preventDefault(); try { fitToResults?.(); } catch(_) {} };
-      }
-    });
-  });
-  railObserver.observe(document.body, { childList:true, subtree:true });
-
-  // Dedicated rollup modal should also close on backdrop click and Escape without affecting other modals.
-  const dedModal = byId('dedRollupModal');
-  if (dedModal && !dedModal.dataset.finalV8) {
-    dedModal.dataset.finalV8 = '1';
-    dedModal.addEventListener('click', (ev) => { if (ev.target === dedModal) dedModal.classList.remove('show'); });
-  }
-  window.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Escape') byId('dedRollupModal')?.classList.remove('show');
-  });
-}
-
-installFinalStableButtonWiringV8();
-setTimeout(installFinalStableButtonWiringV8, 300);
-setTimeout(installFinalStableButtonWiringV8, 1000);
-
 // Startup performance guard: do not pre-render Transition Readiness on page load.
 // It is rendered by Ops Intel / Leadership / Delta actions when needed.
 })();
+</script>
+
+<script>
+
+/* ===== One Walmart Emergency Button Wiring v9 =====
+   Independent final script. Runs outside the main map IIFE so Quick Views and Dedicated Rollup
+   still work even if an earlier enhancement pack aborts before its own wiring completes. */
+(function(){
+  if (window.__owEmergencyButtonWiringV9) return;
+  window.__owEmergencyButtonWiringV9 = true;
+
+  const $ = (id) => document.getElementById(id);
+  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+  const esc = (v) => String(v ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const miles = (a,b,c,d) => {
+    const R=3958.7613, toRad=x=>x*Math.PI/180;
+    const dLat=toRad(c-a), dLng=toRad(d-b);
+    const x=Math.sin(dLat/2)**2 + Math.cos(toRad(a))*Math.cos(toRad(c))*Math.sin(dLng/2)**2;
+    return 2*R*Math.asin(Math.sqrt(x));
+  };
+
+  function closeMenus(){ $$('.dropdown-menu').forEach(m => m.style.display='none'); }
+  function fire(el, type='change'){ if (el) el.dispatchEvent(new Event(type,{bubbles:true})); }
+  function setMulti(id, values){
+    const el = $(id); if (!el) return;
+    const vals = new Set(values || []);
+    Array.from(el.options).forEach(o => o.selected = vals.has(o.value));
+    fire(el,'change');
+  }
+  function clearMulti(id, preferAll=true){
+    const el = $(id); if (!el) return;
+    Array.from(el.options).forEach(o => o.selected = preferAll && o.value === 'All');
+    fire(el,'change');
+  }
+  function setCheck(id, checked){ const el=$(id); if(!el) return; el.checked=!!checked; fire(el,'change'); }
+  function refreshFit(){ setTimeout(() => { try { $('fitBtn')?.click(); } catch(_) {} }, 120); }
+  function toast(msg){
+    const t=document.createElement('div');
+    t.textContent=msg;
+    Object.assign(t.style,{position:'fixed',right:'14px',bottom:'14px',zIndex:99999,background:'#111827',color:'#fff',padding:'10px 12px',borderRadius:'10px',boxShadow:'0 10px 24px rgba(0,0,0,.25)',font:'13px system-ui'});
+    document.body.appendChild(t); setTimeout(()=>t.remove(),1800);
+  }
+
+  function ensureQuickButtons(){
+    const bar = $('presetBar'); if (!bar) return;
+    const add = (id,text,title) => {
+      if ($(id)) return;
+      const b=document.createElement('button');
+      b.id=id; b.type='button'; b.className='pill compact-pill'; b.textContent=text; b.title=title||text;
+      bar.appendChild(b);
+    };
+    add('quickOpsBtn','Ops Intel','Open Operations Intelligence');
+    add('quickLeadershipBtn','Leadership','Open Leadership view');
+    add('quickFieldBtn','Field View','Return to normal field view');
+  }
+
+  function openPanelSectionContaining(el){
+    const sec = el?.closest?.('.control-section');
+    if (sec) sec.classList.remove('section-collapsed');
+  }
+
+  function applyGaps(){
+    closeMenus();
+    openPanelSectionContaining($('presetUncov'));
+    setMulti('covFilter',['Uncovered']);
+    clearMulti('rmFilter', true); clearMulti('amFilter', true); clearMulti('hubFilter', false);
+    setMulti('dedTeamFilter',['All']); clearMulti('dedRmFilter', true); clearMulti('dedAmFilter', true);
+    setCheck('tgWithin', false); setCheck('tgRings', true); setCheck('tgHeat', true);
+    refreshFit(); toast('Gaps view applied');
+  }
+
+  function applyRtsCoverage(){
+    closeMenus();
+    setMulti('covFilter',['All']);
+    clearMulti('rmFilter', true); clearMulti('amFilter', true); clearMulti('hubFilter', false);
+    setMulti('dedTeamFilter',['All']); clearMulti('dedRmFilter', true); clearMulti('dedAmFilter', true);
+    setCheck('showConfirmed', true); setCheck('tgWithin', true); setCheck('tgRings', true); setCheck('tgHeat', false);
+    refreshFit(); toast('RTS Coverage view applied');
+  }
+
+  function applyDedicatedGaps(){
+    closeMenus();
+    ['showUnilever','showPG','showTyson'].forEach(id => setCheck(id,true));
+    setMulti('covFilter',['Uncovered']);
+    clearMulti('rmFilter', true); clearMulti('amFilter', true); clearMulti('hubFilter', false);
+    setMulti('dedTeamFilter',['unilever','pg','tyson']); clearMulti('dedRmFilter', true); clearMulti('dedAmFilter', true);
+    setCheck('tgWithin', false); setCheck('tgRings', true); setCheck('tgHeat', true);
+    refreshFit(); toast('Dedicated Gaps view applied');
+  }
+
+  function copyLink(){
+    closeMenus();
+    const state = {
+      cov:Array.from($('covFilter')?.selectedOptions || []).map(o=>o.value),
+      ded:Array.from($('dedTeamFilter')?.selectedOptions || []).map(o=>o.value),
+      within:!!$('tgWithin')?.checked,
+      rings:!!$('tgRings')?.checked,
+      heat:!!$('tgHeat')?.checked
+    };
+    const url = `${location.origin}${location.pathname}#${btoa(unescape(encodeURIComponent(JSON.stringify(state))))}`;
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(url).then(()=>toast('Link copied')).catch(()=>prompt('Copy this link:',url));
+    else prompt('Copy this link:',url);
+  }
+
+  function ensureOpsDrawer(){
+    let drawer = $('opsDrawer');
+    if (drawer) return drawer;
+    const wrap = document.querySelector('.mapwrap') || document.body;
+    drawer=document.createElement('div');
+    drawer.id='opsDrawer'; drawer.className='ops-drawer show';
+    drawer.innerHTML = `<div class="ops-head"><h3>Operations Intelligence</h3><button id="opsCloseBtn" class="btn" type="button">Close</button></div><div class="ops-body"><div class="ops-pane show"><div class="ops-card"><b>Ops Intel</b><br>Drawer shell restored by emergency wiring.</div></div></div>`;
+    wrap.appendChild(drawer);
+    $('opsCloseBtn')?.addEventListener('click',()=>drawer.classList.remove('show'));
+    return drawer;
+  }
+  function openOps(pane){
+    closeMenus();
+    const drawer=ensureOpsDrawer(); drawer.classList.add('show');
+    document.querySelector('.mapwrap')?.classList.add('command-drawer-open');
+    const tab = pane ? document.querySelector(`.ops-tab[data-pane="${pane}"]`) : null;
+    if (tab) tab.click();
+    try { window.updateOpsIntel?.(); } catch(_) {}
+    setTimeout(()=>{ try { window.dispatchEvent(new Event('resize')); } catch(_){} },80);
+  }
+  function leadership(){ document.body.classList.add('clean-mode'); openOps('leadership'); toast('Leadership view opened'); }
+  function fieldView(){
+    closeMenus(); document.body.classList.remove('clean-mode'); $('opsDrawer')?.classList.remove('show');
+    document.querySelector('.mapwrap')?.classList.remove('command-drawer-open');
+    setTimeout(()=>{ try { window.dispatchEvent(new Event('resize')); } catch(_){} },80);
+    toast('Field View restored');
+  }
+
+  function normStore(v){ return String(v??'').replace(/\.0$/,'').replace(/[^0-9]/g,'').replace(/^0+/,'') || String(v??'').trim(); }
+  function teamType(row){
+    const txt = String([row.teamName,row.TeamName,row['Mngnt Grp Name'],row.ManagementGroup,row.areaManager,row.AreaManager,row.regionalManager,row.RegionalManager].filter(Boolean).join(' ')).toLowerCase();
+    if (txt.includes('unilever') || txt.includes('unilv')) return 'Unilever';
+    if (txt.includes('tyson')) return 'Tyson';
+    if (txt.includes('p&g') || txt.includes('p and g') || /\bpg\b/.test(txt)) return 'P&G';
+    return '';
+  }
+  function val(row, keys){ for (const k of keys){ if (row && row[k] != null && String(row[k]).trim()) return String(row[k]).trim(); } return ''; }
+  async function fetchJson(url){ const r=await fetch(url + (url.includes('?')?'&':'?') + 'v=' + Date.now(), {cache:'no-store'}); if(!r.ok) throw new Error(`${url} HTTP ${r.status}`); return await r.json(); }
+
+  async function renderDedicatedRollupExternal(){
+    const out = $('dedRollupResults'); if (!out) return;
+    out.innerHTML = '<div class="ops-lazy-note">Loading dedicated team rollup…</div>';
+    try{
+      const [storesRaw, dedicatedRaw, rtsRaw] = await Promise.all([
+        fetchJson('./onewalmart_store_data.json'),
+        fetchJson('./dedicated_manager_paths.json'),
+        fetchJson('./onewalmart_rts_combined.json').catch(()=>[])
+      ]);
+      const storeMap = new Map();
+      (Array.isArray(storesRaw)?storesRaw:[]).forEach(s=>{
+        const key=normStore(val(s,['storeNumberStr','StoreNumber','StoreNbr','storeNumber','store']));
+        if(!key) return;
+        const lat=Number(val(s,['lat','Lat','Latitude','latitude']));
+        const lng=Number(val(s,['lng','Lon','Longitude','longitude']));
+        storeMap.set(key,{key, name:val(s,['storeName','StoreName','name']), city:val(s,['city','City']), state:val(s,['state','State']), lat,lng});
+      });
+      const hubs=(Array.isArray(rtsRaw)?rtsRaw:[]).map(r=>{
+        const lat=Number(val(r,['Latitude','latitude','lat','Lat']));
+        const lng=Number(val(r,['Longitude','longitude','lng','Lon']));
+        const status=String(val(r,['Status','status','RTSStatus'])||'active').toLowerCase();
+        if(!Number.isFinite(lat)||!Number.isFinite(lng) || /(future|pending|proposed|planned|open|recruit|offer|tbd)/.test(status)) return null;
+        return {lat,lng};
+      }).filter(Boolean);
+      const mode = $('dedRollByRM')?.checked ? 'rm' : $('dedRollByAM')?.checked ? 'am' : 'team';
+      const groups = new Map();
+      (Array.isArray(dedicatedRaw)?dedicatedRaw:[]).forEach(r=>{
+        const team=teamType(r); if(!team) return;
+        const key=normStore(val(r,['StoreKey','storeNumberStr','StoreNumber','StoreNbr','Store Number'])); if(!key) return;
+        const s=storeMap.get(key) || {key, lat:NaN, lng:NaN};
+        const rm=val(r,['regionalManager','RegionalManager','Mgr 2 Name','SourceRegionalManager']) || 'Unassigned RM';
+        const am=val(r,['areaManager','AreaManager','Mgr 1 Name','DistrictManager']) || 'Unassigned AM';
+        const groupKey = mode==='rm' ? rm : mode==='am' ? am : team;
+        const g=groups.get(groupKey) || {key:groupKey, teams:new Set(), rms:new Set(), ams:new Set(), stores:new Set(), covered:0, gaps:0, highGap:0};
+        if (!g.stores.has(key)) {
+          const covered = Number.isFinite(s.lat) && Number.isFinite(s.lng) && hubs.some(h=>miles(s.lat,s.lng,h.lat,h.lng)<=75);
+          g.covered += covered ? 1 : 0; g.gaps += covered ? 0 : 1;
+          const near = Number.isFinite(s.lat) && Number.isFinite(s.lng) ? Math.min(...hubs.map(h=>miles(s.lat,s.lng,h.lat,h.lng)), 999) : 999;
+          if (!covered && near > 100) g.highGap++;
+          g.stores.add(key);
+        }
+        g.teams.add(team); g.rms.add(rm); g.ams.add(am); groups.set(groupKey,g);
+      });
+      const rows=Array.from(groups.values()).map(g=>({
+        key:g.key, teams:Array.from(g.teams).sort().join(', '), rms:Array.from(g.rms).sort().join(', '), ams:Array.from(g.ams).sort().join(', '),
+        total:g.stores.size, covered:g.covered, gaps:g.gaps, highGap:g.highGap, coveragePct:g.stores.size?Math.round(g.covered*1000/g.stores.size)/10:0
+      })).sort((a,b)=>b.gaps-a.gaps || b.total-a.total);
+      window.__dedRollupExternalRows = rows;
+      const totals=rows.reduce((a,r)=>{a.groups++;a.stores+=r.total;a.covered+=r.covered;a.gaps+=r.gaps;a.highGap+=r.highGap;return a;},{groups:0,stores:0,covered:0,gaps:0,highGap:0});
+      const pct=totals.stores?Math.round(totals.covered*1000/totals.stores)/10:0;
+      out.innerHTML = `<div class="ded-rollup-kpis"><div class="ded-rollup-kpi"><div class="lbl">Groups</div><div class="val">${totals.groups.toLocaleString()}</div></div><div class="ded-rollup-kpi"><div class="lbl">Dedicated Stores</div><div class="val">${totals.stores.toLocaleString()}</div></div><div class="ded-rollup-kpi"><div class="lbl">Coverage</div><div class="val">${pct}%</div></div><div class="ded-rollup-kpi"><div class="lbl">Dedicated Gaps</div><div class="val">${totals.gaps.toLocaleString()}</div></div></div>` +
+      (rows.length ? `<table class="ded-rollup-table"><thead><tr><th>${mode==='rm'?'Dedicated RM':mode==='am'?'Dedicated AM':'Dedicated Team'}</th><th>Team(s)</th><th>Dedicated RM(s)</th><th>Dedicated AM(s)</th><th class="num">Stores</th><th class="num">Covered</th><th class="num">Gaps</th><th class="num">High Gap</th><th class="num">Coverage %</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.key)}</b></td><td>${esc(r.teams)}</td><td>${esc(r.rms)}</td><td>${esc(r.ams)}</td><td class="num">${r.total.toLocaleString()}</td><td class="num">${r.covered.toLocaleString()}</td><td class="num"><b>${r.gaps.toLocaleString()}</b></td><td class="num">${r.highGap.toLocaleString()}</td><td class="num">${r.coveragePct}%</td></tr>`).join('')}</tbody></table>` : '<div style="color:var(--muted)">No dedicated team stores found.</div>');
+    }catch(err){
+      out.innerHTML = `<div style="color:#b42318;font-weight:700">Dedicated rollup failed:</div><div style="font-size:12px;color:#64748b">${esc(err.message || err)}</div>`;
+    }
+  }
+  function openDedicatedRollup(){
+    closeMenus();
+    const modal=$('dedRollupModal'); if(modal) modal.classList.add('show');
+    // Prefer the self-contained renderer so this button still works even when the main IIFE renderer is not exposed.
+    renderDedicatedRollupExternal();
+  }
+  function exportDedicatedRollupExternal(){
+    const rows = window.__dedRollupExternalRows || [];
+    if (!rows.length) { renderDedicatedRollupExternal(); return; }
+    const csv = [['Group','Teams','Dedicated RMs','Dedicated AMs','Stores','Covered','Gaps','High Gap','Coverage %'], ...rows.map(r=>[r.key,r.teams,r.rms,r.ams,r.total,r.covered,r.gaps,r.highGap,r.coveragePct])]
+      .map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download=`dedicated_team_rollup_${Date.now()}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+  }
+
+  function handle(e){
+    const btn=e.target.closest?.('button'); if(!btn) return;
+    const actions={
+      presetUncov:applyGaps,
+      presetHubs:applyRtsCoverage,
+      presetDedicatedGaps:applyDedicatedGaps,
+      snapBtn:copyLink,
+      quickOpsBtn:()=>openOps('overview'),
+      railOpsIntel:()=>openOps('overview'),
+      quickLeadershipBtn:leadership,
+      railLeadership:leadership,
+      quickFieldBtn:fieldView,
+      railField:fieldView,
+      dedRollupBtn:openDedicatedRollup,
+      dedRollupClose:()=>$('dedRollupModal')?.classList.remove('show'),
+      dedRollRefresh:renderDedicatedRollupExternal,
+      dedRollExport:exportDedicatedRollupExternal
+    };
+    if (!actions[btn.id]) return;
+    e.preventDefault();
+    actions[btn.id]();
+  }
+
+  function install(){
+    ensureQuickButtons();
+    document.removeEventListener('click', handle, true);
+    document.addEventListener('click', handle, true);
+    ['dedRollByTeam','dedRollByRM','dedRollByAM','dedRollUseFilters'].forEach(id=>$(id)?.addEventListener('change', renderDedicatedRollupExternal));
+    const m=$('dedRollupModal'); if(m && !m.dataset.emergencyV9){ m.dataset.emergencyV9='1'; m.addEventListener('click', ev=>{ if(ev.target===m) m.classList.remove('show'); }); }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install); else install();
+  setTimeout(install,500); setTimeout(install,1500); setTimeout(install,3000);
+})();
+
 </script>
 </body>
 </html>
