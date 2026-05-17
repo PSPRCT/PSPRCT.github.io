@@ -11023,6 +11023,286 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   }, true);
 }
 
+
+
+/* ===== Final Stable Button Wiring Patch v8 =====
+   Purpose: make Quick Views, Ops/Leadership/Field buttons, Save Link, and Dedicated Team Rollup
+   work even when prior enhancement packs created duplicate or stale onclick handlers.
+   This patch intentionally runs last and uses capture + stopImmediatePropagation so earlier handlers
+   cannot override or break the intended action. Transition/Delta remains removed. */
+function installFinalStableButtonWiringV8(){
+  if (window.__finalStableButtonWiringV8) return;
+  window.__finalStableButtonWiringV8 = true;
+
+  const q = (sel) => document.querySelector(sel);
+  const qa = (sel) => Array.from(document.querySelectorAll(sel));
+  const byId = (x) => document.getElementById(x);
+
+  function closeOpenDropdowns(){
+    qa('.dropdown-menu').forEach(m => { m.style.display = 'none'; });
+  }
+
+  function ensureQuickModeButtons(){
+    const presetBar = byId('presetBar');
+    if (!presetBar) return;
+
+    const addBtn = (idv, text, title) => {
+      if (byId(idv)) return;
+      const b = document.createElement('button');
+      b.id = idv;
+      b.className = 'pill compact-pill view-mode-btn';
+      b.type = 'button';
+      b.title = title || text;
+      b.textContent = text;
+      presetBar.appendChild(b);
+    };
+
+    addBtn('quickOpsBtn', 'Ops Intel', 'Open Operations Intelligence');
+    addBtn('quickLeadershipBtn', 'Leadership', 'Open the Leadership view');
+    addBtn('quickFieldBtn', 'Field View', 'Return to normal Field View');
+  }
+
+  function hardRemoveTransitionDeltaAgain(){
+    qa('.ops-tab[data-pane="transition"],.ops-tab[data-pane="delta"],#opsPaneTransition,#opsPaneDelta,#railDelta,#quickDeltaBtn,#opsDeltaToggle').forEach(el => el.remove());
+  }
+
+  function normalizeSelectAll(selectEl){
+    if (!selectEl) return;
+    Array.from(selectEl.options).forEach(o => { o.selected = (o.value === 'All'); });
+  }
+
+  function setSelectValues(selectEl, values){
+    if (!selectEl) return;
+    const vals = new Set(values || []);
+    Array.from(selectEl.options).forEach(o => { o.selected = vals.has(o.value); });
+  }
+
+  function setDedicatedVisibilityAllOn(){
+    ['showUnilever','showPG','showTyson'].forEach(idv => {
+      const el = byId(idv);
+      if (el) el.checked = true;
+    });
+  }
+
+  function clearCoreFilters(){
+    normalizeSelectAll(byId('rmFilter'));
+    normalizeSelectAll(byId('amFilter'));
+    const hub = byId('hubFilter');
+    if (hub) Array.from(hub.options).forEach(o => { o.selected = false; });
+  }
+
+  function clearDedicatedManagerFilters(){
+    normalizeSelectAll(byId('dedRmFilter'));
+    normalizeSelectAll(byId('dedAmFilter'));
+  }
+
+  function refreshMapAfterButtonAction(fit=true){
+    try { rebuildDedicatedFilterOptions?.(); } catch(e) { console.warn('Dedicated filters refresh skipped:', e); }
+    try { cascadeRM?.(); } catch(e) { console.warn('RM cascade skipped:', e); }
+    try { cascadeAM?.(); } catch(e) { console.warn('AM cascade skipped:', e); }
+    try { buildHubFilterOptions?.(); } catch(e) { console.warn('Hub options refresh skipped:', e); }
+    try { runFilter?.(); } catch(e) { console.warn('Filter refresh skipped:', e); }
+    try { renderChips?.(); } catch(e) { console.warn('Chip refresh skipped:', e); }
+    try { updateRings?.(); } catch(e) {}
+    try { if (byId('tgHeat')?.checked) updateHeat?.(); } catch(e) {}
+    try { updateEnhancedUi?.(); } catch(e) {}
+    try { saveState?.(); } catch(e) {}
+    if (fit) {
+      try { scheduleFitToResults?.(160); } catch(e) { try { setTimeout(() => fitToResults?.(), 160); } catch(_) {} }
+    }
+  }
+
+  function applyGapsQuickViewV8(){
+    setSelectValues(byId('covFilter'), ['Uncovered']);
+    clearCoreFilters();
+    setSelectValues(byId('dedTeamFilter'), ['All']);
+    clearDedicatedManagerFilters();
+    if (byId('tgWithin')) byId('tgWithin').checked = false;
+    if (byId('tgRings')) byId('tgRings').checked = true;
+    if (byId('tgHeat')) byId('tgHeat').checked = true;
+    closeOpenDropdowns();
+    refreshMapAfterButtonAction(true);
+  }
+
+  function applyRtsCoverageQuickViewV8(){
+    setSelectValues(byId('covFilter'), ['All']);
+    clearCoreFilters();
+    setSelectValues(byId('dedTeamFilter'), ['All']);
+    clearDedicatedManagerFilters();
+    if (byId('showConfirmed')) byId('showConfirmed').checked = true;
+    if (byId('tgWithin')) byId('tgWithin').checked = true;
+    if (byId('tgRings')) byId('tgRings').checked = true;
+    closeOpenDropdowns();
+    refreshMapAfterButtonAction(true);
+  }
+
+  function applyDedicatedGapsQuickViewV8(){
+    setDedicatedVisibilityAllOn();
+    setSelectValues(byId('covFilter'), ['Uncovered']);
+    clearCoreFilters();
+    setSelectValues(byId('dedTeamFilter'), ['unilever','pg','tyson']);
+    clearDedicatedManagerFilters();
+    if (byId('tgWithin')) byId('tgWithin').checked = false;
+    if (byId('tgRings')) byId('tgRings').checked = true;
+    closeOpenDropdowns();
+    refreshMapAfterButtonAction(true);
+  }
+
+  function copyStableMapLinkV8(){
+    try { saveState?.(); } catch(e) {}
+    let st = {};
+    try { st = JSON.parse(localStorage.getItem(LS_STATE) || '{}'); } catch(e) { st = {}; }
+    try {
+      st.quickView = {
+        coverage:Array.from(byId('covFilter')?.selectedOptions || []).map(o => o.value),
+        dedicated:Array.from(byId('dedTeamFilter')?.selectedOptions || []).map(o => o.value),
+        within:!!byId('tgWithin')?.checked,
+        rings:!!byId('tgRings')?.checked
+      };
+    } catch(e) {}
+    const hash = btoa(unescape(encodeURIComponent(JSON.stringify(st))));
+    const url = `${location.origin}${location.pathname}#${hash}`;
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(url).then(() => toast?.('Link copied to clipboard')).catch(() => prompt('Copy this link:', url));
+    } else {
+      prompt('Copy this link:', url);
+    }
+  }
+
+  function ensureOpsDrawerExistsV8(){
+    try { installEnterpriseCommandCenter?.(); } catch(e) {}
+    try { installCommandCenterShellV3?.(); } catch(e) {}
+    try { installViewModePackV4?.(); } catch(e) {}
+    ensureQuickModeButtons();
+    hardRemoveTransitionDeltaAgain();
+    return byId('opsDrawer');
+  }
+
+  function openOpsPaneV8(pane){
+    const drawer = ensureOpsDrawerExistsV8();
+    if (drawer) drawer.classList.add('show');
+
+    if (pane) {
+      const tab = document.querySelector(`.ops-tab[data-pane="${pane}"]`);
+      if (tab) tab.click();
+    }
+
+    try { window.updateOpsIntel?.(); } catch(e) { console.warn('Ops Intel refresh skipped:', e); }
+    try { syncCommandLayout?.(); } catch(e) {}
+    try {
+      document.querySelector('.mapwrap')?.classList.toggle('command-drawer-open', !!drawer?.classList.contains('show'));
+      setTimeout(() => map.invalidateSize(), 90);
+    } catch(e) {}
+  }
+
+  function openLeadershipV8(){
+    document.body.classList.add('clean-mode');
+    openOpsPaneV8('leadership');
+  }
+
+  function openFieldViewV8(){
+    document.body.classList.remove('clean-mode');
+    byId('opsDrawer')?.classList.remove('show');
+    try { syncCommandLayout?.(); } catch(e) {}
+    try {
+      document.querySelector('.mapwrap')?.classList.remove('command-drawer-open');
+      setTimeout(() => map.invalidateSize(), 90);
+    } catch(e) {}
+  }
+
+  function openDedicatedRollupV8(){
+    closeOpenDropdowns();
+    const modal = byId('dedRollupModal');
+    if (modal) modal.classList.add('show');
+    try { renderDedicatedRollup?.(); } catch(e) { console.warn('Dedicated Team Rollup render failed:', e); }
+  }
+
+  function handleButtonClickV8(e){
+    const btn = e.target.closest?.('button');
+    if (!btn) return;
+    const bid = btn.id || '';
+    const actions = {
+      presetUncov: applyGapsQuickViewV8,
+      presetHubs: applyRtsCoverageQuickViewV8,
+      presetDedicatedGaps: applyDedicatedGapsQuickViewV8,
+      snapBtn: copyStableMapLinkV8,
+      quickOpsBtn: () => openOpsPaneV8('overview'),
+      railOpsIntel: () => openOpsPaneV8('overview'),
+      quickLeadershipBtn: openLeadershipV8,
+      railLeadership: openLeadershipV8,
+      quickFieldBtn: openFieldViewV8,
+      railField: openFieldViewV8,
+      railFit: () => { try { fitToResults?.(); } catch(_) { byId('fitBtn')?.click(); } },
+      dedRollupBtn: openDedicatedRollupV8,
+      dedRollupClose: () => byId('dedRollupModal')?.classList.remove('show'),
+      dedRollRefresh: () => { try { renderDedicatedRollup?.(); } catch(err) { console.warn(err); } },
+      dedRollExport: () => { try { exportDedicatedRollup?.(); } catch(err) { console.warn(err); } }
+    };
+
+    if (!actions[bid]) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+    actions[bid]();
+  }
+
+  ensureQuickModeButtons();
+  hardRemoveTransitionDeltaAgain();
+
+  // Capture phase must win over old target onclick handlers.
+  document.addEventListener('click', handleButtonClickV8, true);
+
+  // Also directly assign onclicks for browsers/tools that bypass capture in unusual embedded views.
+  const direct = {
+    presetUncov: applyGapsQuickViewV8,
+    presetHubs: applyRtsCoverageQuickViewV8,
+    presetDedicatedGaps: applyDedicatedGapsQuickViewV8,
+    snapBtn: copyStableMapLinkV8,
+    quickOpsBtn: () => openOpsPaneV8('overview'),
+    quickLeadershipBtn: openLeadershipV8,
+    quickFieldBtn: openFieldViewV8,
+    dedRollupBtn: openDedicatedRollupV8,
+    dedRollupClose: () => byId('dedRollupModal')?.classList.remove('show'),
+    dedRollRefresh: () => renderDedicatedRollup?.(),
+    dedRollExport: () => exportDedicatedRollup?.()
+  };
+  Object.entries(direct).forEach(([idv, fn]) => {
+    const el = byId(idv);
+    if (el) el.onclick = (ev) => { ev?.preventDefault?.(); ev?.stopPropagation?.(); fn(); };
+  });
+
+  // If the rail is created after this patch, wire it again once it appears.
+  const railObserver = new MutationObserver(() => {
+    ensureQuickModeButtons();
+    hardRemoveTransitionDeltaAgain();
+    ['railOpsIntel','railLeadership','railField','railFit'].forEach(idv => {
+      const el = byId(idv);
+      if (el && !el.dataset.finalV8) {
+        el.dataset.finalV8 = '1';
+        if (idv === 'railOpsIntel') el.onclick = (ev) => { ev.preventDefault(); openOpsPaneV8('overview'); };
+        if (idv === 'railLeadership') el.onclick = (ev) => { ev.preventDefault(); openLeadershipV8(); };
+        if (idv === 'railField') el.onclick = (ev) => { ev.preventDefault(); openFieldViewV8(); };
+        if (idv === 'railFit') el.onclick = (ev) => { ev.preventDefault(); try { fitToResults?.(); } catch(_) {} };
+      }
+    });
+  });
+  railObserver.observe(document.body, { childList:true, subtree:true });
+
+  // Dedicated rollup modal should also close on backdrop click and Escape without affecting other modals.
+  const dedModal = byId('dedRollupModal');
+  if (dedModal && !dedModal.dataset.finalV8) {
+    dedModal.dataset.finalV8 = '1';
+    dedModal.addEventListener('click', (ev) => { if (ev.target === dedModal) dedModal.classList.remove('show'); });
+  }
+  window.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') byId('dedRollupModal')?.classList.remove('show');
+  });
+}
+
+installFinalStableButtonWiringV8();
+setTimeout(installFinalStableButtonWiringV8, 300);
+setTimeout(installFinalStableButtonWiringV8, 1000);
+
 // Startup performance guard: do not pre-render Transition Readiness on page load.
 // It is rendered by Ops Intel / Leadership / Delta actions when needed.
 })();
