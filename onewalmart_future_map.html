@@ -4410,6 +4410,38 @@ function printSidepanelList() {
     <script>window.addEventListener('load',()=>{ setTimeout(()=>{ window.print(); }, 50); });<\/script>
   
 
+
+<style>
+/* ===== Immediate Performance + Clarity Pass ===== */
+#opsDrawer.ops-drawer{width:min(620px,94vw) !important;max-width:94vw !important;}
+#opsDrawer .ops-tabs{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #e5e7eb;padding:8px 10px;gap:7px;overflow-x:auto;scrollbar-width:none;}
+#opsDrawer .ops-tabs::-webkit-scrollbar{display:none;}
+#opsDrawer .ops-tab{font-size:12px;padding:6px 10px;white-space:nowrap;}
+#opsDrawer .ops-body{overflow:auto;overscroll-behavior:contain;}
+#opsDrawer .ops-card{margin-bottom:10px;}
+#opsDrawer .ops-table.ops-tight-table{font-size:11.5px;line-height:1.25;}
+#opsDrawer .ops-table.ops-tight-table th,#opsDrawer .ops-table.ops-tight-table td{padding:5px 5px;}
+.ops-blended-kpis-compact{grid-template-columns:1fr 1fr !important;}
+.ops-blended-kpis-compact .ops-blended-kpi{padding:8px;}
+.ops-blended-kpis-compact .ops-blended-kpi .val{font-size:18px;}
+.compact-popup{max-width:520px;min-width:340px;font-size:12.5px;}
+.compact-popup .store-popup-title{font-size:16px;}
+.compact-popup .store-popup-header{gap:8px;}
+.compact-popup .store-popup-delta{font-size:11px;padding:4px 8px;}
+.popup-section{border:1px solid #dbe3ea;border-radius:12px;background:#f8fafc;margin-top:9px;overflow:hidden;}
+.popup-section summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:900;padding:8px 10px;background:#fff;}
+.popup-section summary::-webkit-details-marker{display:none;}
+.popup-section summary::after{content:'▾';color:#64748b;font-size:12px;}
+.popup-section:not([open]) summary::after{content:'▸';}
+.popup-section summary span{font-size:11px;color:#64748b;font-weight:800;}
+.popup-section-body{padding:8px 10px;display:grid;gap:5px;}
+.compact-popup-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+.compact-owner-row{padding:6px 0;border-top:1px solid #e5e7eb;}
+.compact-owner-row:first-child{border-top:0;}
+.compact-note{font-size:12px;padding:8px;margin-top:9px;}
+@media(max-width:900px){#opsDrawer.ops-drawer{width:min(560px,96vw) !important;} .compact-popup-grid{grid-template-columns:1fr;} .compact-popup{min-width:300px;}}
+</style>
+
 </body></html>`);
   w.document.close();
 }
@@ -7888,8 +7920,6 @@ function storePopupHTML(s){
 
     if (!dedicatedOnly) {
       if (mode === 'future') {
-        // Future owner is a single One Walmart path. Legacy current PSP paths may still exist
-        // in source data for audit/reference, but should not render as multiple future managers.
         selected = selected.filter(p => getTeamType(p) === 'onewalmart');
       } else {
         selected = selected.filter(p => ['premium','acosta','crossmark'].includes(currentTeamType(p)));
@@ -7916,17 +7946,19 @@ function storePopupHTML(s){
     return (am || rm) ? [{ team: label, am, rm }] : [];
   };
 
-  const renderOwnerBlock = (title, rows, emptyText) => `
-    <div class="store-popup-card owner-card">
-      <div class="store-popup-card-title">${esc(title)}</div>
-      ${rows.length ? rows.map(r => `
-        <div class="owner-row">
-          <div><b>${esc(r.team || 'Team')}</b></div>
-          <div><b>AM:</b> ${esc(r.am || '—')}</div>
-          <div><b>RM:</b> ${esc(r.rm || '—')}</div>
-        </div>
-      `).join('') : `<div class="store-popup-sub">${esc(emptyText)}</div>`}
-    </div>`;
+  const rowsHtml = (rows, emptyText) => rows.length ? rows.map(r => `
+      <div class="owner-row compact-owner-row">
+        <div><b>${esc(r.team || 'Team')}</b></div>
+        <div><b>AM:</b> ${esc(r.am || '—')}</div>
+        <div><b>RM:</b> ${esc(r.rm || '—')}</div>
+      </div>
+    `).join('') : `<div class="store-popup-sub">${esc(emptyText)}</div>`;
+
+  const renderSection = (title, rows, emptyText, open=false) => `
+    <details class="popup-section" ${open ? 'open' : ''}>
+      <summary>${esc(title)} <span>${rows.length ? rows.length + ' row' + (rows.length === 1 ? '' : 's') : 'none'}</span></summary>
+      <div class="popup-section-body">${rowsHtml(rows, emptyText)}</div>
+    </details>`;
 
   let currentCore = pathRows(currentBase, 'current', false);
   if (!currentCore.length) currentCore = fallbackOwner(currentBase, 'Core PSP');
@@ -7936,8 +7968,6 @@ function storePopupHTML(s){
   if (futureCore.length > 1) futureCore = [futureCore[0]];
 
   const currentDedicated = pathRows(currentBase, 'current', true);
-  // Dedicated team alignments do not roll into One Walmart. Use the latest dedicated team
-  // source as the future/state-of-record and mirror current when future has no separate row.
   let futureDedicated = pathRows(futureBase, 'future', true);
   if (!futureDedicated.length && currentDedicated.length) futureDedicated = currentDedicated;
 
@@ -7945,14 +7975,14 @@ function storePopupHTML(s){
   const futureCovered = t.future.covered;
   const currentMiles = t.current.miles;
   const futureMiles = t.future.miles;
-  const currentRTS = t.current.rts;
-  const futureRTS = t.future.rts;
   const viewLabel = activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart';
   const activeCoverage = activeAlignmentMode === 'current' ? t.current : t.future;
   const gapBadge = gapSeverityForStore(s);
 
+  const referenceLine = `Current RTS ${currentCovered ? 'covered' : 'gap'}${Number.isFinite(currentMiles) ? ` (${currentMiles.toFixed(1)} mi)` : ''}; Future RTS ${futureCovered ? 'covered' : 'gap'}${Number.isFinite(futureMiles) ? ` (${futureMiles.toFixed(1)} mi)` : ''}.`;
+
   return `
-    <div class="store-popup-shell leadership-popup">
+    <div class="store-popup-shell leadership-popup compact-popup">
       <div class="store-popup-header">
         <div>
           <div class="store-popup-title">Store ${esc(s?.storeNumberStr || s?.storeNumber || '')}</div>
@@ -7962,28 +7992,27 @@ function storePopupHTML(s){
         <div class="store-popup-delta simplified">${esc(viewLabel)}</div>
       </div>
 
-      <div class="store-popup-card coverage-card">
-        <div class="store-popup-card-title">RTS Coverage</div>
-        <div><b>Status:</b> ${activeCoverage.covered ? 'Covered' : 'Gap / Uncovered'}</div>
-        <div class="popup-gap-badge ${gapBadge.className}">${esc(gapBadge.label)}</div>
-        ${!activeCoverage.covered ? `<div class="popup-gap-reason"><b>Why this is a gap:</b> ${esc(gapBadge.reason || 'No active RTS within the 75-mile operating radius.')}</div>` : ''}
-        <div><b>RTS:</b> ${esc(activeCoverage.rts || '—')}</div>
-        <div><b>Distance:</b> ${Number.isFinite(activeCoverage.miles) ? activeCoverage.miles.toFixed(1) + ' mi' : '—'}</div>
+      <details class="popup-section coverage-section" open>
+        <summary>RTS Coverage <span>${activeCoverage.covered ? 'Covered' : 'Gap'}</span></summary>
+        <div class="popup-section-body">
+          <div><b>Status:</b> ${activeCoverage.covered ? 'Covered' : 'Gap / Uncovered'}</div>
+          <div class="popup-gap-badge ${gapBadge.className}">${esc(gapBadge.label)}</div>
+          ${!activeCoverage.covered ? `<div class="popup-gap-reason"><b>Why this is a gap:</b> ${esc(gapBadge.reason || 'No active RTS within the 75-mile operating radius.')}</div>` : ''}
+          <div><b>RTS:</b> ${esc(activeCoverage.rts || '—')}</div>
+          <div><b>Distance:</b> ${Number.isFinite(activeCoverage.miles) ? activeCoverage.miles.toFixed(1) + ' mi' : '—'}</div>
+        </div>
+      </details>
+
+      <div class="compact-popup-grid">
+        ${renderSection('Core PSP — Current Alignment', currentCore, 'No current core PSP owner found', true)}
+        ${renderSection('Core PSP — Future One Walmart', futureCore, 'No future One Walmart owner found', true)}
+        ${renderSection('Dedicated Teams — Current', currentDedicated, 'No dedicated team owner listed', false)}
+        ${renderSection('Dedicated Teams — Unchanged / Future', futureDedicated, 'No dedicated team owner listed', false)}
       </div>
 
-      <div class="store-popup-grid owner-grid">
-        ${renderOwnerBlock('Current Alignment — Core PSP Owner', currentCore, 'No current core PSP owner found')}
-        ${renderOwnerBlock('Future Alignment — One Walmart Owner', futureCore, 'No future One Walmart owner found')}
-      </div>
-
-      <div class="store-popup-grid owner-grid dedicated-grid">
-        ${renderOwnerBlock('Current Dedicated Team Owner(s)', currentDedicated, 'No dedicated team owner listed')}
-        ${renderOwnerBlock('Dedicated Team Owner(s) — unchanged', futureDedicated, 'No dedicated team owner listed')}
-      </div>
-
-      <div class="store-popup-summary simplified-note">
-        <div><b>Alignment note:</b> Premium + Acosta + Crossmark PSP roll into One Walmart. Dedicated teams — Unilever, P&amp;G, and Tyson — remain visible separately where applicable.</div>
-        <div class="store-popup-sub"><b>Reference:</b> Current RTS ${currentCovered ? 'covered' : 'gap'}${Number.isFinite(currentMiles) ? ` (${currentMiles.toFixed(1)} mi)` : ''}; Future RTS ${futureCovered ? 'covered' : 'gap'}${Number.isFinite(futureMiles) ? ` (${futureMiles.toFixed(1)} mi)` : ''}.</div>
+      <div class="store-popup-summary simplified-note compact-note">
+        <div><b>Alignment note:</b> Premium + Acosta + Crossmark PSP roll into One Walmart. Dedicated teams remain separate.</div>
+        <div class="store-popup-sub"><b>RTS reference:</b> ${esc(referenceLine)}</div>
       </div>
     </div>
   `;
@@ -8600,6 +8629,38 @@ const projectedCoveragePct = allStores.length
         </table>
         <script>window.print()<\\/script>
       
+
+
+<style>
+/* ===== Immediate Performance + Clarity Pass ===== */
+#opsDrawer.ops-drawer{width:min(620px,94vw) !important;max-width:94vw !important;}
+#opsDrawer .ops-tabs{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #e5e7eb;padding:8px 10px;gap:7px;overflow-x:auto;scrollbar-width:none;}
+#opsDrawer .ops-tabs::-webkit-scrollbar{display:none;}
+#opsDrawer .ops-tab{font-size:12px;padding:6px 10px;white-space:nowrap;}
+#opsDrawer .ops-body{overflow:auto;overscroll-behavior:contain;}
+#opsDrawer .ops-card{margin-bottom:10px;}
+#opsDrawer .ops-table.ops-tight-table{font-size:11.5px;line-height:1.25;}
+#opsDrawer .ops-table.ops-tight-table th,#opsDrawer .ops-table.ops-tight-table td{padding:5px 5px;}
+.ops-blended-kpis-compact{grid-template-columns:1fr 1fr !important;}
+.ops-blended-kpis-compact .ops-blended-kpi{padding:8px;}
+.ops-blended-kpis-compact .ops-blended-kpi .val{font-size:18px;}
+.compact-popup{max-width:520px;min-width:340px;font-size:12.5px;}
+.compact-popup .store-popup-title{font-size:16px;}
+.compact-popup .store-popup-header{gap:8px;}
+.compact-popup .store-popup-delta{font-size:11px;padding:4px 8px;}
+.popup-section{border:1px solid #dbe3ea;border-radius:12px;background:#f8fafc;margin-top:9px;overflow:hidden;}
+.popup-section summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:900;padding:8px 10px;background:#fff;}
+.popup-section summary::-webkit-details-marker{display:none;}
+.popup-section summary::after{content:'▾';color:#64748b;font-size:12px;}
+.popup-section:not([open]) summary::after{content:'▸';}
+.popup-section summary span{font-size:11px;color:#64748b;font-weight:800;}
+.popup-section-body{padding:8px 10px;display:grid;gap:5px;}
+.compact-popup-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+.compact-owner-row{padding:6px 0;border-top:1px solid #e5e7eb;}
+.compact-owner-row:first-child{border-top:0;}
+.compact-note{font-size:12px;padding:8px;margin-top:9px;}
+@media(max-width:900px){#opsDrawer.ops-drawer{width:min(560px,96vw) !important;} .compact-popup-grid{grid-template-columns:1fr;} .compact-popup{min-width:300px;}}
+</style>
 
 </body></html>`);
     win.document.close();
@@ -9984,79 +10045,217 @@ if (popupHtmlCache.has(cacheKey)){
       setTimeout(()=> map.invalidateSize(), 120);
     }
 
-    function updateOpsIntel(){
-      const rows = activeRowsInMapExtent();
-      const stampEl = document.getElementById('opsLastRefresh');
-      if (stampEl) stampEl.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
-      const coveredCount = rows.filter(covered).length;
-      const gapCount = rows.length - coveredCount;
-      const hubs = activeVisibleHubs();
-      const riskRows = coverageRisk(rows);
-      const worst = riskRows[0];
+    let opsCacheKeyLast = '';
+    let opsPaneCache = {};
+    let opsRefreshSeq = 0;
 
-      const currentPct = pct(coveredCount, rows.length);
+    function opsActivePane(){
+      const active = drawer.querySelector('.ops-tab.active')?.dataset?.pane || 'overview';
+      return active;
+    }
 
-      id('opsExecCurrent').textContent = `${currentPct}%`;
-      id('opsExecGaps').textContent = fmt(gapCount);
-      id('opsExecActive').textContent = fmt(hubs.length);
-      id('opsExecRisk').textContent = worst ? String(worst.manager).split(',')[0].slice(0,18) : '—';
+    function opsMakeCacheKey(rows){
+      const bounds = (() => {
+        try {
+          const b = map.getBounds();
+          const r = n => Math.round(Number(n) * 10) / 10;
+          return [r(b.getSouth()), r(b.getWest()), r(b.getNorth()), r(b.getEast()), map.getZoom()].join('|');
+        } catch(e){ return 'no-bounds'; }
+      })();
+      const filters = [
+        activeAlignmentMode,
+        activeCoreTeamMode,
+        selectedValues(covFilter).join(','),
+        selectedValues(rmFilter).join(','),
+        selectedValues(amFilter).join(','),
+        selectedValues(hubFilter).join(','),
+        id('showUnilever')?.checked,
+        id('showPG')?.checked,
+        id('showTyson')?.checked,
+        id('tgWithin')?.checked
+      ].join('|');
+      const counts = rows.length + '|' + rows.filter(covered).length + '|' + activeVisibleHubs().length;
+      return bounds + '||' + filters + '||' + counts;
+    }
 
-      drawer.querySelector('#opsKpiStores').textContent = fmt(rows.length);
-      drawer.querySelector('#opsKpiCoverage').textContent = `${pct(coveredCount, rows.length)}%`;
-      drawer.querySelector('#opsKpiCoverageSub').textContent = `${fmt(coveredCount)} covered / ${fmt(rows.length)} visible`;
-      drawer.querySelector('#opsKpiGaps').textContent = fmt(gapCount);
-      drawer.querySelector('#opsKpiRts').textContent = fmt(hubs.length);
-      drawer.querySelector('#opsGapMeta').textContent = rows.length ? `${fmt(gapCount)} gaps` : '';
+    function opsInvalidateCache(){
+      opsCacheKeyLast = '';
+      opsPaneCache = {};
+    }
+    window.opsInvalidateCache = opsInvalidateCache;
 
+    function opsSet(sel, html){
+      const el = drawer.querySelector(sel);
+      if (el) el.innerHTML = html;
+    }
+
+    function teamLabelShort(t){
+      if (t === 'premium') return 'Premium';
+      if (t === 'acosta') return 'Acosta';
+      if (t === 'crossmark') return 'Crossmark';
+      return t ? t.charAt(0).toUpperCase() + t.slice(1) : 'Unknown';
+    }
+
+    function hubLabelShort(h){
+      return safe(hubDisplay?.(h) || h?.fullName || h?.name || 'RTS');
+    }
+
+    function nearestHubForStore(s, predicate){
+      const hubs = activeVisibleHubs().filter(h => !predicate || predicate(h));
+      let best = null;
+      hubs.forEach(h => {
+        const d = distMiles(Number(s.lat), Number(s.lng), Number(h.coords[0]), Number(h.coords[1]));
+        if (!best || d < best.miles) best = { hub:h, miles:d, team:hubLegacyTeam(h) };
+      });
+      return best;
+    }
+
+    function blendedReachDetails(rows){
+      const marketMap = new Map();
+      const detailRows = [];
+      let premiumGainAcosta = 0;
+      let acostaGainPremium = 0;
+      let crossmarkGain = 0;
+      let dualNetwork = 0;
+      let stillIsolated = 0;
+      let teamKnown = activeVisibleHubs().some(h => !!hubLegacyTeam(h));
+
+      const addMarket = (s, kind) => {
+        const market = `${s.city || 'Unknown'}, ${s.state || ''}`.trim().replace(/,\s*$/, '');
+        const cur = marketMap.get(market) || { market, total:0, premiumGainAcosta:0, acostaGainPremium:0, crossmarkGain:0, dual:0 };
+        cur.total++;
+        if (kind === 'premiumGainAcosta') cur.premiumGainAcosta++;
+        if (kind === 'acostaGainPremium') cur.acostaGainPremium++;
+        if (kind === 'crossmarkGain') cur.crossmarkGain++;
+        if (kind === 'dual') cur.dual++;
+        marketMap.set(market, cur);
+      };
+
+      rows.forEach(s => {
+        if (!Number.isFinite(Number(s.lat)) || !Number.isFinite(Number(s.lng))) return;
+        const legacy = storeLegacyTeamForReach(s);
+        if (!['premium','acosta','crossmark'].includes(legacy)) return;
+
+        const nearestPrior = nearestHubForStore(s, h => hubLegacyTeam(h) === legacy);
+        const nearestPremium = nearestHubForStore(s, h => hubLegacyTeam(h) === 'premium');
+        const nearestAcosta = nearestHubForStore(s, h => hubLegacyTeam(h) === 'acosta');
+        const nearestBlended = nearestHubForStore(s, h => ['premium','acosta','crossmark',''].includes(hubLegacyTeam(h)));
+        const premiumInRange = nearestPremium && nearestPremium.miles <= DEFAULT_RADIUS;
+        const acostaInRange = nearestAcosta && nearestAcosta.miles <= DEFAULT_RADIUS;
+        const anyInRange = nearestBlended && nearestBlended.miles <= DEFAULT_RADIUS;
+        let kind = '';
+        let label = '';
+
+        if (legacy === 'premium' && acostaInRange){
+          kind = 'premiumGainAcosta';
+          label = 'Legacy Premium store gains Acosta RTS option';
+          premiumGainAcosta++;
+        } else if (legacy === 'acosta' && premiumInRange){
+          kind = 'acostaGainPremium';
+          label = 'Legacy Acosta store gains Premium RTS option';
+          acostaGainPremium++;
+        } else if (legacy === 'crossmark' && (premiumInRange || acostaInRange)){
+          kind = 'crossmarkGain';
+          label = `Legacy Crossmark store gains ${premiumInRange && acostaInRange ? 'Premium + Acosta' : premiumInRange ? 'Premium' : 'Acosta'} RTS option`;
+          crossmarkGain++;
+        }
+
+        if (premiumInRange && acostaInRange){
+          dualNetwork++;
+          addMarket(s, 'dual');
+        }
+        if (!anyInRange) stillIsolated++;
+
+        if (kind){
+          addMarket(s, kind);
+          detailRows.push({
+            store:s,
+            market:`${s.city || ''}, ${s.state || ''}`.replace(/^,\s*/, '').replace(/,\s*$/, ''),
+            legacy,
+            label,
+            prior:nearestPrior,
+            blended:nearestBlended,
+            premium:nearestPremium,
+            acosta:nearestAcosta
+          });
+        }
+      });
+
+      const marketRows = [...marketMap.values()].sort((a,b)=>b.total-a.total).slice(0,12);
+      detailRows.sort((a,b) => (a.market || '').localeCompare(b.market || '') || String(a.store.storeNumberStr || '').localeCompare(String(b.store.storeNumberStr || '')));
+
+      return { premiumGainAcosta, acostaGainPremium, crossmarkGain, dualNetwork, stillIsolated, teamKnown, marketRows, detailRows };
+    }
+
+    function renderOpsOverview(rows, gapCount, coveredCount, hubs){
       const gapRows = topGapRegions(rows);
-      drawer.querySelector('#opsTopGaps').innerHTML = gapRows.length ? `
-        <table class="ops-table"><thead><tr><th>Region</th><th style="text-align:right">Gaps</th><th>States</th></tr></thead><tbody>
-        ${gapRows.map(r => `<tr><td><b>${safe(r.label)}</b></td><td style="text-align:right"><b>${fmt(r.gaps)}</b></td><td>${safe(r.states || '—')}</td></tr>`).join('')}
-        </tbody></table>` : `<div class="ops-sub">No current gaps in the active map view.</div>`;
+      opsSet('#opsTopGaps', gapRows.length ? `
+        <table class="ops-table ops-tight-table"><thead><tr><th>Region</th><th style="text-align:right">Gaps</th><th>States</th></tr></thead><tbody>
+        ${gapRows.map(r => `<tr><td><button class="ops-manager-link" type="button" data-manager="${safe(r.label)}">${safe(r.label)}</button></td><td style="text-align:right"><b>${fmt(r.gaps)}</b></td><td>${safe(r.states || '—')}</td></tr>`).join('')}
+        </tbody></table>` : `<div class="ops-sub">No current gaps in the active map view.</div>`);
+    }
 
-      const blended = blendedReachSummary(rows);
+    function renderOpsBlended(rows){
+      const blended = blendedReachDetails(rows);
       const br = drawer.querySelector('#opsBlendedReach');
       if (br) br.innerHTML = `
-        <div class="ops-blended-note"><b>Blended Reach framing:</b> This does not claim stores became newly covered. It shows where operational flexibility increases because legacy Premium, Acosta, or Crossmark-aligned stores are now reachable by the broader RTS network within the same 75-mile rule.</div>
-        ${blended.teamKnown ? '' : '<div class="ops-blended-note"><b>Source team note:</b> The RTS JSON does not expose reliable legacy team labels for every RTS, so cross-network counts may be understated until sourceTeam/legacyTeam is added to the RTS file.</div>'}
-        <div class="ops-blended-kpis">
-          <div class="ops-blended-kpi"><div class="lbl">Premium stores gaining Acosta reach</div><div class="val">${fmt(blended.premiumGainAcosta)}</div></div>
-          <div class="ops-blended-kpi"><div class="lbl">Acosta stores gaining Premium reach</div><div class="val">${fmt(blended.acostaGainPremium)}</div></div>
-          <div class="ops-blended-kpi"><div class="lbl">Dual-network reachable stores</div><div class="val">${fmt(blended.dualNetwork)}</div></div>
-          <div class="ops-blended-kpi"><div class="lbl">Still isolated from known RTS teams</div><div class="val">${fmt(blended.stillIsolated)}</div></div>
+        <div class="ops-blended-note"><b>Blended Reach framing:</b> This does not mean stores became newly covered. It means a legacy-aligned store now has an additional RTS option from the broader blended network within the same 75-mile rule.</div>
+        ${blended.teamKnown ? '' : '<div class="ops-blended-note"><b>Source team note:</b> RTS legacy team labels are incomplete, so cross-network counts may be understated until sourceTeam/legacyTeam is fully populated.</div>'}
+        <div class="ops-blended-kpis ops-blended-kpis-compact">
+          <div class="ops-blended-kpi"><div class="lbl">Legacy Premium stores with Acosta RTS option</div><div class="val">${fmt(blended.premiumGainAcosta)}</div></div>
+          <div class="ops-blended-kpi"><div class="lbl">Legacy Acosta stores with Premium RTS option</div><div class="val">${fmt(blended.acostaGainPremium)}</div></div>
+          <div class="ops-blended-kpi"><div class="lbl">Legacy Crossmark stores with added RTS option</div><div class="val">${fmt(blended.crossmarkGain)}</div></div>
+          <div class="ops-blended-kpi"><div class="lbl">Dual Premium + Acosta reachable stores</div><div class="val">${fmt(blended.dualNetwork)}</div></div>
         </div>`;
+
       const bm = drawer.querySelector('#opsBlendedMarkets');
       if (bm) bm.innerHTML = blended.marketRows.length ? `
-        <table class="ops-table"><thead><tr><th>Market</th><th style="text-align:right">Total</th><th style="text-align:right">Premium→Acosta</th><th style="text-align:right">Acosta→Premium</th><th style="text-align:right">Dual</th></tr></thead><tbody>
+        <table class="ops-table ops-tight-table"><thead><tr><th>Market</th><th style="text-align:right">Total</th><th style="text-align:right">Premium store + Acosta RTS</th><th style="text-align:right">Acosta store + Premium RTS</th><th style="text-align:right">Dual</th></tr></thead><tbody>
         ${blended.marketRows.map(r => `<tr><td><b>${safe(r.market)}</b></td><td style="text-align:right">${fmt(r.total)}</td><td style="text-align:right">${fmt(r.premiumGainAcosta)}</td><td style="text-align:right">${fmt(r.acostaGainPremium)}</td><td style="text-align:right">${fmt(r.dual)}</td></tr>`).join('')}
-        </tbody></table>` : `<div class="ops-sub">No cross-network reach markets found in the active view, or legacy RTS source-team labels are unavailable.</div>`;
+        </tbody></table>
+        <div class="ops-section-title" style="margin-top:12px"><span>Store-level RTS comparison</span><span class="ops-sub">prior eligible RTS vs blended closest RTS</span></div>
+        <table class="ops-table ops-tight-table"><thead><tr><th>Market / Store</th><th>Legacy</th><th>Prior closest eligible RTS</th><th>Blended closest RTS</th><th>Flexibility type</th></tr></thead><tbody>
+        ${blended.detailRows.slice(0,40).map(r => `<tr>
+          <td><b>${safe(r.market)}</b><div class="ops-sub">Store ${safe(r.store.storeNumberStr || '')}</div></td>
+          <td>${teamLabelShort(r.legacy)}</td>
+          <td>${r.prior ? `${hubLabelShort(r.prior.hub)}<div class="ops-sub">${r.prior.miles.toFixed(1)} mi</div>` : '<span class="ops-sub">No same-team RTS found</span>'}</td>
+          <td>${r.blended ? `${hubLabelShort(r.blended.hub)}<div class="ops-sub">${teamLabelShort(r.blended.team)} • ${r.blended.miles.toFixed(1)} mi</div>` : '<span class="ops-sub">No active RTS found</span>'}</td>
+          <td>${safe(r.label)}</td>
+        </tr>`).join('')}
+        </tbody></table>
+        ${blended.detailRows.length > 40 ? `<div class="ops-sub" style="margin-top:6px">Showing first 40 of ${fmt(blended.detailRows.length)} store-level rows. Narrow filters for a market-specific list.</div>` : ''}
+      ` : `<div class="ops-sub">No cross-network reach markets found in the active view, or legacy RTS source-team labels are unavailable.</div>`;
+    }
 
+    function renderOpsWorkload(rows){
       const workRows = rtsWorkload(rows);
-      drawer.querySelector('#opsRtsWorkload').innerHTML = workRows.length ? `
-        <table class="ops-table"><thead><tr><th>RTS</th><th style="text-align:right">Stores</th><th style="text-align:right">Avg mi</th><th style="text-align:right">Max mi</th><th style="text-align:right">Stress</th><th>Risk</th></tr></thead><tbody>
+      opsSet('#opsRtsWorkload', workRows.length ? `
+        <table class="ops-table ops-tight-table"><thead><tr><th>RTS</th><th style="text-align:right">Stores</th><th style="text-align:right">Avg mi</th><th style="text-align:right">Max mi</th><th style="text-align:right">Stress</th><th>Risk</th></tr></thead><tbody>
         ${workRows.map(r => `<tr><td><b>${safe(r.name)}</b><div class="ops-sub">${fmt(r.gaps)} current gaps · ${fmt(r.fringe)} fringe stores</div></td><td style="text-align:right">${fmt(r.total)}</td><td style="text-align:right">${r.avgMiles.toFixed(1)}</td><td style="text-align:right">${r.maxMiles.toFixed(1)}</td><td style="text-align:right"><b>${r.stressScore}</b></td><td class="ops-risk-${r.risk.toLowerCase()}">${r.risk}</td></tr>`).join('')}
-        </tbody></table>` : `<div class="ops-sub">No active RTS hub data in the current view.</div>`;
+        </tbody></table>` : `<div class="ops-sub">No active RTS hub data in the current view.</div>`);
 
-      drawer.querySelector('#opsBalanceFlags').innerHTML = workRows.length ? `
-        <table class="ops-table"><thead><tr><th>Flag</th><th style="text-align:right">Stores</th><th>Suggested action</th></tr></thead><tbody>
+      opsSet('#opsBalanceFlags', workRows.length ? `
+        <table class="ops-table ops-tight-table"><thead><tr><th>Flag</th><th style="text-align:right">Stores</th><th>Suggested action</th></tr></thead><tbody>
         ${workRows.filter(r => r.risk !== 'Low').slice(0,8).map(r => `<tr><td><b>${safe(r.name)}</b><div class="ops-sub">${r.risk} workload</div></td><td style="text-align:right">${fmt(r.total)}</td><td>Review nearby gap clusters for possible split or support.</td></tr>`).join('') || `<tr><td colspan="3">No high workload flags in the active view.</td></tr>`}
-        </tbody></table>` : `<div class="ops-sub">No workload flags available.</div>`;
+        </tbody></table>` : `<div class="ops-sub">No workload flags available.</div>`);
+    }
 
-      drawer.querySelector('#opsRiskTable').innerHTML = riskRows.length ? `
-        <table class="ops-table"><thead><tr><th>Manager / Area</th><th style="text-align:right">Gap %</th><th style="text-align:right">Gaps</th><th>Risk</th></tr></thead><tbody>
+    function renderOpsRisk(rows){
+      const riskRows = coverageRisk(rows);
+      opsSet('#opsRiskTable', riskRows.length ? `
+        <table class="ops-table ops-tight-table"><thead><tr><th>Manager / Area</th><th style="text-align:right">Gap %</th><th style="text-align:right">Gaps</th><th>Risk</th></tr></thead><tbody>
         ${riskRows.map(r => `<tr><td><b>${safe(r.manager)}</b><div class="ops-sub">${fmt(r.total)} stores</div></td><td style="text-align:right">${r.gapPct}%</td><td style="text-align:right">${fmt(r.gaps)}</td><td class="ops-risk-${r.risk.toLowerCase()}">${r.risk}</td></tr>`).join('')}
-        </tbody></table>` : `<div class="ops-sub">No coverage risk rows found.</div>`;
+        </tbody></table>` : `<div class="ops-sub">No coverage risk rows found.</div>`);
 
       const health = healthRows(rows);
-      drawer.querySelector('#opsHealthTable').innerHTML = health.length ? `
-        <table class="ops-table"><thead><tr><th>Region</th><th style="text-align:right">Score</th><th style="text-align:right">Coverage</th><th>Risk</th></tr></thead><tbody>
+      opsSet('#opsHealthTable', health.length ? `
+        <table class="ops-table ops-tight-table"><thead><tr><th>Region</th><th style="text-align:right">Score</th><th style="text-align:right">Coverage</th><th>Risk</th></tr></thead><tbody>
         ${health.map(r => `<tr><td><b>${safe(r.region)}</b><div class="ops-sub">${fmt(r.gaps)} gaps / ${fmt(r.total)} stores</div></td><td style="text-align:right">${r.score}</td><td style="text-align:right">${r.coverage}%</td><td class="ops-risk-${r.status.toLowerCase()}">${r.status === 'Med' ? 'Watch' : r.status}</td></tr>`).join('')}
-        </tbody></table>` : `<div class="ops-sub">No health score rows available.</div>`;
+        </tbody></table>` : `<div class="ops-sub">No health score rows available.</div>`);
+    }
 
-      const deltaPane = drawer.querySelector('#opsDeltaSummary');
-      if (deltaPane) deltaPane.innerHTML = `<div class="ops-sub">Delta/Transition metrics are intentionally hidden in this leadership view. Use RTS coverage, gaps, active RTS, and manager alignment as the operating focus.</div>`;
-
-      drawer.querySelector('#opsLeadershipSnapshot').innerHTML = `
+    function renderOpsLeadership(rows, gapCount, hubs, currentPct, worst){
+      opsSet('#opsLeadershipSnapshot', `
         <div class="ops-leadership-box">
           <b>One Walmart RTS Coverage Snapshot</b><br>
           Active alignment view: <b>${activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart'}</b><br>
@@ -10064,21 +10263,83 @@ if (popupHtmlCache.has(cacheKey)){
           Active RTS hubs: <b>${fmt(hubs.length)}</b><br>
           Visible gap stores: <b>${fmt(gapCount)}</b><br>
           Highest risk area: <b>${safe(worst?.manager || 'None identified')}</b>
-        </div>
-      `;
-      drawer.querySelector('#opsTalkingPoints').innerHTML = `
-        <ul style="margin:0;padding-left:18px;line-height:1.45">
+        </div>`);
+      opsSet('#opsTalkingPoints', `
+        <div class="ops-leadership-box"><b>Copy-ready blended reach language:</b><br>
+        The One Walmart model does not change the 75-mile RTS coverage rule. Its biggest operational benefit is flexibility: legacy Premium, Acosta, and Crossmark-aligned stores can now be viewed against the broader active RTS network, while dedicated teams such as Unilever, P&amp;G, and Tyson remain visible separately.</div>
+        <ul style="margin:10px 0 0 0;padding-left:18px;line-height:1.45">
           <li>The map is operating in <b>${activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart'}</b> mode.</li>
           <li>The highest visible coverage risk is <b>${safe(worst?.manager || 'not currently flagged')}</b>.</li>
-          <li>Dedicated teams — Unilever, P&amp;G, and Tyson — remain visible separately from the One Walmart PSP alignment.</li>
           <li>RTS workload ranking should be used to identify overloaded hubs and potential split opportunities.</li>
-          <li>Blended Reach should be used to explain where operational flexibility improved, not as a claim that geography-based coverage rules changed.</li>
-        </ul>
-      `;
-
-      syncCommandLayout();
+          <li>Blended Reach should be used to explain operational flexibility, not as a claim that geography-based coverage rules changed.</li>
+        </ul>`);
     }
 
+    function updateOpsIntel(force=false){
+      const rows = activeRowsInMapExtent();
+      const stampEl = document.getElementById('opsLastRefresh');
+      if (stampEl) stampEl.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+
+      const coveredCount = rows.filter(covered).length;
+      const gapCount = rows.length - coveredCount;
+      const hubs = activeVisibleHubs();
+      const currentPct = pct(coveredCount, rows.length);
+      const activePane = opsActivePane();
+      const baseKey = opsMakeCacheKey(rows);
+
+      if (baseKey !== opsCacheKeyLast){
+        opsCacheKeyLast = baseKey;
+        opsPaneCache = {};
+      }
+
+      const riskRowsForRibbon = coverageRisk(rows);
+      const worst = riskRowsForRibbon[0];
+
+      id('opsExecCurrent').textContent = `${currentPct}%`;
+      id('opsExecGaps').textContent = fmt(gapCount);
+      id('opsExecActive').textContent = fmt(hubs.length);
+      id('opsExecRisk').textContent = worst ? String(worst.manager).split(',')[0].slice(0,18) : '—';
+
+      drawer.querySelector('#opsKpiStores').textContent = fmt(rows.length);
+      drawer.querySelector('#opsKpiCoverage').textContent = `${currentPct}%`;
+      drawer.querySelector('#opsKpiCoverageSub').textContent = `${fmt(coveredCount)} covered / ${fmt(rows.length)} visible`;
+      drawer.querySelector('#opsKpiGaps').textContent = fmt(gapCount);
+      drawer.querySelector('#opsKpiRts').textContent = fmt(hubs.length);
+      drawer.querySelector('#opsGapMeta').textContent = rows.length ? `${fmt(gapCount)} gaps` : '';
+
+      const paneKey = activePane + '|' + baseKey;
+      if (!force && opsPaneCache[paneKey]){
+        const cached = opsPaneCache[paneKey];
+        Object.entries(cached).forEach(([sel, html]) => opsSet(sel, html));
+        syncCommandLayout();
+        return;
+      }
+
+      const before = {};
+      const capture = selectors => selectors.forEach(sel => { const el = drawer.querySelector(sel); if (el) before[sel] = el.innerHTML; });
+
+      if (activePane === 'overview'){
+        renderOpsOverview(rows, gapCount, coveredCount, hubs);
+        capture(['#opsTopGaps']);
+      } else if (activePane === 'blended'){
+        renderOpsBlended(rows);
+        capture(['#opsBlendedReach','#opsBlendedMarkets']);
+      } else if (activePane === 'risk'){
+        renderOpsRisk(rows);
+        capture(['#opsRiskTable','#opsHealthTable']);
+      } else if (activePane === 'workload'){
+        renderOpsWorkload(rows);
+        capture(['#opsRtsWorkload','#opsBalanceFlags']);
+      } else if (activePane === 'leadership'){
+        renderOpsLeadership(rows, gapCount, hubs, currentPct, worst);
+        capture(['#opsLeadershipSnapshot','#opsTalkingPoints']);
+      } else if (activePane === 'actionplan'){
+        renderCoverageActionPane?.();
+      }
+
+      opsPaneCache[paneKey] = before;
+      syncCommandLayout();
+    }
     const scheduleOps = (()=>{
       let t;
       return (reason='ui')=>{
@@ -11893,6 +12154,38 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 #railLeadership,#railField{display:none !important;}
 .map-action-rail{max-width:112px !important;}
 .map-layers-panel label[title*="overlap"], .map-layers-panel label:has(#tgOverlap){ }
+</style>
+
+
+<style>
+/* ===== Immediate Performance + Clarity Pass ===== */
+#opsDrawer.ops-drawer{width:min(620px,94vw) !important;max-width:94vw !important;}
+#opsDrawer .ops-tabs{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #e5e7eb;padding:8px 10px;gap:7px;overflow-x:auto;scrollbar-width:none;}
+#opsDrawer .ops-tabs::-webkit-scrollbar{display:none;}
+#opsDrawer .ops-tab{font-size:12px;padding:6px 10px;white-space:nowrap;}
+#opsDrawer .ops-body{overflow:auto;overscroll-behavior:contain;}
+#opsDrawer .ops-card{margin-bottom:10px;}
+#opsDrawer .ops-table.ops-tight-table{font-size:11.5px;line-height:1.25;}
+#opsDrawer .ops-table.ops-tight-table th,#opsDrawer .ops-table.ops-tight-table td{padding:5px 5px;}
+.ops-blended-kpis-compact{grid-template-columns:1fr 1fr !important;}
+.ops-blended-kpis-compact .ops-blended-kpi{padding:8px;}
+.ops-blended-kpis-compact .ops-blended-kpi .val{font-size:18px;}
+.compact-popup{max-width:520px;min-width:340px;font-size:12.5px;}
+.compact-popup .store-popup-title{font-size:16px;}
+.compact-popup .store-popup-header{gap:8px;}
+.compact-popup .store-popup-delta{font-size:11px;padding:4px 8px;}
+.popup-section{border:1px solid #dbe3ea;border-radius:12px;background:#f8fafc;margin-top:9px;overflow:hidden;}
+.popup-section summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:900;padding:8px 10px;background:#fff;}
+.popup-section summary::-webkit-details-marker{display:none;}
+.popup-section summary::after{content:'▾';color:#64748b;font-size:12px;}
+.popup-section:not([open]) summary::after{content:'▸';}
+.popup-section summary span{font-size:11px;color:#64748b;font-weight:800;}
+.popup-section-body{padding:8px 10px;display:grid;gap:5px;}
+.compact-popup-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+.compact-owner-row{padding:6px 0;border-top:1px solid #e5e7eb;}
+.compact-owner-row:first-child{border-top:0;}
+.compact-note{font-size:12px;padding:8px;margin-top:9px;}
+@media(max-width:900px){#opsDrawer.ops-drawer{width:min(560px,96vw) !important;} .compact-popup-grid{grid-template-columns:1fr;} .compact-popup{min-width:300px;}}
 </style>
 
 </body>
