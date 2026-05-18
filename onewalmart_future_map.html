@@ -1393,7 +1393,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 
 
-/* ===== Blended Reach clarity + drilldown pass ===== */
+/* ===== Operational Flexibility clarity + drilldown pass ===== */
 .ops-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
 .ops-mini-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px;}
 .ops-mini-card .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:900;}
@@ -1408,6 +1408,32 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .ops-manager-link:hover{background:#eff6ff;border-color:#60a5fa;}
 @media(max-width:900px){.ops-mini-grid{grid-template-columns:1fr;}}
 
+
+
+
+/* ===== Ops Intel scope + leadership prioritization cleanup ===== */
+.ops-scope-bar{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:8px 14px;border-bottom:1px solid #e5e7eb;background:#f8fafc;
+  font-size:12px;color:#475569;
+}
+.ops-scope-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:950;color:#64748b;}
+.ops-scope-btn{border:1px solid #cbd5e1;background:#fff;border-radius:999px;padding:5px 10px;font-weight:850;cursor:pointer;color:#0f172a;}
+.ops-scope-btn.active{background:#111827;border-color:#111827;color:#fff;}
+.ops-scope-help{margin-left:auto;color:#64748b;line-height:1.25;}
+.ops-context-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:8px 10px;margin-bottom:10px;font-size:12px;line-height:1.35;}
+.ops-muted-section{margin-top:10px;}
+.ops-muted-section summary{cursor:pointer;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;padding:8px 10px;font-weight:900;display:flex;justify-content:space-between;gap:10px;}
+.ops-priority-list{display:grid;gap:7px;margin-top:8px;}
+.ops-priority-card{border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:9px 10px;}
+.ops-priority-card b{display:block;color:#0f172a;}
+.ops-priority-card .ops-sub{margin-top:2px;}
+.ops-tier-block{margin-bottom:12px;}
+.ops-tier-title{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:950;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:7px 9px;margin-bottom:6px;}
+.ops-risk-critical{color:#991b1b;font-weight:950;}
+.ops-risk-elevated{color:#b45309;font-weight:950;}
+.ops-risk-moderate{color:#1d4ed8;font-weight:950;}
+.ops-risk-minimal{color:#166534;font-weight:950;}
 
 /* ===== One Walmart Operational Reframe: RTS hub panel + store popup v2 ===== */
 .op-hub-hero{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border:1px solid #dbeafe;background:#eff6ff;border-radius:14px;padding:10px;margin-bottom:8px;}
@@ -9542,9 +9568,15 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
       <div class="ops-safe-banner">
         <b>Performance-safe mode:</b> Ops Intel refreshes on open, manual refresh, and debounced filter changes. Map pan/zoom does not trigger full analytics recalculation.
       </div>
+      <div class="ops-scope-bar">
+        <span class="ops-scope-label">Scope</span>
+        <button id="opsScopeFiltered" class="ops-scope-btn active" type="button">Filtered View</button>
+        <button id="opsScopeNational" class="ops-scope-btn" type="button">National View</button>
+        <span id="opsScopeHelp" class="ops-scope-help">Using current filters / visible map context.</span>
+      </div>
       <div class="ops-tabs">
         <button class="ops-tab active" data-pane="overview" type="button">Overview</button>
-        <button class="ops-tab" data-pane="blended" type="button">Blended Reach</button>
+        <button class="ops-tab" data-pane="blended" type="button">Operational Flexibility</button>
         <button class="ops-tab" data-pane="risk" type="button">Risk</button>
         <button class="ops-tab" data-pane="workload" type="button">RTS Load</button>
         <button class="ops-tab" data-pane="leadership" type="button">Leadership</button>
@@ -9561,7 +9593,7 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
         </div>
 
         <div class="ops-pane" id="opsPaneBlended">
-          <div class="ops-card"><div class="ops-section-title"><span>Blended RTS Reach</span><span class="ops-sub">cross-network flexibility</span></div><div id="opsBlendedReach"></div></div>
+          <div class="ops-card"><div class="ops-section-title"><span>Operational Flexibility</span><span class="ops-sub">cross-network resiliency</span></div><div id="opsBlendedReach"></div></div>
           <div class="ops-card"><div class="ops-section-title"><span>Operational Flexibility Markets</span><span class="ops-sub">top blended opportunities</span></div><div id="opsBlendedMarkets"></div></div>
         </div>
 
@@ -9571,7 +9603,7 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
         </div>
 
         <div class="ops-pane" id="opsPaneWorkload">
-          <div class="ops-card"><div class="ops-section-title"><span>RTS Workload Ranking</span><span class="ops-sub">${DEFAULT_RADIUS}-mile reach</span></div><div id="opsRtsWorkload"></div></div>
+          <div class="ops-card"><div class="ops-section-title"><span>RTS Workload Ranking — <span id="opsWorkloadScopeLabel">Filtered View</span></span><span class="ops-sub">${DEFAULT_RADIUS}-mile reach</span></div><div id="opsRtsWorkload"></div></div>
           <div class="ops-card"><div class="ops-section-title"><span>Balancing Flags</span><span class="ops-sub">capacity watchlist</span></div><div id="opsBalanceFlags"></div></div>
         </div>
 
@@ -9585,6 +9617,21 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
     mapwrap.appendChild(toggle);
     mapwrap.appendChild(drawer);
 
+    let opsScopeMode = 'filtered';
+    function opsScopeRows(){
+      if (opsScopeMode === 'national') return Array.isArray(allStores) ? allStores : [];
+      return activeRowsInMapExtent();
+    }
+    function updateOpsScopeUi(){
+      const filteredBtn = document.getElementById('opsScopeFiltered');
+      const nationalBtn = document.getElementById('opsScopeNational');
+      const help = document.getElementById('opsScopeHelp');
+      const workloadLabel = document.getElementById('opsWorkloadScopeLabel');
+      filteredBtn?.classList.toggle('active', opsScopeMode === 'filtered');
+      nationalBtn?.classList.toggle('active', opsScopeMode === 'national');
+      if (help) help.textContent = opsScopeMode === 'national' ? 'Using all loaded stores, ignoring current map filters.' : 'Using current filters / visible map context.';
+      if (workloadLabel) workloadLabel.textContent = opsScopeMode === 'national' ? 'National View' : 'Filtered View';
+    }
     function fmt(n){ return Number(n || 0).toLocaleString(); }
     function pct(n,d){ return d ? Math.round((n / d) * 1000) / 10 : 0; }
     function safe(v){ return typeof escape === 'function' ? escape(v ?? '') : String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -9700,6 +9747,7 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
     function rtsWorkload(rows){
       const hubs = activeVisibleHubs();
       const r = Number(radius?.value) || DEFAULT_RADIUS;
+      const recommendedCapacity = 90;
       return hubs.map(h=>{
         const lat = Number(h.coords[0]);
         const lng = Number(h.coords[1]);
@@ -9709,7 +9757,9 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
         const total = reached.length;
         const avgMiles = total ? reached.reduce((a,x)=>a+x.miles,0) / total : 0;
         const maxMiles = total ? Math.max(...reached.map(x=>x.miles)) : 0;
-        const fringe = reached.filter(x => x.miles >= 62).length;
+        const fringe = reached.filter(x => x.miles >= 60 && x.miles <= 75).length;
+        const variance = total - recommendedCapacity;
+        const overloadPct = Math.max(0, Math.round((total / recommendedCapacity) * 100));
         const stressScore = Math.min(100, Math.round((total/1.6) + (avgMiles/1.2) + (fringe*1.2) + (gaps*1.5)));
         const risk = stressScore >= 85 || total >= 145 || gaps >= 25 ? 'High' : stressScore >= 62 || total >= 105 || gaps >= 10 ? 'Med' : 'Low';
         return {
@@ -9719,10 +9769,13 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
           avgMiles,
           maxMiles,
           fringe,
+          recommendedCapacity,
+          variance,
+          overloadPct,
           stressScore,
           risk
         };
-      }).sort((a,b)=> b.stressScore - a.stressScore || b.total - a.total).slice(0,12);
+      }).sort((a,b)=> (b.total > 0) - (a.total > 0) || b.stressScore - a.stressScore || b.total - a.total || a.name.localeCompare(b.name));
     }
 
     function coverageRisk(rows){
@@ -9731,11 +9784,15 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
           const total = g.items.length;
           const gaps = g.items.filter(gap).length;
           const gapPct = pct(gaps,total);
-          return { manager:g.key, total, gaps, gapPct, risk: gapPct >= 45 || gaps >= 25 ? 'High' : gapPct >= 25 || gaps >= 12 ? 'Med' : 'Low' };
+          let tier = 'Minimal';
+          if (gaps >= 40 || (gapPct >= 75 && total >= 20)) tier = 'Critical';
+          else if (gaps >= 10 || gapPct >= 45) tier = 'Elevated';
+          else if (gaps >= 3 || gapPct >= 20) tier = 'Moderate';
+          const risk = tier === 'Critical' ? 'High' : tier === 'Elevated' ? 'High' : tier === 'Moderate' ? 'Med' : 'Low';
+          return { manager:g.key, total, gaps, gapPct, risk, tier };
         })
         .filter(r => r.total >= 3)
-        .sort((a,b)=> b.gaps - a.gaps || b.gapPct - a.gapPct)
-        .slice(0,12);
+        .sort((a,b)=> b.gaps - a.gaps || b.gapPct - a.gapPct);
     }
 
     function healthRows(rows){
@@ -10466,7 +10523,7 @@ if (popupHtmlCache.has(cacheKey)){
       const addedOptionCount = blended.premiumAddedAcostaOption + blended.acostaAddedPremiumOption;
       const br = drawer.querySelector('#opsBlendedReach');
       if (br) br.innerHTML = `
-        <div class="ops-blended-note"><b>Blended Reach framing:</b> This tab now focuses on <b>meaningful cross-team RTS flexibility</b>, not generic ownership change. A store appears here only when the legacy alignment and the RTS team are different under the same 75-mile rule.</div>
+        <div class="ops-blended-note"><b>Operational Flexibility framing:</b> This tab now focuses on <b>meaningful cross-team RTS flexibility</b>, not generic ownership change. A store appears here only when the legacy alignment and the RTS team are different under the same 75-mile rule.</div>
         ${blended.teamKnown ? '' : '<div class="ops-blended-note"><b>Source team note:</b> RTS legacy team labels are incomplete, so Premium-vs-Acosta flexibility counts may be understated until sourceTeam/legacyTeam is fully populated.</div>'}
         <div class="ops-blended-kpis ops-blended-kpis-compact">
           <div class="ops-blended-kpi"><div class="lbl">Premium stores rescued by Acosta RTS</div><div class="val">${fmt(blended.premiumRescueByAcosta)}</div><div class="sub">No Premium RTS in range before</div></div>
@@ -10510,24 +10567,46 @@ if (popupHtmlCache.has(cacheKey)){
     }
 
     function renderOpsWorkload(rows){
-      const workRows = rtsWorkload(rows);
-      opsSet('#opsRtsWorkload', workRows.length ? `
-        <table class="ops-table ops-tight-table"><thead><tr><th>RTS</th><th style="text-align:right">Stores</th><th style="text-align:right">Avg mi</th><th style="text-align:right">Max mi</th><th style="text-align:right">Stress</th><th>Risk</th></tr></thead><tbody>
-        ${workRows.map(r => `<tr><td><b>${safe(r.name)}</b><div class="ops-sub">${fmt(r.gaps)} current gaps · ${fmt(r.fringe)} fringe stores</div></td><td style="text-align:right">${fmt(r.total)}</td><td style="text-align:right">${r.avgMiles.toFixed(1)}</td><td style="text-align:right">${r.maxMiles.toFixed(1)}</td><td style="text-align:right"><b>${r.stressScore}</b></td><td class="ops-risk-${r.risk.toLowerCase()}">${r.risk}</td></tr>`).join('')}
-        </tbody></table>` : `<div class="ops-sub">No active RTS hub data in the current view.</div>`);
+      updateOpsScopeUi();
+      const workRowsAll = rtsWorkload(rows);
+      const activeRows = workRowsAll.filter(r => r.total > 0).slice(0,15);
+      const idleRows = workRowsAll.filter(r => r.total === 0);
+      const scopeName = opsScopeMode === 'national' ? 'National View' : 'Filtered View';
+      const contextNote = opsScopeMode === 'national'
+        ? 'National View ignores current map filters and shows workload across all loaded stores.'
+        : 'Filtered View honors the current map filters and visible map context. If you are filtered to one store or one market, workload numbers will only reflect that area.';
 
-      opsSet('#opsBalanceFlags', workRows.length ? `
-        <table class="ops-table ops-tight-table"><thead><tr><th>Flag</th><th style="text-align:right">Stores</th><th>Suggested action</th></tr></thead><tbody>
-        ${workRows.filter(r => r.risk !== 'Low').slice(0,8).map(r => `<tr><td><b>${safe(r.name)}</b><div class="ops-sub">${r.risk} workload</div></td><td style="text-align:right">${fmt(r.total)}</td><td>Review nearby gap clusters for possible split or support.</td></tr>`).join('') || `<tr><td colspan="3">No high workload flags in the active view.</td></tr>`}
+      opsSet('#opsRtsWorkload', workRowsAll.length ? `
+        <div class="ops-context-note"><b>Scope: ${scopeName}.</b> ${contextNote}</div>
+        ${activeRows.length ? `
+        <table class="ops-table ops-tight-table"><thead><tr><th>RTS</th><th style="text-align:right">Stores</th><th style="text-align:right">Recommended</th><th style="text-align:right">Variance</th><th style="text-align:right">Avg mi</th><th style="text-align:right">Max mi</th><th style="text-align:right">Stress</th><th>Risk</th></tr></thead><tbody>
+        ${activeRows.map(r => `<tr><td><b>${safe(r.name)}</b><div class="ops-sub">${fmt(r.gaps)} current gaps · ${fmt(r.fringe)} fringe stores · ${r.overloadPct}% of recommended</div></td><td style="text-align:right">${fmt(r.total)}</td><td style="text-align:right">${fmt(r.recommendedCapacity)}</td><td style="text-align:right"><b>${r.variance > 0 ? '+' : ''}${fmt(r.variance)}</b></td><td style="text-align:right">${r.avgMiles.toFixed(1)}</td><td style="text-align:right">${r.maxMiles.toFixed(1)}</td><td style="text-align:right"><b>${r.stressScore}</b></td><td class="ops-risk-${r.risk.toLowerCase()}">${r.risk}</td></tr>`).join('')}
+        </tbody></table>` : `<div class="ops-sub">No active RTS assignments found for the current scope.</div>`}
+        ${idleRows.length ? `<details class="ops-muted-section"><summary><span>RTS with no stores in this scope</span><span>${fmt(idleRows.length)}</span></summary><div class="ops-sub" style="padding:8px 10px">These RTS are not missing data; they simply have no stores within the selected scope.</div></details>` : ''}` : `<div class="ops-sub">No active RTS hub data in the current view.</div>`);
+
+      opsSet('#opsBalanceFlags', workRowsAll.length ? `
+        <div class="ops-context-note"><b>Capacity watchlist scope:</b> ${scopeName}.</div>
+        <table class="ops-table ops-tight-table"><thead><tr><th>Flag</th><th style="text-align:right">Stores</th><th style="text-align:right">Variance</th><th>Suggested action</th></tr></thead><tbody>
+        ${workRowsAll.filter(r => r.total > 0 && r.risk !== 'Low').slice(0,8).map(r => `<tr><td><b>${safe(r.name)}</b><div class="ops-sub">${r.risk} workload · ${fmt(r.fringe)} fringe stores</div></td><td style="text-align:right">${fmt(r.total)}</td><td style="text-align:right"><b>${r.variance > 0 ? '+' : ''}${fmt(r.variance)}</b></td><td>Review nearby gap clusters for possible split or support.</td></tr>`).join('') || `<tr><td colspan="4">No high workload flags in the active scope.</td></tr>`}
         </tbody></table>` : `<div class="ops-sub">No workload flags available.</div>`);
     }
 
     function renderOpsRisk(rows){
       const riskRows = coverageRisk(rows);
-      opsSet('#opsRiskTable', riskRows.length ? `
-        <table class="ops-table ops-tight-table"><thead><tr><th>Manager / Area</th><th style="text-align:right">Gap %</th><th style="text-align:right">Gaps</th><th>Risk</th></tr></thead><tbody>
-        ${riskRows.map(r => `<tr><td><b>${safe(r.manager)}</b><div class="ops-sub">${fmt(r.total)} stores</div></td><td style="text-align:right">${r.gapPct}%</td><td style="text-align:right">${fmt(r.gaps)}</td><td class="ops-risk-${r.risk.toLowerCase()}">${r.risk}</td></tr>`).join('')}
-        </tbody></table>` : `<div class="ops-sub">No coverage risk rows found.</div>`);
+      const groups = ['Critical','Elevated','Moderate','Minimal'];
+      const renderTier = tier => {
+        const arr = riskRows.filter(r => r.tier === tier);
+        if (!arr.length) return '';
+        const table = `<table class="ops-table ops-tight-table"><thead><tr><th>Manager / Area</th><th style="text-align:right">Gap %</th><th style="text-align:right">Gaps</th><th>Tier</th></tr></thead><tbody>
+          ${arr.slice(0, tier === 'Minimal' ? 8 : 12).map(r => `<tr><td><button class="ops-manager-link" type="button" data-manager="${safe(r.manager)}">${safe(r.manager)}</button><div class="ops-sub">${fmt(r.total)} stores</div></td><td style="text-align:right">${r.gapPct}%</td><td style="text-align:right"><b>${fmt(r.gaps)}</b></td><td class="ops-risk-${tier.toLowerCase()}">${tier}</td></tr>`).join('')}
+        </tbody></table>`;
+        if (tier === 'Moderate' || tier === 'Minimal') {
+          return `<details class="ops-tier-block"><summary class="ops-tier-title"><span>${tier} Risk</span><span>${fmt(arr.length)} rows</span></summary>${table}</details>`;
+        }
+        return `<div class="ops-tier-block"><div class="ops-tier-title"><span>${tier} Risk</span><span>${fmt(arr.length)} rows</span></div>${table}</div>`;
+      };
+      opsSet('#opsRiskTable', riskRows.length ? `${groups.map(renderTier).join('')}` : `<div class="ops-sub">No coverage risk rows found.</div>`);
+      wireOpsManagerLinks();
 
       const health = healthRows(rows);
       opsSet('#opsHealthTable', health.length ? `
@@ -10537,9 +10616,25 @@ if (popupHtmlCache.has(cacheKey)){
     }
 
     function renderOpsLeadership(rows, gapCount, hubs, currentPct, worst){
+      const gapRows = topGapRegions(rows);
+      const workRows = rtsWorkload(rows).filter(r => r.total > 0);
+      const overloaded = workRows.filter(r => r.risk !== 'Low');
+      const dedicatedRows = dedicatedExposureRows(rows);
+      const blended = blendedReachDetails(rows);
+      const topDedicated = dedicatedRows.slice().sort((a,b)=>b.gaps-a.gaps)[0];
+      const topWorkload = overloaded[0];
+      const topGap = gapRows[0];
+      const priorities = [];
+      if (topGap) priorities.push({ title:`Address ${topGap.label} gap concentration`, sub:`${fmt(topGap.gaps)} visible uncovered stores${topGap.states ? ` across ${safe(topGap.states)}` : ''}.` });
+      if (topWorkload) priorities.push({ title:`Review ${topWorkload.name} workload balance`, sub:`${fmt(topWorkload.total)} stores, ${fmt(topWorkload.fringe)} fringe stores, variance ${topWorkload.variance > 0 ? '+' : ''}${fmt(topWorkload.variance)} vs recommended capacity.` });
+      if (topDedicated) priorities.push({ title:`Prioritize ${topDedicated.team} dedicated-team exposure`, sub:`${fmt(topDedicated.gaps)} uncovered dedicated stores out of ${fmt(topDedicated.total)} in scope.` });
+      if (blended && (blended.premiumRescueByAcosta + blended.acostaRescueByPremium + blended.crossmarkGain) > 0) priorities.push({ title:'Use Operational Flexibility to explain network resiliency', sub:`${fmt(blended.premiumRescueByAcosta + blended.acostaRescueByPremium)} Premium/Acosta rescue cases and ${fmt(blended.crossmarkGain)} Crossmark stores with RTS access in scope.` });
+      priorities.push({ title:'Keep the 75-mile rule clear', sub:'The One Walmart model expands the active RTS network view; it does not change the underlying 75-mile coverage rule.' });
+
       opsSet('#opsLeadershipSnapshot', `
         <div class="ops-leadership-box">
           <b>One Walmart RTS Coverage Snapshot</b><br>
+          Scope: <b>${opsScopeMode === 'national' ? 'National View' : 'Filtered View'}</b><br>
           Active alignment view: <b>${activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart'}</b><br>
           RTS coverage: <b>${currentPct}%</b><br>
           Active RTS hubs: <b>${fmt(hubs.length)}</b><br>
@@ -10547,18 +10642,22 @@ if (popupHtmlCache.has(cacheKey)){
           Highest risk area: <b>${safe(worst?.manager || 'None identified')}</b>
         </div>`);
       opsSet('#opsTalkingPoints', `
-        <div class="ops-leadership-box"><b>Copy-ready blended reach language:</b><br>
+        <div class="ops-leadership-box"><b>Copy-ready operational flexibility language:</b><br>
         The One Walmart model does not change the 75-mile RTS coverage rule. Its biggest operational benefit is flexibility: legacy Premium, Acosta, and Crossmark-aligned stores can now be viewed against the broader active RTS network, while dedicated teams such as Unilever, P&amp;G, and Tyson remain visible separately.</div>
+        <div class="ops-section-title" style="margin-top:12px"><span>Top Action Priorities</span><span class="ops-sub">auto-ranked</span></div>
+        <div class="ops-priority-list">${priorities.slice(0,5).map((p,i)=>`<div class="ops-priority-card"><b>${i+1}. ${safe(p.title)}</b><div class="ops-sub">${p.sub}</div></div>`).join('')}</div>
         <ul style="margin:10px 0 0 0;padding-left:18px;line-height:1.45">
           <li>The map is operating in <b>${activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart'}</b> mode.</li>
+          <li>The active Ops Intel scope is <b>${opsScopeMode === 'national' ? 'National View' : 'Filtered View'}</b>.</li>
           <li>The highest visible coverage risk is <b>${safe(worst?.manager || 'not currently flagged')}</b>.</li>
           <li>RTS workload ranking should be used to identify overloaded hubs and potential split opportunities.</li>
-          <li>Blended Reach should be used to explain operational flexibility, not as a claim that geography-based coverage rules changed.</li>
+          <li>Operational Flexibility should be used to explain cross-network resiliency, not as a claim that geography-based coverage rules changed.</li>
         </ul>`);
     }
 
     function updateOpsIntel(force=false){
-      const rows = activeRowsInMapExtent();
+      const rows = opsScopeRows();
+      updateOpsScopeUi();
       const stampEl = document.getElementById('opsLastRefresh');
       if (stampEl) stampEl.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
 
@@ -10635,6 +10734,8 @@ if (popupHtmlCache.has(cacheKey)){
       };
     })();
     window.updateOpsIntel = updateOpsIntel;
+    document.getElementById('opsScopeFiltered')?.addEventListener('click', ()=>{ opsScopeMode='filtered'; opsPaneCache={}; updateOpsIntel(true); });
+    document.getElementById('opsScopeNational')?.addEventListener('click', ()=>{ opsScopeMode='national'; opsPaneCache={}; updateOpsIntel(true); });
 
     toggle.onclick = ()=>{
       const willOpen = !drawer.classList.contains('show');
