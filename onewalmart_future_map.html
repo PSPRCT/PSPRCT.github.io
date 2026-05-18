@@ -1476,6 +1476,31 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .ded-columns{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;}
 .ded-columns ul{margin:3px 0 0 15px;padding:0;display:grid;gap:2px;}
 @media(max-width:720px){.op-metric-grid,.ded-columns{grid-template-columns:1fr}.nearest-rts-row{grid-template-columns:1fr}.op-hub-hero,.op-summary-head{display:block}.quality-chip{display:inline-flex;margin-top:6px}}
+
+
+/* ===== Ops Intel Actionability + Leadership UX pass ===== */
+.ops-action-band{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0 10px 0;}
+.ops-action-tile{border:1px solid #dbe3ea;border-radius:12px;background:#fff;padding:9px;}
+.ops-action-tile .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+.ops-action-tile .val{font-size:18px;font-weight:950;color:#0f172a;line-height:1.15;}
+.ops-rec{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin:8px 0;font-size:12.5px;line-height:1.35;}
+.ops-rec b{color:#0f172a;}
+.ops-drill-hint{font-size:11.5px;color:#64748b;margin-top:6px;}
+.ops-rts-link{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:4px 8px;font:inherit;font-weight:850;cursor:pointer;text-align:left;}
+.ops-rts-link:hover{background:#eff6ff;border-color:#60a5fa;}
+.ops-market-link{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:4px 8px;font:inherit;font-weight:850;cursor:pointer;text-align:left;}
+.ops-market-link:hover{background:#eff6ff;border-color:#60a5fa;}
+.ops-loadbar{height:8px;background:#f1f5f9;border-radius:999px;overflow:hidden;margin-top:5px;border:1px solid #e2e8f0;}
+.ops-loadbar span{display:block;height:100%;background:#2563eb;border-radius:999px;}
+.ops-loadbar.high span{background:#f97316;}
+.ops-loadbar.critical span{background:#dc2626;}
+.ops-loadbar.low span{background:#16a34a;}
+.ops-leader-brief{border:1px solid #dbeafe;background:#eff6ff;border-radius:14px;padding:12px;margin-bottom:10px;font-size:13px;line-height:1.4;color:#1e3a8a;}
+.ops-leader-brief b{color:#0f172a;}
+.ops-priority-card .why{margin-top:5px;color:#334155;font-size:12px;line-height:1.35;}
+.ops-priority-card .next{margin-top:6px;border-top:1px solid #e2e8f0;padding-top:6px;color:#1e3a8a;font-size:12px;line-height:1.35;}
+@media(max-width:900px){.ops-action-band{grid-template-columns:1fr;}}
+
 </style>
 </head>
 <body>
@@ -4301,13 +4326,13 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
     <div class="op-section-title">Operational Coverage Mix</div>
     <div class="sp-bars op-bars">
       <div class="sp-bar p"><div class="label">Core One Walmart</div><div class="bar"><div class="fill" style="width:${pct(coreOneWalmartCount)}%"></div></div><b>${coreOneWalmartCount}</b></div>
-      <div class="sp-bar pa"><div class="label">Dedicated Overlay</div><div class="bar"><div class="fill" style="width:${pct(dedicatedOverlayCount)}%"></div></div><b>${dedicatedOverlayCount}</b></div>
+      <div class="sp-bar pa"><div class="label">Dedicated Overlay<br><span style="font-size:10px;font-weight:700;color:#64748b">unique stores</span></div><div class="bar"><div class="fill" style="width:${pct(dedicatedOverlayCount)}%"></div></div><b>${dedicatedOverlayCount}</b></div>
       <div class="sp-bar a"><div class="label">Unilever</div><div class="bar"><div class="fill" style="width:${pct(dedTeamCounts.Unilever || 0)}%"></div></div><b>${dedTeamCounts.Unilever || 0}</b></div>
       <div class="sp-bar pa"><div class="label">P&amp;G</div><div class="bar"><div class="fill" style="width:${pct(dedTeamCounts['P&G'] || 0)}%"></div></div><b>${dedTeamCounts['P&G'] || 0}</b></div>
       <div class="sp-bar u"><div class="label">Tyson</div><div class="bar"><div class="fill" style="width:${pct(dedTeamCounts.Tyson || 0)}%"></div></div><b>${dedTeamCounts.Tyson || 0}</b></div>
     </div>
     <div class="op-hub-note" style="margin-top:8px">
-      <b>Mix note:</b> dedicated team counts are overlays, not exclusions. A store can be counted in Core One Walmart coverage and also in Unilever, P&amp;G, or Tyson exposure. Dedicated team rows may overlap.
+      <b>Mix note:</b> Dedicated Overlay is a <b>unique store count</b> for any Unilever, P&amp;G, or Tyson exposure. The individual team rows are additive visibility layers and may overlap, so they may not add back to the unique overlay total.
     </div>
   `;
 }
@@ -9587,7 +9612,7 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
       <div class="ops-tabs">
         <button class="ops-tab active" data-pane="overview" type="button">Overview</button>
         <button class="ops-tab" data-pane="blended" type="button">Operational Flexibility</button>
-        <button class="ops-tab" data-pane="risk" type="button">Risk</button>
+        <button class="ops-tab" data-pane="risk" type="button">Gaps</button>
         <button class="ops-tab" data-pane="workload" type="button">RTS Load</button>
         <button class="ops-tab" data-pane="leadership" type="button">Leadership</button>
       </div>
@@ -9608,7 +9633,7 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
         </div>
 
         <div class="ops-pane" id="opsPaneRisk">
-          <div class="ops-card"><div class="ops-section-title"><span>Gap Risk</span><span class="ops-sub">manager risk</span></div><div id="opsRiskTable"></div></div>
+          <div class="ops-card"><div class="ops-section-title"><span>Gap Prioritization</span><span class="ops-sub">manager risk + action</span></div><div id="opsRiskTable"></div></div>
           <div class="ops-card"><div class="ops-section-title"><span>Region Health Score</span><span class="ops-sub">red / yellow / green</span></div><div id="opsHealthTable"></div></div>
         </div>
 
@@ -10481,28 +10506,39 @@ if (popupHtmlCache.has(cacheKey)){
       if (!drawer || drawer.dataset.managerLinksWired === '1') return;
       drawer.dataset.managerLinksWired = '1';
       drawer.addEventListener('click', (e)=>{
-        const btn = e.target.closest('.ops-manager-link');
-        if (!btn) return;
+        const managerBtn = e.target.closest('.ops-manager-link');
+        const rtsBtn = e.target.closest('.ops-rts-link');
+        const marketBtn = e.target.closest('.ops-market-link');
+        if (!managerBtn && !rtsBtn && !marketBtn) return;
         e.preventDefault();
         e.stopPropagation();
 
-        const manager = btn.dataset.manager || '';
-        const rmOptions = Array.from(rmFilter?.options || []).map(o => o.value);
-        const amOptions = Array.from(amFilter?.options || []).map(o => o.value);
-        const isRM = rmOptions.includes(manager);
-        const isAM = amOptions.includes(manager);
+        const scopeNote = drawer.querySelector('#opsScopeHelp');
 
-        if (isRM) {
-          setMulti(rmFilter, [manager]);
-          setMulti(amFilter, ['All']);
-          cascadeAM?.();
-        } else if (isAM) {
-          setMulti(amFilter, [manager]);
-          setMulti(rmFilter, ['All']);
-          cascadeRM?.();
-        } else {
-          searchBox.value = manager;
+        if (rtsBtn) {
+          const hubId = rtsBtn.dataset.hubId || '';
+          const hubName = rtsBtn.dataset.hubName || rtsBtn.textContent || '';
+          const hub = visibleHubs().find(h => h.id === hubId || h.name === hubName || h.fullName === hubName) || activeVisibleHubs().find(h => h.id === hubId || h.name === hubName || h.fullName === hubName);
+          if (hub) {
+            openSidepanel?.(hub);
+            map.panInside(hub.coords, { paddingTopLeft:[20,20], paddingBottomRight:[420,20] });
+            if (scopeNote) scopeNote.textContent = `Opened RTS hub ${hubDisplay(hub)}. Use the hub panel for the covered-store list, fringe stores, and export/print actions.`;
+          }
+          return;
         }
+
+        if (marketBtn) {
+          const market = marketBtn.dataset.market || '';
+          const [cityRaw, stateRaw] = market.split(',').map(x => String(x || '').trim());
+          if (cityRaw) searchBox.value = stateRaw ? `${cityRaw}, ${stateRaw}` : cityRaw;
+          handleSearchInput?.();
+          if (scopeNote) scopeNote.textContent = `Market drilldown started for ${market}. Select a search result or use the map after it centers.`;
+          return;
+        }
+
+        const manager = managerBtn.dataset.manager || '';
+        const matched = opsSetFilteredManager(manager);
+        if (!matched) searchBox.value = manager;
 
         lastFilterChanged = 'opsManagerDrilldown';
         runFilter();
@@ -10510,13 +10546,66 @@ if (popupHtmlCache.has(cacheKey)){
         saveState();
         updateEnhancedUi?.();
 
-        const scopeNote = drawer.querySelector('#opsScopeHelp');
-        if (scopeNote) scopeNote.textContent = isRM || isAM
+        if (scopeNote) scopeNote.textContent = matched
           ? `Drilled into ${manager}. Switch to Filtered View to analyze only that manager, or National View to ignore map filters.`
           : `Could not match ${manager} to the main RM/AM filters; placed the name in search.`;
 
         setTimeout(()=>{ fitToResults(); updateOpsIntel(true); }, 140);
       });
+    }
+
+    function opsActionForGap(r){
+      if (!r) return 'No manager action needed.';
+      if ((r.gaps || 0) >= 100) return 'Open the manager drilldown, review the largest uncovered city clusters, and evaluate whether an RTS split/support placement is needed.';
+      if ((r.gaps || 0) >= 40) return 'Use the drilldown to identify the top 2–3 uncovered markets and confirm whether remote training should be the default fallback.';
+      return 'Monitor as a lower-priority gap and validate whether the uncovered stores are isolated or tied to one market.';
+    }
+
+    function opsActionForWorkload(r){
+      if (!r) return 'No workload action needed.';
+      if (r.risk === 'High' || r.risk === 'Critical') return 'Review fringe stores and nearby gap clusters for possible workload relief, split support, or backup assignment.';
+      if (r.risk === 'Watch') return 'Monitor distance/fringe mix before adding more stores to this RTS.';
+      return 'No immediate balancing action needed.';
+    }
+
+    function opsRtsLoadClass(r){
+      if (!r) return 'low';
+      if (r.risk === 'Critical' || (r.overloadPct || 0) >= 150) return 'critical';
+      if (r.risk === 'High' || (r.overloadPct || 0) >= 115) return 'high';
+      return 'low';
+    }
+
+    function opsLoadBar(r){
+      const pctVal = Math.max(5, Math.min(100, Number(r?.overloadPct || 0)));
+      return `<div class="ops-loadbar ${opsRtsLoadClass(r)}"><span style="width:${pctVal}%"></span></div>`;
+    }
+
+    function opsSetFilteredManager(manager){
+      const rmOptions = Array.from(rmFilter?.options || []).map(o => o.value);
+      const amOptions = Array.from(amFilter?.options || []).map(o => o.value);
+      if (rmOptions.includes(manager)) {
+        setMulti(rmFilter, [manager]);
+        setMulti(amFilter, ['All']);
+        cascadeAM?.();
+        return true;
+      }
+      if (amOptions.includes(manager)) {
+        setMulti(amFilter, [manager]);
+        setMulti(rmFilter, ['All']);
+        cascadeRM?.();
+        return true;
+      }
+      return false;
+    }
+
+    function opsTopStatesText(rows, limit=4){
+      const by = new Map();
+      (rows || []).forEach(s => {
+        if (!gap(s)) return;
+        const st = String(s.state || 'Unknown').trim() || 'Unknown';
+        by.set(st, (by.get(st) || 0) + 1);
+      });
+      return [...by.entries()].sort((a,b)=>b[1]-a[1]).slice(0,limit).map(([s,n])=>`${s} ${fmt(n)}`).join(' · ') || 'No state concentration';
     }
 
     function renderOpsOverview(rows, gapCount, coveredCount, hubs){
@@ -10528,6 +10617,7 @@ if (popupHtmlCache.has(cacheKey)){
           <div class="ops-mini-card"><div class="lbl">Dedicated Gaps</div><div class="val">${fmt(dedicatedRows.reduce((a,r)=>a+r.gaps,0))}</div><div class="sub">Unilever / P&amp;G / Tyson exposure</div></div>
           <div class="ops-mini-card"><div class="lbl">RTS Load Warnings</div><div class="val">${fmt(workloadWarnings.length)}</div><div class="sub">High/Watch active hubs</div></div>
         </div>
+        ${gapRows[0] ? `<div class="ops-rec"><b>Recommended next action:</b> ${safe(opsActionForGap(gapRows[0]))}<div class="ops-drill-hint">Use the region button below to drill into the map without recalculating the full national view.</div></div>` : ''}
         ${gapRows.length ? `
         <table class="ops-table ops-tight-table"><thead><tr><th>Region</th><th style="text-align:right">Gaps</th><th>States</th></tr></thead><tbody>
         ${gapRows.map(r => `<tr><td><button class="ops-manager-link" type="button" data-manager="${safe(r.label)}">${safe(r.label)}</button></td><td style="text-align:right"><b>${fmt(r.gaps)}</b></td><td>${safe(r.states || '—')}</td></tr>`).join('')}
@@ -10548,11 +10638,11 @@ if (popupHtmlCache.has(cacheKey)){
       const addedOptionCount = blended.premiumAddedAcostaOption + blended.acostaAddedPremiumOption;
       const br = drawer.querySelector('#opsBlendedReach');
       if (br) br.innerHTML = `
-        <div class="ops-blended-note"><b>Operational Flexibility framing:</b> This tab now focuses on <b>meaningful cross-team RTS flexibility</b>, not generic ownership change. A store appears here only when the legacy alignment and the RTS team are different under the same 75-mile rule.</div>
+        <div class="ops-blended-note"><b>Operational Flexibility framing:</b> This tab now focuses on <b>meaningful cross-team RTS flexibility</b>, not generic ownership change. A store appears here only when the pre-merger coverage network and the available blended RTS support differ under the same 75-mile rule.</div>
         ${blended.teamKnown ? '' : '<div class="ops-blended-note"><b>Source team note:</b> RTS legacy team labels are incomplete, so Premium-vs-Acosta flexibility counts may be understated until sourceTeam/legacyTeam is fully populated.</div>'}
         <div class="ops-blended-kpis ops-blended-kpis-compact">
-          <div class="ops-blended-kpi"><div class="lbl">Premium stores rescued by Acosta RTS</div><div class="val">${fmt(blended.premiumRescueByAcosta)}</div><div class="sub">No Premium RTS in range before</div></div>
-          <div class="ops-blended-kpi"><div class="lbl">Acosta stores rescued by Premium RTS</div><div class="val">${fmt(blended.acostaRescueByPremium)}</div><div class="sub">No Acosta RTS in range before</div></div>
+          <div class="ops-blended-kpi"><div class="lbl">Premium-network stores gaining Acosta RTS support</div><div class="val">${fmt(blended.premiumRescueByAcosta)}</div><div class="sub">No same-network Premium RTS in range before</div></div>
+          <div class="ops-blended-kpi"><div class="lbl">Acosta-network stores gaining Premium RTS support</div><div class="val">${fmt(blended.acostaRescueByPremium)}</div><div class="sub">No same-network Acosta RTS in range before</div></div>
           <div class="ops-blended-kpi"><div class="lbl">Already-covered stores gaining backup RTS option</div><div class="val">${fmt(addedOptionCount)}</div><div class="sub">Same-team + cross-team RTS in range</div></div>
           <div class="ops-blended-kpi"><div class="lbl">Crossmark stores gaining RTS access</div><div class="val">${fmt(blended.crossmarkGain)}</div><div class="sub">Shown separately because Crossmark had no RTS team</div></div>
         </div>
@@ -10569,13 +10659,13 @@ if (popupHtmlCache.has(cacheKey)){
       if (bm) bm.innerHTML = `
         ${blended.marketRows.length ? `
         <table class="ops-table ops-tight-table"><thead><tr><th>Market</th><th style="text-align:right">Total</th><th style="text-align:right">Premium rescued by Acosta</th><th style="text-align:right">Acosta rescued by Premium</th><th style="text-align:right">Backup option</th></tr></thead><tbody>
-        ${blended.marketRows.map(r => `<tr><td><b>${safe(r.market)}</b></td><td style="text-align:right">${fmt(r.total)}</td><td style="text-align:right">${fmt(r.premiumRescueByAcosta)}</td><td style="text-align:right">${fmt(r.acostaRescueByPremium)}</td><td style="text-align:right">${fmt((r.premiumAddedAcostaOption||0)+(r.acostaAddedPremiumOption||0))}</td></tr>`).join('')}
+        ${blended.marketRows.map(r => `<tr><td><button class="ops-market-link" type="button" data-market="${safe(r.market)}">${safe(r.market)}</button></td><td style="text-align:right">${fmt(r.total)}</td><td style="text-align:right">${fmt(r.premiumRescueByAcosta)}</td><td style="text-align:right">${fmt(r.acostaRescueByPremium)}</td><td style="text-align:right">${fmt((r.premiumAddedAcostaOption||0)+(r.acostaAddedPremiumOption||0))}</td></tr>`).join('')}
         </tbody></table>` : `<div class="ops-sub">No Premium/Acosta cross-team flexibility found in the active view.</div>`}
         <div class="ops-section-title" style="margin-top:12px"><span>Store-level cross-team RTS comparison</span><span class="ops-sub">only meaningful Premium ↔ Acosta cases</span></div>
-        ${blended.detailRows.length ? `<table class="ops-table ops-tight-table"><thead><tr><th>Market / Store</th><th>Legacy alignment</th><th>Prior eligible RTS</th><th>New cross-team RTS</th><th>Why it matters</th></tr></thead><tbody>
+        ${blended.detailRows.length ? `<table class="ops-table ops-tight-table"><thead><tr><th>Market / Store</th><th>Pre-merger network view</th><th>Prior eligible RTS</th><th>New cross-team RTS</th><th>Why it matters</th></tr></thead><tbody>
         ${blended.detailRows.slice(0,60).map(r => `<tr>
-          <td><b>${safe(r.market)}</b><div class="ops-sub">Store ${safe(r.store.storeNumberStr || '')}</div></td>
-          <td>${teamLabelShort(r.legacy)}<div class="ops-sub">${r.priority === 'rescue' ? 'Coverage gap before blend' : 'Already covered; gains backup'}</div></td>
+          <td><button class="ops-market-link" type="button" data-market="${safe(r.market)}">${safe(r.market)}</button><div class="ops-sub">Store ${safe(r.store.storeNumberStr || '')}</div></td>
+          <td>${teamLabelShort(r.legacy)}<div class="ops-sub">${r.priority === 'rescue' ? 'No same-network RTS within 75 mi' : 'Already same-network covered; gains backup'}</div></td>
           <td>${renderPrior(r)}</td>
           <td>${renderNew(r)}</td>
           <td>${safe(r.label)}</td>
@@ -10585,8 +10675,8 @@ if (popupHtmlCache.has(cacheKey)){
         <details class="ops-help-details" style="margin-top:12px">
           <summary><b>Crossmark RTS access</b> <span>${fmt(blended.crossmarkGain)} stores</span></summary>
           <div class="ops-help-box">Crossmark is separated because it did not previously have a distinct RTS network. These rows are useful for access visibility, but they should not be mixed with Premium ↔ Acosta cross-network flexibility.</div>
-          ${blended.crossmarkMarketRows.length ? `<table class="ops-table ops-tight-table"><thead><tr><th>Market</th><th style="text-align:right">Crossmark stores with RTS access</th></tr></thead><tbody>${blended.crossmarkMarketRows.map(r => `<tr><td><b>${safe(r.market)}</b></td><td style="text-align:right">${fmt(r.total)}</td></tr>`).join('')}</tbody></table>` : ''}
-          ${blended.crossmarkRows.length ? `<table class="ops-table ops-tight-table"><thead><tr><th>Market / Store</th><th>Closest blended RTS</th><th>Explanation</th></tr></thead><tbody>${blended.crossmarkRows.slice(0,40).map(r => `<tr><td><b>${safe(r.market)}</b><div class="ops-sub">Store ${safe(r.store.storeNumberStr || '')}</div></td><td>${renderNew(r)}</td><td>${safe(r.label)}</td></tr>`).join('')}</tbody></table>${blended.crossmarkRows.length > 40 ? `<div class="ops-sub" style="margin-top:6px">Showing first 40 of ${fmt(blended.crossmarkRows.length)} Crossmark rows.</div>` : ''}` : ''}
+          ${blended.crossmarkMarketRows.length ? `<table class="ops-table ops-tight-table"><thead><tr><th>Market</th><th style="text-align:right">Crossmark stores with RTS access</th></tr></thead><tbody>${blended.crossmarkMarketRows.map(r => `<tr><td><button class="ops-market-link" type="button" data-market="${safe(r.market)}">${safe(r.market)}</button></td><td style="text-align:right">${fmt(r.total)}</td></tr>`).join('')}</tbody></table>` : ''}
+          ${blended.crossmarkRows.length ? `<table class="ops-table ops-tight-table"><thead><tr><th>Market / Store</th><th>Closest blended RTS</th><th>Explanation</th></tr></thead><tbody>${blended.crossmarkRows.slice(0,40).map(r => `<tr><td><button class="ops-market-link" type="button" data-market="${safe(r.market)}">${safe(r.market)}</button><div class="ops-sub">Store ${safe(r.store.storeNumberStr || '')}</div></td><td>${renderNew(r)}</td><td>${safe(r.label)}</td></tr>`).join('')}</tbody></table>${blended.crossmarkRows.length > 40 ? `<div class="ops-sub" style="margin-top:6px">Showing first 40 of ${fmt(blended.crossmarkRows.length)} Crossmark rows.</div>` : ''}` : ''}
         </details>
       `;
     }
@@ -10605,14 +10695,14 @@ if (popupHtmlCache.has(cacheKey)){
         <div class="ops-context-note"><b>Scope: ${scopeName}.</b> ${contextNote}</div>
         ${activeRows.length ? `
         <table class="ops-table ops-tight-table"><thead><tr><th>RTS</th><th style="text-align:right">Stores</th><th style="text-align:right">Recommended</th><th style="text-align:right">Variance</th><th style="text-align:right">Avg mi</th><th style="text-align:right">Max mi</th><th style="text-align:right">Stress</th><th>Risk</th></tr></thead><tbody>
-        ${activeRows.map(r => `<tr><td><b>${safe(r.name)}</b><div class="ops-sub">${fmt(r.gaps)} current gaps · ${fmt(r.fringe)} fringe stores · ${r.overloadPct}% of recommended</div></td><td style="text-align:right">${fmt(r.total)}</td><td style="text-align:right">${fmt(r.recommendedCapacity)}</td><td style="text-align:right"><b>${r.variance > 0 ? '+' : ''}${fmt(r.variance)}</b></td><td style="text-align:right">${r.avgMiles.toFixed(1)}</td><td style="text-align:right">${r.maxMiles.toFixed(1)}</td><td style="text-align:right"><b>${r.stressScore}</b></td><td class="ops-risk-${r.risk.toLowerCase()}">${r.risk}</td></tr>`).join('')}
+        ${activeRows.map(r => `<tr><td><button class="ops-rts-link" type="button" data-hub-id="${safe(r.hubId || '')}" data-hub-name="${safe(r.name)}">${safe(r.name)}</button><div class="ops-sub">${fmt(r.gaps)} current gaps · ${fmt(r.fringe)} fringe stores · ${r.overloadPct}% of recommended</div>${opsLoadBar(r)}<div class="ops-drill-hint">${safe(opsActionForWorkload(r))}</div></td><td style="text-align:right">${fmt(r.total)}</td><td style="text-align:right">${fmt(r.recommendedCapacity)}</td><td style="text-align:right"><b>${r.variance > 0 ? '+' : ''}${fmt(r.variance)}</b></td><td style="text-align:right">${r.avgMiles.toFixed(1)}</td><td style="text-align:right">${r.maxMiles.toFixed(1)}</td><td style="text-align:right"><b>${r.stressScore}</b></td><td class="ops-risk-${r.risk.toLowerCase()}">${r.risk}</td></tr>`).join('')}
         </tbody></table>` : `<div class="ops-sub">No active RTS assignments found for the current scope.</div>`}
         ${idleRows.length ? `<details class="ops-muted-section"><summary><span>RTS with no stores in this scope</span><span>${fmt(idleRows.length)}</span></summary><div class="ops-sub" style="padding:8px 10px">These RTS are not missing data; they simply have no stores within the selected scope.</div></details>` : ''}` : `<div class="ops-sub">No active RTS hub data in the current view.</div>`);
 
       opsSet('#opsBalanceFlags', workRowsAll.length ? `
         <div class="ops-context-note"><b>Capacity watchlist scope:</b> ${scopeName}.</div>
         <table class="ops-table ops-tight-table"><thead><tr><th>Flag</th><th style="text-align:right">Stores</th><th style="text-align:right">Variance</th><th>Suggested action</th></tr></thead><tbody>
-        ${workRowsAll.filter(r => r.total > 0 && r.risk !== 'Low').slice(0,8).map(r => `<tr><td><b>${safe(r.name)}</b><div class="ops-sub">${r.risk} workload · ${fmt(r.fringe)} fringe stores</div></td><td style="text-align:right">${fmt(r.total)}</td><td style="text-align:right"><b>${r.variance > 0 ? '+' : ''}${fmt(r.variance)}</b></td><td>Review nearby gap clusters for possible split or support.</td></tr>`).join('') || `<tr><td colspan="4">No high workload flags in the active scope.</td></tr>`}
+        ${workRowsAll.filter(r => r.total > 0 && r.risk !== 'Low').slice(0,8).map(r => `<tr><td><button class="ops-rts-link" type="button" data-hub-id="${safe(r.hubId || '')}" data-hub-name="${safe(r.name)}">${safe(r.name)}</button><div class="ops-sub">${r.risk} workload · ${fmt(r.fringe)} fringe stores</div></td><td style="text-align:right">${fmt(r.total)}</td><td style="text-align:right"><b>${r.variance > 0 ? '+' : ''}${fmt(r.variance)}</b></td><td>${safe(opsActionForWorkload(r))}</td></tr>`).join('') || `<tr><td colspan="4">No high workload flags in the active scope.</td></tr>`}
         </tbody></table>` : `<div class="ops-sub">No workload flags available.</div>`);
     }
 
@@ -10622,8 +10712,8 @@ if (popupHtmlCache.has(cacheKey)){
       const renderTier = tier => {
         const arr = riskRows.filter(r => r.tier === tier);
         if (!arr.length) return '';
-        const table = `<table class="ops-table ops-tight-table"><thead><tr><th>Manager / Area</th><th style="text-align:right">Gap %</th><th style="text-align:right">Gaps</th><th>Tier</th></tr></thead><tbody>
-          ${arr.slice(0, tier === 'Minimal' ? 8 : 12).map(r => `<tr><td><button class="ops-manager-link" type="button" data-manager="${safe(r.manager)}">${safe(r.manager)}</button><div class="ops-sub">${fmt(r.total)} stores</div></td><td style="text-align:right">${r.gapPct}%</td><td style="text-align:right"><b>${fmt(r.gaps)}</b></td><td class="ops-risk-${tier.toLowerCase()}">${tier}</td></tr>`).join('')}
+        const table = `<table class="ops-table ops-tight-table"><thead><tr><th>Manager / Area</th><th style="text-align:right">Gap %</th><th style="text-align:right">Gaps</th><th>Tier</th><th>Recommended action</th></tr></thead><tbody>
+          ${arr.slice(0, tier === 'Minimal' ? 8 : 12).map(r => `<tr><td><button class="ops-manager-link" type="button" data-manager="${safe(r.manager)}">${safe(r.manager)}</button><div class="ops-sub">${fmt(r.total)} stores</div></td><td style="text-align:right">${r.gapPct}%</td><td style="text-align:right"><b>${fmt(r.gaps)}</b></td><td class="ops-risk-${tier.toLowerCase()}">${tier}</td><td>${safe(opsActionForGap(r))}</td></tr>`).join('')}
         </tbody></table>`;
         if (tier === 'Moderate' || tier === 'Minimal') {
           return `<details class="ops-tier-block"><summary class="ops-tier-title"><span>${tier} Risk</span><span>${fmt(arr.length)} rows</span></summary>${table}</details>`;
@@ -10649,33 +10739,72 @@ if (popupHtmlCache.has(cacheKey)){
       const topDedicated = dedicatedRows.slice().sort((a,b)=>b.gaps-a.gaps)[0];
       const topWorkload = overloaded[0];
       const topGap = gapRows[0];
+      const dedicatedGapTotal = dedicatedRows.reduce((a,r)=>a+(r.gaps||0),0);
+      const rescueCases = blended ? (blended.premiumRescueByAcosta + blended.acostaRescueByPremium) : 0;
+      const stateText = opsTopStatesText(rows);
+      const healthLine = currentPct >= 75 ? 'coverage is strong nationally, with targeted watch areas.' : currentPct >= 60 ? 'coverage is moderate; gap action should focus on concentrated markets first.' : 'coverage needs targeted action, especially where gaps and workload stress overlap.';
       const priorities = [];
-      if (topGap) priorities.push({ title:`Address ${topGap.label} gap concentration`, sub:`${fmt(topGap.gaps)} visible uncovered stores${topGap.states ? ` across ${safe(topGap.states)}` : ''}.` });
-      if (topWorkload) priorities.push({ title:`Review ${topWorkload.name} workload balance`, sub:`${fmt(topWorkload.total)} stores, ${fmt(topWorkload.fringe)} fringe stores, variance ${topWorkload.variance > 0 ? '+' : ''}${fmt(topWorkload.variance)} vs recommended capacity.` });
-      if (topDedicated) priorities.push({ title:`Prioritize ${topDedicated.team} dedicated-team exposure`, sub:`${fmt(topDedicated.gaps)} uncovered dedicated stores out of ${fmt(topDedicated.total)} in scope.` });
-      if (blended && (blended.premiumRescueByAcosta + blended.acostaRescueByPremium + blended.crossmarkGain) > 0) priorities.push({ title:'Use Operational Flexibility to explain network resiliency', sub:`${fmt(blended.premiumRescueByAcosta + blended.acostaRescueByPremium)} Premium/Acosta rescue cases and ${fmt(blended.crossmarkGain)} Crossmark stores with RTS access in scope.` });
-      priorities.push({ title:'Keep the 75-mile rule clear', sub:'The One Walmart model expands the active RTS network view; it does not change the underlying 75-mile coverage rule.' });
+
+      if (topGap) priorities.push({
+        title:`Address ${topGap.label} gap concentration`,
+        sub:`${fmt(topGap.gaps)} uncovered stores${topGap.states ? ` across ${safe(topGap.states)}` : ''}.`,
+        why:'This is the clearest coverage concentration and should be the first drilldown before discussing new RTS coverage options.',
+        next:opsActionForGap(topGap)
+      });
+      if (topWorkload) priorities.push({
+        title:`Balance ${topWorkload.name} workload before assigning more reach`,
+        sub:`${fmt(topWorkload.total)} stores, ${fmt(topWorkload.fringe)} fringe stores, variance ${topWorkload.variance > 0 ? '+' : ''}${fmt(topWorkload.variance)} vs recommended capacity.`,
+        why:'A high-load RTS may technically cover stores but still create execution risk due to distance, fringe volume, or too many supported locations.',
+        next:opsActionForWorkload(topWorkload)
+      });
+      if (topDedicated && topDedicated.gaps > 0) priorities.push({
+        title:`Resolve ${topDedicated.team} dedicated-team exposure`,
+        sub:`${fmt(topDedicated.gaps)} uncovered dedicated stores out of ${fmt(topDedicated.total)} in scope.`,
+        why:'Dedicated-team visibility is additive; these stores can also be part of Core One Walmart coverage but still need client-specific visibility.',
+        next:'Use Dedicated Team Rollup or dedicated filters to identify the responsible dedicated manager and the uncovered store cluster.'
+      });
+      if (rescueCases + (blended?.crossmarkGain || 0) > 0) priorities.push({
+        title:'Use Operational Flexibility as the resiliency story',
+        sub:`${fmt(rescueCases)} Premium/Acosta cross-network support cases and ${fmt(blended.crossmarkGain)} Crossmark stores with RTS access in scope.`,
+        why:'This explains the benefit of the combined RTS network without implying the 75-mile coverage rule changed.',
+        next:'Present this as backup/support flexibility, then keep operational decisions anchored to active 75-mile coverage.'
+      });
+      priorities.push({
+        title:'Keep the 75-mile rule clear',
+        sub:'The One Walmart model expands the active RTS network view; it does not change the underlying 75-mile coverage rule.',
+        why:'This prevents leadership confusion between broader visibility and actual routeable coverage.',
+        next:'Use the RTS hub panel and Gap tab drilldowns for store-level validation before staffing decisions.'
+      });
 
       opsSet('#opsLeadershipSnapshot', `
+        <div class="ops-leader-brief">
+          <b>Executive readout:</b> One Walmart RTS coverage is <b>${currentPct}%</b> in <b>${opsScopeMode === 'national' ? 'National View' : 'Filtered View'}</b>; ${healthLine}
+          Current uncovered exposure is <b>${fmt(gapCount)}</b> stores, with the largest visible concentration in <b>${safe(worst?.manager || topGap?.label || 'no flagged area')}</b>.
+        </div>
+        <div class="ops-action-band">
+          <div class="ops-action-tile"><div class="lbl">Coverage</div><div class="val">${currentPct}%</div><div class="ops-sub">${fmt(rows.length-gapCount)} covered / ${fmt(rows.length)} stores</div></div>
+          <div class="ops-action-tile"><div class="lbl">Gap focus</div><div class="val">${safe(topGap?.label || 'None')}</div><div class="ops-sub">${topGap ? fmt(topGap.gaps)+' gaps' : 'No top gap'}</div></div>
+          <div class="ops-action-tile"><div class="lbl">Workload watch</div><div class="val">${fmt(overloaded.length)}</div><div class="ops-sub">RTS hubs above low-risk load</div></div>
+        </div>
         <div class="ops-leadership-box">
           <b>One Walmart RTS Coverage Snapshot</b><br>
           Scope: <b>${opsScopeMode === 'national' ? 'National View' : 'Filtered View'}</b><br>
           Active alignment view: <b>${activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart'}</b><br>
-          RTS coverage: <b>${currentPct}%</b><br>
           Active RTS hubs: <b>${fmt(hubs.length)}</b><br>
           Visible gap stores: <b>${fmt(gapCount)}</b><br>
-          Highest risk area: <b>${safe(worst?.manager || 'None identified')}</b>
+          Largest state concentrations: <b>${safe(stateText)}</b><br>
+          Dedicated gap exposure: <b>${fmt(dedicatedGapTotal)}</b>
         </div>`);
       opsSet('#opsTalkingPoints', `
-        <div class="ops-leadership-box"><b>Copy-ready operational flexibility language:</b><br>
-        The One Walmart model does not change the 75-mile RTS coverage rule. Its biggest operational benefit is flexibility: legacy Premium, Acosta, and Crossmark-aligned stores can now be viewed against the broader active RTS network, while dedicated teams such as Unilever, P&amp;G, and Tyson remain visible separately.</div>
+        <div class="ops-leadership-box"><b>Copy-ready leadership language:</b><br>
+        The One Walmart model keeps the same 75-mile RTS coverage rule while improving operational flexibility. Core One Walmart coverage should be read as active RTS reach; Unilever, P&amp;G, and Tyson remain additive visibility layers, not deductions from core coverage.</div>
         <div class="ops-section-title" style="margin-top:12px"><span>Top Action Priorities</span><span class="ops-sub">auto-ranked</span></div>
-        <div class="ops-priority-list">${priorities.slice(0,5).map((p,i)=>`<div class="ops-priority-card"><b>${i+1}. ${safe(p.title)}</b><div class="ops-sub">${p.sub}</div></div>`).join('')}</div>
+        <div class="ops-priority-list">${priorities.slice(0,5).map((p,i)=>`<div class="ops-priority-card"><b>${i+1}. ${safe(p.title)}</b><div class="ops-sub">${p.sub}</div><div class="why"><b>Why it matters:</b> ${safe(p.why)}</div><div class="next"><b>Next step:</b> ${safe(p.next)}</div></div>`).join('')}</div>
         <ul style="margin:10px 0 0 0;padding-left:18px;line-height:1.45">
           <li>The map is operating in <b>${activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart'}</b> mode.</li>
           <li>The active Ops Intel scope is <b>${opsScopeMode === 'national' ? 'National View' : 'Filtered View'}</b>.</li>
-          <li>The highest visible coverage risk is <b>${safe(worst?.manager || 'not currently flagged')}</b>.</li>
-          <li>RTS workload ranking should be used to identify overloaded hubs and potential split opportunities.</li>
+          <li>The highest visible coverage risk is <b>${safe(worst?.manager || topGap?.label || 'not currently flagged')}</b>.</li>
+          <li>RTS workload ranking should be used to identify overloaded hubs, fringe stores, and split/support opportunities.</li>
           <li>Operational Flexibility should be used to explain cross-network resiliency, not as a claim that geography-based coverage rules changed.</li>
         </ul>`);
     }
