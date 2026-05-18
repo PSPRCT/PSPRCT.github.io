@@ -1407,6 +1407,49 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .ops-manager-link{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:4px 8px;font:inherit;font-weight:800;cursor:pointer;text-align:left;}
 .ops-manager-link:hover{background:#eff6ff;border-color:#60a5fa;}
 @media(max-width:900px){.ops-mini-grid{grid-template-columns:1fr;}}
+
+
+/* ===== One Walmart Operational Reframe: RTS hub panel + store popup v2 ===== */
+.op-hub-hero{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border:1px solid #dbeafe;background:#eff6ff;border-radius:14px;padding:10px;margin-bottom:8px;}
+.op-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:950;color:#1d4ed8;}
+.op-role{font-size:18px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
+.op-status{font-weight:850;white-space:nowrap;}
+.op-status.stable{background:#ecfdf5;border-color:#10b981;color:#065f46;}
+.op-status.watch{background:#fffbeb;border-color:#f59e0b;color:#92400e;}
+.op-status.high{background:#fff7ed;border-color:#fb923c;color:#9a3412;}
+.op-status.critical{background:#fef2f2;border-color:#ef4444;color:#991b1b;}
+.op-status.planning{background:#f8fafc;border-color:#94a3b8;color:#475569;}
+.op-metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.op-metric{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px;}
+.op-metric .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:900;}
+.op-metric .val{font-size:20px;font-weight:950;color:#0f172a;line-height:1.15;}
+.op-hub-note{border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;padding:9px 10px;margin-top:10px;font-size:12.5px;line-height:1.35;color:#334155;}
+.op-section-title{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;font-weight:950;margin-top:10px;margin-bottom:6px;}
+.op-bars .sp-bar .label{width:88px;}
+.op-bars .sp-bar b{min-width:28px;text-align:right;font-size:12px;color:#0f172a;}
+.op-popup-v2{max-width:540px;}
+.op-summary-card{border:1px solid #bfdbfe;background:#eff6ff;border-radius:14px;padding:10px 12px;margin-top:10px;}
+.op-summary-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:6px;}
+.op-summary-head span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#1d4ed8;font-weight:950;}
+.op-summary-head b{display:block;font-size:17px;color:#0f172a;line-height:1.15;}
+.op-summary-card ul{margin:6px 0 0 18px;padding:0;display:grid;gap:3px;color:#1f2937;}
+.quality-chip{border:1px solid #cbd5e1;border-radius:999px;background:#fff;padding:4px 9px;font-weight:900;white-space:nowrap;font-size:12px;}
+.quality-chip.stable{background:#ecfdf5;border-color:#10b981;color:#065f46;}
+.quality-chip.watch{background:#fffbeb;border-color:#f59e0b;color:#92400e;}
+.quality-chip.gap{background:#fef2f2;border-color:#ef4444;color:#991b1b;}
+.nearest-rts-list{display:grid;gap:5px;margin-top:6px;}
+.nearest-rts-row{display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:center;border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:6px 8px;}
+.nearest-rts-row span{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;font-weight:950;}
+.nearest-rts-row b{font-size:12.5px;color:#111827;}
+.nearest-rts-row em{font-style:normal;font-weight:850;color:#475569;white-space:nowrap;}
+.nearest-rts-row.primary{border-color:#10b981;background:#ecfdf5;}
+.ded-group{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:8px;margin-bottom:7px;}
+.ded-group:last-child{margin-bottom:0;}
+.ded-group-title{display:flex;justify-content:space-between;gap:8px;font-weight:950;color:#111827;margin-bottom:6px;}
+.ded-group-title span{font-size:11px;color:#64748b;font-weight:850;}
+.ded-columns{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;}
+.ded-columns ul{margin:3px 0 0 15px;padding:0;display:grid;gap:2px;}
+@media(max-width:720px){.op-metric-grid,.ded-columns{grid-template-columns:1fr}.nearest-rts-row{grid-template-columns:1fr}.op-hub-hero,.op-summary-head{display:block}.quality-chip{display:inline-flex;margin-top:6px}}
 </style>
 </head>
 <body>
@@ -4140,57 +4183,97 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
   function renderSidepanelMeta(){
   if(!spHub) return;
   const r = Number(radius.value)||DEFAULT_RADIUS;
-  // Pending/future hubs are planning-only.
-// Show nearby stores for reference, but do not imply they count toward current coverage.
-const stores = storesWithin(spHub.coords, r);
-const isFutureHub = spHub.status === 'pending';
+  const stores = storesWithin(spHub.coords, r).map(s => Object.assign({}, s, {
+    _distMiles: distMiles(spHub.coords[0], spHub.coords[1], s.lat, s.lng)
+  }));
+  const isFutureHub = spHub.status === 'pending';
   const [hlat, hlng] = spHub.coords;
   const gHub = `https://www.google.com/maps?q=${encodeURIComponent(hlat+','+hlng)}`;
   const aHub = `http://maps.apple.com/?ll=${encodeURIComponent(hlat+','+hlng)}`;
 
-  const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
-  stores.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0) + 1; });
+  const covered = stores.filter(s => (s.coverageType || '') !== 'Uncovered');
+  const uncovered = stores.filter(s => (s.coverageType || '') === 'Uncovered');
+  const fringe = covered.filter(s => Number(s._distMiles) >= 60 && Number(s._distMiles) <= 75);
+  const avgMi = covered.length ? covered.reduce((a,s)=>a + Number(s._distMiles || 0),0) / covered.length : 0;
+  const maxMi = covered.length ? Math.max(...covered.map(s => Number(s._distMiles || 0))) : 0;
 
-const statusChip = isFutureHub
-  ? `<span class="sp-chip" style="border-color:#9ea3a8"><b>Status:</b> Future / display-only — not counted in coverage</span>`
-  : (spHub.statusLabel
-      ? `<span class="sp-chip"><b>Status:</b> ${escape(spHub.statusLabel)}</span>`
-      : '');
+  const dedStoreSet = new Set();
+  const dedTeamCounts = { Unilever:0, 'P&G':0, Tyson:0 };
+  stores.forEach(s => {
+    const teamsHere = new Set();
+    (s.managerPaths || []).forEach(p => {
+      if (!isDedicatedTeamPath(p)) return;
+      const typ = getTeamType(p);
+      const label = typ === 'unilever' ? 'Unilever' : typ === 'pg' ? 'P&G' : typ === 'tyson' ? 'Tyson' : '';
+      if (label) teamsHere.add(label);
+    });
+    if (teamsHere.size) {
+      dedStoreSet.add(s.storeNumberStr);
+      teamsHere.forEach(t => { dedTeamCounts[t] = (dedTeamCounts[t] || 0) + 1; });
+    }
+  });
 
-  // What-if 50/75/100mi (classification stays fixed at 75)
+  const gapClusterNearby = uncovered.length >= 10 ? 'Yes' : uncovered.length ? 'Small' : 'No';
+  const fringePct = covered.length ? fringe.length / covered.length : 0;
+  let workload = 'Stable', workloadClass = 'stable';
+  if (stores.length >= 125 || fringePct >= .25 || uncovered.length >= 20) { workload = 'Critical Stretch'; workloadClass = 'critical'; }
+  else if (stores.length >= 95 || fringePct >= .18 || uncovered.length >= 10) { workload = 'High Load'; workloadClass = 'high'; }
+  else if (stores.length >= 70 || fringePct >= .10 || uncovered.length >= 4) { workload = 'Watch'; workloadClass = 'watch'; }
+
+  let role = 'Balanced Coverage Hub';
+  if (dedStoreSet.size >= 25 || dedStoreSet.size / Math.max(stores.length,1) >= .30) role = 'Dedicated-Team Heavy';
+  else if (fringePct >= .20) role = 'Borderline Reach Hub';
+  else if (uncovered.length >= 10) role = 'Gap Support Hub';
+  else if (avgMi >= 45 || maxMi >= 72) role = 'Rural Backbone Hub';
+  else if (stores.length >= 70 && avgMi < 35) role = 'Dense Metro Hub';
+
+  const statusChip = isFutureHub
+    ? `<span class="sp-chip op-status planning"><b>Status:</b> Future / display-only — not counted in coverage</span>`
+    : `<span class="sp-chip op-status ${workloadClass}"><b>Workload:</b> ${escape(workload)}</span>`;
+
   const whatIfR = [50,75,100].map(rr=>{
     const n = storesWithin(spHub.coords, rr).length;
     return `<span class="sp-chip"><b>${rr}mi:</b> ${n}</span>`;
   }).join('');
 
-  // Base chips/meta
+  const pct = n => Math.round((n / Math.max(stores.length, 1)) * 100);
+
   spMeta.innerHTML = `
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <div class="op-hub-hero">
+      <div>
+        <div class="op-eyebrow">Operational RTS Hub</div>
+        <div class="op-role">${escape(role)}</div>
+      </div>
       ${statusChip}
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
       <span class="sp-chip"><b>Maps:</b> <a target="_blank" rel="noopener" href="${gHub}">Google</a> • <a target="_blank" rel="noopener" href="${aHub}">Apple</a></span>
       <span class="sp-chip"><b>Radius:</b> ${r} mi</span>
       ${whatIfR}
     </div>
-    <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> Combined: <b>${totals['Premium + Acosta']||0}</b></span>
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Active RTS: <b>${totals['Premium Only']||0}</b></span>
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Legacy: <b>${totals['Acosta Only']||0}</b></span>
-      <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
-      <span class="sp-chip">Total: <b>${stores.length}</b></span>
+
+    <div class="op-metric-grid">
+      <div class="op-metric"><div class="lbl">Covered Stores</div><div class="val">${covered.length}</div></div>
+      <div class="op-metric"><div class="lbl">Fringe 60–75 mi</div><div class="val">${fringe.length}</div></div>
+      <div class="op-metric"><div class="lbl">Avg Distance</div><div class="val">${covered.length ? avgMi.toFixed(1) : '—'}</div></div>
+      <div class="op-metric"><div class="lbl">Max Distance</div><div class="val">${covered.length ? maxMi.toFixed(1) : '—'}</div></div>
+      <div class="op-metric"><div class="lbl">Nearby Gaps</div><div class="val">${uncovered.length}</div></div>
+      <div class="op-metric"><div class="lbl">Dedicated Exposure</div><div class="val">${dedStoreSet.size}</div></div>
+    </div>
+
+    <div class="op-hub-note">
+      <b>Hub readout:</b> ${escape(spHub.name || spHub.fullName || 'This RTS')} is operating as a <b>${escape(role)}</b>. Gap cluster nearby: <b>${gapClusterNearby}</b>. ${isFutureHub ? 'This future/reference hub is not included in current coverage math.' : 'Active One Walmart RTS coverage is evaluated with the 75-mile rule.'}
+    </div>
+
+    <div class="op-section-title">Coverage Mix</div>
+    <div class="sp-bars op-bars">
+      <div class="sp-bar p"><div class="label">Core PSP</div><div class="bar"><div class="fill" style="width:${pct(stores.length - dedStoreSet.size)}%"></div></div><b>${stores.length - dedStoreSet.size}</b></div>
+      <div class="sp-bar a"><div class="label">Unilever</div><div class="bar"><div class="fill" style="width:${pct(dedTeamCounts.Unilever || 0)}%"></div></div><b>${dedTeamCounts.Unilever || 0}</b></div>
+      <div class="sp-bar pa"><div class="label">P&amp;G</div><div class="bar"><div class="fill" style="width:${pct(dedTeamCounts['P&G'] || 0)}%"></div></div><b>${dedTeamCounts['P&G'] || 0}</b></div>
+      <div class="sp-bar u"><div class="label">Tyson</div><div class="bar"><div class="fill" style="width:${pct(dedTeamCounts.Tyson || 0)}%"></div></div><b>${dedTeamCounts.Tyson || 0}</b></div>
     </div>
   `;
-
-  // ➜ Append the mini-bars AFTER innerHTML is set
-  const totalN = stores.length || 1;
-  const asPct = n => Math.round((n*100)/totalN);
-  const barsHTML = `
-    <div class="sp-bars">
-      <div class="sp-bar pa"><div class="label">Premium + Acosta</div><div class="bar"><div class="fill" style="width:${asPct(totals['Premium + Acosta']||0)}%"></div></div></div>
-      <div class="sp-bar p"><div class="label">Premium Only</div><div class="bar"><div class="fill" style="width:${asPct(totals['Premium Only']||0)}%"></div></div></div>
-      <div class="sp-bar a"><div class="label">Acosta Only</div><div class="bar"><div class="fill" style="width:${asPct(totals['Acosta Only']||0)}%"></div></div></div>
-      <div class="sp-bar u"><div class="label">Uncovered</div><div class="bar"><div class="fill" style="width:${asPct(totals['Uncovered']||0)}%"></div></div></div>
-    </div>`;
-  spMeta.insertAdjacentHTML('beforeend', barsHTML);
 }
 
   // Virtualized list
@@ -7935,11 +8018,8 @@ function storePopupHTML(s){
     let selected = paths.filter(p => dedicatedOnly ? isDedicatedTeamPath(p) : !isDedicatedTeamPath(p));
 
     if (!dedicatedOnly) {
-      if (mode === 'future') {
-        selected = selected.filter(p => getTeamType(p) === 'onewalmart');
-      } else {
-        selected = selected.filter(p => ['premium','acosta','crossmark'].includes(currentTeamType(p)));
-      }
+      if (mode === 'future') selected = selected.filter(p => getTeamType(p) === 'onewalmart');
+      else selected = selected.filter(p => ['premium','acosta','crossmark'].includes(currentTeamType(p)));
     } else {
       selected = selected.filter(p => dedicatedTeamVisible(cleanTeamLabel(p)));
     }
@@ -7962,6 +8042,30 @@ function storePopupHTML(s){
     return (am || rm) ? [{ team: label, am, rm }] : [];
   };
 
+  const groupDedicated = rows => {
+    const byTeam = new Map();
+    rows.forEach(r => {
+      const team = r.team || 'Dedicated';
+      if (!byTeam.has(team)) byTeam.set(team, { team, ams:new Set(), rms:new Set(), count:0 });
+      const g = byTeam.get(team);
+      g.count++;
+      if (r.am) g.ams.add(r.am);
+      if (r.rm) g.rms.add(r.rm);
+    });
+    return [...byTeam.values()];
+  };
+
+  const personList = set => [...set].filter(Boolean).map(x => `<li>${esc(x)}</li>`).join('') || '<li>—</li>';
+  const groupedDedicatedHtml = groups => groups.length ? groups.map(g => `
+    <div class="ded-group">
+      <div class="ded-group-title">${esc(g.team)} <span>${g.count} row${g.count === 1 ? '' : 's'} consolidated</span></div>
+      <div class="ded-columns">
+        <div><b>AMs</b><ul>${personList(g.ams)}</ul></div>
+        <div><b>RMs</b><ul>${personList(g.rms)}</ul></div>
+      </div>
+    </div>
+  `).join('') : `<div class="store-popup-sub">No dedicated team owner listed</div>`;
+
   const rowsHtml = (rows, emptyText) => rows.length ? rows.map(r => `
       <div class="owner-row compact-owner-row">
         <div><b>${esc(r.team || 'Team')}</b></div>
@@ -7970,22 +8074,23 @@ function storePopupHTML(s){
       </div>
     `).join('') : `<div class="store-popup-sub">${esc(emptyText)}</div>`;
 
-  const renderSection = (title, rows, emptyText, open=false) => `
+  const renderSection = (title, rows, emptyText, open=false, subLabel=null) => `
     <details class="popup-section" ${open ? 'open' : ''}>
-      <summary>${esc(title)} <span>${rows.length ? rows.length + ' row' + (rows.length === 1 ? '' : 's') : 'none'}</span></summary>
+      <summary>${esc(title)} <span>${subLabel || (rows.length ? rows.length + ' row' + (rows.length === 1 ? '' : 's') : 'none')}</span></summary>
       <div class="popup-section-body">${rowsHtml(rows, emptyText)}</div>
     </details>`;
 
   let currentCore = pathRows(currentBase, 'current', false);
   if (!currentCore.length) currentCore = fallbackOwner(currentBase, 'Core PSP');
   let futureCore = pathRows(futureBase, 'future', false);
-  if (futureCore.length > 1) futureCore = [futureCore[0]];
   if (!futureCore.length) futureCore = fallbackOwner(futureBase, 'One Walmart');
   if (futureCore.length > 1) futureCore = [futureCore[0]];
 
   const currentDedicated = pathRows(currentBase, 'current', true);
   let futureDedicated = pathRows(futureBase, 'future', true);
   if (!futureDedicated.length && currentDedicated.length) futureDedicated = currentDedicated;
+  const futureDedicatedGroups = groupDedicated(futureDedicated);
+  const currentDedicatedGroups = groupDedicated(currentDedicated);
 
   const currentCovered = t.current.covered;
   const futureCovered = t.future.covered;
@@ -7995,10 +8100,46 @@ function storePopupHTML(s){
   const activeCoverage = activeAlignmentMode === 'current' ? t.current : t.future;
   const gapBadge = gapSeverityForStore(s);
 
+  const hubsForBackup = [...(premiumConfirmed || []), ...(acostaHubs || [])].filter(h => h?.status !== 'pending');
+  const nearestRts = hubsForBackup
+    .map(h => ({ h, miles: distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) }))
+    .filter(x => Number.isFinite(x.miles))
+    .sort((a,b)=>a.miles-b.miles)
+    .slice(0,3);
+  const backupCount = nearestRts.filter(x => x.miles <= 75).length;
+  const backupHtml = nearestRts.length ? nearestRts.map((x,i)=>`
+    <div class="nearest-rts-row ${i===0?'primary':''}">
+      <span>${i===0 ? 'Primary' : 'Backup ' + i}</span>
+      <b>${esc(x.h.name || x.h.fullName || 'RTS')}</b>
+      <em>${x.miles.toFixed(1)} mi</em>
+    </div>`).join('') : '<div class="store-popup-sub">No active RTS reference available.</div>';
+
+  const dedTeamNames = futureDedicatedGroups.map(g => g.team);
+  const isMultiTeam = currentCore.length > 1 || futureDedicatedGroups.length > 1 || currentDedicatedGroups.length > 1;
+  const fringe = Number.isFinite(activeCoverage.miles) && activeCoverage.miles >= 60;
+  let complexityScore = 0;
+  if (currentCore.length > 1) complexityScore += 1;
+  if (futureDedicatedGroups.length) complexityScore += futureDedicatedGroups.length;
+  if (fringe) complexityScore += 1;
+  if (!activeCoverage.covered) complexityScore += 2;
+  if (backupCount > 1) complexityScore += 1;
+  const complexity = complexityScore >= 5 ? 'High Complexity' : complexityScore >= 3 ? 'Complex' : complexityScore >= 1 ? 'Moderate' : 'Simple';
+  const quality = !activeCoverage.covered ? 'Coverage Gap' : fringe ? 'Fringe Reach' : backupCount > 1 ? 'Stable + Backup' : 'Stable';
+
+  const summaryBullets = [
+    activeCoverage.covered
+      ? `Covered by ${activeCoverage.rts || 'active RTS'}${Number.isFinite(activeCoverage.miles) ? ` at ${activeCoverage.miles.toFixed(1)} mi` : ''}.`
+      : `No active RTS within the 75-mile operating radius.`,
+    `One Walmart owner: ${futureCore[0]?.am || '—'} / ${futureCore[0]?.rm || '—'}.`,
+    dedTeamNames.length ? `Dedicated-team presence: ${dedTeamNames.join(', ')}.` : `No dedicated-team overlay shown.`,
+    backupCount > 1 ? `${backupCount - 1} backup RTS option${backupCount - 1 === 1 ? '' : 's'} within 75 miles.` : `Limited backup RTS visibility within 75 miles.`,
+    `${complexity} store profile; coverage quality: ${quality}.`
+  ];
+
   const referenceLine = `Current RTS ${currentCovered ? 'covered' : 'gap'}${Number.isFinite(currentMiles) ? ` (${currentMiles.toFixed(1)} mi)` : ''}; Future RTS ${futureCovered ? 'covered' : 'gap'}${Number.isFinite(futureMiles) ? ` (${futureMiles.toFixed(1)} mi)` : ''}.`;
 
   return `
-    <div class="store-popup-shell leadership-popup compact-popup">
+    <div class="store-popup-shell leadership-popup compact-popup op-popup-v2">
       <div class="store-popup-header">
         <div>
           <div class="store-popup-title">Store ${esc(s?.storeNumberStr || s?.storeNumber || '')}</div>
@@ -8008,26 +8149,36 @@ function storePopupHTML(s){
         <div class="store-popup-delta simplified">${esc(viewLabel)}</div>
       </div>
 
+      <div class="op-summary-card">
+        <div class="op-summary-head">
+          <div><span>Operational Summary</span><b>${esc(complexity)}</b></div>
+          <div class="quality-chip ${activeCoverage.covered ? (fringe ? 'watch' : 'stable') : 'gap'}">${esc(quality)}</div>
+        </div>
+        <ul>${summaryBullets.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+      </div>
+
       <details class="popup-section coverage-section" open>
         <summary>RTS Coverage <span>${activeCoverage.covered ? 'Covered' : 'Gap'}</span></summary>
         <div class="popup-section-body">
           <div><b>Status:</b> ${activeCoverage.covered ? 'Covered' : 'Gap / Uncovered'}</div>
           <div class="popup-gap-badge ${gapBadge.className}">${esc(gapBadge.label)}</div>
           ${!activeCoverage.covered ? `<div class="popup-gap-reason"><b>Why this is a gap:</b> ${esc(gapBadge.reason || 'No active RTS within the 75-mile operating radius.')}</div>` : ''}
-          <div><b>RTS:</b> ${esc(activeCoverage.rts || '—')}</div>
-          <div><b>Distance:</b> ${Number.isFinite(activeCoverage.miles) ? activeCoverage.miles.toFixed(1) + ' mi' : '—'}</div>
+          <div class="nearest-rts-list">${backupHtml}</div>
         </div>
       </details>
 
-      <div class="compact-popup-grid">
-        ${renderSection('Core PSP — Current Alignment', currentCore, 'No current core PSP owner found', true)}
-        ${renderSection('Core PSP — Future One Walmart', futureCore, 'No future One Walmart owner found', true)}
-        ${renderSection('Dedicated Teams — Current', currentDedicated, 'No dedicated team owner listed', false)}
-        ${renderSection('Dedicated Teams — Unchanged / Future', futureDedicated, 'No dedicated team owner listed', false)}
-      </div>
+      ${renderSection('One Walmart Operational Alignment', futureCore, 'No future One Walmart owner found', true, futureCore.length ? 'primary' : 'none')}
+
+      <details class="popup-section" ${futureDedicatedGroups.length ? 'open' : ''}>
+        <summary>Dedicated Teams Active Here <span>${futureDedicatedGroups.length ? futureDedicatedGroups.map(g=>esc(g.team)).join(' / ') : 'none'}</span></summary>
+        <div class="popup-section-body">${groupedDedicatedHtml(futureDedicatedGroups)}</div>
+      </details>
+
+      ${renderSection('Legacy Alignment Reference', currentCore, 'No current core PSP owner found', false)}
+      ${currentDedicatedGroups.length ? `<details class="popup-section"><summary>Legacy Dedicated Reference <span>${currentDedicatedGroups.length} team${currentDedicatedGroups.length === 1 ? '' : 's'}</span></summary><div class="popup-section-body">${groupedDedicatedHtml(currentDedicatedGroups)}</div></details>` : ''}
 
       <div class="store-popup-summary simplified-note compact-note">
-        <div><b>Alignment note:</b> Premium + Acosta + Crossmark PSP roll into One Walmart. Dedicated teams remain separate.</div>
+        <div><b>Alignment note:</b> Premium + Acosta + Crossmark PSP roll into One Walmart. Dedicated teams remain separate and are consolidated above.</div>
         <div class="store-popup-sub"><b>RTS reference:</b> ${esc(referenceLine)}</div>
       </div>
     </div>
