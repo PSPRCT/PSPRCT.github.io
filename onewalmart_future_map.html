@@ -13106,23 +13106,26 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   }
 
   function ensureOpsDrawer(){
-    let drawer = $('opsDrawer');
-    if (drawer) return drawer;
-    const wrap = document.querySelector('.mapwrap') || document.body;
-    drawer=document.createElement('div');
-    drawer.id='opsDrawer'; drawer.className='ops-drawer show';
-    drawer.innerHTML = `<div class="ops-head"><h3>Operations Intelligence</h3><button id="opsCloseBtn" class="btn" type="button">Close</button></div><div class="ops-body"><div class="ops-pane show"><div class="ops-card"><b>Ops Intel</b><br>Drawer shell restored by emergency wiring.</div></div></div>`;
-    wrap.appendChild(drawer);
-    $('opsCloseBtn')?.addEventListener('click',()=>drawer.classList.remove('show'));
-    return drawer;
+    const drawer = $('opsDrawer');
+    if (drawer && /Drawer restored|shell restored|Refresh\/reopen/i.test(drawer.textContent || '')) {
+      drawer.remove();
+      return null;
+    }
+    return drawer || null;
   }
   function openOps(pane){
     closeMenus();
-    const drawer=ensureOpsDrawer(); drawer.classList.add('show');
+    const stablePane = pane === 'leadership' ? 'leadership' : 'overview';
+    if (typeof window.owOpenStableOpsDrawer === 'function') {
+      window.owOpenStableOpsDrawer(stablePane);
+    } else {
+      const existing = ensureOpsDrawer();
+      if (existing) existing.classList.add('show');
+      setTimeout(() => {
+        if (typeof window.owOpenStableOpsDrawer === 'function') window.owOpenStableOpsDrawer(stablePane);
+      }, 350);
+    }
     document.querySelector('.mapwrap')?.classList.add('command-drawer-open');
-    const tab = pane ? document.querySelector(`.ops-tab[data-pane="${pane}"]`) : null;
-    if (tab) tab.click();
-    try { window.updateOpsIntel?.(); } catch(_) {}
     setTimeout(()=>{ try { window.dispatchEvent(new Event('resize')); } catch(_){} },80);
   }
   function leadership(){ document.body.classList.add('clean-mode'); openOps('leadership'); toast('Leadership view opened'); }
@@ -13576,60 +13579,45 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   }
 
   function ensureOpsDrawer(){
-    let drawer = $('opsDrawer');
-    if (drawer) return drawer;
-
-    const wrap = document.querySelector('.mapwrap') || document.body;
-    drawer = document.createElement('aside');
-    drawer.id = 'opsDrawer';
-    drawer.className = 'ops-drawer show';
-    drawer.innerHTML = `
-      <div class="ops-head">
-        <h3>Operations Intelligence</h3>
-        <span class="ops-refresh-stamp">Drawer restored</span>
-        <button id="opsCloseBtn" class="btn" type="button">×</button>
-      </div>
-      <div class="ops-body">
-        <div class="ops-pane active show">
-          <div class="ops-card"><b>Ops Intel</b><br>The Operations Intelligence drawer shell was restored. Refresh/reopen after data finishes loading.</div>
-        </div>
-      </div>`;
-    wrap.appendChild(drawer);
-    return drawer;
+    const drawer = $('opsDrawer');
+    if (drawer && /Drawer restored|shell restored|Refresh\/reopen/i.test(drawer.textContent || '')) {
+      drawer.remove();
+      return null;
+    }
+    return drawer || null;
   }
 
   function openOpsIntel(pane='overview'){
-    const drawer = ensureOpsDrawer();
-    const wrap = document.querySelector('.mapwrap');
-
     document.body.classList.remove('clean-mode','opcx-leadership');
     setOperatingView('ops');
-
-    drawer.classList.add('show');
-    drawer.style.transform = 'translateX(0)';
-    if (wrap) wrap.classList.add('command-drawer-open');
-
+    const targetPane = pane === 'leadership' ? 'leadership' : 'overview';
+    if (typeof window.owOpenStableOpsDrawer === 'function') {
+      window.owOpenStableOpsDrawer(targetPane);
+    } else {
+      ensureOpsDrawer();
+      setTimeout(() => {
+        if (typeof window.owOpenStableOpsDrawer === 'function') window.owOpenStableOpsDrawer(targetPane);
+      }, 350);
+    }
     qa('.rail-btn').forEach(b => b.classList.remove('active','ops-hotfix-active'));
     $('railOpsIntel')?.classList.add('active','ops-hotfix-active');
-
-    const targetPane = pane === 'leadership' ? 'leadership' : pane;
-    const tab = document.querySelector(`.ops-tab[data-pane="${targetPane}"]`) || document.querySelector('.ops-tab[data-pane="overview"]');
-    if (tab) tab.click();
-
-    try { window.updateOpsIntel?.(); } catch(err) { console.warn('Ops Intel refresh skipped:', err); }
+    document.querySelector('.mapwrap')?.classList.add('command-drawer-open');
     try { window.dispatchEvent(new Event('resize')); } catch(_) {}
     setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch(_) {} }, 120);
   }
 
   function openLeadership(){
-    const drawer = ensureOpsDrawer();
     document.body.classList.add('clean-mode');
     setOperatingView('leadership');
-    drawer.classList.add('show');
-    drawer.style.transform = 'translateX(0)';
+    if (typeof window.owOpenStableOpsDrawer === 'function') {
+      window.owOpenStableOpsDrawer('leadership');
+    } else {
+      ensureOpsDrawer();
+      setTimeout(() => {
+        if (typeof window.owOpenStableOpsDrawer === 'function') window.owOpenStableOpsDrawer('leadership');
+      }, 350);
+    }
     document.querySelector('.mapwrap')?.classList.add('command-drawer-open');
-    document.querySelector('.ops-tab[data-pane="leadership"]')?.click();
-    try { window.updateOpsIntel?.(); } catch(_) {}
     setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch(_) {} }, 120);
   }
 
@@ -14228,5 +14216,52 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 })();
 </script>
 
+
+<script>
+/* ===== Ops Intel final cleanup shim =====
+   Removes legacy placeholder drawers and delegates all Ops Intel / Leadership opens
+   to the stable in-scope renderer created by the main map script. */
+(function(){
+  if (window.__OW_OPS_FINAL_CLEAN_SHIM) return;
+  window.__OW_OPS_FINAL_CLEAN_SHIM = true;
+  function stale(drawer){ return drawer && /Drawer restored|shell restored|Refresh\/reopen/i.test(drawer.textContent || ''); }
+  function cleanup(){
+    var drawer = document.getElementById('opsDrawer');
+    if (stale(drawer)) drawer.remove();
+  }
+  function openStable(pane){
+    cleanup();
+    var target = pane === 'leadership' ? 'leadership' : 'overview';
+    if (typeof window.owOpenStableOpsDrawer === 'function') {
+      window.owOpenStableOpsDrawer(target);
+      return true;
+    }
+    setTimeout(function(){
+      cleanup();
+      if (typeof window.owOpenStableOpsDrawer === 'function') window.owOpenStableOpsDrawer(target);
+    }, 250);
+    return false;
+  }
+  document.addEventListener('click', function(e){
+    var btn = e.target && e.target.closest && e.target.closest('button');
+    if (!btn) return;
+    var id = btn.id || '';
+    if (/^(railOpsIntel|opsDrawerToggle|quickOpsBtn|opcxOpsView)$/.test(id)) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openStable('overview');
+    }
+    if (/^(railLeadership|quickLeadershipBtn|opcxLeadershipView)$/.test(id)) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openStable('leadership');
+    }
+  }, true);
+  cleanup();
+  setTimeout(cleanup, 250);
+  setTimeout(cleanup, 1000);
+  setTimeout(cleanup, 2500);
+})();
+</script>
 </body>
 </html>
