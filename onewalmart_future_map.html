@@ -12140,6 +12140,386 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 
 
 
+
+
+/* ===== Missing Enhancement Package: True Backup RTS + Outage Simulator + RTS Scorecards + Regional Executive Summaries ===== */
+(function installRtsResiliencePackage(){
+  if (window.__owRtsResiliencePackageInstalled) return;
+  window.__owRtsResiliencePackageInstalled = true;
+
+  const RADIUS_MI = CLASSIFY_RADIUS || 75;
+  let lastScorecards = [];
+  let lastOutageRows = [];
+  let lastRegionalSummaryRows = [];
+
+  function activeRtsHubs(){
+    return [...(premiumConfirmed || []), ...(acostaHubs || [])].filter(h => h && h.coords && Number.isFinite(Number(h.coords[0])) && Number.isFinite(Number(h.coords[1])));
+  }
+
+  function hubNameSafe(h){
+    try { return hubDisplay(h); } catch(e) { return h?.fullName || h?.name || 'RTS'; }
+  }
+
+  function storeKeySafe(s){ return String(s?.storeNumberStr ?? s?.storeNumber ?? s?.StoreNumber ?? '').trim(); }
+
+  function coreRegionalForStore(s){
+    const paths = Array.isArray(s?.managerPaths) ? s.managerPaths : [];
+    const core = paths.find(p => {
+      try { return pathMatchesCoreTeam(p); } catch(e) { return false; }
+    });
+    return String(core?.regionalManager || s?.regionalManager || 'Unassigned RM').trim() || 'Unassigned RM';
+  }
+
+  function coreAreaForStore(s){
+    const paths = Array.isArray(s?.managerPaths) ? s.managerPaths : [];
+    const core = paths.find(p => {
+      try { return pathMatchesCoreTeam(p); } catch(e) { return false; }
+    });
+    return String(core?.areaManager || s?.areaManager || 'Unassigned AM').trim() || 'Unassigned AM';
+  }
+
+  function sortedRtsCoverageForStore(s, excludeHubId=''){
+    const out = activeRtsHubs()
+      .filter(h => !excludeHubId || h.id !== excludeHubId)
+      .map(h => ({ hub:h, miles:distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) }))
+      .filter(x => Number.isFinite(x.miles) && x.miles <= RADIUS_MI)
+      .sort((a,b) => a.miles - b.miles);
+    return out;
+  }
+
+  function backupProfileForStore(s, excludeHubId=''){
+    const hits = sortedRtsCoverageForStore(s, excludeHubId);
+    return { primary:hits[0] || null, backup:hits[1] || null, hits };
+  }
+
+  function buildTrueBackupStoreRows(sourceStores){
+    return (sourceStores || allStores || []).filter(s => Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lng))).map(s => {
+      const profile = backupProfileForStore(s);
+      return {
+        store:s,
+        storeNumber:storeKeySafe(s),
+        city:s.city || '',
+        state:s.state || '',
+        rm:coreRegionalForStore(s),
+        am:coreAreaForStore(s),
+        primaryHub:profile.primary?.hub || null,
+        primaryMiles:profile.primary?.miles ?? null,
+        backupHub:profile.backup?.hub || null,
+        backupMiles:profile.backup?.miles ?? null,
+        rtsCount:profile.hits.length,
+        covered:!!profile.primary,
+        backupCovered:!!profile.backup,
+        noBackupRisk:!!profile.primary && !profile.backup
+      };
+    });
+  }
+
+  function buildHubScorecard(h){
+    const rows = buildTrueBackupStoreRows(allStores);
+    const primaryRows = rows.filter(r => r.primaryHub?.id === h.id);
+    const withinRows = (allStores || []).filter(s => distMiles(h.coords[0], h.coords[1], s.lat, s.lng) <= RADIUS_MI);
+    const noBackup = primaryRows.filter(r => !r.backupCovered);
+    const protectedRows = primaryRows.filter(r => r.backupCovered);
+    const fringe = primaryRows.filter(r => Number(r.primaryMiles) >= 60);
+    const avg = primaryRows.length ? primaryRows.reduce((a,r)=>a+Number(r.primaryMiles || 0),0)/primaryRows.length : 0;
+    const max = primaryRows.length ? Math.max(...primaryRows.map(r => Number(r.primaryMiles || 0))) : 0;
+    const backupPct = primaryRows.length ? Math.round(protectedRows.length * 1000 / primaryRows.length) / 10 : 0;
+    const riskPct = primaryRows.length ? Math.round(noBackup.length * 1000 / primaryRows.length) / 10 : 0;
+    const nearbySupport = activeRtsHubs().filter(x => x.id !== h.id).map(other => {
+      const shared = primaryRows.filter(r => distMiles(r.store.lat, r.store.lng, other.coords[0], other.coords[1]) <= RADIUS_MI).length;
+      const hubMiles = distMiles(h.coords[0], h.coords[1], other.coords[0], other.coords[1]);
+      return { hub:other, shared, hubMiles };
+    }).filter(x => x.shared > 0).sort((a,b)=>b.shared-a.shared || a.hubMiles-b.hubMiles).slice(0,3);
+    let tier = 'Stable';
+    let cls = 'stable';
+    if (noBackup.length >= 40 || riskPct >= 70 || primaryRows.length >= 110) { tier = 'Critical'; cls = 'critical'; }
+    else if (noBackup.length >= 25 || riskPct >= 50 || primaryRows.length >= 85) { tier = 'High'; cls = 'high'; }
+    else if (noBackup.length >= 10 || riskPct >= 30 || primaryRows.length >= 60) { tier = 'Watch'; cls = 'watch'; }
+    const action = tier === 'Critical'
+      ? 'Assign backup coverage plan now; validate whether nearby RTS can temporarily absorb stranded stores.'
+      : tier === 'High'
+        ? 'Monitor as elevated risk; pre-identify backup RTS for high-distance and no-backup stores.'
+        : tier === 'Watch'
+          ? 'Keep in review; verify backup support for fringe stores during PTO or vacancy windows.'
+          : 'No immediate action; keep as normal monitoring.';
+    return { hub:h, primaryRows, withinRows, noBackup, protectedRows, fringe, avg, max, backupPct, riskPct, nearbySupport, tier, cls, action };
+  }
+
+  function pct(n,d){ return d ? `${(Math.round((n/d)*1000)/10).toFixed(1)}%` : '0.0%'; }
+
+  function kpiBox(label, value, sub=''){
+    return `<div class="res-kpi"><div class="lbl">${escape(label)}</div><div class="val">${escape(value)}</div>${sub ? `<div class="sub">${escape(sub)}</div>` : ''}</div>`;
+  }
+
+  function ensureResilienceShell(){
+    if (!document.getElementById('rtsResilienceModals')) {
+      document.body.insertAdjacentHTML('beforeend', `
+        <div id="rtsResilienceModals">
+          <div class="modal" id="rtsOutageModal" aria-modal="true" role="dialog">
+            <div class="card rts-res-card"><header><h3>RTS Outage Simulator</h3><button id="rtsOutageClose" class="btn" type="button">Close</button></header>
+              <div class="body" style="grid-template-columns:1fr;">
+                <div class="res-toolbar"><label class="toggle">Simulate RTS unavailable <select id="rtsOutageSelect"></select></label><button id="rtsOutageRun" class="btn" type="button">Run Simulation</button><button id="rtsOutageExport" class="btn" type="button">Export CSV</button></div>
+                <div class="res-note"><b>True outage logic:</b> a store is stranded only when the selected RTS is its primary/nearest active RTS and there is no second active RTS within 75 miles. Stores with a backup RTS remain covered but are flagged as shifted workload.</div>
+                <div id="rtsOutageResults" class="res-results"></div>
+              </div>
+            </div>
+          </div>
+          <div class="modal" id="rtsScorecardModal" aria-modal="true" role="dialog">
+            <div class="card rts-res-card"><header><h3>RTS Scorecards</h3><button id="rtsScorecardClose" class="btn" type="button">Close</button></header>
+              <div class="body" style="grid-template-columns:1fr;">
+                <div class="res-toolbar"><button id="rtsScorecardRefresh" class="btn" type="button">Refresh Scorecards</button><button id="rtsScorecardExport" class="btn" type="button">Export CSV</button></div>
+                <div class="res-note"><b>Scorecard logic:</b> primary stores are assigned to their nearest active RTS. Backup protection requires a second active RTS inside 75 miles.</div>
+                <div id="rtsScorecardResults" class="res-results"></div>
+              </div>
+            </div>
+          </div>
+          <div class="modal" id="regionalExecModal" aria-modal="true" role="dialog">
+            <div class="card rts-res-card"><header><h3>Regional Executive Summaries</h3><button id="regionalExecClose" class="btn" type="button">Close</button></header>
+              <div class="body" style="grid-template-columns:1fr;">
+                <div class="res-toolbar"><label class="toggle"><input type="checkbox" id="regionalExecUseFilters"> Use current filters</label><button id="regionalExecRefresh" class="btn" type="button">Refresh Summary</button><button id="regionalExecExport" class="btn" type="button">Export CSV</button></div>
+                <div class="res-note"><b>Leadership use:</b> regions are ranked by uncovered stores plus no-backup exposure, then translated into a clear action path.</div>
+                <div id="regionalExecResults" class="res-results"></div>
+              </div>
+            </div>
+          </div>
+        </div>`);
+    }
+    const menu = document.querySelector('#analysisDrop .dropdown-menu');
+    if (menu && !document.getElementById('rtsScorecardBtn')) {
+      const anchor = document.getElementById('coverageBtn') || menu.lastElementChild;
+      const html = `
+        <button id="rtsScorecardBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">RTS Scorecards</button>
+        <button id="rtsOutageBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">RTS Outage Simulator</button>
+        <button id="regionalExecBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Regional Executive Summaries</button>`;
+      anchor.insertAdjacentHTML('afterend', html);
+    }
+  }
+
+  function openModal(idv){ ensureResilienceShell(); document.getElementById(idv)?.classList.add('show'); }
+  function closeModal(idv){ document.getElementById(idv)?.classList.remove('show'); }
+
+  function renderOutageSelector(selectedId=''){
+    ensureResilienceShell();
+    const select = document.getElementById('rtsOutageSelect');
+    if (!select) return;
+    const hubs = activeRtsHubs().sort((a,b)=>hubNameSafe(a).localeCompare(hubNameSafe(b)));
+    select.innerHTML = hubs.map(h => `<option value="${escape(h.id)}" ${h.id === selectedId ? 'selected' : ''}>${escape(hubNameSafe(h))}</option>`).join('');
+  }
+
+  function renderOutageSimulation(){
+    ensureResilienceShell();
+    const select = document.getElementById('rtsOutageSelect');
+    const h = activeRtsHubs().find(x => x.id === select?.value) || activeRtsHubs()[0];
+    const out = document.getElementById('rtsOutageResults');
+    if (!h || !out) { if(out) out.innerHTML = '<div class="res-empty">No active RTS hubs available.</div>'; return; }
+    renderOutageSelector(h.id);
+    const rows = buildTrueBackupStoreRows(allStores);
+    const affected = rows.filter(r => r.primaryHub?.id === h.id);
+    const shifted = affected.filter(r => backupProfileForStore(r.store, h.id).primary);
+    const stranded = affected.filter(r => !backupProfileForStore(r.store, h.id).primary);
+    const coveredNow = rows.filter(r => r.covered).length;
+    const coveredAfter = coveredNow - stranded.length;
+    const states = groupCount(stranded, r => r.state || 'NA').slice(0,8);
+    const managers = groupCount(stranded, r => r.am || 'Unassigned AM').slice(0,8);
+    lastOutageRows = affected.map(r => {
+      const fallback = backupProfileForStore(r.store, h.id).primary;
+      return { ...r, outageStatus:fallback ? 'Shifted to backup RTS' : 'Stranded / uncovered', fallbackHub:fallback?.hub || null, fallbackMiles:fallback?.miles ?? null };
+    });
+    out.innerHTML = `
+      <div class="res-kpi-grid">
+        ${kpiBox('Primary Store Load', affected.length.toLocaleString(), hubNameSafe(h))}
+        ${kpiBox('Shifted to Backup', shifted.length.toLocaleString(), pct(shifted.length, affected.length))}
+        ${kpiBox('Stranded Stores', stranded.length.toLocaleString(), pct(stranded.length, affected.length))}
+        ${kpiBox('Coverage After Outage', pct(coveredAfter, allStores.length), `${coveredAfter.toLocaleString()} of ${allStores.length.toLocaleString()} stores`)}
+      </div>
+      <div class="res-action ${stranded.length ? 'critical' : 'stable'}"><b>Action path:</b> ${stranded.length ? `Pre-assign backup support for ${stranded.length.toLocaleString()} stranded stores before PTO/vacancy, starting with the highest-volume states and AMs below.` : 'This RTS territory has backup coverage for all primary stores inside the 75-mile model.'}</div>
+      <div class="res-two-col">
+        <div><h4>Top stranded states</h4>${miniGroupTable(states, 'State')}</div>
+        <div><h4>Top stranded AMs</h4>${miniGroupTable(managers, 'Area Manager')}</div>
+      </div>
+      <h4>Store impact detail</h4>
+      ${resTable(lastOutageRows.slice(0,300), [
+        ['Store', r=>`#${escape(r.storeNumber)} — ${escape(r.city)}, ${escape(r.state)}`],
+        ['Current Primary', r=>escape(hubNameSafe(r.primaryHub))],
+        ['Backup Result', r=>escape(r.outageStatus)],
+        ['Fallback RTS', r=>r.fallbackHub ? `${escape(hubNameSafe(r.fallbackHub))} (${Number(r.fallbackMiles).toFixed(1)} mi)` : '—'],
+        ['AM', r=>escape(r.am)]
+      ])}`;
+  }
+
+  function renderScorecards(){
+    ensureResilienceShell();
+    const out = document.getElementById('rtsScorecardResults');
+    if (!out) return;
+    lastScorecards = activeRtsHubs().map(buildHubScorecard).sort((a,b)=> b.noBackup.length - a.noBackup.length || b.primaryRows.length - a.primaryRows.length);
+    const totalPrimary = lastScorecards.reduce((a,x)=>a+x.primaryRows.length,0);
+    const totalRisk = lastScorecards.reduce((a,x)=>a+x.noBackup.length,0);
+    const critical = lastScorecards.filter(x=>x.cls === 'critical').length;
+    out.innerHTML = `
+      <div class="res-kpi-grid">
+        ${kpiBox('Active RTS', lastScorecards.length.toLocaleString())}
+        ${kpiBox('Assigned Primary Stores', totalPrimary.toLocaleString())}
+        ${kpiBox('No-Backup Store Risk', totalRisk.toLocaleString(), pct(totalRisk,totalPrimary))}
+        ${kpiBox('Critical RTS Territories', critical.toLocaleString())}
+      </div>
+      <div class="res-action"><b>Leadership read:</b> prioritize RTS territories with high primary load and low backup protection. Click Open Hub to drill into the existing RTS side panel.</div>
+      ${resTable(lastScorecards, [
+        ['RTS', x=>`<button class="res-link" data-open-hub="${escape(x.hub.id)}">${escape(hubNameSafe(x.hub))}</button>`],
+        ['Tier', x=>`<span class="res-tier ${x.cls}">${escape(x.tier)}</span>`],
+        ['Primary Stores', x=>x.primaryRows.length.toLocaleString()],
+        ['No Backup', x=>`${x.noBackup.length.toLocaleString()} (${x.riskPct.toFixed(1)}%)`],
+        ['Backup Protected', x=>`${x.protectedRows.length.toLocaleString()} (${x.backupPct.toFixed(1)}%)`],
+        ['Fringe 60–75', x=>x.fringe.length.toLocaleString()],
+        ['Avg / Max Mi', x=>`${x.avg.toFixed(1)} / ${x.max.toFixed(1)}`],
+        ['Recommended Action', x=>escape(x.action)]
+      ])}`;
+  }
+
+  function renderRegionalExecSummaries(){
+    ensureResilienceShell();
+    const out = document.getElementById('regionalExecResults');
+    const useFilters = document.getElementById('regionalExecUseFilters')?.checked;
+    const source = useFilters ? (filteredStores || []) : (allStores || []);
+    const rows = buildTrueBackupStoreRows(source);
+    const groups = new Map();
+    rows.forEach(r => {
+      const key = r.rm || 'Unassigned RM';
+      if (!groups.has(key)) groups.set(key, { region:key, total:0, covered:0, gaps:0, noBackup:0, ams:new Set(), primaryHubCounts:new Map(), stores:[] });
+      const g = groups.get(key);
+      g.total++; g.stores.push(r); g.ams.add(r.am || 'Unassigned AM');
+      if (r.covered) g.covered++; else g.gaps++;
+      if (r.noBackupRisk) g.noBackup++;
+      if (r.primaryHub) g.primaryHubCounts.set(r.primaryHub.id, (g.primaryHubCounts.get(r.primaryHub.id) || 0) + 1);
+    });
+    lastRegionalSummaryRows = Array.from(groups.values()).map(g => {
+      const topHubId = Array.from(g.primaryHubCounts.entries()).sort((a,b)=>b[1]-a[1])[0]?.[0];
+      const topHub = activeRtsHubs().find(h => h.id === topHubId);
+      const gapPct = g.total ? Math.round(g.gaps * 1000 / g.total) / 10 : 0;
+      const riskPct = g.covered ? Math.round(g.noBackup * 1000 / g.covered) / 10 : 0;
+      let tier='Stable', cls='stable', action='Maintain current coverage posture; monitor normal changes.';
+      if (g.gaps >= 75 || g.noBackup >= 75 || gapPct >= 40) { tier='Priority 1'; cls='critical'; action='Immediate leadership review: validate gap clusters and pre-assign backup RTS coverage for no-backup stores.'; }
+      else if (g.gaps >= 35 || g.noBackup >= 35 || gapPct >= 25) { tier='Priority 2'; cls='high'; action='Build near-term mitigation: targeted backup assignments and next-best RTS placement review.'; }
+      else if (g.gaps >= 15 || g.noBackup >= 15 || riskPct >= 35) { tier='Priority 3'; cls='watch'; action='Monitor and prepare contingency support for highest-risk AM territories.'; }
+      return { ...g, gapPct, riskPct, topHub, tier, cls, action };
+    }).sort((a,b)=> (b.gaps + b.noBackup) - (a.gaps + a.noBackup));
+    const total = lastRegionalSummaryRows.reduce((a,x)=>a+x.total,0);
+    const gaps = lastRegionalSummaryRows.reduce((a,x)=>a+x.gaps,0);
+    const noBackup = lastRegionalSummaryRows.reduce((a,x)=>a+x.noBackup,0);
+    const covered = lastRegionalSummaryRows.reduce((a,x)=>a+x.covered,0);
+    out.innerHTML = `
+      <div class="res-kpi-grid">
+        ${kpiBox('Scope', useFilters ? 'Filtered' : 'National', `${total.toLocaleString()} stores`)}
+        ${kpiBox('Covered', pct(covered,total), `${covered.toLocaleString()} stores`)}
+        ${kpiBox('Gap Stores', gaps.toLocaleString(), pct(gaps,total))}
+        ${kpiBox('No-Backup Risk', noBackup.toLocaleString(), pct(noBackup,covered))}
+      </div>
+      <div class="res-action"><b>Executive action path:</b> work Priority 1 regions first, then Priority 2 regions with the largest combined gap + no-backup exposure. Use RTS Scorecards to identify the hub-level support plan.</div>
+      ${resTable(lastRegionalSummaryRows, [
+        ['Region / RM', x=>escape(x.region)],
+        ['Priority', x=>`<span class="res-tier ${x.cls}">${escape(x.tier)}</span>`],
+        ['Stores', x=>x.total.toLocaleString()],
+        ['Covered', x=>`${x.covered.toLocaleString()} (${pct(x.covered,x.total)})`],
+        ['Gaps', x=>`${x.gaps.toLocaleString()} (${x.gapPct.toFixed(1)}%)`],
+        ['No Backup', x=>`${x.noBackup.toLocaleString()} (${x.riskPct.toFixed(1)}%)`],
+        ['AMs', x=>x.ams.size.toLocaleString()],
+        ['Primary RTS Anchor', x=>x.topHub ? `<button class="res-link" data-open-hub="${escape(x.topHub.id)}">${escape(hubNameSafe(x.topHub))}</button>` : '—'],
+        ['Recommended Action', x=>escape(x.action)]
+      ])}`;
+  }
+
+  function groupCount(rows, keyFn){
+    const m = new Map();
+    rows.forEach(r => { const k = String(keyFn(r) || 'Unassigned'); m.set(k, (m.get(k) || 0) + 1); });
+    return Array.from(m.entries()).map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count);
+  }
+
+  function miniGroupTable(rows, label){
+    if (!rows.length) return '<div class="res-empty">No stranded stores in this slice.</div>';
+    return `<table class="res-table mini"><thead><tr><th>${escape(label)}</th><th>Stores</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escape(r.name)}</td><td class="num">${r.count.toLocaleString()}</td></tr>`).join('')}</tbody></table>`;
+  }
+
+  function resTable(rows, cols){
+    if (!rows.length) return '<div class="res-empty">No rows to show.</div>';
+    return `<table class="res-table"><thead><tr>${cols.map(c=>`<th>${escape(c[0])}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${typeof c[1] === 'function' ? c[1](r) : ''}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  }
+
+  function exportCsv(filename, rows, columns){
+    if (!rows?.length) { alert('No rows to export yet.'); return; }
+    const csv = [columns.map(c=>`"${String(c[0]).replace(/"/g,'""')}"`).join(',')].concat(rows.map(r => columns.map(c => {
+      const v = typeof c[1] === 'function' ? c[1](r) : r[c[1]];
+      return `"${String(v ?? '').replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/"/g,'""')}"`;
+    }).join(','))).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }
+
+  function enhanceHubPanelWithTrueBackup(){
+    const original = renderSidepanelMeta;
+    renderSidepanelMeta = function(){
+      original.apply(this, arguments);
+      if (!spHub || !spMeta) return;
+      const score = buildHubScorecard(spHub);
+      const topBackups = score.nearbySupport.map(x => `<div class="true-backup-row"><div><b>${escape(hubNameSafe(x.hub))}</b><span>${x.shared.toLocaleString()} stores could back up this RTS</span></div><em>${x.hubMiles.toFixed(0)} mi hub-to-hub</em></div>`).join('');
+      spMeta.insertAdjacentHTML('beforeend', `
+        <div class="true-backup-panel">
+          <div class="true-backup-title">True Backup RTS Logic</div>
+          <div class="true-backup-grid">
+            <div><span>Primary Stores</span><b>${score.primaryRows.length.toLocaleString()}</b></div>
+            <div><span>Backup Protected</span><b>${score.protectedRows.length.toLocaleString()} (${score.backupPct.toFixed(1)}%)</b></div>
+            <div><span>No-Backup Risk</span><b>${score.noBackup.length.toLocaleString()} (${score.riskPct.toFixed(1)}%)</b></div>
+            <div><span>Scorecard Tier</span><b>${escape(score.tier)}</b></div>
+          </div>
+          <div class="true-backup-action"><b>Action:</b> ${escape(score.action)}</div>
+          <div class="true-backup-title small">Best backup/support RTS</div>
+          ${topBackups || '<div class="true-backup-empty">No alternate active RTS overlaps this primary territory inside 75 miles.</div>'}
+        </div>`);
+    };
+  }
+
+  function wireResilienceEvents(){
+    document.addEventListener('click', function(e){
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const bid = btn.id || '';
+      if (bid === 'rtsOutageBtn') { e.preventDefault(); e.stopPropagation(); ensureResilienceShell(); renderOutageSelector(); openModal('rtsOutageModal'); renderOutageSimulation(); }
+      if (bid === 'rtsScorecardBtn') { e.preventDefault(); e.stopPropagation(); openModal('rtsScorecardModal'); renderScorecards(); }
+      if (bid === 'regionalExecBtn') { e.preventDefault(); e.stopPropagation(); openModal('regionalExecModal'); renderRegionalExecSummaries(); }
+      if (bid === 'rtsOutageClose') closeModal('rtsOutageModal');
+      if (bid === 'rtsScorecardClose') closeModal('rtsScorecardModal');
+      if (bid === 'regionalExecClose') closeModal('regionalExecModal');
+      if (bid === 'rtsOutageRun') renderOutageSimulation();
+      if (bid === 'rtsScorecardRefresh') renderScorecards();
+      if (bid === 'regionalExecRefresh') renderRegionalExecSummaries();
+      if (bid === 'rtsOutageExport') exportCsv('rts_outage_simulation.csv', lastOutageRows, [['Store',r=>r.storeNumber],['City',r=>r.city],['State',r=>r.state],['AM',r=>r.am],['Primary RTS',r=>hubNameSafe(r.primaryHub)],['Outage Status',r=>r.outageStatus],['Fallback RTS',r=>r.fallbackHub ? hubNameSafe(r.fallbackHub) : ''],['Fallback Miles',r=>r.fallbackMiles == null ? '' : Number(r.fallbackMiles).toFixed(1)]]);
+      if (bid === 'rtsScorecardExport') exportCsv('rts_scorecards.csv', lastScorecards, [['RTS',x=>hubNameSafe(x.hub)],['Tier',x=>x.tier],['Primary Stores',x=>x.primaryRows.length],['No Backup',x=>x.noBackup.length],['Backup Protected',x=>x.protectedRows.length],['Fringe 60-75',x=>x.fringe.length],['Avg Miles',x=>x.avg.toFixed(1)],['Max Miles',x=>x.max.toFixed(1)],['Action',x=>x.action]]);
+      if (bid === 'regionalExecExport') exportCsv('regional_executive_summaries.csv', lastRegionalSummaryRows, [['Region',x=>x.region],['Priority',x=>x.tier],['Stores',x=>x.total],['Covered',x=>x.covered],['Gaps',x=>x.gaps],['No Backup',x=>x.noBackup],['AM Count',x=>x.ams.size],['Primary RTS Anchor',x=>x.topHub ? hubNameSafe(x.topHub) : ''],['Recommended Action',x=>x.action]]);
+      const openHubId = btn.getAttribute('data-open-hub');
+      if (openHubId) {
+        e.preventDefault(); e.stopPropagation();
+        const hub = activeRtsHubs().find(h => h.id === openHubId);
+        if (hub) {
+          document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
+          try { document.getElementById('opsDrawer')?.classList.remove('show'); } catch(err) {}
+          openSidepanel(hub);
+        }
+      }
+    }, true);
+    document.addEventListener('change', function(e){
+      if (e.target?.id === 'rtsOutageSelect') renderOutageSimulation();
+      if (e.target?.id === 'regionalExecUseFilters') renderRegionalExecSummaries();
+    });
+  }
+
+  ensureResilienceShell();
+  enhanceHubPanelWithTrueBackup();
+  wireResilienceEvents();
+  window.OW_RTS_Resilience = { buildTrueBackupStoreRows, buildHubScorecard, renderScorecards, renderOutageSimulation, renderRegionalExecSummaries };
+})();
+
 // Startup performance guard: do not pre-render Transition Readiness on page load.
 // It is rendered by Ops Intel / Leadership / Delta actions when needed.
 })();
@@ -13048,6 +13428,49 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   .ops-priority-path-card .decision-grid,
   .op-redundancy-grid{grid-template-columns:1fr;}
 }
+
+
+/* ===== Missing Enhancement Package UI ===== */
+.rts-res-card{max-width:1200px;width:96vw;}
+.res-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
+.res-toolbar select{border:1px solid #d0d7de;border-radius:9px;padding:6px 8px;background:#fff;color:#111;max-width:360px;}
+.res-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-bottom:10px;font-size:12.5px;line-height:1.35;}
+.res-results{max-height:68vh;overflow:auto;}
+.res-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:8px;margin-bottom:10px;}
+.res-kpi{border:1px solid #e2e8f0;border-radius:13px;background:#fff;padding:10px;}
+.res-kpi .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.055em;color:#64748b;font-weight:950;}
+.res-kpi .val{font-size:22px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
+.res-kpi .sub{font-size:11.5px;color:#64748b;line-height:1.25;margin-top:3px;}
+.res-action{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin:8px 0 12px 0;font-size:12.5px;line-height:1.35;}
+.res-action.critical{border-color:#fca5a5;background:#fff1f2;color:#991b1b;}
+.res-action.stable{border-color:#86efac;background:#ecfdf5;color:#166534;}
+.res-two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.res-table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;}
+.res-table th{position:sticky;top:0;background:#f8fafc;color:#334155;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.045em;z-index:1;}
+.res-table th,.res-table td{border-bottom:1px solid #eef2f7;padding:7px 8px;vertical-align:top;}
+.res-table td.num{text-align:right;font-variant-numeric:tabular-nums;}
+.res-table.mini th,.res-table.mini td{padding:6px 7px;}
+.res-link{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:4px 8px;font:inherit;font-weight:850;cursor:pointer;text-align:left;color:#1d4ed8;}
+.res-link:hover{background:#eff6ff;border-color:#60a5fa;}
+.res-tier{display:inline-flex;align-items:center;border:1px solid #cbd5e1;border-radius:999px;background:#fff;padding:3px 8px;font-size:11px;font-weight:950;white-space:nowrap;}
+.res-tier.stable{border-color:#86efac;background:#ecfdf5;color:#166534;}
+.res-tier.watch{border-color:#fde68a;background:#fffbeb;color:#92400e;}
+.res-tier.high{border-color:#fdba74;background:#fff7ed;color:#9a3412;}
+.res-tier.critical{border-color:#fca5a5;background:#fff1f2;color:#991b1b;}
+.res-empty{border:1px dashed #cbd5e1;border-radius:12px;background:#f8fafc;color:#64748b;padding:10px;font-size:12.5px;}
+.true-backup-panel{border:1px solid #bfdbfe;background:#eff6ff;border-radius:14px;padding:10px;margin-top:10px;}
+.true-backup-title{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#1d4ed8;font-weight:950;margin-bottom:7px;}
+.true-backup-title.small{margin-top:10px;}
+.true-backup-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.true-backup-grid>div{border:1px solid #dbeafe;background:#fff;border-radius:10px;padding:8px;}
+.true-backup-grid span{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:900;}
+.true-backup-grid b{display:block;font-size:16px;color:#0f172a;margin-top:2px;}
+.true-backup-action{border:1px solid #dbeafe;background:#fff;border-radius:10px;padding:8px;margin-top:8px;color:#1e3a8a;font-size:12px;line-height:1.35;}
+.true-backup-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border:1px solid #dbeafe;background:#fff;border-radius:10px;padding:7px 8px;margin-top:6px;font-size:12px;}
+.true-backup-row span{display:block;color:#64748b;margin-top:2px;}
+.true-backup-row em{font-style:normal;color:#475569;font-weight:850;white-space:nowrap;}
+.true-backup-empty{border:1px dashed #bfdbfe;background:#fff;border-radius:10px;padding:8px;color:#64748b;font-size:12px;}
+@media(max-width:900px){.res-kpi-grid,.res-two-col,.true-backup-grid{grid-template-columns:1fr}.rts-res-card{width:94vw}.res-results{max-height:62vh}}
 </style>
 
 </body>
