@@ -4720,7 +4720,334 @@ function printSidepanelList() {
       <tbody>${htmlRows}</tbody>
     </table>
     <script>window.addEventListener('load',()=>{ setTimeout(()=>{ window.print(); }, 50); });<\/script>
-  </body></html>`);
+  
+
+<style>
+/* ===== FINAL OPS INTEL RECOVERY PATCH v3 =====
+   Prevents the permanent "Drawer restored" shell by replacing it with a
+   self-contained, fault-tolerant Ops Intel renderer. */
+#opsDrawer.ops-drawer.ow-recovery-drawer{
+  position:absolute;top:0;right:0;bottom:0;width:min(680px,94vw)!important;max-width:94vw!important;
+  background:#fff;border-left:1px solid #e5e7eb;box-shadow:-12px 0 32px rgba(15,23,42,.18);
+  z-index:8200!important;display:none;flex-direction:column;overflow:hidden;
+}
+#opsDrawer.ops-drawer.ow-recovery-drawer.show{display:flex!important;}
+#opsDrawer .ow-ops-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #e5e7eb;background:#fff;position:sticky;top:0;z-index:5;}
+#opsDrawer .ow-ops-head h3{margin:0;font-size:18px;line-height:1.15;flex:1;}
+#opsDrawer .ow-ops-stamp{font-size:12px;color:#64748b;white-space:nowrap;}
+#opsDrawer .ow-ops-tabs{display:flex;gap:7px;padding:9px 12px;border-bottom:1px solid #e5e7eb;background:#f8fafc;overflow:auto;scrollbar-width:none;}
+#opsDrawer .ow-ops-tabs::-webkit-scrollbar{display:none;}
+#opsDrawer .ow-ops-tab{border:1px solid #cbd5e1;background:#fff;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;white-space:nowrap;cursor:pointer;}
+#opsDrawer .ow-ops-tab.active{background:#111827;color:#fff;border-color:#111827;}
+#opsDrawer .ow-ops-body{flex:1;overflow:auto;padding:12px;background:#f8fafc;}
+#opsDrawer .ow-pane{display:none;}
+#opsDrawer .ow-pane.active{display:block;}
+#opsDrawer .ow-card{border:1px solid #e2e8f0;background:#fff;border-radius:14px;padding:12px;margin-bottom:10px;box-shadow:0 2px 8px rgba(15,23,42,.035);}
+#opsDrawer .ow-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px;}
+#opsDrawer .ow-kpi{border:1px solid #dbe3ea;background:#fff;border-radius:13px;padding:10px;}
+#opsDrawer .ow-kpi .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;font-weight:950;}
+#opsDrawer .ow-kpi .val{font-size:23px;font-weight:950;color:#0f172a;line-height:1.1;}
+#opsDrawer .ow-kpi .sub{font-size:12px;color:#64748b;margin-top:2px;line-height:1.25;}
+#opsDrawer .ow-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;font-size:12.5px;line-height:1.35;margin-bottom:10px;}
+#opsDrawer .ow-table{width:100%;border-collapse:collapse;font-size:12px;}
+#opsDrawer .ow-table th,#opsDrawer .ow-table td{border-bottom:1px solid #eef2f7;padding:7px 6px;vertical-align:top;text-align:left;}
+#opsDrawer .ow-table th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;background:#f8fafc;position:sticky;top:0;z-index:1;}
+#opsDrawer .ow-table .num{text-align:right;font-variant-numeric:tabular-nums;}
+#opsDrawer .ow-action{border:1px solid #dbeafe;background:#eff6ff;border-radius:12px;padding:10px;margin:8px 0;}
+#opsDrawer .ow-action b{display:block;color:#0f172a;margin-bottom:3px;}
+#opsDrawer .ow-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+#opsDrawer .ow-mini-card{border:1px solid #e2e8f0;border-radius:12px;padding:10px;background:#fff;}
+#opsDrawer .ow-select{border:1px solid #cbd5e1;border-radius:10px;padding:7px 9px;min-width:240px;max-width:100%;}
+#opsDrawer .ow-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
+#opsDrawer .ow-error{border:1px solid #fecaca;background:#fff7f7;color:#991b1b;border-radius:12px;padding:10px;font-size:12.5px;line-height:1.35;}
+.mapwrap.command-drawer-open .map-action-rail,#opsDrawer.show ~ .map-action-rail{display:none!important;}
+@media(max-width:900px){#opsDrawer .ow-grid{grid-template-columns:1fr 1fr;}#opsDrawer .ow-mini-grid{grid-template-columns:1fr;}}
+@media(max-width:640px){#opsDrawer .ow-grid{grid-template-columns:1fr;}#opsDrawer.ops-drawer.ow-recovery-drawer{width:96vw!important;}}
+</style>
+<script>
+/* ===== FINAL OPS INTEL RECOVERY PATCH v3 ===== */
+(function(){
+  if (window.__OW_FINAL_OPS_RECOVERY_V3) return;
+  window.__OW_FINAL_OPS_RECOVERY_V3 = true;
+
+  const $ = id => document.getElementById(id);
+  const q = (sel, root=document) => root.querySelector(sel);
+  const qa = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmt = n => Number(n || 0).toLocaleString();
+  const pct = (n,d) => d ? Math.round((n/d)*1000)/10 : 0;
+  const rad = d => d * Math.PI / 180;
+  const miles = (a,b,c,d) => { const R=3958.8, dLat=rad(c-a), dLng=rad(d-b); const x=Math.sin(dLat/2)**2 + Math.cos(rad(a))*Math.cos(rad(c))*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
+  const normStore = v => String(v ?? '').replace(/\.0$/,'').replace(/[^0-9]/g,'').replace(/^0+/,'') || String(v ?? '').trim();
+  const val = (o, keys) => { for (const k of keys){ const v=o?.[k]; if(v!==undefined && v!==null && String(v).trim()!=='') return String(v).trim(); } return ''; };
+  const numVal = (o, keys) => { const v=Number(val(o,keys)); return Number.isFinite(v) ? v : NaN; };
+  const getTeam = r => {
+    const t=String([r?.SourceTeam,r?.sourceTeam,r?.LegacyTeam,r?.legacyTeam,r?.Team,r?.team,r?.TeamName,r?.teamName,r?.Organization,r?.Brand].filter(Boolean).join(' ')).toLowerCase();
+    if(/premium|prs/.test(t)) return 'Premium';
+    if(/acosta|mosaic|asm/.test(t)) return 'Acosta';
+    if(/crossmark/.test(t)) return 'Crossmark';
+    return val(r,['SourceTeam','Team','LegacyTeam']) || 'One Walmart';
+  };
+  const rtsName = r => val(r,['Name','name','RTSName','rtsName','RepName','TrainerName']) || 'RTS';
+  const rtsCity = r => val(r,['City','city','RTSCity','HubCity']);
+  const rtsState = r => val(r,['State','state','RTSState','HubState']);
+  const storeCity = s => val(s,['city','City']);
+  const storeState = s => val(s,['state','State']);
+  const storeName = s => val(s,['storeName','StoreName','name']) || 'Walmart';
+  const storeLat = s => numVal(s,['lat','Lat','Latitude','latitude']);
+  const storeLng = s => numVal(s,['lng','Lon','Longitude','longitude']);
+  const storeNo = s => normStore(val(s,['storeNumberStr','StoreNumber','StoreNbr','storeNumber','store','Store']));
+  const isFutureRts = r => /(future|pending|proposed|planned|open|recruit|offer|tbd)/i.test(String(val(r,['Status','status','RTSStatus']) || 'active'));
+
+  const state = { loaded:false, loading:false, stores:[], rts:[], activeRts:[], dedicated:[], rows:[], hubRows:[], regionRows:[], scoreRows:[], currentPane:'overview', outageHub:'' };
+
+  async function fetchJson(url){
+    const r = await fetch(url + (url.includes('?')?'&':'?') + 'v=' + Date.now(), {cache:'no-store'});
+    if(!r.ok) throw new Error(`${url} HTTP ${r.status}`);
+    const text = await r.text();
+    return JSON.parse(text.replace(/^\uFEFF/,''));
+  }
+
+  function visibleFilterSource(){
+    try{
+      if (Array.isArray(window.filteredStores) && window.filteredStores.length) return window.filteredStores;
+    }catch(_){ }
+    return state.stores;
+  }
+
+  function classifyRows(){
+    const active = state.activeRts;
+    state.rows = state.stores.map(s => {
+      const lat=storeLat(s), lng=storeLng(s), key=storeNo(s);
+      const close = Number.isFinite(lat) && Number.isFinite(lng)
+        ? active.map(h => ({...h, miles:miles(lat,lng,h.lat,h.lng)})).filter(h => h.miles <= 75).sort((a,b)=>a.miles-b.miles)
+        : [];
+      const primary = close[0] || null;
+      const backup = close[1] || null;
+      const fallback = Number.isFinite(lat) && Number.isFinite(lng) && active.length ? active.map(h => ({...h, miles:miles(lat,lng,h.lat,h.lng)})).sort((a,b)=>a.miles-b.miles)[0] : null;
+      const region = val(s,['regionalManager','RegionalManager','rm','RM']) || storeState(s) || 'Unassigned';
+      const am = val(s,['areaManager','AreaManager','am','AM']) || 'Unassigned';
+      return { raw:s, key, lat, lng, name:storeName(s), city:storeCity(s), state:storeState(s), region, am, covered:!!primary, primary, backup, nearest:fallback, miles:primary?.miles ?? fallback?.miles ?? 999, fringe:!!primary && primary.miles >= 60, noBackup:!!primary && !backup };
+    });
+
+    const byHub = new Map();
+    active.forEach(h => byHub.set(h.id, {...h, stores:0, noBackup:0, fringe:0, miles:[], backupProtected:0}));
+    state.rows.forEach(r => {
+      if(!r.primary) return;
+      const h=byHub.get(r.primary.id); if(!h) return;
+      h.stores++; h.miles.push(r.primary.miles); if(r.noBackup) h.noBackup++; if(r.fringe) h.fringe++; if(r.backup) h.backupProtected++;
+    });
+    state.scoreRows = Array.from(byHub.values()).map(h => {
+      const avg = h.miles.length ? h.miles.reduce((a,b)=>a+b,0)/h.miles.length : 0;
+      const max = h.miles.length ? Math.max(...h.miles) : 0;
+      const risk = h.noBackup >= 25 || h.stores >= 90 ? 'Critical' : h.noBackup >= 12 || h.fringe >= 15 || h.stores >= 65 ? 'Watch' : h.stores ? 'Stable' : 'No primary stores';
+      const action = risk==='Critical' ? 'Validate backup coverage / load balance' : risk==='Watch' ? 'Monitor fringe + no-backup stores' : h.stores ? 'No immediate action' : 'Reference only';
+      return {...h, avg, max, risk, action};
+    }).sort((a,b)=>b.noBackup-a.noBackup || b.stores-a.stores);
+
+    const byRegion = new Map();
+    state.rows.forEach(r => {
+      const key = r.region || r.state || 'Unassigned';
+      const g = byRegion.get(key) || {region:key, total:0, covered:0, gaps:0, noBackup:0, fringe:0, states:new Set()};
+      g.total++; if(r.covered) g.covered++; else g.gaps++; if(r.noBackup) g.noBackup++; if(r.fringe) g.fringe++; if(r.state) g.states.add(r.state); byRegion.set(key,g);
+    });
+    state.regionRows = Array.from(byRegion.values()).map(g => ({...g, pct:pct(g.covered,g.total), states:Array.from(g.states).sort().join(', '), riskScore:g.gaps+g.noBackup})).sort((a,b)=>b.riskScore-a.riskScore || b.total-a.total);
+  }
+
+  async function loadOpsData(force=false){
+    if(state.loaded && !force) return;
+    if(state.loading) return;
+    state.loading = true;
+    setPaneHtml('overview', '<div class="ow-note">Loading Operations Intelligence data…</div>');
+    try{
+      const [storesRaw, rtsRaw, dedRaw] = await Promise.all([
+        fetchJson('./onewalmart_store_data.json'),
+        fetchJson('./onewalmart_rts_combined.json'),
+        fetchJson('./dedicated_manager_paths.json').catch(()=>[])
+      ]);
+      state.stores = Array.isArray(storesRaw) ? storesRaw : [];
+      state.rts = (Array.isArray(rtsRaw) ? rtsRaw : []).map((r,i)=>{
+        const lat=numVal(r,['Latitude','latitude','lat','Lat','RTSLat','rtsLat']);
+        const lng=numVal(r,['Longitude','longitude','lng','Lon','RTSLon','rtsLon','RTSLng','rtsLng']);
+        if(!Number.isFinite(lat)||!Number.isFinite(lng)) return null;
+        const city=rtsCity(r), st=rtsState(r), name=rtsName(r);
+        return {id:'rts_'+i+'_'+name.replace(/\W+/g,'_'), raw:r, name, city, state:st, label:`${name}${city||st ? ' — '+city+(city&&st?', ':'')+st : ''}`, lat, lng, team:getTeam(r), future:isFutureRts(r)};
+      }).filter(Boolean);
+      state.activeRts = state.rts.filter(r=>!r.future);
+      state.dedicated = Array.isArray(dedRaw) ? dedRaw : [];
+      classifyRows();
+      state.loaded = true;
+    }catch(err){
+      console.error('Ops Intel recovery load failed', err);
+      state.loadError = err;
+    }finally{ state.loading = false; }
+  }
+
+  function drawerTemplate(){
+    return `<div class="ow-ops-head"><h3>Operations Intelligence</h3><span id="owOpsStamp" class="ow-ops-stamp">Recovery renderer</span><button id="owOpsRefresh" class="btn" type="button">Refresh</button><button id="opsCloseBtn" class="btn" type="button">×</button></div>
+      <div class="ow-note" style="margin:10px 12px 0 12px"><b>Consolidated interpretation:</b> shared RTS reach is treated as coverage density/resiliency visibility, not a penalty. Primary planning focus is 75-mile active coverage, uncovered gaps, dedicated-team exposure, and RTS workload.</div>
+      <div class="ow-ops-tabs">
+        <button class="ow-ops-tab active" data-pane="overview" type="button">Overview</button>
+        <button class="ow-ops-tab" data-pane="gaps" type="button">Gaps</button>
+        <button class="ow-ops-tab" data-pane="workload" type="button">RTS Load</button>
+        <button class="ow-ops-tab" data-pane="resilience" type="button">Resilience Tools</button>
+        <button class="ow-ops-tab" data-pane="leadership" type="button">Leadership</button>
+      </div>
+      <div class="ow-ops-body">
+        <div class="ow-pane active" id="owPaneOverview"></div>
+        <div class="ow-pane" id="owPaneGaps"></div>
+        <div class="ow-pane" id="owPaneWorkload"></div>
+        <div class="ow-pane" id="owPaneResilience"></div>
+        <div class="ow-pane" id="owPaneLeadership"></div>
+      </div>`;
+  }
+
+  function ensureDrawer(){
+    let drawer = $('opsDrawer');
+    const needsReplace = !drawer || drawer.textContent.includes('Drawer shell was restored') || drawer.textContent.includes('Refresh/reopen after data finishes loading') || !q('.ow-ops-tabs', drawer);
+    if(needsReplace){
+      const wrap = q('.mapwrap') || document.body;
+      if(drawer) drawer.remove();
+      drawer = document.createElement('aside');
+      drawer.id = 'opsDrawer';
+      drawer.className = 'ops-drawer ow-recovery-drawer';
+      drawer.innerHTML = drawerTemplate();
+      wrap.appendChild(drawer);
+      bindDrawer(drawer);
+    }
+    return drawer;
+  }
+
+  function bindDrawer(drawer){
+    drawer.addEventListener('click', e => {
+      const tab = e.target.closest('.ow-ops-tab');
+      if(tab){ e.preventDefault(); activatePane(tab.dataset.pane || 'overview'); return; }
+      if(e.target.closest('#opsCloseBtn')){ closeDrawer(); return; }
+      if(e.target.closest('#owOpsRefresh')){ window.OW_REBUILD_OPS_INTEL(true); return; }
+    });
+    drawer.addEventListener('change', e => {
+      if(e.target && e.target.id === 'owOutageSelect'){ state.outageHub = e.target.value; renderResilience(); }
+    });
+  }
+
+  function openDrawer(pane='overview'){
+    const d=ensureDrawer();
+    d.classList.add('show');
+    q('.mapwrap')?.classList.add('command-drawer-open');
+    activatePane(pane);
+    window.OW_REBUILD_OPS_INTEL(false);
+  }
+  function closeDrawer(){ $('opsDrawer')?.classList.remove('show'); q('.mapwrap')?.classList.remove('command-drawer-open'); }
+  function activatePane(pane){
+    state.currentPane = pane || 'overview';
+    const d=ensureDrawer();
+    qa('.ow-ops-tab',d).forEach(b=>b.classList.toggle('active', b.dataset.pane===state.currentPane));
+    qa('.ow-pane',d).forEach(p=>p.classList.toggle('active', p.id.toLowerCase() === ('owpane'+state.currentPane).toLowerCase()));
+    if(state.loaded) renderCurrentPane();
+  }
+  function setPaneHtml(pane, html){ const el=$('owPane'+pane.charAt(0).toUpperCase()+pane.slice(1)); if(el) el.innerHTML=html; }
+  function activeRows(){
+    // Prefer current map filters when accessible through marker-derived labels is not possible; otherwise use all loaded rows.
+    return state.rows;
+  }
+  function topRows(rows,n=10){ return rows.slice(0,n); }
+
+  function renderCurrentPane(){
+    if(state.loadError){ setPaneHtml(state.currentPane, `<div class="ow-error"><b>Ops Intel failed to load.</b><br>${esc(state.loadError.message || state.loadError)}</div>`); return; }
+    if(state.currentPane==='overview') renderOverview();
+    else if(state.currentPane==='gaps') renderGaps();
+    else if(state.currentPane==='workload') renderWorkload();
+    else if(state.currentPane==='resilience') renderResilience();
+    else if(state.currentPane==='leadership') renderLeadership();
+    const stamp=$('owOpsStamp'); if(stamp) stamp.textContent='Updated '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  }
+
+  function kpiHtml(rows){
+    const total=rows.length, covered=rows.filter(r=>r.covered).length, gaps=total-covered, noBackup=rows.filter(r=>r.noBackup).length;
+    return `<div class="ow-grid"><div class="ow-kpi"><div class="lbl">Stores</div><div class="val">${fmt(total)}</div><div class="sub">Loaded store rows</div></div><div class="ow-kpi"><div class="lbl">RTS Coverage</div><div class="val">${pct(covered,total)}%</div><div class="sub">${fmt(covered)} covered / ${fmt(gaps)} gaps</div></div><div class="ow-kpi"><div class="lbl">Active RTS</div><div class="val">${fmt(state.activeRts.length)}</div><div class="sub">Future RTS excluded from coverage</div></div><div class="ow-kpi"><div class="lbl">No Backup</div><div class="val">${fmt(noBackup)}</div><div class="sub">Covered by only one active RTS</div></div></div>`;
+  }
+
+  function renderOverview(){
+    const rows=activeRows();
+    const gapRegions=topRows(state.regionRows.filter(r=>r.gaps>0),8);
+    const stress=topRows(state.scoreRows.filter(r=>r.risk!=='Stable' && r.risk!=='No primary stores'),8);
+    setPaneHtml('overview', `${kpiHtml(rows)}<div class="ow-card"><b>Top Gap Regions</b>${tableRegions(gapRegions)}</div><div class="ow-card"><b>RTS Workload / Backup Watchlist</b>${tableScore(stress)}</div>`);
+  }
+  function renderGaps(){
+    const regions=state.regionRows.filter(r=>r.gaps>0);
+    const states=new Map(); state.rows.filter(r=>!r.covered).forEach(r=>{const k=r.state||'—'; states.set(k,(states.get(k)||0)+1);});
+    const stateRows=Array.from(states.entries()).map(([state,gaps])=>({region:state,total:gaps,covered:0,gaps,noBackup:0,fringe:0,pct:0,states:state,riskScore:gaps})).sort((a,b)=>b.gaps-a.gaps).slice(0,15);
+    setPaneHtml('gaps', `${kpiHtml(state.rows)}<div class="ow-card"><b>Region Gap Prioritization</b><div class="ow-note">Use this to identify where leadership needs a staffing, remote-training, or backup coverage decision.</div>${tableRegions(regions.slice(0,20))}</div><div class="ow-card"><b>Largest State Gap Counts</b>${tableRegions(stateRows)}</div>`);
+  }
+  function renderWorkload(){ setPaneHtml('workload', `${kpiHtml(state.rows)}<div class="ow-card"><b>RTS Scorecard</b>${tableScore(state.scoreRows)}</div>`); }
+  function renderResilience(){
+    const opts = state.scoreRows.map(h=>`<option value="${esc(h.id)}" ${state.outageHub===h.id?'selected':''}>${esc(h.label)} — ${fmt(h.stores)} primary / ${fmt(h.noBackup)} no backup</option>`).join('');
+    const chosen = state.scoreRows.find(h=>h.id===state.outageHub) || state.scoreRows[0];
+    if(!state.outageHub && chosen) state.outageHub=chosen.id;
+    const outageRows = chosen ? state.rows.filter(r=>r.primary?.id===chosen.id).map(r=>({store:r, backup:r.backup})).sort((a,b)=>(a.backup?1:0)-(b.backup?1:0) || b.store.miles-a.store.miles) : [];
+    const stranded = outageRows.filter(x=>!x.backup).length;
+    const shifted = outageRows.length-stranded;
+    setPaneHtml('resilience', `<div class="ow-note"><b>True Backup Logic:</b> a store is backup-protected only when it has a second active RTS within 75 miles. Shared reach is resilience visibility, not a penalty.</div>${kpiHtml(state.rows)}<div class="ow-card"><b>RTS Outage Simulator</b><div class="ow-tools"><select id="owOutageSelect" class="ow-select">${opts}</select></div><div class="ow-mini-grid"><div class="ow-mini-card"><b>Stores shifted to backup</b><div class="ow-kpi"><div class="val">${fmt(shifted)}</div></div></div><div class="ow-mini-card"><b>Stores stranded / no backup</b><div class="ow-kpi"><div class="val">${fmt(stranded)}</div></div></div></div>${tableOutage(outageRows.slice(0,40))}</div><div class="ow-card"><b>Regional Executive Summaries</b>${tableRegions(state.regionRows.slice(0,15))}</div><div class="ow-card"><b>RTS Scorecards</b>${tableScore(state.scoreRows.slice(0,25))}</div>`);
+  }
+  function renderLeadership(){
+    const rows=state.rows,total=rows.length,covered=rows.filter(r=>r.covered).length,gaps=total-covered,noBackup=rows.filter(r=>r.noBackup).length;
+    const topGap=state.regionRows.find(r=>r.gaps>0); const topLoad=state.scoreRows.find(r=>r.risk==='Critical' || r.risk==='Watch');
+    const actions=[];
+    if(topGap) actions.push({title:`Close largest gap concentration: ${topGap.region}`, metric:`${fmt(topGap.gaps)} uncovered stores · ${topGap.pct}% covered`, why:'Largest current coverage exposure under the active 75-mile model.', next:'Drill into this region and decide whether to staff an RTS hub, route remote training, or accept temporary gap coverage.'});
+    if(topLoad) actions.push({title:`Protect RTS workload: ${topLoad.label}`, metric:`${fmt(topLoad.stores)} primary stores · ${fmt(topLoad.noBackup)} no-backup stores`, why:'This hub is a possible single point of failure or capacity risk.', next:'Review backup options, fringe stores, and whether nearby RTS can absorb outage volume.'});
+    actions.push({title:'Keep dedicated-team visibility separate', metric:`${fmt(state.dedicated.length)} dedicated alignment rows loaded`, why:'Unilever, P&G, and Tyson should remain visible without confusing core One Walmart coverage.', next:'Use Dedicated Team Rollup for client-specific exposure and communication ownership.'});
+    setPaneHtml('leadership', `${kpiHtml(rows)}<div class="ow-card"><b>Executive Readout</b><div class="ow-note">One Walmart RTS active coverage is <b>${pct(covered,total)}%</b>, leaving <b>${fmt(gaps)}</b> uncovered stores. <b>${fmt(noBackup)}</b> covered stores have no second active RTS within 75 miles, so resilience planning should focus on backup protection and high-load hubs.</div></div><div class="ow-card"><b>Leadership Action Path</b>${actions.map((a,i)=>`<div class="ow-action"><b>Priority ${i+1}: ${esc(a.title)}</b><div>${esc(a.metric)}</div><div style="margin-top:5px"><b>Why:</b> ${esc(a.why)}</div><div style="margin-top:5px;color:#1e3a8a"><b>Next step:</b> ${esc(a.next)}</div></div>`).join('')}</div>`);
+  }
+
+  function tableRegions(rows){
+    if(!rows.length) return '<div class="ow-note">No rows to show.</div>';
+    return `<div style="max-height:360px;overflow:auto"><table class="ow-table"><thead><tr><th>Region / State</th><th class="num">Stores</th><th class="num">Covered</th><th class="num">Gaps</th><th class="num">No backup</th><th class="num">Coverage</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.region)}</b><div style="color:#64748b;font-size:11px">${esc(r.states||'')}</div></td><td class="num">${fmt(r.total)}</td><td class="num">${fmt(r.covered)}</td><td class="num"><b>${fmt(r.gaps)}</b></td><td class="num">${fmt(r.noBackup)}</td><td class="num">${r.pct}%</td></tr>`).join('')}</tbody></table></div>`;
+  }
+  function tableScore(rows){
+    if(!rows.length) return '<div class="ow-note">No RTS rows to show.</div>';
+    return `<div style="max-height:420px;overflow:auto"><table class="ow-table"><thead><tr><th>RTS</th><th>Legacy/team</th><th class="num">Primary</th><th class="num">No backup</th><th class="num">Fringe</th><th class="num">Avg mi</th><th>Risk</th><th>Action</th></tr></thead><tbody>${rows.map(h=>`<tr><td><b>${esc(h.label)}</b></td><td>${esc(h.team)}</td><td class="num">${fmt(h.stores)}</td><td class="num"><b>${fmt(h.noBackup)}</b></td><td class="num">${fmt(h.fringe)}</td><td class="num">${h.avg.toFixed(1)}</td><td>${esc(h.risk)}</td><td>${esc(h.action)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+  function tableOutage(rows){
+    if(!rows.length) return '<div class="ow-note">No primary stores for this RTS.</div>';
+    return `<div style="max-height:300px;overflow:auto;margin-top:10px"><table class="ow-table"><thead><tr><th>Store</th><th>Location</th><th>Outage Result</th><th class="num">Primary mi</th></tr></thead><tbody>${rows.map(x=>`<tr><td><b>#${esc(x.store.key)}</b><br>${esc(x.store.name)}</td><td>${esc(x.store.city)}, ${esc(x.store.state)}</td><td>${x.backup ? `Shifts to ${esc(x.backup.label)} (${x.backup.miles.toFixed(1)} mi)` : '<b style="color:#991b1b">No active backup within 75 mi</b>'}</td><td class="num">${x.store.miles.toFixed(1)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+
+  window.OW_REBUILD_OPS_INTEL = async function(force=false){
+    ensureDrawer();
+    await loadOpsData(force);
+    renderCurrentPane();
+  };
+  window.updateOpsIntel = function(){ window.OW_REBUILD_OPS_INTEL(false); };
+
+  function intercept(e){
+    const b=e.target.closest?.('button'); if(!b) return;
+    const id=b.id||'';
+    const pane = id==='railLeadership'||id==='quickLeadershipBtn'||id==='opcxLeadershipView' ? 'leadership'
+      : id==='railResilience'||id==='openResiliencePaneBtn' ? 'resilience'
+      : id==='rtsScorecardBtn'||id==='openVisibleScorecardsBtn' ? 'workload'
+      : id==='rtsOutageBtn'||id==='openVisibleOutageBtn'||id==='regionalExecBtn'||id==='openVisibleRegionalExecBtn' ? 'resilience'
+      : 'overview';
+    if(['railOpsIntel','opsDrawerToggle','quickOpsBtn','opcxOpsView','railLeadership','quickLeadershipBtn','opcxLeadershipView','railResilience','openResiliencePaneBtn','rtsScorecardBtn','rtsOutageBtn','regionalExecBtn','openVisibleScorecardsBtn','openVisibleOutageBtn','openVisibleRegionalExecBtn'].includes(id)){
+      e.preventDefault(); e.stopImmediatePropagation(); openDrawer(pane); return false;
+    }
+    if(id==='opsCloseBtn'){ e.preventDefault(); e.stopImmediatePropagation(); closeDrawer(); return false; }
+  }
+  document.addEventListener('click', intercept, true);
+  document.addEventListener('pointerup', function(e){ const b=e.target.closest?.('button'); if(b && (b.id==='railOpsIntel'||b.id==='opsDrawerToggle')){ e.preventDefault(); e.stopImmediatePropagation(); openDrawer('overview'); return false; }}, true);
+
+  function repairIfPlaceholder(){
+    const d=$('opsDrawer');
+    if(d && (d.textContent.includes('Drawer shell was restored') || d.textContent.includes('Refresh/reopen after data finishes loading') || !q('.ow-ops-tabs',d))){
+      d.remove(); ensureDrawer();
+    }
+  }
+  function start(){ ensureDrawer(); repairIfPlaceholder(); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', start); else start();
+  setTimeout(start,300); setTimeout(start,1200); setTimeout(start,3000);
+})();
+</script>
+
+</body></html>`);
   win.document.close();
 }
 
@@ -8974,6 +9301,333 @@ const projectedCoveragePct = allStores.length
         </table>
         <script>window.print()<\\/script>
       
+
+
+
+<style>
+/* ===== FINAL OPS INTEL RECOVERY PATCH v3 =====
+   Prevents the permanent "Drawer restored" shell by replacing it with a
+   self-contained, fault-tolerant Ops Intel renderer. */
+#opsDrawer.ops-drawer.ow-recovery-drawer{
+  position:absolute;top:0;right:0;bottom:0;width:min(680px,94vw)!important;max-width:94vw!important;
+  background:#fff;border-left:1px solid #e5e7eb;box-shadow:-12px 0 32px rgba(15,23,42,.18);
+  z-index:8200!important;display:none;flex-direction:column;overflow:hidden;
+}
+#opsDrawer.ops-drawer.ow-recovery-drawer.show{display:flex!important;}
+#opsDrawer .ow-ops-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #e5e7eb;background:#fff;position:sticky;top:0;z-index:5;}
+#opsDrawer .ow-ops-head h3{margin:0;font-size:18px;line-height:1.15;flex:1;}
+#opsDrawer .ow-ops-stamp{font-size:12px;color:#64748b;white-space:nowrap;}
+#opsDrawer .ow-ops-tabs{display:flex;gap:7px;padding:9px 12px;border-bottom:1px solid #e5e7eb;background:#f8fafc;overflow:auto;scrollbar-width:none;}
+#opsDrawer .ow-ops-tabs::-webkit-scrollbar{display:none;}
+#opsDrawer .ow-ops-tab{border:1px solid #cbd5e1;background:#fff;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;white-space:nowrap;cursor:pointer;}
+#opsDrawer .ow-ops-tab.active{background:#111827;color:#fff;border-color:#111827;}
+#opsDrawer .ow-ops-body{flex:1;overflow:auto;padding:12px;background:#f8fafc;}
+#opsDrawer .ow-pane{display:none;}
+#opsDrawer .ow-pane.active{display:block;}
+#opsDrawer .ow-card{border:1px solid #e2e8f0;background:#fff;border-radius:14px;padding:12px;margin-bottom:10px;box-shadow:0 2px 8px rgba(15,23,42,.035);}
+#opsDrawer .ow-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px;}
+#opsDrawer .ow-kpi{border:1px solid #dbe3ea;background:#fff;border-radius:13px;padding:10px;}
+#opsDrawer .ow-kpi .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;font-weight:950;}
+#opsDrawer .ow-kpi .val{font-size:23px;font-weight:950;color:#0f172a;line-height:1.1;}
+#opsDrawer .ow-kpi .sub{font-size:12px;color:#64748b;margin-top:2px;line-height:1.25;}
+#opsDrawer .ow-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;font-size:12.5px;line-height:1.35;margin-bottom:10px;}
+#opsDrawer .ow-table{width:100%;border-collapse:collapse;font-size:12px;}
+#opsDrawer .ow-table th,#opsDrawer .ow-table td{border-bottom:1px solid #eef2f7;padding:7px 6px;vertical-align:top;text-align:left;}
+#opsDrawer .ow-table th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;background:#f8fafc;position:sticky;top:0;z-index:1;}
+#opsDrawer .ow-table .num{text-align:right;font-variant-numeric:tabular-nums;}
+#opsDrawer .ow-action{border:1px solid #dbeafe;background:#eff6ff;border-radius:12px;padding:10px;margin:8px 0;}
+#opsDrawer .ow-action b{display:block;color:#0f172a;margin-bottom:3px;}
+#opsDrawer .ow-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+#opsDrawer .ow-mini-card{border:1px solid #e2e8f0;border-radius:12px;padding:10px;background:#fff;}
+#opsDrawer .ow-select{border:1px solid #cbd5e1;border-radius:10px;padding:7px 9px;min-width:240px;max-width:100%;}
+#opsDrawer .ow-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
+#opsDrawer .ow-error{border:1px solid #fecaca;background:#fff7f7;color:#991b1b;border-radius:12px;padding:10px;font-size:12.5px;line-height:1.35;}
+.mapwrap.command-drawer-open .map-action-rail,#opsDrawer.show ~ .map-action-rail{display:none!important;}
+@media(max-width:900px){#opsDrawer .ow-grid{grid-template-columns:1fr 1fr;}#opsDrawer .ow-mini-grid{grid-template-columns:1fr;}}
+@media(max-width:640px){#opsDrawer .ow-grid{grid-template-columns:1fr;}#opsDrawer.ops-drawer.ow-recovery-drawer{width:96vw!important;}}
+</style>
+<script>
+/* ===== FINAL OPS INTEL RECOVERY PATCH v3 ===== */
+(function(){
+  if (window.__OW_FINAL_OPS_RECOVERY_V3) return;
+  window.__OW_FINAL_OPS_RECOVERY_V3 = true;
+
+  const $ = id => document.getElementById(id);
+  const q = (sel, root=document) => root.querySelector(sel);
+  const qa = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmt = n => Number(n || 0).toLocaleString();
+  const pct = (n,d) => d ? Math.round((n/d)*1000)/10 : 0;
+  const rad = d => d * Math.PI / 180;
+  const miles = (a,b,c,d) => { const R=3958.8, dLat=rad(c-a), dLng=rad(d-b); const x=Math.sin(dLat/2)**2 + Math.cos(rad(a))*Math.cos(rad(c))*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
+  const normStore = v => String(v ?? '').replace(/\.0$/,'').replace(/[^0-9]/g,'').replace(/^0+/,'') || String(v ?? '').trim();
+  const val = (o, keys) => { for (const k of keys){ const v=o?.[k]; if(v!==undefined && v!==null && String(v).trim()!=='') return String(v).trim(); } return ''; };
+  const numVal = (o, keys) => { const v=Number(val(o,keys)); return Number.isFinite(v) ? v : NaN; };
+  const getTeam = r => {
+    const t=String([r?.SourceTeam,r?.sourceTeam,r?.LegacyTeam,r?.legacyTeam,r?.Team,r?.team,r?.TeamName,r?.teamName,r?.Organization,r?.Brand].filter(Boolean).join(' ')).toLowerCase();
+    if(/premium|prs/.test(t)) return 'Premium';
+    if(/acosta|mosaic|asm/.test(t)) return 'Acosta';
+    if(/crossmark/.test(t)) return 'Crossmark';
+    return val(r,['SourceTeam','Team','LegacyTeam']) || 'One Walmart';
+  };
+  const rtsName = r => val(r,['Name','name','RTSName','rtsName','RepName','TrainerName']) || 'RTS';
+  const rtsCity = r => val(r,['City','city','RTSCity','HubCity']);
+  const rtsState = r => val(r,['State','state','RTSState','HubState']);
+  const storeCity = s => val(s,['city','City']);
+  const storeState = s => val(s,['state','State']);
+  const storeName = s => val(s,['storeName','StoreName','name']) || 'Walmart';
+  const storeLat = s => numVal(s,['lat','Lat','Latitude','latitude']);
+  const storeLng = s => numVal(s,['lng','Lon','Longitude','longitude']);
+  const storeNo = s => normStore(val(s,['storeNumberStr','StoreNumber','StoreNbr','storeNumber','store','Store']));
+  const isFutureRts = r => /(future|pending|proposed|planned|open|recruit|offer|tbd)/i.test(String(val(r,['Status','status','RTSStatus']) || 'active'));
+
+  const state = { loaded:false, loading:false, stores:[], rts:[], activeRts:[], dedicated:[], rows:[], hubRows:[], regionRows:[], scoreRows:[], currentPane:'overview', outageHub:'' };
+
+  async function fetchJson(url){
+    const r = await fetch(url + (url.includes('?')?'&':'?') + 'v=' + Date.now(), {cache:'no-store'});
+    if(!r.ok) throw new Error(`${url} HTTP ${r.status}`);
+    const text = await r.text();
+    return JSON.parse(text.replace(/^\uFEFF/,''));
+  }
+
+  function visibleFilterSource(){
+    try{
+      if (Array.isArray(window.filteredStores) && window.filteredStores.length) return window.filteredStores;
+    }catch(_){ }
+    return state.stores;
+  }
+
+  function classifyRows(){
+    const active = state.activeRts;
+    state.rows = state.stores.map(s => {
+      const lat=storeLat(s), lng=storeLng(s), key=storeNo(s);
+      const close = Number.isFinite(lat) && Number.isFinite(lng)
+        ? active.map(h => ({...h, miles:miles(lat,lng,h.lat,h.lng)})).filter(h => h.miles <= 75).sort((a,b)=>a.miles-b.miles)
+        : [];
+      const primary = close[0] || null;
+      const backup = close[1] || null;
+      const fallback = Number.isFinite(lat) && Number.isFinite(lng) && active.length ? active.map(h => ({...h, miles:miles(lat,lng,h.lat,h.lng)})).sort((a,b)=>a.miles-b.miles)[0] : null;
+      const region = val(s,['regionalManager','RegionalManager','rm','RM']) || storeState(s) || 'Unassigned';
+      const am = val(s,['areaManager','AreaManager','am','AM']) || 'Unassigned';
+      return { raw:s, key, lat, lng, name:storeName(s), city:storeCity(s), state:storeState(s), region, am, covered:!!primary, primary, backup, nearest:fallback, miles:primary?.miles ?? fallback?.miles ?? 999, fringe:!!primary && primary.miles >= 60, noBackup:!!primary && !backup };
+    });
+
+    const byHub = new Map();
+    active.forEach(h => byHub.set(h.id, {...h, stores:0, noBackup:0, fringe:0, miles:[], backupProtected:0}));
+    state.rows.forEach(r => {
+      if(!r.primary) return;
+      const h=byHub.get(r.primary.id); if(!h) return;
+      h.stores++; h.miles.push(r.primary.miles); if(r.noBackup) h.noBackup++; if(r.fringe) h.fringe++; if(r.backup) h.backupProtected++;
+    });
+    state.scoreRows = Array.from(byHub.values()).map(h => {
+      const avg = h.miles.length ? h.miles.reduce((a,b)=>a+b,0)/h.miles.length : 0;
+      const max = h.miles.length ? Math.max(...h.miles) : 0;
+      const risk = h.noBackup >= 25 || h.stores >= 90 ? 'Critical' : h.noBackup >= 12 || h.fringe >= 15 || h.stores >= 65 ? 'Watch' : h.stores ? 'Stable' : 'No primary stores';
+      const action = risk==='Critical' ? 'Validate backup coverage / load balance' : risk==='Watch' ? 'Monitor fringe + no-backup stores' : h.stores ? 'No immediate action' : 'Reference only';
+      return {...h, avg, max, risk, action};
+    }).sort((a,b)=>b.noBackup-a.noBackup || b.stores-a.stores);
+
+    const byRegion = new Map();
+    state.rows.forEach(r => {
+      const key = r.region || r.state || 'Unassigned';
+      const g = byRegion.get(key) || {region:key, total:0, covered:0, gaps:0, noBackup:0, fringe:0, states:new Set()};
+      g.total++; if(r.covered) g.covered++; else g.gaps++; if(r.noBackup) g.noBackup++; if(r.fringe) g.fringe++; if(r.state) g.states.add(r.state); byRegion.set(key,g);
+    });
+    state.regionRows = Array.from(byRegion.values()).map(g => ({...g, pct:pct(g.covered,g.total), states:Array.from(g.states).sort().join(', '), riskScore:g.gaps+g.noBackup})).sort((a,b)=>b.riskScore-a.riskScore || b.total-a.total);
+  }
+
+  async function loadOpsData(force=false){
+    if(state.loaded && !force) return;
+    if(state.loading) return;
+    state.loading = true;
+    setPaneHtml('overview', '<div class="ow-note">Loading Operations Intelligence data…</div>');
+    try{
+      const [storesRaw, rtsRaw, dedRaw] = await Promise.all([
+        fetchJson('./onewalmart_store_data.json'),
+        fetchJson('./onewalmart_rts_combined.json'),
+        fetchJson('./dedicated_manager_paths.json').catch(()=>[])
+      ]);
+      state.stores = Array.isArray(storesRaw) ? storesRaw : [];
+      state.rts = (Array.isArray(rtsRaw) ? rtsRaw : []).map((r,i)=>{
+        const lat=numVal(r,['Latitude','latitude','lat','Lat','RTSLat','rtsLat']);
+        const lng=numVal(r,['Longitude','longitude','lng','Lon','RTSLon','rtsLon','RTSLng','rtsLng']);
+        if(!Number.isFinite(lat)||!Number.isFinite(lng)) return null;
+        const city=rtsCity(r), st=rtsState(r), name=rtsName(r);
+        return {id:'rts_'+i+'_'+name.replace(/\W+/g,'_'), raw:r, name, city, state:st, label:`${name}${city||st ? ' — '+city+(city&&st?', ':'')+st : ''}`, lat, lng, team:getTeam(r), future:isFutureRts(r)};
+      }).filter(Boolean);
+      state.activeRts = state.rts.filter(r=>!r.future);
+      state.dedicated = Array.isArray(dedRaw) ? dedRaw : [];
+      classifyRows();
+      state.loaded = true;
+    }catch(err){
+      console.error('Ops Intel recovery load failed', err);
+      state.loadError = err;
+    }finally{ state.loading = false; }
+  }
+
+  function drawerTemplate(){
+    return `<div class="ow-ops-head"><h3>Operations Intelligence</h3><span id="owOpsStamp" class="ow-ops-stamp">Recovery renderer</span><button id="owOpsRefresh" class="btn" type="button">Refresh</button><button id="opsCloseBtn" class="btn" type="button">×</button></div>
+      <div class="ow-note" style="margin:10px 12px 0 12px"><b>Consolidated interpretation:</b> shared RTS reach is treated as coverage density/resiliency visibility, not a penalty. Primary planning focus is 75-mile active coverage, uncovered gaps, dedicated-team exposure, and RTS workload.</div>
+      <div class="ow-ops-tabs">
+        <button class="ow-ops-tab active" data-pane="overview" type="button">Overview</button>
+        <button class="ow-ops-tab" data-pane="gaps" type="button">Gaps</button>
+        <button class="ow-ops-tab" data-pane="workload" type="button">RTS Load</button>
+        <button class="ow-ops-tab" data-pane="resilience" type="button">Resilience Tools</button>
+        <button class="ow-ops-tab" data-pane="leadership" type="button">Leadership</button>
+      </div>
+      <div class="ow-ops-body">
+        <div class="ow-pane active" id="owPaneOverview"></div>
+        <div class="ow-pane" id="owPaneGaps"></div>
+        <div class="ow-pane" id="owPaneWorkload"></div>
+        <div class="ow-pane" id="owPaneResilience"></div>
+        <div class="ow-pane" id="owPaneLeadership"></div>
+      </div>`;
+  }
+
+  function ensureDrawer(){
+    let drawer = $('opsDrawer');
+    const needsReplace = !drawer || drawer.textContent.includes('Drawer shell was restored') || drawer.textContent.includes('Refresh/reopen after data finishes loading') || !q('.ow-ops-tabs', drawer);
+    if(needsReplace){
+      const wrap = q('.mapwrap') || document.body;
+      if(drawer) drawer.remove();
+      drawer = document.createElement('aside');
+      drawer.id = 'opsDrawer';
+      drawer.className = 'ops-drawer ow-recovery-drawer';
+      drawer.innerHTML = drawerTemplate();
+      wrap.appendChild(drawer);
+      bindDrawer(drawer);
+    }
+    return drawer;
+  }
+
+  function bindDrawer(drawer){
+    drawer.addEventListener('click', e => {
+      const tab = e.target.closest('.ow-ops-tab');
+      if(tab){ e.preventDefault(); activatePane(tab.dataset.pane || 'overview'); return; }
+      if(e.target.closest('#opsCloseBtn')){ closeDrawer(); return; }
+      if(e.target.closest('#owOpsRefresh')){ window.OW_REBUILD_OPS_INTEL(true); return; }
+    });
+    drawer.addEventListener('change', e => {
+      if(e.target && e.target.id === 'owOutageSelect'){ state.outageHub = e.target.value; renderResilience(); }
+    });
+  }
+
+  function openDrawer(pane='overview'){
+    const d=ensureDrawer();
+    d.classList.add('show');
+    q('.mapwrap')?.classList.add('command-drawer-open');
+    activatePane(pane);
+    window.OW_REBUILD_OPS_INTEL(false);
+  }
+  function closeDrawer(){ $('opsDrawer')?.classList.remove('show'); q('.mapwrap')?.classList.remove('command-drawer-open'); }
+  function activatePane(pane){
+    state.currentPane = pane || 'overview';
+    const d=ensureDrawer();
+    qa('.ow-ops-tab',d).forEach(b=>b.classList.toggle('active', b.dataset.pane===state.currentPane));
+    qa('.ow-pane',d).forEach(p=>p.classList.toggle('active', p.id.toLowerCase() === ('owpane'+state.currentPane).toLowerCase()));
+    if(state.loaded) renderCurrentPane();
+  }
+  function setPaneHtml(pane, html){ const el=$('owPane'+pane.charAt(0).toUpperCase()+pane.slice(1)); if(el) el.innerHTML=html; }
+  function activeRows(){
+    // Prefer current map filters when accessible through marker-derived labels is not possible; otherwise use all loaded rows.
+    return state.rows;
+  }
+  function topRows(rows,n=10){ return rows.slice(0,n); }
+
+  function renderCurrentPane(){
+    if(state.loadError){ setPaneHtml(state.currentPane, `<div class="ow-error"><b>Ops Intel failed to load.</b><br>${esc(state.loadError.message || state.loadError)}</div>`); return; }
+    if(state.currentPane==='overview') renderOverview();
+    else if(state.currentPane==='gaps') renderGaps();
+    else if(state.currentPane==='workload') renderWorkload();
+    else if(state.currentPane==='resilience') renderResilience();
+    else if(state.currentPane==='leadership') renderLeadership();
+    const stamp=$('owOpsStamp'); if(stamp) stamp.textContent='Updated '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  }
+
+  function kpiHtml(rows){
+    const total=rows.length, covered=rows.filter(r=>r.covered).length, gaps=total-covered, noBackup=rows.filter(r=>r.noBackup).length;
+    return `<div class="ow-grid"><div class="ow-kpi"><div class="lbl">Stores</div><div class="val">${fmt(total)}</div><div class="sub">Loaded store rows</div></div><div class="ow-kpi"><div class="lbl">RTS Coverage</div><div class="val">${pct(covered,total)}%</div><div class="sub">${fmt(covered)} covered / ${fmt(gaps)} gaps</div></div><div class="ow-kpi"><div class="lbl">Active RTS</div><div class="val">${fmt(state.activeRts.length)}</div><div class="sub">Future RTS excluded from coverage</div></div><div class="ow-kpi"><div class="lbl">No Backup</div><div class="val">${fmt(noBackup)}</div><div class="sub">Covered by only one active RTS</div></div></div>`;
+  }
+
+  function renderOverview(){
+    const rows=activeRows();
+    const gapRegions=topRows(state.regionRows.filter(r=>r.gaps>0),8);
+    const stress=topRows(state.scoreRows.filter(r=>r.risk!=='Stable' && r.risk!=='No primary stores'),8);
+    setPaneHtml('overview', `${kpiHtml(rows)}<div class="ow-card"><b>Top Gap Regions</b>${tableRegions(gapRegions)}</div><div class="ow-card"><b>RTS Workload / Backup Watchlist</b>${tableScore(stress)}</div>`);
+  }
+  function renderGaps(){
+    const regions=state.regionRows.filter(r=>r.gaps>0);
+    const states=new Map(); state.rows.filter(r=>!r.covered).forEach(r=>{const k=r.state||'—'; states.set(k,(states.get(k)||0)+1);});
+    const stateRows=Array.from(states.entries()).map(([state,gaps])=>({region:state,total:gaps,covered:0,gaps,noBackup:0,fringe:0,pct:0,states:state,riskScore:gaps})).sort((a,b)=>b.gaps-a.gaps).slice(0,15);
+    setPaneHtml('gaps', `${kpiHtml(state.rows)}<div class="ow-card"><b>Region Gap Prioritization</b><div class="ow-note">Use this to identify where leadership needs a staffing, remote-training, or backup coverage decision.</div>${tableRegions(regions.slice(0,20))}</div><div class="ow-card"><b>Largest State Gap Counts</b>${tableRegions(stateRows)}</div>`);
+  }
+  function renderWorkload(){ setPaneHtml('workload', `${kpiHtml(state.rows)}<div class="ow-card"><b>RTS Scorecard</b>${tableScore(state.scoreRows)}</div>`); }
+  function renderResilience(){
+    const opts = state.scoreRows.map(h=>`<option value="${esc(h.id)}" ${state.outageHub===h.id?'selected':''}>${esc(h.label)} — ${fmt(h.stores)} primary / ${fmt(h.noBackup)} no backup</option>`).join('');
+    const chosen = state.scoreRows.find(h=>h.id===state.outageHub) || state.scoreRows[0];
+    if(!state.outageHub && chosen) state.outageHub=chosen.id;
+    const outageRows = chosen ? state.rows.filter(r=>r.primary?.id===chosen.id).map(r=>({store:r, backup:r.backup})).sort((a,b)=>(a.backup?1:0)-(b.backup?1:0) || b.store.miles-a.store.miles) : [];
+    const stranded = outageRows.filter(x=>!x.backup).length;
+    const shifted = outageRows.length-stranded;
+    setPaneHtml('resilience', `<div class="ow-note"><b>True Backup Logic:</b> a store is backup-protected only when it has a second active RTS within 75 miles. Shared reach is resilience visibility, not a penalty.</div>${kpiHtml(state.rows)}<div class="ow-card"><b>RTS Outage Simulator</b><div class="ow-tools"><select id="owOutageSelect" class="ow-select">${opts}</select></div><div class="ow-mini-grid"><div class="ow-mini-card"><b>Stores shifted to backup</b><div class="ow-kpi"><div class="val">${fmt(shifted)}</div></div></div><div class="ow-mini-card"><b>Stores stranded / no backup</b><div class="ow-kpi"><div class="val">${fmt(stranded)}</div></div></div></div>${tableOutage(outageRows.slice(0,40))}</div><div class="ow-card"><b>Regional Executive Summaries</b>${tableRegions(state.regionRows.slice(0,15))}</div><div class="ow-card"><b>RTS Scorecards</b>${tableScore(state.scoreRows.slice(0,25))}</div>`);
+  }
+  function renderLeadership(){
+    const rows=state.rows,total=rows.length,covered=rows.filter(r=>r.covered).length,gaps=total-covered,noBackup=rows.filter(r=>r.noBackup).length;
+    const topGap=state.regionRows.find(r=>r.gaps>0); const topLoad=state.scoreRows.find(r=>r.risk==='Critical' || r.risk==='Watch');
+    const actions=[];
+    if(topGap) actions.push({title:`Close largest gap concentration: ${topGap.region}`, metric:`${fmt(topGap.gaps)} uncovered stores · ${topGap.pct}% covered`, why:'Largest current coverage exposure under the active 75-mile model.', next:'Drill into this region and decide whether to staff an RTS hub, route remote training, or accept temporary gap coverage.'});
+    if(topLoad) actions.push({title:`Protect RTS workload: ${topLoad.label}`, metric:`${fmt(topLoad.stores)} primary stores · ${fmt(topLoad.noBackup)} no-backup stores`, why:'This hub is a possible single point of failure or capacity risk.', next:'Review backup options, fringe stores, and whether nearby RTS can absorb outage volume.'});
+    actions.push({title:'Keep dedicated-team visibility separate', metric:`${fmt(state.dedicated.length)} dedicated alignment rows loaded`, why:'Unilever, P&G, and Tyson should remain visible without confusing core One Walmart coverage.', next:'Use Dedicated Team Rollup for client-specific exposure and communication ownership.'});
+    setPaneHtml('leadership', `${kpiHtml(rows)}<div class="ow-card"><b>Executive Readout</b><div class="ow-note">One Walmart RTS active coverage is <b>${pct(covered,total)}%</b>, leaving <b>${fmt(gaps)}</b> uncovered stores. <b>${fmt(noBackup)}</b> covered stores have no second active RTS within 75 miles, so resilience planning should focus on backup protection and high-load hubs.</div></div><div class="ow-card"><b>Leadership Action Path</b>${actions.map((a,i)=>`<div class="ow-action"><b>Priority ${i+1}: ${esc(a.title)}</b><div>${esc(a.metric)}</div><div style="margin-top:5px"><b>Why:</b> ${esc(a.why)}</div><div style="margin-top:5px;color:#1e3a8a"><b>Next step:</b> ${esc(a.next)}</div></div>`).join('')}</div>`);
+  }
+
+  function tableRegions(rows){
+    if(!rows.length) return '<div class="ow-note">No rows to show.</div>';
+    return `<div style="max-height:360px;overflow:auto"><table class="ow-table"><thead><tr><th>Region / State</th><th class="num">Stores</th><th class="num">Covered</th><th class="num">Gaps</th><th class="num">No backup</th><th class="num">Coverage</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.region)}</b><div style="color:#64748b;font-size:11px">${esc(r.states||'')}</div></td><td class="num">${fmt(r.total)}</td><td class="num">${fmt(r.covered)}</td><td class="num"><b>${fmt(r.gaps)}</b></td><td class="num">${fmt(r.noBackup)}</td><td class="num">${r.pct}%</td></tr>`).join('')}</tbody></table></div>`;
+  }
+  function tableScore(rows){
+    if(!rows.length) return '<div class="ow-note">No RTS rows to show.</div>';
+    return `<div style="max-height:420px;overflow:auto"><table class="ow-table"><thead><tr><th>RTS</th><th>Legacy/team</th><th class="num">Primary</th><th class="num">No backup</th><th class="num">Fringe</th><th class="num">Avg mi</th><th>Risk</th><th>Action</th></tr></thead><tbody>${rows.map(h=>`<tr><td><b>${esc(h.label)}</b></td><td>${esc(h.team)}</td><td class="num">${fmt(h.stores)}</td><td class="num"><b>${fmt(h.noBackup)}</b></td><td class="num">${fmt(h.fringe)}</td><td class="num">${h.avg.toFixed(1)}</td><td>${esc(h.risk)}</td><td>${esc(h.action)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+  function tableOutage(rows){
+    if(!rows.length) return '<div class="ow-note">No primary stores for this RTS.</div>';
+    return `<div style="max-height:300px;overflow:auto;margin-top:10px"><table class="ow-table"><thead><tr><th>Store</th><th>Location</th><th>Outage Result</th><th class="num">Primary mi</th></tr></thead><tbody>${rows.map(x=>`<tr><td><b>#${esc(x.store.key)}</b><br>${esc(x.store.name)}</td><td>${esc(x.store.city)}, ${esc(x.store.state)}</td><td>${x.backup ? `Shifts to ${esc(x.backup.label)} (${x.backup.miles.toFixed(1)} mi)` : '<b style="color:#991b1b">No active backup within 75 mi</b>'}</td><td class="num">${x.store.miles.toFixed(1)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+
+  window.OW_REBUILD_OPS_INTEL = async function(force=false){
+    ensureDrawer();
+    await loadOpsData(force);
+    renderCurrentPane();
+  };
+  window.updateOpsIntel = function(){ window.OW_REBUILD_OPS_INTEL(false); };
+
+  function intercept(e){
+    const b=e.target.closest?.('button'); if(!b) return;
+    const id=b.id||'';
+    const pane = id==='railLeadership'||id==='quickLeadershipBtn'||id==='opcxLeadershipView' ? 'leadership'
+      : id==='railResilience'||id==='openResiliencePaneBtn' ? 'resilience'
+      : id==='rtsScorecardBtn'||id==='openVisibleScorecardsBtn' ? 'workload'
+      : id==='rtsOutageBtn'||id==='openVisibleOutageBtn'||id==='regionalExecBtn'||id==='openVisibleRegionalExecBtn' ? 'resilience'
+      : 'overview';
+    if(['railOpsIntel','opsDrawerToggle','quickOpsBtn','opcxOpsView','railLeadership','quickLeadershipBtn','opcxLeadershipView','railResilience','openResiliencePaneBtn','rtsScorecardBtn','rtsOutageBtn','regionalExecBtn','openVisibleScorecardsBtn','openVisibleOutageBtn','openVisibleRegionalExecBtn'].includes(id)){
+      e.preventDefault(); e.stopImmediatePropagation(); openDrawer(pane); return false;
+    }
+    if(id==='opsCloseBtn'){ e.preventDefault(); e.stopImmediatePropagation(); closeDrawer(); return false; }
+  }
+  document.addEventListener('click', intercept, true);
+  document.addEventListener('pointerup', function(e){ const b=e.target.closest?.('button'); if(b && (b.id==='railOpsIntel'||b.id==='opsDrawerToggle')){ e.preventDefault(); e.stopImmediatePropagation(); openDrawer('overview'); return false; }}, true);
+
+  function repairIfPlaceholder(){
+    const d=$('opsDrawer');
+    if(d && (d.textContent.includes('Drawer shell was restored') || d.textContent.includes('Refresh/reopen after data finishes loading') || !q('.ow-ops-tabs',d))){
+      d.remove(); ensureDrawer();
+    }
+  }
+  function start(){ ensureDrawer(); repairIfPlaceholder(); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', start); else start();
+  setTimeout(start,300); setTimeout(start,1200); setTimeout(start,3000);
+})();
+</script>
 
 </body></html>`);
     win.document.close();
@@ -13729,6 +14383,333 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   setTimeout(refreshAccessPoints, 300);
   setTimeout(refreshAccessPoints, 1200);
   setTimeout(refreshAccessPoints, 3000);
+})();
+</script>
+
+
+
+<style>
+/* ===== FINAL OPS INTEL RECOVERY PATCH v3 =====
+   Prevents the permanent "Drawer restored" shell by replacing it with a
+   self-contained, fault-tolerant Ops Intel renderer. */
+#opsDrawer.ops-drawer.ow-recovery-drawer{
+  position:absolute;top:0;right:0;bottom:0;width:min(680px,94vw)!important;max-width:94vw!important;
+  background:#fff;border-left:1px solid #e5e7eb;box-shadow:-12px 0 32px rgba(15,23,42,.18);
+  z-index:8200!important;display:none;flex-direction:column;overflow:hidden;
+}
+#opsDrawer.ops-drawer.ow-recovery-drawer.show{display:flex!important;}
+#opsDrawer .ow-ops-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #e5e7eb;background:#fff;position:sticky;top:0;z-index:5;}
+#opsDrawer .ow-ops-head h3{margin:0;font-size:18px;line-height:1.15;flex:1;}
+#opsDrawer .ow-ops-stamp{font-size:12px;color:#64748b;white-space:nowrap;}
+#opsDrawer .ow-ops-tabs{display:flex;gap:7px;padding:9px 12px;border-bottom:1px solid #e5e7eb;background:#f8fafc;overflow:auto;scrollbar-width:none;}
+#opsDrawer .ow-ops-tabs::-webkit-scrollbar{display:none;}
+#opsDrawer .ow-ops-tab{border:1px solid #cbd5e1;background:#fff;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;white-space:nowrap;cursor:pointer;}
+#opsDrawer .ow-ops-tab.active{background:#111827;color:#fff;border-color:#111827;}
+#opsDrawer .ow-ops-body{flex:1;overflow:auto;padding:12px;background:#f8fafc;}
+#opsDrawer .ow-pane{display:none;}
+#opsDrawer .ow-pane.active{display:block;}
+#opsDrawer .ow-card{border:1px solid #e2e8f0;background:#fff;border-radius:14px;padding:12px;margin-bottom:10px;box-shadow:0 2px 8px rgba(15,23,42,.035);}
+#opsDrawer .ow-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px;}
+#opsDrawer .ow-kpi{border:1px solid #dbe3ea;background:#fff;border-radius:13px;padding:10px;}
+#opsDrawer .ow-kpi .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;font-weight:950;}
+#opsDrawer .ow-kpi .val{font-size:23px;font-weight:950;color:#0f172a;line-height:1.1;}
+#opsDrawer .ow-kpi .sub{font-size:12px;color:#64748b;margin-top:2px;line-height:1.25;}
+#opsDrawer .ow-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;font-size:12.5px;line-height:1.35;margin-bottom:10px;}
+#opsDrawer .ow-table{width:100%;border-collapse:collapse;font-size:12px;}
+#opsDrawer .ow-table th,#opsDrawer .ow-table td{border-bottom:1px solid #eef2f7;padding:7px 6px;vertical-align:top;text-align:left;}
+#opsDrawer .ow-table th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;background:#f8fafc;position:sticky;top:0;z-index:1;}
+#opsDrawer .ow-table .num{text-align:right;font-variant-numeric:tabular-nums;}
+#opsDrawer .ow-action{border:1px solid #dbeafe;background:#eff6ff;border-radius:12px;padding:10px;margin:8px 0;}
+#opsDrawer .ow-action b{display:block;color:#0f172a;margin-bottom:3px;}
+#opsDrawer .ow-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+#opsDrawer .ow-mini-card{border:1px solid #e2e8f0;border-radius:12px;padding:10px;background:#fff;}
+#opsDrawer .ow-select{border:1px solid #cbd5e1;border-radius:10px;padding:7px 9px;min-width:240px;max-width:100%;}
+#opsDrawer .ow-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
+#opsDrawer .ow-error{border:1px solid #fecaca;background:#fff7f7;color:#991b1b;border-radius:12px;padding:10px;font-size:12.5px;line-height:1.35;}
+.mapwrap.command-drawer-open .map-action-rail,#opsDrawer.show ~ .map-action-rail{display:none!important;}
+@media(max-width:900px){#opsDrawer .ow-grid{grid-template-columns:1fr 1fr;}#opsDrawer .ow-mini-grid{grid-template-columns:1fr;}}
+@media(max-width:640px){#opsDrawer .ow-grid{grid-template-columns:1fr;}#opsDrawer.ops-drawer.ow-recovery-drawer{width:96vw!important;}}
+</style>
+<script>
+/* ===== FINAL OPS INTEL RECOVERY PATCH v3 ===== */
+(function(){
+  if (window.__OW_FINAL_OPS_RECOVERY_V3) return;
+  window.__OW_FINAL_OPS_RECOVERY_V3 = true;
+
+  const $ = id => document.getElementById(id);
+  const q = (sel, root=document) => root.querySelector(sel);
+  const qa = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmt = n => Number(n || 0).toLocaleString();
+  const pct = (n,d) => d ? Math.round((n/d)*1000)/10 : 0;
+  const rad = d => d * Math.PI / 180;
+  const miles = (a,b,c,d) => { const R=3958.8, dLat=rad(c-a), dLng=rad(d-b); const x=Math.sin(dLat/2)**2 + Math.cos(rad(a))*Math.cos(rad(c))*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
+  const normStore = v => String(v ?? '').replace(/\.0$/,'').replace(/[^0-9]/g,'').replace(/^0+/,'') || String(v ?? '').trim();
+  const val = (o, keys) => { for (const k of keys){ const v=o?.[k]; if(v!==undefined && v!==null && String(v).trim()!=='') return String(v).trim(); } return ''; };
+  const numVal = (o, keys) => { const v=Number(val(o,keys)); return Number.isFinite(v) ? v : NaN; };
+  const getTeam = r => {
+    const t=String([r?.SourceTeam,r?.sourceTeam,r?.LegacyTeam,r?.legacyTeam,r?.Team,r?.team,r?.TeamName,r?.teamName,r?.Organization,r?.Brand].filter(Boolean).join(' ')).toLowerCase();
+    if(/premium|prs/.test(t)) return 'Premium';
+    if(/acosta|mosaic|asm/.test(t)) return 'Acosta';
+    if(/crossmark/.test(t)) return 'Crossmark';
+    return val(r,['SourceTeam','Team','LegacyTeam']) || 'One Walmart';
+  };
+  const rtsName = r => val(r,['Name','name','RTSName','rtsName','RepName','TrainerName']) || 'RTS';
+  const rtsCity = r => val(r,['City','city','RTSCity','HubCity']);
+  const rtsState = r => val(r,['State','state','RTSState','HubState']);
+  const storeCity = s => val(s,['city','City']);
+  const storeState = s => val(s,['state','State']);
+  const storeName = s => val(s,['storeName','StoreName','name']) || 'Walmart';
+  const storeLat = s => numVal(s,['lat','Lat','Latitude','latitude']);
+  const storeLng = s => numVal(s,['lng','Lon','Longitude','longitude']);
+  const storeNo = s => normStore(val(s,['storeNumberStr','StoreNumber','StoreNbr','storeNumber','store','Store']));
+  const isFutureRts = r => /(future|pending|proposed|planned|open|recruit|offer|tbd)/i.test(String(val(r,['Status','status','RTSStatus']) || 'active'));
+
+  const state = { loaded:false, loading:false, stores:[], rts:[], activeRts:[], dedicated:[], rows:[], hubRows:[], regionRows:[], scoreRows:[], currentPane:'overview', outageHub:'' };
+
+  async function fetchJson(url){
+    const r = await fetch(url + (url.includes('?')?'&':'?') + 'v=' + Date.now(), {cache:'no-store'});
+    if(!r.ok) throw new Error(`${url} HTTP ${r.status}`);
+    const text = await r.text();
+    return JSON.parse(text.replace(/^\uFEFF/,''));
+  }
+
+  function visibleFilterSource(){
+    try{
+      if (Array.isArray(window.filteredStores) && window.filteredStores.length) return window.filteredStores;
+    }catch(_){ }
+    return state.stores;
+  }
+
+  function classifyRows(){
+    const active = state.activeRts;
+    state.rows = state.stores.map(s => {
+      const lat=storeLat(s), lng=storeLng(s), key=storeNo(s);
+      const close = Number.isFinite(lat) && Number.isFinite(lng)
+        ? active.map(h => ({...h, miles:miles(lat,lng,h.lat,h.lng)})).filter(h => h.miles <= 75).sort((a,b)=>a.miles-b.miles)
+        : [];
+      const primary = close[0] || null;
+      const backup = close[1] || null;
+      const fallback = Number.isFinite(lat) && Number.isFinite(lng) && active.length ? active.map(h => ({...h, miles:miles(lat,lng,h.lat,h.lng)})).sort((a,b)=>a.miles-b.miles)[0] : null;
+      const region = val(s,['regionalManager','RegionalManager','rm','RM']) || storeState(s) || 'Unassigned';
+      const am = val(s,['areaManager','AreaManager','am','AM']) || 'Unassigned';
+      return { raw:s, key, lat, lng, name:storeName(s), city:storeCity(s), state:storeState(s), region, am, covered:!!primary, primary, backup, nearest:fallback, miles:primary?.miles ?? fallback?.miles ?? 999, fringe:!!primary && primary.miles >= 60, noBackup:!!primary && !backup };
+    });
+
+    const byHub = new Map();
+    active.forEach(h => byHub.set(h.id, {...h, stores:0, noBackup:0, fringe:0, miles:[], backupProtected:0}));
+    state.rows.forEach(r => {
+      if(!r.primary) return;
+      const h=byHub.get(r.primary.id); if(!h) return;
+      h.stores++; h.miles.push(r.primary.miles); if(r.noBackup) h.noBackup++; if(r.fringe) h.fringe++; if(r.backup) h.backupProtected++;
+    });
+    state.scoreRows = Array.from(byHub.values()).map(h => {
+      const avg = h.miles.length ? h.miles.reduce((a,b)=>a+b,0)/h.miles.length : 0;
+      const max = h.miles.length ? Math.max(...h.miles) : 0;
+      const risk = h.noBackup >= 25 || h.stores >= 90 ? 'Critical' : h.noBackup >= 12 || h.fringe >= 15 || h.stores >= 65 ? 'Watch' : h.stores ? 'Stable' : 'No primary stores';
+      const action = risk==='Critical' ? 'Validate backup coverage / load balance' : risk==='Watch' ? 'Monitor fringe + no-backup stores' : h.stores ? 'No immediate action' : 'Reference only';
+      return {...h, avg, max, risk, action};
+    }).sort((a,b)=>b.noBackup-a.noBackup || b.stores-a.stores);
+
+    const byRegion = new Map();
+    state.rows.forEach(r => {
+      const key = r.region || r.state || 'Unassigned';
+      const g = byRegion.get(key) || {region:key, total:0, covered:0, gaps:0, noBackup:0, fringe:0, states:new Set()};
+      g.total++; if(r.covered) g.covered++; else g.gaps++; if(r.noBackup) g.noBackup++; if(r.fringe) g.fringe++; if(r.state) g.states.add(r.state); byRegion.set(key,g);
+    });
+    state.regionRows = Array.from(byRegion.values()).map(g => ({...g, pct:pct(g.covered,g.total), states:Array.from(g.states).sort().join(', '), riskScore:g.gaps+g.noBackup})).sort((a,b)=>b.riskScore-a.riskScore || b.total-a.total);
+  }
+
+  async function loadOpsData(force=false){
+    if(state.loaded && !force) return;
+    if(state.loading) return;
+    state.loading = true;
+    setPaneHtml('overview', '<div class="ow-note">Loading Operations Intelligence data…</div>');
+    try{
+      const [storesRaw, rtsRaw, dedRaw] = await Promise.all([
+        fetchJson('./onewalmart_store_data.json'),
+        fetchJson('./onewalmart_rts_combined.json'),
+        fetchJson('./dedicated_manager_paths.json').catch(()=>[])
+      ]);
+      state.stores = Array.isArray(storesRaw) ? storesRaw : [];
+      state.rts = (Array.isArray(rtsRaw) ? rtsRaw : []).map((r,i)=>{
+        const lat=numVal(r,['Latitude','latitude','lat','Lat','RTSLat','rtsLat']);
+        const lng=numVal(r,['Longitude','longitude','lng','Lon','RTSLon','rtsLon','RTSLng','rtsLng']);
+        if(!Number.isFinite(lat)||!Number.isFinite(lng)) return null;
+        const city=rtsCity(r), st=rtsState(r), name=rtsName(r);
+        return {id:'rts_'+i+'_'+name.replace(/\W+/g,'_'), raw:r, name, city, state:st, label:`${name}${city||st ? ' — '+city+(city&&st?', ':'')+st : ''}`, lat, lng, team:getTeam(r), future:isFutureRts(r)};
+      }).filter(Boolean);
+      state.activeRts = state.rts.filter(r=>!r.future);
+      state.dedicated = Array.isArray(dedRaw) ? dedRaw : [];
+      classifyRows();
+      state.loaded = true;
+    }catch(err){
+      console.error('Ops Intel recovery load failed', err);
+      state.loadError = err;
+    }finally{ state.loading = false; }
+  }
+
+  function drawerTemplate(){
+    return `<div class="ow-ops-head"><h3>Operations Intelligence</h3><span id="owOpsStamp" class="ow-ops-stamp">Recovery renderer</span><button id="owOpsRefresh" class="btn" type="button">Refresh</button><button id="opsCloseBtn" class="btn" type="button">×</button></div>
+      <div class="ow-note" style="margin:10px 12px 0 12px"><b>Consolidated interpretation:</b> shared RTS reach is treated as coverage density/resiliency visibility, not a penalty. Primary planning focus is 75-mile active coverage, uncovered gaps, dedicated-team exposure, and RTS workload.</div>
+      <div class="ow-ops-tabs">
+        <button class="ow-ops-tab active" data-pane="overview" type="button">Overview</button>
+        <button class="ow-ops-tab" data-pane="gaps" type="button">Gaps</button>
+        <button class="ow-ops-tab" data-pane="workload" type="button">RTS Load</button>
+        <button class="ow-ops-tab" data-pane="resilience" type="button">Resilience Tools</button>
+        <button class="ow-ops-tab" data-pane="leadership" type="button">Leadership</button>
+      </div>
+      <div class="ow-ops-body">
+        <div class="ow-pane active" id="owPaneOverview"></div>
+        <div class="ow-pane" id="owPaneGaps"></div>
+        <div class="ow-pane" id="owPaneWorkload"></div>
+        <div class="ow-pane" id="owPaneResilience"></div>
+        <div class="ow-pane" id="owPaneLeadership"></div>
+      </div>`;
+  }
+
+  function ensureDrawer(){
+    let drawer = $('opsDrawer');
+    const needsReplace = !drawer || drawer.textContent.includes('Drawer shell was restored') || drawer.textContent.includes('Refresh/reopen after data finishes loading') || !q('.ow-ops-tabs', drawer);
+    if(needsReplace){
+      const wrap = q('.mapwrap') || document.body;
+      if(drawer) drawer.remove();
+      drawer = document.createElement('aside');
+      drawer.id = 'opsDrawer';
+      drawer.className = 'ops-drawer ow-recovery-drawer';
+      drawer.innerHTML = drawerTemplate();
+      wrap.appendChild(drawer);
+      bindDrawer(drawer);
+    }
+    return drawer;
+  }
+
+  function bindDrawer(drawer){
+    drawer.addEventListener('click', e => {
+      const tab = e.target.closest('.ow-ops-tab');
+      if(tab){ e.preventDefault(); activatePane(tab.dataset.pane || 'overview'); return; }
+      if(e.target.closest('#opsCloseBtn')){ closeDrawer(); return; }
+      if(e.target.closest('#owOpsRefresh')){ window.OW_REBUILD_OPS_INTEL(true); return; }
+    });
+    drawer.addEventListener('change', e => {
+      if(e.target && e.target.id === 'owOutageSelect'){ state.outageHub = e.target.value; renderResilience(); }
+    });
+  }
+
+  function openDrawer(pane='overview'){
+    const d=ensureDrawer();
+    d.classList.add('show');
+    q('.mapwrap')?.classList.add('command-drawer-open');
+    activatePane(pane);
+    window.OW_REBUILD_OPS_INTEL(false);
+  }
+  function closeDrawer(){ $('opsDrawer')?.classList.remove('show'); q('.mapwrap')?.classList.remove('command-drawer-open'); }
+  function activatePane(pane){
+    state.currentPane = pane || 'overview';
+    const d=ensureDrawer();
+    qa('.ow-ops-tab',d).forEach(b=>b.classList.toggle('active', b.dataset.pane===state.currentPane));
+    qa('.ow-pane',d).forEach(p=>p.classList.toggle('active', p.id.toLowerCase() === ('owpane'+state.currentPane).toLowerCase()));
+    if(state.loaded) renderCurrentPane();
+  }
+  function setPaneHtml(pane, html){ const el=$('owPane'+pane.charAt(0).toUpperCase()+pane.slice(1)); if(el) el.innerHTML=html; }
+  function activeRows(){
+    // Prefer current map filters when accessible through marker-derived labels is not possible; otherwise use all loaded rows.
+    return state.rows;
+  }
+  function topRows(rows,n=10){ return rows.slice(0,n); }
+
+  function renderCurrentPane(){
+    if(state.loadError){ setPaneHtml(state.currentPane, `<div class="ow-error"><b>Ops Intel failed to load.</b><br>${esc(state.loadError.message || state.loadError)}</div>`); return; }
+    if(state.currentPane==='overview') renderOverview();
+    else if(state.currentPane==='gaps') renderGaps();
+    else if(state.currentPane==='workload') renderWorkload();
+    else if(state.currentPane==='resilience') renderResilience();
+    else if(state.currentPane==='leadership') renderLeadership();
+    const stamp=$('owOpsStamp'); if(stamp) stamp.textContent='Updated '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  }
+
+  function kpiHtml(rows){
+    const total=rows.length, covered=rows.filter(r=>r.covered).length, gaps=total-covered, noBackup=rows.filter(r=>r.noBackup).length;
+    return `<div class="ow-grid"><div class="ow-kpi"><div class="lbl">Stores</div><div class="val">${fmt(total)}</div><div class="sub">Loaded store rows</div></div><div class="ow-kpi"><div class="lbl">RTS Coverage</div><div class="val">${pct(covered,total)}%</div><div class="sub">${fmt(covered)} covered / ${fmt(gaps)} gaps</div></div><div class="ow-kpi"><div class="lbl">Active RTS</div><div class="val">${fmt(state.activeRts.length)}</div><div class="sub">Future RTS excluded from coverage</div></div><div class="ow-kpi"><div class="lbl">No Backup</div><div class="val">${fmt(noBackup)}</div><div class="sub">Covered by only one active RTS</div></div></div>`;
+  }
+
+  function renderOverview(){
+    const rows=activeRows();
+    const gapRegions=topRows(state.regionRows.filter(r=>r.gaps>0),8);
+    const stress=topRows(state.scoreRows.filter(r=>r.risk!=='Stable' && r.risk!=='No primary stores'),8);
+    setPaneHtml('overview', `${kpiHtml(rows)}<div class="ow-card"><b>Top Gap Regions</b>${tableRegions(gapRegions)}</div><div class="ow-card"><b>RTS Workload / Backup Watchlist</b>${tableScore(stress)}</div>`);
+  }
+  function renderGaps(){
+    const regions=state.regionRows.filter(r=>r.gaps>0);
+    const states=new Map(); state.rows.filter(r=>!r.covered).forEach(r=>{const k=r.state||'—'; states.set(k,(states.get(k)||0)+1);});
+    const stateRows=Array.from(states.entries()).map(([state,gaps])=>({region:state,total:gaps,covered:0,gaps,noBackup:0,fringe:0,pct:0,states:state,riskScore:gaps})).sort((a,b)=>b.gaps-a.gaps).slice(0,15);
+    setPaneHtml('gaps', `${kpiHtml(state.rows)}<div class="ow-card"><b>Region Gap Prioritization</b><div class="ow-note">Use this to identify where leadership needs a staffing, remote-training, or backup coverage decision.</div>${tableRegions(regions.slice(0,20))}</div><div class="ow-card"><b>Largest State Gap Counts</b>${tableRegions(stateRows)}</div>`);
+  }
+  function renderWorkload(){ setPaneHtml('workload', `${kpiHtml(state.rows)}<div class="ow-card"><b>RTS Scorecard</b>${tableScore(state.scoreRows)}</div>`); }
+  function renderResilience(){
+    const opts = state.scoreRows.map(h=>`<option value="${esc(h.id)}" ${state.outageHub===h.id?'selected':''}>${esc(h.label)} — ${fmt(h.stores)} primary / ${fmt(h.noBackup)} no backup</option>`).join('');
+    const chosen = state.scoreRows.find(h=>h.id===state.outageHub) || state.scoreRows[0];
+    if(!state.outageHub && chosen) state.outageHub=chosen.id;
+    const outageRows = chosen ? state.rows.filter(r=>r.primary?.id===chosen.id).map(r=>({store:r, backup:r.backup})).sort((a,b)=>(a.backup?1:0)-(b.backup?1:0) || b.store.miles-a.store.miles) : [];
+    const stranded = outageRows.filter(x=>!x.backup).length;
+    const shifted = outageRows.length-stranded;
+    setPaneHtml('resilience', `<div class="ow-note"><b>True Backup Logic:</b> a store is backup-protected only when it has a second active RTS within 75 miles. Shared reach is resilience visibility, not a penalty.</div>${kpiHtml(state.rows)}<div class="ow-card"><b>RTS Outage Simulator</b><div class="ow-tools"><select id="owOutageSelect" class="ow-select">${opts}</select></div><div class="ow-mini-grid"><div class="ow-mini-card"><b>Stores shifted to backup</b><div class="ow-kpi"><div class="val">${fmt(shifted)}</div></div></div><div class="ow-mini-card"><b>Stores stranded / no backup</b><div class="ow-kpi"><div class="val">${fmt(stranded)}</div></div></div></div>${tableOutage(outageRows.slice(0,40))}</div><div class="ow-card"><b>Regional Executive Summaries</b>${tableRegions(state.regionRows.slice(0,15))}</div><div class="ow-card"><b>RTS Scorecards</b>${tableScore(state.scoreRows.slice(0,25))}</div>`);
+  }
+  function renderLeadership(){
+    const rows=state.rows,total=rows.length,covered=rows.filter(r=>r.covered).length,gaps=total-covered,noBackup=rows.filter(r=>r.noBackup).length;
+    const topGap=state.regionRows.find(r=>r.gaps>0); const topLoad=state.scoreRows.find(r=>r.risk==='Critical' || r.risk==='Watch');
+    const actions=[];
+    if(topGap) actions.push({title:`Close largest gap concentration: ${topGap.region}`, metric:`${fmt(topGap.gaps)} uncovered stores · ${topGap.pct}% covered`, why:'Largest current coverage exposure under the active 75-mile model.', next:'Drill into this region and decide whether to staff an RTS hub, route remote training, or accept temporary gap coverage.'});
+    if(topLoad) actions.push({title:`Protect RTS workload: ${topLoad.label}`, metric:`${fmt(topLoad.stores)} primary stores · ${fmt(topLoad.noBackup)} no-backup stores`, why:'This hub is a possible single point of failure or capacity risk.', next:'Review backup options, fringe stores, and whether nearby RTS can absorb outage volume.'});
+    actions.push({title:'Keep dedicated-team visibility separate', metric:`${fmt(state.dedicated.length)} dedicated alignment rows loaded`, why:'Unilever, P&G, and Tyson should remain visible without confusing core One Walmart coverage.', next:'Use Dedicated Team Rollup for client-specific exposure and communication ownership.'});
+    setPaneHtml('leadership', `${kpiHtml(rows)}<div class="ow-card"><b>Executive Readout</b><div class="ow-note">One Walmart RTS active coverage is <b>${pct(covered,total)}%</b>, leaving <b>${fmt(gaps)}</b> uncovered stores. <b>${fmt(noBackup)}</b> covered stores have no second active RTS within 75 miles, so resilience planning should focus on backup protection and high-load hubs.</div></div><div class="ow-card"><b>Leadership Action Path</b>${actions.map((a,i)=>`<div class="ow-action"><b>Priority ${i+1}: ${esc(a.title)}</b><div>${esc(a.metric)}</div><div style="margin-top:5px"><b>Why:</b> ${esc(a.why)}</div><div style="margin-top:5px;color:#1e3a8a"><b>Next step:</b> ${esc(a.next)}</div></div>`).join('')}</div>`);
+  }
+
+  function tableRegions(rows){
+    if(!rows.length) return '<div class="ow-note">No rows to show.</div>';
+    return `<div style="max-height:360px;overflow:auto"><table class="ow-table"><thead><tr><th>Region / State</th><th class="num">Stores</th><th class="num">Covered</th><th class="num">Gaps</th><th class="num">No backup</th><th class="num">Coverage</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.region)}</b><div style="color:#64748b;font-size:11px">${esc(r.states||'')}</div></td><td class="num">${fmt(r.total)}</td><td class="num">${fmt(r.covered)}</td><td class="num"><b>${fmt(r.gaps)}</b></td><td class="num">${fmt(r.noBackup)}</td><td class="num">${r.pct}%</td></tr>`).join('')}</tbody></table></div>`;
+  }
+  function tableScore(rows){
+    if(!rows.length) return '<div class="ow-note">No RTS rows to show.</div>';
+    return `<div style="max-height:420px;overflow:auto"><table class="ow-table"><thead><tr><th>RTS</th><th>Legacy/team</th><th class="num">Primary</th><th class="num">No backup</th><th class="num">Fringe</th><th class="num">Avg mi</th><th>Risk</th><th>Action</th></tr></thead><tbody>${rows.map(h=>`<tr><td><b>${esc(h.label)}</b></td><td>${esc(h.team)}</td><td class="num">${fmt(h.stores)}</td><td class="num"><b>${fmt(h.noBackup)}</b></td><td class="num">${fmt(h.fringe)}</td><td class="num">${h.avg.toFixed(1)}</td><td>${esc(h.risk)}</td><td>${esc(h.action)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+  function tableOutage(rows){
+    if(!rows.length) return '<div class="ow-note">No primary stores for this RTS.</div>';
+    return `<div style="max-height:300px;overflow:auto;margin-top:10px"><table class="ow-table"><thead><tr><th>Store</th><th>Location</th><th>Outage Result</th><th class="num">Primary mi</th></tr></thead><tbody>${rows.map(x=>`<tr><td><b>#${esc(x.store.key)}</b><br>${esc(x.store.name)}</td><td>${esc(x.store.city)}, ${esc(x.store.state)}</td><td>${x.backup ? `Shifts to ${esc(x.backup.label)} (${x.backup.miles.toFixed(1)} mi)` : '<b style="color:#991b1b">No active backup within 75 mi</b>'}</td><td class="num">${x.store.miles.toFixed(1)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+
+  window.OW_REBUILD_OPS_INTEL = async function(force=false){
+    ensureDrawer();
+    await loadOpsData(force);
+    renderCurrentPane();
+  };
+  window.updateOpsIntel = function(){ window.OW_REBUILD_OPS_INTEL(false); };
+
+  function intercept(e){
+    const b=e.target.closest?.('button'); if(!b) return;
+    const id=b.id||'';
+    const pane = id==='railLeadership'||id==='quickLeadershipBtn'||id==='opcxLeadershipView' ? 'leadership'
+      : id==='railResilience'||id==='openResiliencePaneBtn' ? 'resilience'
+      : id==='rtsScorecardBtn'||id==='openVisibleScorecardsBtn' ? 'workload'
+      : id==='rtsOutageBtn'||id==='openVisibleOutageBtn'||id==='regionalExecBtn'||id==='openVisibleRegionalExecBtn' ? 'resilience'
+      : 'overview';
+    if(['railOpsIntel','opsDrawerToggle','quickOpsBtn','opcxOpsView','railLeadership','quickLeadershipBtn','opcxLeadershipView','railResilience','openResiliencePaneBtn','rtsScorecardBtn','rtsOutageBtn','regionalExecBtn','openVisibleScorecardsBtn','openVisibleOutageBtn','openVisibleRegionalExecBtn'].includes(id)){
+      e.preventDefault(); e.stopImmediatePropagation(); openDrawer(pane); return false;
+    }
+    if(id==='opsCloseBtn'){ e.preventDefault(); e.stopImmediatePropagation(); closeDrawer(); return false; }
+  }
+  document.addEventListener('click', intercept, true);
+  document.addEventListener('pointerup', function(e){ const b=e.target.closest?.('button'); if(b && (b.id==='railOpsIntel'||b.id==='opsDrawerToggle')){ e.preventDefault(); e.stopImmediatePropagation(); openDrawer('overview'); return false; }}, true);
+
+  function repairIfPlaceholder(){
+    const d=$('opsDrawer');
+    if(d && (d.textContent.includes('Drawer shell was restored') || d.textContent.includes('Refresh/reopen after data finishes loading') || !q('.ow-ops-tabs',d))){
+      d.remove(); ensureDrawer();
+    }
+  }
+  function start(){ ensureDrawer(); repairIfPlaceholder(); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', start); else start();
+  setTimeout(start,300); setTimeout(start,1200); setTimeout(start,3000);
 })();
 </script>
 
