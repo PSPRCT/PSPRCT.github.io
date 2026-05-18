@@ -1501,6 +1501,37 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .ops-priority-card .next{margin-top:6px;border-top:1px solid #e2e8f0;padding-top:6px;color:#1e3a8a;font-size:12px;line-height:1.35;}
 @media(max-width:900px){.ops-action-band{grid-template-columns:1fr;}}
 
+
+
+/* ===== Priority-based Leadership + Hub Workload Clarity Pass ===== */
+.op-breakdown-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.op-breakdown-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:8px;}
+.op-breakdown-card .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+.op-breakdown-card .val{font-size:16px;font-weight:950;color:#0f172a;line-height:1.1;margin-top:2px;}
+.op-breakdown-card .sub{font-size:11.5px;color:#64748b;line-height:1.25;margin-top:3px;}
+.op-workload-meter{height:8px;border-radius:999px;background:#f1f5f9;border:1px solid #e2e8f0;overflow:hidden;margin-top:6px;}
+.op-workload-meter span{display:block;height:100%;border-radius:999px;background:#16a34a;}
+.op-workload-meter.watch span{background:#f59e0b;}
+.op-workload-meter.high span{background:#f97316;}
+.op-workload-meter.critical span{background:#dc2626;}
+.op-action-callout{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-top:9px;font-size:12.5px;line-height:1.35;}
+.op-action-callout b{color:#0f172a;}
+.ops-leadership-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:10px;margin-top:10px;}
+.ops-leader-card{border:1px solid #e2e8f0;border-radius:14px;background:#fff;padding:10px;}
+.ops-leader-card .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;font-weight:950;margin-bottom:5px;}
+.ops-priority-path{display:grid;gap:8px;margin-top:10px;}
+.ops-priority-path-card{border:1px solid #dbe3ea;border-radius:14px;background:#fff;padding:10px;}
+.ops-priority-path-card.priority-1{border-color:#fecaca;background:#fff7f7;}
+.ops-priority-path-card.priority-2{border-color:#fed7aa;background:#fff7ed;}
+.ops-priority-path-card.priority-3{border-color:#bfdbfe;background:#eff6ff;}
+.ops-priority-path-card .rank{font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:950;color:#64748b;}
+.ops-priority-path-card .title{font-weight:950;color:#0f172a;font-size:15px;line-height:1.2;margin-top:3px;}
+.ops-priority-path-card .metric{color:#334155;font-size:12.5px;line-height:1.35;margin-top:4px;}
+.ops-priority-path-card .why,.ops-priority-path-card .next{font-size:12px;line-height:1.35;margin-top:6px;}
+.ops-priority-path-card .next{border-top:1px solid #e2e8f0;padding-top:6px;color:#1e3a8a;}
+.ops-copy-box{border:1px solid #e2e8f0;background:#f8fafc;border-radius:12px;padding:10px;margin-top:10px;font-size:12.5px;line-height:1.45;}
+@media(max-width:900px){.op-breakdown-grid,.ops-leadership-grid{grid-template-columns:1fr;}}
+
 </style>
 </head>
 <body>
@@ -4264,19 +4295,43 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
     }
   });
 
-  const gapClusterNearby = uncovered.length >= 10 ? 'Yes' : uncovered.length ? 'Small' : 'No';
   const fringePct = covered.length ? fringe.length / covered.length : 0;
-  let workload = 'Stable', workloadClass = 'stable';
-  if (stores.length >= 125 || fringePct >= .25 || uncovered.length >= 20) { workload = 'Critical Stretch'; workloadClass = 'critical'; }
-  else if (stores.length >= 95 || fringePct >= .18 || uncovered.length >= 10) { workload = 'High Load'; workloadClass = 'high'; }
-  else if (stores.length >= 70 || fringePct >= .10 || uncovered.length >= 4) { workload = 'Watch'; workloadClass = 'watch'; }
+  const dedRatio = stores.length ? dedStoreSet.size / stores.length : 0;
+  const gapClusterNearby = uncovered.length >= 10 ? 'Yes' : uncovered.length ? 'Small' : 'No';
 
-  let role = 'Balanced Coverage Hub';
-  if (dedStoreSet.size >= 25 || dedStoreSet.size / Math.max(stores.length,1) >= .30) role = 'Dedicated-Team Heavy';
-  else if (fringePct >= .20) role = 'Borderline Reach Hub';
-  else if (uncovered.length >= 10) role = 'Gap Support Hub';
+  const volumeScore = covered.length >= 100 ? 3 : covered.length >= 75 ? 2 : covered.length >= 50 ? 1 : 0;
+  const fringeScore = fringePct >= .40 ? 3 : fringePct >= .25 ? 2 : fringePct >= .15 ? 1 : 0;
+  const distanceScore = avgMi >= 50 || maxMi >= 74 ? 2 : avgMi >= 42 || maxMi >= 70 ? 1 : 0;
+  const gapScore = uncovered.length >= 20 ? 2 : uncovered.length >= 8 ? 1 : 0;
+  const dedicatedScore = dedRatio >= .65 && dedStoreSet.size >= 20 ? 1 : 0;
+  const workloadScore = volumeScore + fringeScore + distanceScore + gapScore + dedicatedScore;
+
+  let workload = 'Stable', workloadClass = 'stable';
+  if (workloadScore >= 6 || (fringePct >= .40 && covered.length >= 25)) { workload = 'Critical Stretch'; workloadClass = 'critical'; }
+  else if (workloadScore >= 4) { workload = 'High Load'; workloadClass = 'high'; }
+  else if (workloadScore >= 2) { workload = 'Watch'; workloadClass = 'watch'; }
+
+  const reasons = [];
+  if (volumeScore >= 2) reasons.push(`${covered.length} covered stores in range`);
+  if (fringeScore >= 2) reasons.push(`${Math.round(fringePct*100)}% of covered stores sit 60–75 miles out`);
+  if (distanceScore >= 1) reasons.push(`average distance ${avgMi.toFixed(1)} mi / max ${maxMi.toFixed(1)} mi`);
+  if (gapScore >= 1) reasons.push(`${uncovered.length} nearby uncovered stores`);
+  if (dedicatedScore >= 1) reasons.push(`${dedStoreSet.size} unique dedicated-overlay stores`);
+  const whyLine = reasons.length ? reasons.join('; ') : 'store count, distance, fringe, and gap exposure are all within normal range';
+
+  let role = 'Balanced Hub';
+  if (fringeScore >= 2) role = 'Fringe-Risk Hub';
+  else if (volumeScore >= 2) role = 'High-Volume Hub';
+  else if (gapScore >= 1) role = 'Gap-Adjacent Hub';
+  else if (dedStoreSet.size >= 30 && dedRatio >= .50) role = 'Dedicated Overlay Hub';
   else if (avgMi >= 45 || maxMi >= 72) role = 'Rural Backbone Hub';
-  else if (stores.length >= 70 && avgMi < 35) role = 'Dense Metro Hub';
+  else if (covered.length >= 45 && avgMi < 35) role = 'Dense Metro Hub';
+
+  let action = 'No immediate action; continue normal monitoring.';
+  if (workloadClass === 'critical') action = 'Review backup RTS support, fringe-store travel burden, and whether nearby hubs can absorb part of the load.';
+  else if (workloadClass === 'high') action = 'Monitor travel load and validate whether the highest-fringe stores need secondary support.';
+  else if (role === 'Gap-Adjacent Hub') action = 'Use Gap Finder to determine whether nearby uncovered stores can be solved by a future placement or reassignment.';
+  else if (role === 'Dedicated Overlay Hub') action = 'Use Dedicated Team Rollup for visibility; do not treat overlay exposure as a deduction from core coverage.';
 
   const statusChip = isFutureHub
     ? `<span class="sp-chip op-status planning"><b>Status:</b> Future / display-only — not counted in coverage</span>`
@@ -4287,13 +4342,11 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
     return `<span class="sp-chip"><b>${rr}mi:</b> ${n}</span>`;
   }).join('');
 
-  // Coverage mix is intentionally overlay-based: a store can be Core One Walmart AND
-  // also carry Unilever / P&G / Tyson dedicated exposure. Do not subtract dedicated
-  // stores from the core count.
   const coreOneWalmartCount = covered.length;
   const dedicatedOverlayCount = dedStoreSet.size;
   const mixDenom = Math.max(coreOneWalmartCount, 1);
   const pct = n => Math.min(100, Math.round((n / mixDenom) * 100));
+  const scorePct = Math.min(100, Math.round((workloadScore / 8) * 100));
 
   spMeta.innerHTML = `
     <div class="op-hub-hero">
@@ -4316,12 +4369,21 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
       <div class="op-metric"><div class="lbl">Avg Distance</div><div class="val">${covered.length ? avgMi.toFixed(1) : '—'}</div></div>
       <div class="op-metric"><div class="lbl">Max Distance</div><div class="val">${covered.length ? maxMi.toFixed(1) : '—'}</div></div>
       <div class="op-metric"><div class="lbl">Nearby Gaps</div><div class="val">${uncovered.length}</div></div>
-      <div class="op-metric"><div class="lbl">Dedicated Exposure</div><div class="val">${dedStoreSet.size}</div></div>
+      <div class="op-metric"><div class="lbl">Unique Dedicated Overlay Stores</div><div class="val">${dedStoreSet.size}</div></div>
     </div>
 
-    <div class="op-hub-note">
-      <b>Hub readout:</b> ${escape(spHub.name || spHub.fullName || 'This RTS')} is operating as a <b>${escape(role)}</b>. Gap cluster nearby: <b>${gapClusterNearby}</b>. ${isFutureHub ? 'This future/reference hub is not included in current coverage math.' : 'Active One Walmart RTS coverage is evaluated with the 75-mile rule.'}
+    <div class="op-breakdown-grid">
+      <div class="op-breakdown-card"><div class="lbl">Volume Load</div><div class="val">${volumeScore >= 3 ? 'Very High' : volumeScore >= 2 ? 'High' : volumeScore ? 'Moderate' : 'Normal'}</div><div class="sub">${covered.length} covered stores</div></div>
+      <div class="op-breakdown-card"><div class="lbl">Fringe Risk</div><div class="val">${fringeScore >= 3 ? 'Very High' : fringeScore >= 2 ? 'High' : fringeScore ? 'Moderate' : 'Low'}</div><div class="sub">${Math.round(fringePct*100)}% at 60–75 mi</div></div>
+      <div class="op-breakdown-card"><div class="lbl">Distance Burden</div><div class="val">${distanceScore >= 2 ? 'High' : distanceScore ? 'Watch' : 'Normal'}</div><div class="sub">Avg ${covered.length ? avgMi.toFixed(1) : '—'} / Max ${covered.length ? maxMi.toFixed(1) : '—'} mi</div></div>
+      <div class="op-breakdown-card"><div class="lbl">Dedicated Complexity</div><div class="val">${dedicatedScore ? 'Overlay Heavy' : dedStoreSet.size ? 'Visible' : 'Low'}</div><div class="sub">${dedStoreSet.size} unique overlay stores</div></div>
     </div>
+    <div class="op-workload-meter ${workloadClass}"><span style="width:${scorePct}%"></span></div>
+
+    <div class="op-hub-note">
+      <b>Why this rating:</b> ${escape(whyLine)}. Gap cluster nearby: <b>${gapClusterNearby}</b>. ${isFutureHub ? 'This future/reference hub is not included in current coverage math.' : 'Active One Walmart RTS coverage is evaluated with the 75-mile rule.'}
+    </div>
+    <div class="op-action-callout"><b>Recommended action:</b> ${escape(action)}</div>
 
     <div class="op-section-title">Operational Coverage Mix</div>
     <div class="sp-bars op-bars">
@@ -10734,79 +10796,95 @@ if (popupHtmlCache.has(cacheKey)){
       const gapRows = topGapRegions(rows);
       const workRows = rtsWorkload(rows).filter(r => r.total > 0);
       const overloaded = workRows.filter(r => r.risk !== 'Low');
+      const criticalWorkload = workRows.filter(r => r.risk === 'Critical' || r.risk === 'High');
       const dedicatedRows = dedicatedExposureRows(rows);
       const blended = blendedReachDetails(rows);
       const topDedicated = dedicatedRows.slice().sort((a,b)=>b.gaps-a.gaps)[0];
-      const topWorkload = overloaded[0];
+      const topWorkload = criticalWorkload[0] || overloaded[0];
       const topGap = gapRows[0];
       const dedicatedGapTotal = dedicatedRows.reduce((a,r)=>a+(r.gaps||0),0);
       const rescueCases = blended ? (blended.premiumRescueByAcosta + blended.acostaRescueByPremium) : 0;
+      const crossmarkGain = blended ? (blended.crossmarkGain || 0) : 0;
       const stateText = opsTopStatesText(rows);
-      const healthLine = currentPct >= 75 ? 'coverage is strong nationally, with targeted watch areas.' : currentPct >= 60 ? 'coverage is moderate; gap action should focus on concentrated markets first.' : 'coverage needs targeted action, especially where gaps and workload stress overlap.';
-      const priorities = [];
+      const coveredStores = rows.length - gapCount;
+      const healthLine = currentPct >= 75 ? 'overall coverage is strong; leadership focus should be targeted workload and remaining gap pockets.' : currentPct >= 60 ? 'coverage is moderate; leadership focus should start with concentrated gaps, then workload stress.' : 'coverage needs targeted action; leadership focus should be coverage gaps first, then workload and dedicated exposure.';
 
-      if (topGap) priorities.push({
-        title:`Address ${topGap.label} gap concentration`,
-        sub:`${fmt(topGap.gaps)} uncovered stores${topGap.states ? ` across ${safe(topGap.states)}` : ''}.`,
-        why:'This is the clearest coverage concentration and should be the first drilldown before discussing new RTS coverage options.',
+      const priorityCandidates = [];
+      if (topGap) priorityCandidates.push({
+        tier:1,
+        type:'Coverage Gap',
+        score:(topGap.gaps || 0) * 4,
+        title:`Close the ${topGap.label} coverage gap first`,
+        metric:`${fmt(topGap.gaps)} uncovered stores${topGap.states ? ` across ${safe(topGap.states)}` : ''}`,
+        why:'This is the largest actionable concentration of uncovered stores and should drive the first operational drilldown.',
         next:opsActionForGap(topGap)
       });
-      if (topWorkload) priorities.push({
-        title:`Balance ${topWorkload.name} workload before assigning more reach`,
-        sub:`${fmt(topWorkload.total)} stores, ${fmt(topWorkload.fringe)} fringe stores, variance ${topWorkload.variance > 0 ? '+' : ''}${fmt(topWorkload.variance)} vs recommended capacity.`,
-        why:'A high-load RTS may technically cover stores but still create execution risk due to distance, fringe volume, or too many supported locations.',
+      if (topWorkload) priorityCandidates.push({
+        tier:2,
+        type:'RTS Workload',
+        score:(topWorkload.total || 0) + (topWorkload.fringe || 0) * 3 + Math.max(0, topWorkload.variance || 0),
+        title:`Stabilize ${topWorkload.name} workload risk`,
+        metric:`${fmt(topWorkload.total)} stores, ${fmt(topWorkload.fringe)} fringe stores, variance ${topWorkload.variance > 0 ? '+' : ''}${fmt(topWorkload.variance)} vs recommended capacity`,
+        why:'A hub can be technically in range but still become an execution risk when volume, fringe mileage, and variance stack together.',
         next:opsActionForWorkload(topWorkload)
       });
-      if (topDedicated && topDedicated.gaps > 0) priorities.push({
-        title:`Resolve ${topDedicated.team} dedicated-team exposure`,
-        sub:`${fmt(topDedicated.gaps)} uncovered dedicated stores out of ${fmt(topDedicated.total)} in scope.`,
-        why:'Dedicated-team visibility is additive; these stores can also be part of Core One Walmart coverage but still need client-specific visibility.',
-        next:'Use Dedicated Team Rollup or dedicated filters to identify the responsible dedicated manager and the uncovered store cluster.'
+      if (topDedicated && topDedicated.gaps > 0) priorityCandidates.push({
+        tier:3,
+        type:'Dedicated Overlay',
+        score:(topDedicated.gaps || 0) * 2,
+        title:`Resolve ${topDedicated.team} dedicated overlay gaps`,
+        metric:`${fmt(topDedicated.gaps)} uncovered dedicated stores out of ${fmt(topDedicated.total)} in scope`,
+        why:'Dedicated overlays are visibility layers, not exclusions from core coverage. Gaps here should be reviewed for client-specific exposure and manager communication.',
+        next:'Open Dedicated Team Rollup, filter to the team, then drill into the uncovered stores and responsible dedicated manager.'
       });
-      if (rescueCases + (blended?.crossmarkGain || 0) > 0) priorities.push({
-        title:'Use Operational Flexibility as the resiliency story',
-        sub:`${fmt(rescueCases)} Premium/Acosta cross-network support cases and ${fmt(blended.crossmarkGain)} Crossmark stores with RTS access in scope.`,
-        why:'This explains the benefit of the combined RTS network without implying the 75-mile coverage rule changed.',
-        next:'Present this as backup/support flexibility, then keep operational decisions anchored to active 75-mile coverage.'
+      if (rescueCases + crossmarkGain > 0) priorityCandidates.push({
+        tier:4,
+        type:'Flexibility Story',
+        score:rescueCases + crossmarkGain,
+        title:'Use One Walmart flexibility as the leadership story',
+        metric:`${fmt(rescueCases)} Premium/Acosta cross-network support cases and ${fmt(crossmarkGain)} Crossmark stores with RTS access in scope`,
+        why:'This is the cleanest explanation of the operating model benefit without implying that the 75-mile rule changed.',
+        next:'Use this as the executive talking point after the coverage and workload priorities are clear.'
       });
-      priorities.push({
+      priorityCandidates.push({
+        tier:5,
+        type:'Governance',
+        score:1,
         title:'Keep the 75-mile rule clear',
-        sub:'The One Walmart model expands the active RTS network view; it does not change the underlying 75-mile coverage rule.',
-        why:'This prevents leadership confusion between broader visibility and actual routeable coverage.',
-        next:'Use the RTS hub panel and Gap tab drilldowns for store-level validation before staffing decisions.'
+        metric:'One Walmart expands the active RTS network view; it does not change routeable coverage logic.',
+        why:'This prevents confusion between broader network visibility and actual store-level RTS reach.',
+        next:'Validate decisions using store-level popups, RTS hub panels, and Gap tab drilldowns before staffing recommendations.'
       });
+      const priorities = priorityCandidates.sort((a,b)=>a.tier-b.tier || b.score-a.score).slice(0,6);
 
       opsSet('#opsLeadershipSnapshot', `
         <div class="ops-leader-brief">
           <b>Executive readout:</b> One Walmart RTS coverage is <b>${currentPct}%</b> in <b>${opsScopeMode === 'national' ? 'National View' : 'Filtered View'}</b>; ${healthLine}
-          Current uncovered exposure is <b>${fmt(gapCount)}</b> stores, with the largest visible concentration in <b>${safe(worst?.manager || topGap?.label || 'no flagged area')}</b>.
+          Current uncovered exposure is <b>${fmt(gapCount)}</b> stores. The first priority should be <b>${safe(priorities[0]?.title || 'no priority flagged')}</b>.
         </div>
         <div class="ops-action-band">
-          <div class="ops-action-tile"><div class="lbl">Coverage</div><div class="val">${currentPct}%</div><div class="ops-sub">${fmt(rows.length-gapCount)} covered / ${fmt(rows.length)} stores</div></div>
-          <div class="ops-action-tile"><div class="lbl">Gap focus</div><div class="val">${safe(topGap?.label || 'None')}</div><div class="ops-sub">${topGap ? fmt(topGap.gaps)+' gaps' : 'No top gap'}</div></div>
-          <div class="ops-action-tile"><div class="lbl">Workload watch</div><div class="val">${fmt(overloaded.length)}</div><div class="ops-sub">RTS hubs above low-risk load</div></div>
+          <div class="ops-action-tile"><div class="lbl">Coverage</div><div class="val">${currentPct}%</div><div class="ops-sub">${fmt(coveredStores)} covered / ${fmt(rows.length)} stores</div></div>
+          <div class="ops-action-tile"><div class="lbl">Coverage gap</div><div class="val">${fmt(gapCount)}</div><div class="ops-sub">Largest: ${safe(topGap?.label || 'None flagged')}</div></div>
+          <div class="ops-action-tile"><div class="lbl">Workload risk</div><div class="val">${fmt(criticalWorkload.length || overloaded.length)}</div><div class="ops-sub">RTS hubs needing review</div></div>
         </div>
-        <div class="ops-leadership-box">
-          <b>One Walmart RTS Coverage Snapshot</b><br>
-          Scope: <b>${opsScopeMode === 'national' ? 'National View' : 'Filtered View'}</b><br>
-          Active alignment view: <b>${activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart'}</b><br>
-          Active RTS hubs: <b>${fmt(hubs.length)}</b><br>
-          Visible gap stores: <b>${fmt(gapCount)}</b><br>
-          Largest state concentrations: <b>${safe(stateText)}</b><br>
-          Dedicated gap exposure: <b>${fmt(dedicatedGapTotal)}</b>
+        <div class="ops-leadership-grid">
+          <div class="ops-leader-card"><div class="lbl">Leadership Interpretation</div>
+            Coverage decisions should be sequenced as: <b>largest uncovered concentration first</b>, then <b>RTS workload/fringe risk</b>, then <b>dedicated overlay exposure</b>. Operational Flexibility is best used as the model-benefit story, not as the first action item.
+          </div>
+          <div class="ops-leader-card"><div class="lbl">Key Exposure</div>
+            Active RTS hubs: <b>${fmt(hubs.length)}</b><br>
+            Largest state concentrations: <b>${safe(stateText)}</b><br>
+            Dedicated gap exposure: <b>${fmt(dedicatedGapTotal)}</b>
+          </div>
         </div>`);
       opsSet('#opsTalkingPoints', `
         <div class="ops-leadership-box"><b>Copy-ready leadership language:</b><br>
-        The One Walmart model keeps the same 75-mile RTS coverage rule while improving operational flexibility. Core One Walmart coverage should be read as active RTS reach; Unilever, P&amp;G, and Tyson remain additive visibility layers, not deductions from core coverage.</div>
-        <div class="ops-section-title" style="margin-top:12px"><span>Top Action Priorities</span><span class="ops-sub">auto-ranked</span></div>
-        <div class="ops-priority-list">${priorities.slice(0,5).map((p,i)=>`<div class="ops-priority-card"><b>${i+1}. ${safe(p.title)}</b><div class="ops-sub">${p.sub}</div><div class="why"><b>Why it matters:</b> ${safe(p.why)}</div><div class="next"><b>Next step:</b> ${safe(p.next)}</div></div>`).join('')}</div>
-        <ul style="margin:10px 0 0 0;padding-left:18px;line-height:1.45">
-          <li>The map is operating in <b>${activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart'}</b> mode.</li>
-          <li>The active Ops Intel scope is <b>${opsScopeMode === 'national' ? 'National View' : 'Filtered View'}</b>.</li>
-          <li>The highest visible coverage risk is <b>${safe(worst?.manager || topGap?.label || 'not currently flagged')}</b>.</li>
-          <li>RTS workload ranking should be used to identify overloaded hubs, fringe stores, and split/support opportunities.</li>
-          <li>Operational Flexibility should be used to explain cross-network resiliency, not as a claim that geography-based coverage rules changed.</li>
-        </ul>`);
+        The One Walmart model keeps the same 75-mile RTS coverage rule while improving operational flexibility. The priority sequence is to close concentrated coverage gaps first, protect high-load RTS hubs second, and maintain separate visibility for Unilever, P&amp;G, and Tyson dedicated overlays.</div>
+        <div class="ops-section-title" style="margin-top:12px"><span>Leadership Action Path</span><span class="ops-sub">ranked by operating priority</span></div>
+        <div class="ops-priority-path">${priorities.map((p,i)=>`<div class="ops-priority-path-card priority-${Math.min(i+1,3)}"><div class="rank">Priority ${i+1} · ${safe(p.type)}</div><div class="title">${safe(p.title)}</div><div class="metric">${safe(p.metric)}</div><div class="why"><b>Why it matters:</b> ${safe(p.why)}</div><div class="next"><b>Recommended action:</b> ${safe(p.next)}</div></div>`).join('')}</div>
+        <div class="ops-copy-box">
+          <b>Meeting flow:</b> 1) Show national/filtered coverage, 2) drill into the largest gap concentration, 3) review high-load/fringe-risk RTS hubs, 4) call out dedicated overlay visibility, 5) close with the One Walmart flexibility story and 75-mile rule clarity.
+        </div>`);
     }
 
     function updateOpsIntel(force=false){
