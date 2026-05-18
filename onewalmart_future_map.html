@@ -13548,5 +13548,189 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 })();
 </script>
 
+
+
+<script>
+/* ===== Resilience Tools access + Ops tab activation fix v2 ===== */
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function q(sel, root=document){ return root.querySelector(sel); }
+  function qa(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
+
+  function ensureOpsDrawerVisible(){
+    let drawer = $('opsDrawer') || $('opsIntelDrawer');
+    if (!drawer) {
+      const opener = $('railOpsIntel') || $('railOps') || $('quickOpsBtn') || $('opsDrawerToggle');
+      if (opener) opener.click();
+      drawer = $('opsDrawer') || $('opsIntelDrawer');
+    }
+    if (drawer) {
+      drawer.classList.add('show');
+      drawer.style.transform = 'translateX(0)';
+      q('.mapwrap')?.classList.add('command-drawer-open');
+    }
+    return drawer;
+  }
+
+  function activateOpsPane(drawer, paneName){
+    if (!drawer) return;
+    const name = String(paneName || 'overview').toLowerCase();
+    const cap = name.charAt(0).toUpperCase() + name.slice(1);
+    const tab = q(`.ops-tab[data-pane="${name}"]`, drawer);
+    const pane = q(`#opsPane${cap}`, drawer);
+    if (!tab || !pane) return;
+    qa('.ops-tab', drawer).forEach(t => t.classList.toggle('active', t === tab));
+    qa('.ops-pane', drawer).forEach(p => {
+      p.classList.remove('active','show');
+      p.style.display = '';
+    });
+    pane.classList.add('active');
+    try { window.updateOpsIntel?.(); } catch(_) {}
+    try { window.dispatchEvent(new Event('resize')); } catch(_) {}
+  }
+
+  function ensureResiliencePane(){
+    const drawer = ensureOpsDrawerVisible();
+    if (!drawer) return null;
+    const tabs = q('.ops-tabs', drawer);
+    const body = q('.ops-body', drawer) || drawer;
+    if (!tabs) return drawer;
+
+    let tab = q('.ops-tab[data-pane="resilience"]', drawer);
+    if (!tab) {
+      tab = document.createElement('button');
+      tab.className = 'ops-tab';
+      tab.dataset.pane = 'resilience';
+      tab.type = 'button';
+      tab.textContent = 'Resilience Tools';
+      tabs.appendChild(tab);
+    }
+
+    let pane = q('#opsPaneResilience', drawer);
+    if (!pane) {
+      pane = document.createElement('div');
+      pane.className = 'ops-pane';
+      pane.id = 'opsPaneResilience';
+      pane.innerHTML = `
+        <div class="ops-card">
+          <div class="ops-section-title"><span>RTS Resilience Tools</span><span class="ops-sub">backup + outage + scorecards</span></div>
+          <div class="ops-context-note"><b>What changed:</b> RTS resilience now separates normal coverage from true backup protection. A store only has backup protection when a second active RTS is also within 75 miles.</div>
+          <div class="ops-resilience-grid">
+            <div class="ops-resilience-card"><b>True Backup RTS Logic</b>Uses the nearest active RTS as primary and the next active RTS within 75 miles as backup. This avoids treating shared reach as a penalty.</div>
+            <div class="ops-resilience-card"><b>RTS Outage Simulator</b>Select an RTS and identify stores that shift to backup versus become stranded if that RTS is unavailable.</div>
+            <div class="ops-resilience-card"><b>RTS Scorecards</b>Ranks hubs by primary load, no-backup risk, fringe miles, and leadership action tier.</div>
+            <div class="ops-resilience-card"><b>Regional Executive Summaries</b>Ranks regions by uncovered gaps plus no-backup exposure for leadership planning.</div>
+          </div>
+          <div class="ops-resilience-actions">
+            <button class="btn" type="button" data-open-res-tool="outage">Open Outage Simulator</button>
+            <button class="btn" type="button" data-open-res-tool="scorecards">Open RTS Scorecards</button>
+            <button class="btn" type="button" data-open-res-tool="regional">Open Regional Executive Summaries</button>
+          </div>
+        </div>`;
+      body.appendChild(pane);
+    }
+
+    // Critical fix: the dynamically injected tab must use .active, not .show.
+    tab.onclick = function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      activateOpsPane(drawer, 'resilience');
+    };
+    return drawer;
+  }
+
+  function openResilienceTab(){
+    const drawer = ensureResiliencePane();
+    setTimeout(() => activateOpsPane(drawer || ensureOpsDrawerVisible(), 'resilience'), 40);
+  }
+
+  function clickTool(id){
+    const el = $(id);
+    if (el) { el.click(); return true; }
+    return false;
+  }
+
+  function addVisibleLeftPanelButtons(){
+    if ($('resilienceVisibleTools')) return;
+    const toolsSection = $('analysisDrop')?.closest('.section-body') || $('analysisDrop')?.parentElement || $('helpBtn')?.parentElement;
+    if (!toolsSection) return;
+    const box = document.createElement('div');
+    box.id = 'resilienceVisibleTools';
+    box.style.cssText = 'border-top:1px solid #e2e8f0;margin-top:8px;padding-top:8px;display:grid;gap:6px;';
+    box.innerHTML = `
+      <div style="font-size:11.5px;line-height:1.35;color:#64748b;"><b style="color:#0f172a">RTS resilience tools</b><br>Backup logic, outage simulation, RTS scorecards, and regional executive summaries.</div>
+      <button id="openResiliencePaneBtn" class="btn" type="button" style="width:100%;text-align:left">Open Resilience Tools</button>
+      <button id="openVisibleScorecardsBtn" class="btn" type="button" style="width:100%;text-align:left">RTS Scorecards</button>
+      <button id="openVisibleOutageBtn" class="btn" type="button" style="width:100%;text-align:left">RTS Outage Simulator</button>
+      <button id="openVisibleRegionalExecBtn" class="btn" type="button" style="width:100%;text-align:left">Regional Executive Summaries</button>`;
+    toolsSection.appendChild(box);
+  }
+
+  function addAnalysisDropdownButtons(){
+    const menu = q('#analysisDrop .dropdown-menu');
+    if (!menu) return;
+    const add = (id, text, afterId) => {
+      if ($(id)) return;
+      const b = document.createElement('button');
+      b.id = id;
+      b.className = 'btn';
+      b.type = 'button';
+      b.style.cssText = 'display:block;width:100%;margin:4px 0;text-align:left';
+      b.textContent = text;
+      const anchor = afterId ? $(afterId) : menu.lastElementChild;
+      if (anchor && anchor.parentElement === menu) anchor.insertAdjacentElement('afterend', b);
+      else menu.appendChild(b);
+    };
+    add('rtsScorecardBtn','RTS Scorecards','coverageBtn');
+    add('rtsOutageBtn','RTS Outage Simulator','rtsScorecardBtn');
+    add('regionalExecBtn','Regional Executive Summaries','rtsOutageBtn');
+  }
+
+  function addRailButton(){
+    const rail = q('.map-action-rail');
+    if (!rail || $('railResilience')) return;
+    const b = document.createElement('button');
+    b.id = 'railResilience';
+    b.className = 'rail-btn';
+    b.type = 'button';
+    b.textContent = 'Resilience';
+    b.title = 'Open RTS backup, outage, scorecard, and regional summary tools';
+    rail.appendChild(b);
+  }
+
+  function refreshAccessPoints(){
+    ensureResiliencePane();
+    addVisibleLeftPanelButtons();
+    addAnalysisDropdownButtons();
+    addRailButton();
+  }
+
+  document.addEventListener('click', function(e){
+    const b = e.target.closest('button');
+    if (!b) return;
+    const tool = b.dataset.openResTool;
+    if (b.id === 'railResilience' || b.id === 'openResiliencePaneBtn') {
+      e.preventDefault(); e.stopPropagation(); openResilienceTab(); return;
+    }
+    if (tool === 'outage' || b.id === 'openVisibleOutageBtn') { e.preventDefault(); e.stopPropagation(); clickTool('rtsOutageBtn'); return; }
+    if (tool === 'scorecards' || b.id === 'openVisibleScorecardsBtn') { e.preventDefault(); e.stopPropagation(); clickTool('rtsScorecardBtn'); return; }
+    if (tool === 'regional' || b.id === 'openVisibleRegionalExecBtn') { e.preventDefault(); e.stopPropagation(); clickTool('regionalExecBtn'); return; }
+    if (b.matches('.ops-tab[data-pane="resilience"]')) {
+      e.preventDefault(); e.stopPropagation();
+      activateOpsPane(b.closest('#opsDrawer,#opsIntelDrawer') || ensureOpsDrawerVisible(), 'resilience');
+      return;
+    }
+  }, true);
+
+  const mo = new MutationObserver(() => refreshAccessPoints());
+  function start(){ refreshAccessPoints(); mo.observe(document.body, { childList:true, subtree:true }); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+  setTimeout(refreshAccessPoints, 300);
+  setTimeout(refreshAccessPoints, 1200);
+  setTimeout(refreshAccessPoints, 3000);
+})();
+</script>
+
 </body>
 </html>
