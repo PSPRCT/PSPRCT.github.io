@@ -14264,8 +14264,9 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 })();
 </script>
 
+
 <style>
-/* ===== Final left-tools cleanup + resilience button wiring fix ===== */
+/* ===== Safe final cleanup: collapsible Analysis Tools + no duplicate visible resilience block ===== */
 #analysisDrop .dropdown-menu{
   position:static !important;
   left:auto !important;
@@ -14279,47 +14280,54 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   margin-top:6px !important;
   background:#fff !important;
 }
-#analysisDrop:not(.analysis-open) .dropdown-menu{
-  display:none !important;
-}
-#analysisDrop.analysis-open .dropdown-menu{
-  display:block !important;
-}
-#resilienceVisibleTools,
-#resilienceMenuHint{
-  display:none !important;
-}
+#analysisDrop:not(.analysis-open) .dropdown-menu{ display:none !important; }
+#analysisDrop.analysis-open .dropdown-menu{ display:block !important; }
+#resilienceVisibleTools,#resilienceMenuHint{ display:none !important; }
 </style>
 <script>
-/* ===== Final fix: Resilience tools buttons + left Analysis Tools collapse cleanup ===== */
+/* ===== Safe final cleanup: restore loading + wire resilience actions without breaking startup ===== */
 (function(){
-  if (window.__OW_FINAL_RESILIENCE_LEFTTOOLS_FIX__) return;
-  window.__OW_FINAL_RESILIENCE_LEFTTOOLS_FIX__ = true;
+  if (window.__OW_SAFE_FINAL_RESILIENCE_CLEANUP__) return;
+  window.__OW_SAFE_FINAL_RESILIENCE_CLEANUP__ = true;
 
   function $(id){ return document.getElementById(id); }
   function q(sel, root){ return (root || document).querySelector(sel); }
   function qa(sel, root){ return Array.from((root || document).querySelectorAll(sel)); }
 
-  function removeDuplicateResilienceLeftPaneEntries(){
-    qa('#resilienceVisibleTools,#resilienceMenuHint').forEach(el => el.remove());
+  function dedupeById(id, keepInsideSelector){
+    const els = qa('#' + id);
+    if (els.length <= 1) return;
+    let keep = keepInsideSelector ? els.find(el => el.closest(keepInsideSelector)) : els[0];
+    if (!keep) keep = els[0];
+    els.forEach(el => { if (el !== keep) el.remove(); });
+  }
 
+  function ensureAnalysisButtons(){
     const menu = q('#analysisDrop .dropdown-menu');
     if (!menu) return;
+    const add = function(id, text, afterId){
+      let btn = $(id);
+      if (!btn || !btn.closest('#analysisDrop .dropdown-menu')) {
+        btn = document.createElement('button');
+        btn.id = id;
+        btn.className = 'btn';
+        btn.type = 'button';
+        btn.style.cssText = 'display:block;width:100%;margin:4px 0;text-align:left';
+        btn.textContent = text;
+        const anchor = afterId ? $(afterId) : menu.lastElementChild;
+        if (anchor && anchor.parentElement === menu) anchor.insertAdjacentElement('afterend', btn);
+        else menu.appendChild(btn);
+      }
+    };
+    add('rtsScorecardBtn','RTS Scorecards','coverageBtn');
+    add('rtsOutageBtn','RTS Outage Simulator','rtsScorecardBtn');
+    add('regionalExecBtn','Regional Executive Summaries','rtsOutageBtn');
+    ['rtsScorecardBtn','rtsOutageBtn','regionalExecBtn'].forEach(id => dedupeById(id, '#analysisDrop .dropdown-menu'));
+  }
 
-    // Keep exactly one of each Analysis Tool button in the dropdown.
-    const keepIds = new Set();
-    ['rtsScorecardBtn','rtsOutageBtn','regionalExecBtn'].forEach(id => {
-      qa('#' + id).forEach((el, idx) => {
-        if (idx === 0 && el.closest('#analysisDrop .dropdown-menu')) keepIds.add(id);
-        else if (idx > 0 || !el.closest('#analysisDrop .dropdown-menu')) el.remove();
-      });
-    });
-
-    // Remove non-button helper divs that older enhancement passes appended inside the menu.
-    qa('#analysisDrop .dropdown-menu > div').forEach(el => {
-      const txt = (el.textContent || '').toLowerCase();
-      if (txt.includes('resilience tools') || txt.includes('scorecards') || txt.includes('outage simulator')) el.remove();
-    });
+  function cleanupLeftPane(){
+    qa('#resilienceVisibleTools,#resilienceMenuHint').forEach(el => el.remove());
+    ensureAnalysisButtons();
   }
 
   function setupAnalysisDropdown(){
@@ -14327,14 +14335,12 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     const menu = q('#analysisDrop .dropdown-menu');
     const btn = q('#analysisDrop > button');
     if (!drop || !menu || !btn) return;
-
-    if (!drop.classList.contains('analysis-open')) {
-      menu.style.display = '';
-    }
-
+    if (btn.__owFinalAnalysisToggle) return;
+    btn.__owFinalAnalysisToggle = true;
     btn.onclick = function(ev){
       ev.preventDefault();
       ev.stopPropagation();
+      ev.stopImmediatePropagation && ev.stopImmediatePropagation();
       drop.classList.toggle('analysis-open');
       menu.style.display = '';
     };
@@ -14349,130 +14355,88 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     }
   }, true);
 
-  function ensureResilienceModalShell(){
-    if ($('rtsResilienceModals')) return;
-
-    document.body.insertAdjacentHTML('beforeend', `
-      <div id="rtsResilienceModals">
-        <div class="modal" id="rtsOutageModal" aria-modal="true" role="dialog">
-          <div class="card rts-res-card"><header><h3>RTS Outage Simulator</h3><button id="rtsOutageClose" class="btn" type="button">Close</button></header>
-            <div class="body" style="grid-template-columns:1fr;">
-              <div class="res-toolbar"><label class="toggle">Simulate RTS unavailable <select id="rtsOutageSelect"></select></label><button id="rtsOutageRun" class="btn" type="button">Run Simulation</button><button id="rtsOutageExport" class="btn" type="button">Export CSV</button></div>
-              <div class="res-note"><b>True outage logic:</b> a store is stranded only when the selected RTS is its primary/nearest active RTS and there is no second active RTS within 75 miles.</div>
-              <div id="rtsOutageResults" class="res-results"></div>
-            </div>
-          </div>
-        </div>
-        <div class="modal" id="rtsScorecardModal" aria-modal="true" role="dialog">
-          <div class="card rts-res-card"><header><h3>RTS Scorecards</h3><button id="rtsScorecardClose" class="btn" type="button">Close</button></header>
-            <div class="body" style="grid-template-columns:1fr;">
-              <div class="res-toolbar"><button id="rtsScorecardRefresh" class="btn" type="button">Refresh Scorecards</button><button id="rtsScorecardExport" class="btn" type="button">Export CSV</button></div>
-              <div class="res-note"><b>Scorecard logic:</b> primary stores are assigned to their nearest active RTS. Backup protection requires a second active RTS inside 75 miles.</div>
-              <div id="rtsScorecardResults" class="res-results"></div>
-            </div>
-          </div>
-        </div>
-        <div class="modal" id="regionalExecModal" aria-modal="true" role="dialog">
-          <div class="card rts-res-card"><header><h3>Regional Executive Summaries</h3><button id="regionalExecClose" class="btn" type="button">Close</button></header>
-            <div class="body" style="grid-template-columns:1fr;">
-              <div class="res-toolbar"><label class="toggle"><input type="checkbox" id="regionalExecUseFilters"> Use current filters</label><button id="regionalExecRefresh" class="btn" type="button">Refresh Summary</button><button id="regionalExecExport" class="btn" type="button">Export CSV</button></div>
-              <div class="res-note"><b>Leadership use:</b> regions are ranked by uncovered stores plus no-backup exposure, then translated into a clear action path.</div>
-              <div id="regionalExecResults" class="res-results"></div>
-            </div>
-          </div>
-        </div>
-      </div>`);
-  }
-
-  function showModal(id){
-    ensureResilienceModalShell();
+  function openExistingModal(id){
     const modal = $(id);
-    if (modal) modal.classList.add('show');
+    if (modal) {
+      modal.classList.add('show');
+      return true;
+    }
+    return false;
   }
 
-  function openResilienceTool(tool){
-    ensureResilienceModalShell();
-
+  function openTool(tool){
     const api = window.OW_RTS_Resilience || {};
     if (tool === 'scorecards') {
-      showModal('rtsScorecardModal');
-      try { api.renderScorecards && api.renderScorecards(); } catch(err){ console.warn('RTS Scorecards render failed:', err); }
-      return;
+      if (openExistingModal('rtsScorecardModal')) {
+        setTimeout(function(){ try { api.renderScorecards && api.renderScorecards(); } catch(e){ console.warn(e); } }, 0);
+        return true;
+      }
+      return false;
     }
     if (tool === 'outage') {
-      showModal('rtsOutageModal');
-      try { api.renderOutageSimulation && api.renderOutageSimulation(); } catch(err){ console.warn('RTS Outage render failed:', err); }
-      return;
+      if (openExistingModal('rtsOutageModal')) {
+        setTimeout(function(){ try { api.renderOutageSimulation && api.renderOutageSimulation(); } catch(e){ console.warn(e); } }, 0);
+        return true;
+      }
+      return false;
     }
     if (tool === 'regional') {
-      showModal('regionalExecModal');
-      try { api.renderRegionalExecSummaries && api.renderRegionalExecSummaries(); } catch(err){ console.warn('Regional Executive Summary render failed:', err); }
-      return;
+      if (openExistingModal('regionalExecModal')) {
+        setTimeout(function(){ try { api.renderRegionalExecSummaries && api.renderRegionalExecSummaries(); } catch(e){ console.warn(e); } }, 0);
+        return true;
+      }
+      return false;
     }
+    return false;
   }
 
-  function openResiliencePane(){
+  function openResilienceTab(){
     try {
       if (typeof window.owOpenStableOpsDrawer === 'function') window.owOpenStableOpsDrawer('overview');
     } catch(e) {}
     setTimeout(function(){
-      const tab = q('.ops-tab[data-pane="resilience"]');
+      const tab = q('.ops-tab[data-pane="resilience"]') || q('.ow-tab[data-ow-pane="resilience"]');
       if (tab) tab.click();
-    }, 120);
+    }, 100);
   }
 
   document.addEventListener('click', function(ev){
-    const b = ev.target && ev.target.closest && ev.target.closest('button');
-    if (!b) return;
-
-    const id = b.id || '';
-    const tool = b.dataset ? b.dataset.openResTool : '';
+    const btn = ev.target && ev.target.closest && ev.target.closest('button');
+    if (!btn) return;
+    const id = btn.id || '';
+    const tool = btn.dataset ? btn.dataset.openResTool : '';
 
     if (id === 'openResiliencePaneBtn' || id === 'railResilience') {
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-      openResiliencePane();
+      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation && ev.stopImmediatePropagation();
+      openResilienceTab();
       return;
     }
 
     if (id === 'rtsScorecardBtn' || id === 'openVisibleScorecardsBtn' || id === 'opsOpenScorecards' || tool === 'scorecards') {
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-      openResilienceTool('scorecards');
+      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation && ev.stopImmediatePropagation();
+      if (!openTool('scorecards') && id !== 'rtsScorecardBtn') $('rtsScorecardBtn')?.click();
       return;
     }
-
     if (id === 'rtsOutageBtn' || id === 'openVisibleOutageBtn' || id === 'opsOpenOutage' || tool === 'outage') {
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-      openResilienceTool('outage');
+      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation && ev.stopImmediatePropagation();
+      if (!openTool('outage') && id !== 'rtsOutageBtn') $('rtsOutageBtn')?.click();
       return;
     }
-
     if (id === 'regionalExecBtn' || id === 'openVisibleRegionalExecBtn' || id === 'opsOpenRegionalExec' || tool === 'regional') {
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-      openResilienceTool('regional');
+      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation && ev.stopImmediatePropagation();
+      if (!openTool('regional') && id !== 'regionalExecBtn') $('regionalExecBtn')?.click();
       return;
     }
-
-    if (id === 'rtsOutageClose') { ev.preventDefault(); $('rtsOutageModal')?.classList.remove('show'); return; }
-    if (id === 'rtsScorecardClose') { ev.preventDefault(); $('rtsScorecardModal')?.classList.remove('show'); return; }
-    if (id === 'regionalExecClose') { ev.preventDefault(); $('regionalExecModal')?.classList.remove('show'); return; }
-
-    if (id === 'rtsOutageRun') { ev.preventDefault(); try { window.OW_RTS_Resilience?.renderOutageSimulation?.(); } catch(e){} return; }
-    if (id === 'rtsScorecardRefresh') { ev.preventDefault(); try { window.OW_RTS_Resilience?.renderScorecards?.(); } catch(e){} return; }
-    if (id === 'regionalExecRefresh') { ev.preventDefault(); try { window.OW_RTS_Resilience?.renderRegionalExecSummaries?.(); } catch(e){} return; }
   }, true);
 
   function cleanupLoop(){
-    removeDuplicateResilienceLeftPaneEntries();
+    cleanupLeftPane();
     setupAnalysisDropdown();
   }
 
-  const mo = new MutationObserver(cleanupLoop);
   function start(){
     cleanupLoop();
+    const mo = new MutationObserver(cleanupLoop);
     mo.observe(document.body, { childList:true, subtree:true });
     setTimeout(cleanupLoop, 250);
     setTimeout(cleanupLoop, 1000);
