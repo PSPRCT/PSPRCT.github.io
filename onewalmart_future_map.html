@@ -4262,7 +4262,13 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
     return `<span class="sp-chip"><b>${rr}mi:</b> ${n}</span>`;
   }).join('');
 
-  const pct = n => Math.round((n / Math.max(stores.length, 1)) * 100);
+  // Coverage mix is intentionally overlay-based: a store can be Core One Walmart AND
+  // also carry Unilever / P&G / Tyson dedicated exposure. Do not subtract dedicated
+  // stores from the core count.
+  const coreOneWalmartCount = covered.length;
+  const dedicatedOverlayCount = dedStoreSet.size;
+  const mixDenom = Math.max(coreOneWalmartCount, 1);
+  const pct = n => Math.min(100, Math.round((n / mixDenom) * 100));
 
   spMeta.innerHTML = `
     <div class="op-hub-hero">
@@ -4292,12 +4298,16 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
       <b>Hub readout:</b> ${escape(spHub.name || spHub.fullName || 'This RTS')} is operating as a <b>${escape(role)}</b>. Gap cluster nearby: <b>${gapClusterNearby}</b>. ${isFutureHub ? 'This future/reference hub is not included in current coverage math.' : 'Active One Walmart RTS coverage is evaluated with the 75-mile rule.'}
     </div>
 
-    <div class="op-section-title">Coverage Mix</div>
+    <div class="op-section-title">Operational Coverage Mix</div>
     <div class="sp-bars op-bars">
-      <div class="sp-bar p"><div class="label">Core PSP</div><div class="bar"><div class="fill" style="width:${pct(stores.length - dedStoreSet.size)}%"></div></div><b>${stores.length - dedStoreSet.size}</b></div>
+      <div class="sp-bar p"><div class="label">Core One Walmart</div><div class="bar"><div class="fill" style="width:${pct(coreOneWalmartCount)}%"></div></div><b>${coreOneWalmartCount}</b></div>
+      <div class="sp-bar pa"><div class="label">Dedicated Overlay</div><div class="bar"><div class="fill" style="width:${pct(dedicatedOverlayCount)}%"></div></div><b>${dedicatedOverlayCount}</b></div>
       <div class="sp-bar a"><div class="label">Unilever</div><div class="bar"><div class="fill" style="width:${pct(dedTeamCounts.Unilever || 0)}%"></div></div><b>${dedTeamCounts.Unilever || 0}</b></div>
       <div class="sp-bar pa"><div class="label">P&amp;G</div><div class="bar"><div class="fill" style="width:${pct(dedTeamCounts['P&G'] || 0)}%"></div></div><b>${dedTeamCounts['P&G'] || 0}</b></div>
       <div class="sp-bar u"><div class="label">Tyson</div><div class="bar"><div class="fill" style="width:${pct(dedTeamCounts.Tyson || 0)}%"></div></div><b>${dedTeamCounts.Tyson || 0}</b></div>
+    </div>
+    <div class="op-hub-note" style="margin-top:8px">
+      <b>Mix note:</b> dedicated team counts are overlays, not exclusions. A store can be counted in Core One Walmart coverage and also in Unilever, P&amp;G, or Tyson exposure. Dedicated team rows may overlap.
     </div>
   `;
 }
@@ -10466,31 +10476,46 @@ if (popupHtmlCache.has(cacheKey)){
     }
 
     function wireOpsManagerLinks(){
-      const container = drawer.querySelector('#opsTopGaps');
-      if (!container || container.dataset.managerLinksWired === '1') return;
-      container.dataset.managerLinksWired = '1';
-      container.addEventListener('click', (e)=>{
+      // One delegated click listener across the entire Ops drawer. Earlier versions only
+      // wired #opsTopGaps, so manager buttons in the Gap Risk tab looked clickable but did nothing.
+      if (!drawer || drawer.dataset.managerLinksWired === '1') return;
+      drawer.dataset.managerLinksWired = '1';
+      drawer.addEventListener('click', (e)=>{
         const btn = e.target.closest('.ops-manager-link');
         if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+
         const manager = btn.dataset.manager || '';
         const rmOptions = Array.from(rmFilter?.options || []).map(o => o.value);
         const amOptions = Array.from(amFilter?.options || []).map(o => o.value);
-        if (rmOptions.includes(manager)) {
+        const isRM = rmOptions.includes(manager);
+        const isAM = amOptions.includes(manager);
+
+        if (isRM) {
           setMulti(rmFilter, [manager]);
+          setMulti(amFilter, ['All']);
           cascadeAM?.();
-        } else if (amOptions.includes(manager)) {
+        } else if (isAM) {
           setMulti(amFilter, [manager]);
+          setMulti(rmFilter, ['All']);
           cascadeRM?.();
         } else {
           searchBox.value = manager;
         }
+
         lastFilterChanged = 'opsManagerDrilldown';
         runFilter();
         renderChips();
         saveState();
-        setTimeout(()=>{ fitToResults(); updateOpsIntel(true); }, 120);
-        const riskBtn = drawer.querySelector('.ops-tab[data-pane="risk"]');
-        if (riskBtn) riskBtn.click();
+        updateEnhancedUi?.();
+
+        const scopeNote = drawer.querySelector('#opsScopeHelp');
+        if (scopeNote) scopeNote.textContent = isRM || isAM
+          ? `Drilled into ${manager}. Switch to Filtered View to analyze only that manager, or National View to ignore map filters.`
+          : `Could not match ${manager} to the main RM/AM filters; placed the name in search.`;
+
+        setTimeout(()=>{ fitToResults(); updateOpsIntel(true); }, 140);
       });
     }
 
