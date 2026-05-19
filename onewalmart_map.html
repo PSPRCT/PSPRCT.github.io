@@ -4384,6 +4384,259 @@ function printSidepanelList() {
 
 </style>
 
+
+<!-- ===== v115 UX Stabilization: Resiliency toolbar consolidation ===== -->
+<style>
+  /* v115 keeps all existing resiliency actions but groups them so the simulator no longer feels like a button wall. */
+  #resiliencyModal.v115-compact .card{
+    max-width:min(1180px,96vw) !important;
+  }
+  #resiliencyModal.v115-compact .body{
+    max-height:calc(100vh - 112px);
+    overflow:auto;
+  }
+  #resiliencyModal.v115-compact .resil-toolbar{
+    display:grid !important;
+    grid-template-columns: minmax(240px, 1.2fr) minmax(120px,.45fr) auto;
+    gap:10px;
+    align-items:end;
+    border:1px solid #dbeafe;
+    background:#f8fbff;
+    border-radius:14px;
+    padding:10px;
+    margin-bottom:10px;
+  }
+  #resiliencyModal.v115-compact .resil-toolbar > label{
+    margin:0;
+  }
+  #resiliencyModal.v115-compact .resil-toolbar > label.toggle{
+    align-self:center;
+    padding-bottom:6px;
+  }
+  .v115-resil-action-groups{
+    grid-column:1 / -1;
+    display:grid;
+    grid-template-columns:repeat(4,minmax(170px,1fr));
+    gap:8px;
+    margin-top:2px;
+  }
+  .v115-resil-group{
+    border:1px solid #e2e8f0;
+    border-radius:12px;
+    background:#fff;
+    overflow:hidden;
+  }
+  .v115-resil-group summary{
+    cursor:pointer;
+    list-style:none;
+    padding:9px 10px;
+    font-size:12px;
+    font-weight:950;
+    color:#0f172a;
+    background:#f8fafc;
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    align-items:center;
+    user-select:none;
+  }
+  .v115-resil-group summary::-webkit-details-marker{display:none;}
+  .v115-resil-group summary::after{
+    content:'▾';
+    color:#64748b;
+    font-size:12px;
+  }
+  .v115-resil-group:not([open]) summary::after{
+    transform:rotate(-90deg);
+  }
+  .v115-resil-group .v115-resil-actions{
+    padding:8px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    align-items:center;
+  }
+  .v115-resil-group .btn{
+    font-size:12px;
+    padding:6px 8px;
+    box-shadow:none;
+  }
+  .v115-resil-help{
+    grid-column:1 / -1;
+    border:1px solid #bfdbfe;
+    background:#eff6ff;
+    color:#1e3a8a;
+    border-radius:12px;
+    padding:8px 10px;
+    font-size:12px;
+    line-height:1.35;
+  }
+  .v115-resil-help b{color:#0f172a;}
+  #resiliencyModal.v115-compact .resil-note{
+    margin-bottom:8px;
+  }
+  @media(max-width:1000px){
+    #resiliencyModal.v115-compact .resil-toolbar{
+      grid-template-columns:1fr 120px;
+    }
+    #resiliencyModal.v115-compact .resil-toolbar > label.toggle{
+      grid-column:1 / -1;
+    }
+    .v115-resil-action-groups{
+      grid-template-columns:1fr 1fr;
+    }
+  }
+  @media(max-width:640px){
+    #resiliencyModal.v115-compact .resil-toolbar,
+    .v115-resil-action-groups{
+      grid-template-columns:1fr;
+    }
+  }
+</style>
+<script>
+(function(){
+  if (window.__owResiliencyV115) return;
+  window.__owResiliencyV115 = true;
+
+  const $ = id => document.getElementById(id);
+  const norm = s => String(s || '').replace(/\s+/g,' ').trim();
+
+  const GROUPS = [
+    {
+      key:'simulate',
+      title:'Simulation',
+      open:true,
+      match:['Run Simulation','Show on Map','Clear Map Layer','Map Selected Outage','Clear Map Overlay']
+    },
+    {
+      key:'leadership',
+      title:'Leadership',
+      open:false,
+      match:['Network Dashboard','Continuity Dashboard','Risk Register','Leadership Priority Queue','Capacity Dashboard','Copy Exec Summary','Copy Capacity Summary']
+    },
+    {
+      key:'map',
+      title:'Map Overlays',
+      open:false,
+      match:['Show Dependency Heatmap','Backup Chains','Map Top Risk','Single-Point Stores','Map Top 5 Priorities','Map Capacity Risks','Clear Capacity Map']
+    },
+    {
+      key:'export',
+      title:'Exports',
+      open:false,
+      match:['Export CSV','Export Risk Register','Export Overlay','Export Dependency CSV','Export Capacity CSV','Export Capacity Summary']
+    }
+  ];
+
+  function makeGroup(def){
+    const details = document.createElement('details');
+    details.className = 'v115-resil-group';
+    details.dataset.group = def.key;
+    if (def.open) details.open = true;
+    details.innerHTML = `<summary>${def.title}</summary><div class="v115-resil-actions"></div>`;
+    return details;
+  }
+
+  function groupForButton(btn){
+    const t = norm(btn.textContent);
+    for (const def of GROUPS){
+      if (def.match.some(m => t === m || t.includes(m))) return def.key;
+    }
+    return 'more';
+  }
+
+  function ensureShell(toolbar){
+    let shell = toolbar.querySelector('.v115-resil-action-groups');
+    if (shell) return shell;
+
+    const help = document.createElement('div');
+    help.className = 'v115-resil-help';
+    help.innerHTML = '<b>v115 layout update:</b> Resiliency tools are grouped by task so the simulator stays usable. Existing actions are preserved; coverage and ownership logic are unchanged.';
+    toolbar.appendChild(help);
+
+    shell = document.createElement('div');
+    shell.className = 'v115-resil-action-groups';
+    toolbar.appendChild(shell);
+
+    GROUPS.forEach(def => shell.appendChild(makeGroup(def)));
+    const more = makeGroup({key:'more', title:'More', open:false});
+    shell.appendChild(more);
+    return shell;
+  }
+
+  function consolidateToolbar(){
+    const modal = $('resiliencyModal');
+    const toolbar = modal?.querySelector('.resil-toolbar');
+    if (!modal || !toolbar) return false;
+
+    modal.classList.add('v115-compact');
+
+    const title = modal.querySelector('header h3');
+    if (title && !/v115/i.test(title.textContent || '')) {
+      title.textContent = 'RTS Resiliency Simulator — v115';
+    }
+
+    const shell = ensureShell(toolbar);
+    const groupMap = {};
+    shell.querySelectorAll('.v115-resil-group').forEach(g => {
+      groupMap[g.dataset.group] = g.querySelector('.v115-resil-actions');
+    });
+
+    [...toolbar.querySelectorAll(':scope > button.btn')].forEach(btn => {
+      const key = groupForButton(btn);
+      (groupMap[key] || groupMap.more).appendChild(btn);
+    });
+
+    // Also catch any buttons later inserted immediately after the shell.
+    [...toolbar.children].forEach(child => {
+      if (child.tagName === 'BUTTON' && child.classList.contains('btn')) {
+        const key = groupForButton(child);
+        (groupMap[key] || groupMap.more).appendChild(child);
+      }
+    });
+
+    // Hide an empty More group so it only appears when future add-ons create uncategorized actions.
+    const more = shell.querySelector('[data-group="more"]');
+    if (more) {
+      const has = more.querySelector('.v115-resil-actions')?.children.length > 0;
+      more.style.display = has ? '' : 'none';
+    }
+
+    return true;
+  }
+
+  // Existing add-on scripts append some buttons after their own setup. Run a few times so all are captured.
+  function schedule(){
+    consolidateToolbar();
+    setTimeout(consolidateToolbar, 250);
+    setTimeout(consolidateToolbar, 900);
+    setTimeout(consolidateToolbar, 1800);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', schedule);
+  } else {
+    schedule();
+  }
+
+  // Re-consolidate when the modal is opened or new add-on buttons are injected.
+  document.addEventListener('click', e => {
+    if (e.target && (e.target.id === 'resiliencyBtn' || e.target.closest?.('#resiliencyBtn'))) {
+      setTimeout(consolidateToolbar, 60);
+    }
+  });
+
+  const obs = new MutationObserver(() => {
+    clearTimeout(window.__owResiliencyV115Timer);
+    window.__owResiliencyV115Timer = setTimeout(consolidateToolbar, 80);
+  });
+  setTimeout(() => {
+    const toolbar = document.querySelector('#resiliencyModal .resil-toolbar');
+    if (toolbar) obs.observe(toolbar, { childList:true, subtree:false });
+  }, 300);
+})();
+</script>
+
 </body></html>`);
   w.document.close();
 }
@@ -8712,6 +8965,259 @@ const projectedCoveragePct = allStores.length
 @media(max-width:720px){.op-scorecard-grid{grid-template-columns:1fr;}}
 
 </style>
+
+
+<!-- ===== v115 UX Stabilization: Resiliency toolbar consolidation ===== -->
+<style>
+  /* v115 keeps all existing resiliency actions but groups them so the simulator no longer feels like a button wall. */
+  #resiliencyModal.v115-compact .card{
+    max-width:min(1180px,96vw) !important;
+  }
+  #resiliencyModal.v115-compact .body{
+    max-height:calc(100vh - 112px);
+    overflow:auto;
+  }
+  #resiliencyModal.v115-compact .resil-toolbar{
+    display:grid !important;
+    grid-template-columns: minmax(240px, 1.2fr) minmax(120px,.45fr) auto;
+    gap:10px;
+    align-items:end;
+    border:1px solid #dbeafe;
+    background:#f8fbff;
+    border-radius:14px;
+    padding:10px;
+    margin-bottom:10px;
+  }
+  #resiliencyModal.v115-compact .resil-toolbar > label{
+    margin:0;
+  }
+  #resiliencyModal.v115-compact .resil-toolbar > label.toggle{
+    align-self:center;
+    padding-bottom:6px;
+  }
+  .v115-resil-action-groups{
+    grid-column:1 / -1;
+    display:grid;
+    grid-template-columns:repeat(4,minmax(170px,1fr));
+    gap:8px;
+    margin-top:2px;
+  }
+  .v115-resil-group{
+    border:1px solid #e2e8f0;
+    border-radius:12px;
+    background:#fff;
+    overflow:hidden;
+  }
+  .v115-resil-group summary{
+    cursor:pointer;
+    list-style:none;
+    padding:9px 10px;
+    font-size:12px;
+    font-weight:950;
+    color:#0f172a;
+    background:#f8fafc;
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    align-items:center;
+    user-select:none;
+  }
+  .v115-resil-group summary::-webkit-details-marker{display:none;}
+  .v115-resil-group summary::after{
+    content:'▾';
+    color:#64748b;
+    font-size:12px;
+  }
+  .v115-resil-group:not([open]) summary::after{
+    transform:rotate(-90deg);
+  }
+  .v115-resil-group .v115-resil-actions{
+    padding:8px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    align-items:center;
+  }
+  .v115-resil-group .btn{
+    font-size:12px;
+    padding:6px 8px;
+    box-shadow:none;
+  }
+  .v115-resil-help{
+    grid-column:1 / -1;
+    border:1px solid #bfdbfe;
+    background:#eff6ff;
+    color:#1e3a8a;
+    border-radius:12px;
+    padding:8px 10px;
+    font-size:12px;
+    line-height:1.35;
+  }
+  .v115-resil-help b{color:#0f172a;}
+  #resiliencyModal.v115-compact .resil-note{
+    margin-bottom:8px;
+  }
+  @media(max-width:1000px){
+    #resiliencyModal.v115-compact .resil-toolbar{
+      grid-template-columns:1fr 120px;
+    }
+    #resiliencyModal.v115-compact .resil-toolbar > label.toggle{
+      grid-column:1 / -1;
+    }
+    .v115-resil-action-groups{
+      grid-template-columns:1fr 1fr;
+    }
+  }
+  @media(max-width:640px){
+    #resiliencyModal.v115-compact .resil-toolbar,
+    .v115-resil-action-groups{
+      grid-template-columns:1fr;
+    }
+  }
+</style>
+<script>
+(function(){
+  if (window.__owResiliencyV115) return;
+  window.__owResiliencyV115 = true;
+
+  const $ = id => document.getElementById(id);
+  const norm = s => String(s || '').replace(/\s+/g,' ').trim();
+
+  const GROUPS = [
+    {
+      key:'simulate',
+      title:'Simulation',
+      open:true,
+      match:['Run Simulation','Show on Map','Clear Map Layer','Map Selected Outage','Clear Map Overlay']
+    },
+    {
+      key:'leadership',
+      title:'Leadership',
+      open:false,
+      match:['Network Dashboard','Continuity Dashboard','Risk Register','Leadership Priority Queue','Capacity Dashboard','Copy Exec Summary','Copy Capacity Summary']
+    },
+    {
+      key:'map',
+      title:'Map Overlays',
+      open:false,
+      match:['Show Dependency Heatmap','Backup Chains','Map Top Risk','Single-Point Stores','Map Top 5 Priorities','Map Capacity Risks','Clear Capacity Map']
+    },
+    {
+      key:'export',
+      title:'Exports',
+      open:false,
+      match:['Export CSV','Export Risk Register','Export Overlay','Export Dependency CSV','Export Capacity CSV','Export Capacity Summary']
+    }
+  ];
+
+  function makeGroup(def){
+    const details = document.createElement('details');
+    details.className = 'v115-resil-group';
+    details.dataset.group = def.key;
+    if (def.open) details.open = true;
+    details.innerHTML = `<summary>${def.title}</summary><div class="v115-resil-actions"></div>`;
+    return details;
+  }
+
+  function groupForButton(btn){
+    const t = norm(btn.textContent);
+    for (const def of GROUPS){
+      if (def.match.some(m => t === m || t.includes(m))) return def.key;
+    }
+    return 'more';
+  }
+
+  function ensureShell(toolbar){
+    let shell = toolbar.querySelector('.v115-resil-action-groups');
+    if (shell) return shell;
+
+    const help = document.createElement('div');
+    help.className = 'v115-resil-help';
+    help.innerHTML = '<b>v115 layout update:</b> Resiliency tools are grouped by task so the simulator stays usable. Existing actions are preserved; coverage and ownership logic are unchanged.';
+    toolbar.appendChild(help);
+
+    shell = document.createElement('div');
+    shell.className = 'v115-resil-action-groups';
+    toolbar.appendChild(shell);
+
+    GROUPS.forEach(def => shell.appendChild(makeGroup(def)));
+    const more = makeGroup({key:'more', title:'More', open:false});
+    shell.appendChild(more);
+    return shell;
+  }
+
+  function consolidateToolbar(){
+    const modal = $('resiliencyModal');
+    const toolbar = modal?.querySelector('.resil-toolbar');
+    if (!modal || !toolbar) return false;
+
+    modal.classList.add('v115-compact');
+
+    const title = modal.querySelector('header h3');
+    if (title && !/v115/i.test(title.textContent || '')) {
+      title.textContent = 'RTS Resiliency Simulator — v115';
+    }
+
+    const shell = ensureShell(toolbar);
+    const groupMap = {};
+    shell.querySelectorAll('.v115-resil-group').forEach(g => {
+      groupMap[g.dataset.group] = g.querySelector('.v115-resil-actions');
+    });
+
+    [...toolbar.querySelectorAll(':scope > button.btn')].forEach(btn => {
+      const key = groupForButton(btn);
+      (groupMap[key] || groupMap.more).appendChild(btn);
+    });
+
+    // Also catch any buttons later inserted immediately after the shell.
+    [...toolbar.children].forEach(child => {
+      if (child.tagName === 'BUTTON' && child.classList.contains('btn')) {
+        const key = groupForButton(child);
+        (groupMap[key] || groupMap.more).appendChild(child);
+      }
+    });
+
+    // Hide an empty More group so it only appears when future add-ons create uncategorized actions.
+    const more = shell.querySelector('[data-group="more"]');
+    if (more) {
+      const has = more.querySelector('.v115-resil-actions')?.children.length > 0;
+      more.style.display = has ? '' : 'none';
+    }
+
+    return true;
+  }
+
+  // Existing add-on scripts append some buttons after their own setup. Run a few times so all are captured.
+  function schedule(){
+    consolidateToolbar();
+    setTimeout(consolidateToolbar, 250);
+    setTimeout(consolidateToolbar, 900);
+    setTimeout(consolidateToolbar, 1800);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', schedule);
+  } else {
+    schedule();
+  }
+
+  // Re-consolidate when the modal is opened or new add-on buttons are injected.
+  document.addEventListener('click', e => {
+    if (e.target && (e.target.id === 'resiliencyBtn' || e.target.closest?.('#resiliencyBtn'))) {
+      setTimeout(consolidateToolbar, 60);
+    }
+  });
+
+  const obs = new MutationObserver(() => {
+    clearTimeout(window.__owResiliencyV115Timer);
+    window.__owResiliencyV115Timer = setTimeout(consolidateToolbar, 80);
+  });
+  setTimeout(() => {
+    const toolbar = document.querySelector('#resiliencyModal .resil-toolbar');
+    if (toolbar) obs.observe(toolbar, { childList:true, subtree:false });
+  }, 300);
+})();
+</script>
 
 </body></html>`);
     win.document.close();
@@ -14342,6 +14848,259 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   setTimeout(enhance, 2000);
 })();
 
+</script>
+
+
+<!-- ===== v115 UX Stabilization: Resiliency toolbar consolidation ===== -->
+<style>
+  /* v115 keeps all existing resiliency actions but groups them so the simulator no longer feels like a button wall. */
+  #resiliencyModal.v115-compact .card{
+    max-width:min(1180px,96vw) !important;
+  }
+  #resiliencyModal.v115-compact .body{
+    max-height:calc(100vh - 112px);
+    overflow:auto;
+  }
+  #resiliencyModal.v115-compact .resil-toolbar{
+    display:grid !important;
+    grid-template-columns: minmax(240px, 1.2fr) minmax(120px,.45fr) auto;
+    gap:10px;
+    align-items:end;
+    border:1px solid #dbeafe;
+    background:#f8fbff;
+    border-radius:14px;
+    padding:10px;
+    margin-bottom:10px;
+  }
+  #resiliencyModal.v115-compact .resil-toolbar > label{
+    margin:0;
+  }
+  #resiliencyModal.v115-compact .resil-toolbar > label.toggle{
+    align-self:center;
+    padding-bottom:6px;
+  }
+  .v115-resil-action-groups{
+    grid-column:1 / -1;
+    display:grid;
+    grid-template-columns:repeat(4,minmax(170px,1fr));
+    gap:8px;
+    margin-top:2px;
+  }
+  .v115-resil-group{
+    border:1px solid #e2e8f0;
+    border-radius:12px;
+    background:#fff;
+    overflow:hidden;
+  }
+  .v115-resil-group summary{
+    cursor:pointer;
+    list-style:none;
+    padding:9px 10px;
+    font-size:12px;
+    font-weight:950;
+    color:#0f172a;
+    background:#f8fafc;
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    align-items:center;
+    user-select:none;
+  }
+  .v115-resil-group summary::-webkit-details-marker{display:none;}
+  .v115-resil-group summary::after{
+    content:'▾';
+    color:#64748b;
+    font-size:12px;
+  }
+  .v115-resil-group:not([open]) summary::after{
+    transform:rotate(-90deg);
+  }
+  .v115-resil-group .v115-resil-actions{
+    padding:8px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    align-items:center;
+  }
+  .v115-resil-group .btn{
+    font-size:12px;
+    padding:6px 8px;
+    box-shadow:none;
+  }
+  .v115-resil-help{
+    grid-column:1 / -1;
+    border:1px solid #bfdbfe;
+    background:#eff6ff;
+    color:#1e3a8a;
+    border-radius:12px;
+    padding:8px 10px;
+    font-size:12px;
+    line-height:1.35;
+  }
+  .v115-resil-help b{color:#0f172a;}
+  #resiliencyModal.v115-compact .resil-note{
+    margin-bottom:8px;
+  }
+  @media(max-width:1000px){
+    #resiliencyModal.v115-compact .resil-toolbar{
+      grid-template-columns:1fr 120px;
+    }
+    #resiliencyModal.v115-compact .resil-toolbar > label.toggle{
+      grid-column:1 / -1;
+    }
+    .v115-resil-action-groups{
+      grid-template-columns:1fr 1fr;
+    }
+  }
+  @media(max-width:640px){
+    #resiliencyModal.v115-compact .resil-toolbar,
+    .v115-resil-action-groups{
+      grid-template-columns:1fr;
+    }
+  }
+</style>
+<script>
+(function(){
+  if (window.__owResiliencyV115) return;
+  window.__owResiliencyV115 = true;
+
+  const $ = id => document.getElementById(id);
+  const norm = s => String(s || '').replace(/\s+/g,' ').trim();
+
+  const GROUPS = [
+    {
+      key:'simulate',
+      title:'Simulation',
+      open:true,
+      match:['Run Simulation','Show on Map','Clear Map Layer','Map Selected Outage','Clear Map Overlay']
+    },
+    {
+      key:'leadership',
+      title:'Leadership',
+      open:false,
+      match:['Network Dashboard','Continuity Dashboard','Risk Register','Leadership Priority Queue','Capacity Dashboard','Copy Exec Summary','Copy Capacity Summary']
+    },
+    {
+      key:'map',
+      title:'Map Overlays',
+      open:false,
+      match:['Show Dependency Heatmap','Backup Chains','Map Top Risk','Single-Point Stores','Map Top 5 Priorities','Map Capacity Risks','Clear Capacity Map']
+    },
+    {
+      key:'export',
+      title:'Exports',
+      open:false,
+      match:['Export CSV','Export Risk Register','Export Overlay','Export Dependency CSV','Export Capacity CSV','Export Capacity Summary']
+    }
+  ];
+
+  function makeGroup(def){
+    const details = document.createElement('details');
+    details.className = 'v115-resil-group';
+    details.dataset.group = def.key;
+    if (def.open) details.open = true;
+    details.innerHTML = `<summary>${def.title}</summary><div class="v115-resil-actions"></div>`;
+    return details;
+  }
+
+  function groupForButton(btn){
+    const t = norm(btn.textContent);
+    for (const def of GROUPS){
+      if (def.match.some(m => t === m || t.includes(m))) return def.key;
+    }
+    return 'more';
+  }
+
+  function ensureShell(toolbar){
+    let shell = toolbar.querySelector('.v115-resil-action-groups');
+    if (shell) return shell;
+
+    const help = document.createElement('div');
+    help.className = 'v115-resil-help';
+    help.innerHTML = '<b>v115 layout update:</b> Resiliency tools are grouped by task so the simulator stays usable. Existing actions are preserved; coverage and ownership logic are unchanged.';
+    toolbar.appendChild(help);
+
+    shell = document.createElement('div');
+    shell.className = 'v115-resil-action-groups';
+    toolbar.appendChild(shell);
+
+    GROUPS.forEach(def => shell.appendChild(makeGroup(def)));
+    const more = makeGroup({key:'more', title:'More', open:false});
+    shell.appendChild(more);
+    return shell;
+  }
+
+  function consolidateToolbar(){
+    const modal = $('resiliencyModal');
+    const toolbar = modal?.querySelector('.resil-toolbar');
+    if (!modal || !toolbar) return false;
+
+    modal.classList.add('v115-compact');
+
+    const title = modal.querySelector('header h3');
+    if (title && !/v115/i.test(title.textContent || '')) {
+      title.textContent = 'RTS Resiliency Simulator — v115';
+    }
+
+    const shell = ensureShell(toolbar);
+    const groupMap = {};
+    shell.querySelectorAll('.v115-resil-group').forEach(g => {
+      groupMap[g.dataset.group] = g.querySelector('.v115-resil-actions');
+    });
+
+    [...toolbar.querySelectorAll(':scope > button.btn')].forEach(btn => {
+      const key = groupForButton(btn);
+      (groupMap[key] || groupMap.more).appendChild(btn);
+    });
+
+    // Also catch any buttons later inserted immediately after the shell.
+    [...toolbar.children].forEach(child => {
+      if (child.tagName === 'BUTTON' && child.classList.contains('btn')) {
+        const key = groupForButton(child);
+        (groupMap[key] || groupMap.more).appendChild(child);
+      }
+    });
+
+    // Hide an empty More group so it only appears when future add-ons create uncategorized actions.
+    const more = shell.querySelector('[data-group="more"]');
+    if (more) {
+      const has = more.querySelector('.v115-resil-actions')?.children.length > 0;
+      more.style.display = has ? '' : 'none';
+    }
+
+    return true;
+  }
+
+  // Existing add-on scripts append some buttons after their own setup. Run a few times so all are captured.
+  function schedule(){
+    consolidateToolbar();
+    setTimeout(consolidateToolbar, 250);
+    setTimeout(consolidateToolbar, 900);
+    setTimeout(consolidateToolbar, 1800);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', schedule);
+  } else {
+    schedule();
+  }
+
+  // Re-consolidate when the modal is opened or new add-on buttons are injected.
+  document.addEventListener('click', e => {
+    if (e.target && (e.target.id === 'resiliencyBtn' || e.target.closest?.('#resiliencyBtn'))) {
+      setTimeout(consolidateToolbar, 60);
+    }
+  });
+
+  const obs = new MutationObserver(() => {
+    clearTimeout(window.__owResiliencyV115Timer);
+    window.__owResiliencyV115Timer = setTimeout(consolidateToolbar, 80);
+  });
+  setTimeout(() => {
+    const toolbar = document.querySelector('#resiliencyModal .resil-toolbar');
+    if (toolbar) obs.observe(toolbar, { childList:true, subtree:false });
+  }, 300);
+})();
 </script>
 
 </body>
