@@ -13352,5 +13352,229 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   setTimeout(enhance, 1500);
 })();
 </script>
+
+<!-- ===== v111 Resiliency Risk Register + Continuity Dashboard (additive only) ===== -->
+<style id="v111ResiliencyRiskRegisterStyles">
+  #resiliencyModal .resil-toolbar{align-items:flex-end;}
+  #resiliencyModal .resil-kpi .val{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+  #resiliencyModal .resil-kpi .val span{font-size:13px !important;color:#334155;font-weight:900;line-height:1;}
+  .resil-v111-dashboard{border:1px solid #dbeafe;background:#eff6ff;border-radius:14px;padding:12px;margin:10px 0;color:#1e3a8a;}
+  .resil-v111-dashboard b{color:#0f172a;}
+  .resil-v111-dashboard .head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px;}
+  .resil-v111-dashboard .title{font-size:14px;font-weight:950;color:#0f172a;}
+  .resil-v111-dashboard .sub{font-size:12.5px;line-height:1.35;color:#1e3a8a;margin-top:3px;}
+  .resil-v111-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid #bfdbfe;background:#fff;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:900;color:#1d4ed8;white-space:nowrap;}
+  .resil-v111-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px;}
+  .resil-v111-metric{border:1px solid #dbe3ea;background:#fff;border-radius:12px;padding:9px;}
+  .resil-v111-metric .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+  .resil-v111-metric .val{font-size:20px;font-weight:950;color:#0f172a;line-height:1.1;margin-top:2px;}
+  .resil-v111-metric.critical{border-color:#fecaca;background:#fff7f7;}
+  .resil-v111-metric.elevated{border-color:#fed7aa;background:#fff7ed;}
+  .resil-v111-table-wrap{max-height:58vh;overflow:auto;border:1px solid #e2e8f0;border-radius:14px;background:#fff;margin-top:10px;}
+  .resil-v111-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .resil-v111-table th{position:sticky;top:0;background:#f8fafc;z-index:2;text-align:left;color:#334155;font-size:11px;text-transform:uppercase;letter-spacing:.05em;}
+  .resil-v111-table th,.resil-v111-table td{border-bottom:1px solid #eef2f7;padding:7px 8px;vertical-align:top;}
+  .resil-v111-table td.num,.resil-v111-table th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .resil-v111-tier{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:950;border:1px solid #cbd5e1;background:#fff;white-space:nowrap;}
+  .resil-v111-tier.critical{background:#fef2f2;border-color:#ef4444;color:#991b1b;}
+  .resil-v111-tier.elevated{background:#fff7ed;border-color:#fb923c;color:#9a3412;}
+  .resil-v111-tier.watch{background:#fffbeb;border-color:#f59e0b;color:#92400e;}
+  .resil-v111-tier.contained{background:#ecfdf5;border-color:#10b981;color:#065f46;}
+  .resil-v111-mini-btn{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:4px 8px;font:inherit;font-weight:850;cursor:pointer;white-space:nowrap;}
+  .resil-v111-mini-btn:hover{background:#eff6ff;border-color:#60a5fa;}
+  .resil-v111-route{display:grid;gap:6px;margin-top:8px;}
+  .resil-v111-route-row{border:1px solid #e2e8f0;border-radius:10px;background:#fff;padding:8px;display:grid;grid-template-columns:1fr auto;gap:8px;font-size:12.5px;line-height:1.35;}
+  .resil-v111-route-row b{color:#0f172a;}
+  .resil-v111-route-row span{color:#64748b;}
+  @media(max-width:900px){.resil-v111-metrics{grid-template-columns:1fr 1fr;}.resil-v111-dashboard .head{display:block;}.resil-v111-chip{margin-top:6px;}}
+  @media(max-width:640px){.resil-v111-metrics{grid-template-columns:1fr;}.resil-v111-route-row{grid-template-columns:1fr;}}
+</style>
+<script id="v111ResiliencyRiskRegisterAddon">
+(function(){
+  if (window.__owResiliencyV111RiskRegisterAddon) return;
+  window.__owResiliencyV111RiskRegisterAddon = true;
+
+  const $ = id => document.getElementById(id);
+  const esc = v => String(v == null ? '' : v).replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
+  const num = v => Number.isFinite(Number(v)) ? Number(v) : 0;
+  let riskRegisterCache = [];
+
+  function runtime(){ return typeof window.__oneWalmartRuntime === 'function' ? window.__oneWalmartRuntime() : null; }
+  function hubs(rt){ return [].concat(rt && rt.premiumConfirmed || [], rt && rt.acostaHubs || []).filter(h => h && h.coords && Number.isFinite(num(h.coords[0])) && Number.isFinite(num(h.coords[1]))); }
+  function stores(rt){ return $('resiliencyUseFilters') && $('resiliencyUseFilters').checked ? (rt.filteredStores || []) : (rt.allStores || []); }
+  function radius(rt){ return Math.max(1, num(($('resiliencyRadius') && $('resiliencyRadius').value) || (rt && rt.classifyRadius) || 75)); }
+  function nameHub(h){
+    const city = h.city || h.City || '';
+    const state = h.state || h.State || '';
+    const base = h.fullName || h.name || 'RTS';
+    return /—|,/.test(base) ? base : base + (city || state ? ' — ' + city + (city && state ? ', ' : '') + state : '');
+  }
+  function dMiles(lat1, lon1, lat2, lon2){
+    const R = 3958.7613, rad = d => d * Math.PI / 180;
+    const dLat = rad(lat2-lat1), dLon = rad(lon2-lon1);
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+  function clean(v, fallback){ return String(v == null ? '' : v).replace(/\u00a0/g,' ').replace(/[\u2013\u2014]/g,'-').replace(/\s*,\s*/g,', ').replace(/\s+/g,' ').trim() || fallback || 'Unassigned'; }
+  function manager(s, key, fallback){
+    if (s && s[key]) return clean(s[key], fallback);
+    const paths = s && Array.isArray(s.managerPaths) ? s.managerPaths : [];
+    const row = paths.find(p => p && p[key]);
+    return clean(row && row[key], fallback);
+  }
+  function isDedicated(s){
+    const paths = s && Array.isArray(s.managerPaths) ? s.managerPaths : [];
+    return paths.some(p => /unilever|tyson|p&g|pg/i.test(String((p.teamName || '') + ' ' + (p.areaManager || '') + ' ' + (p.regionalManager || ''))));
+  }
+  function tier(exposed, affected){
+    const pct = affected ? exposed / affected : 0;
+    if (exposed >= 25 || pct >= 0.35) return {label:'Critical', cls:'critical'};
+    if (exposed >= 10 || pct >= 0.18) return {label:'Elevated', cls:'elevated'};
+    if (exposed > 0) return {label:'Watch', cls:'watch'};
+    return {label:'Contained', cls:'contained'};
+  }
+  function scenario(rt, outage){
+    const r = radius(rt), hs = hubs(rt), st = stores(rt).filter(s => s && Number.isFinite(num(s.lat)) && Number.isFinite(num(s.lng)));
+    const backups = hs.filter(h => h.id !== outage.id);
+    const affectedRows = st.filter(s => dMiles(outage.coords[0], outage.coords[1], num(s.lat), num(s.lng)) <= r).map(s => {
+      const backupOptions = backups.map(h => ({hub:h, miles:dMiles(num(s.lat), num(s.lng), h.coords[0], h.coords[1])})).filter(x => x.miles <= r).sort((a,b) => a.miles - b.miles);
+      const outMiles = dMiles(outage.coords[0], outage.coords[1], num(s.lat), num(s.lng));
+      return { store:s, outageMiles:outMiles, backup:backupOptions[0] || null, backupCount:backupOptions.length, fringe:outMiles >= 60, dedicated:isDedicated(s) };
+    });
+    const affected = affectedRows.length;
+    const exposedRows = affectedRows.filter(x => !x.backup);
+    const reassignable = affected - exposedRows.length;
+    const fringe = affectedRows.filter(x => x.fringe).length;
+    const dedicated = affectedRows.filter(x => x.dedicated).length;
+    const expPct = affected ? exposedRows.length / affected : 0;
+    const singlePointPenalty = Math.min(35, exposedRows.length * 1.1);
+    const pctPenalty = expPct * 70;
+    const fringePenalty = affected ? Math.min(10, (fringe / affected) * 10) : 0;
+    const score = Math.max(0, Math.round(100 - pctPenalty - singlePointPenalty - fringePenalty));
+    const topState = topGroup(exposedRows, x => clean(x.store && x.store.state, 'Unknown'));
+    const topRm = topGroup(exposedRows, x => manager(x.store, 'regionalManager', 'Unassigned RM'));
+    const topAm = topGroup(exposedRows, x => manager(x.store, 'areaManager', 'Unassigned AM'));
+    const backupLoad = topGroup(affectedRows.filter(x => x.backup), x => nameHub(x.backup.hub));
+    const t = tier(exposedRows.length, affected);
+    return {
+      id: outage.id || nameHub(outage), hub: outage, hubName: nameHub(outage), affected, exposed: exposedRows.length, reassignable,
+      exposedPct: affected ? Math.round(expPct * 100) : 0, fringe, dedicated, score, tier:t.label, cls:t.cls,
+      topState: topState.label, topStateCount: topState.count, topRm: topRm.label, topRmCount: topRm.count,
+      topAm: topAm.label, topAmCount: topAm.count, backupHub: backupLoad.label, backupHubCount: backupLoad.count,
+      rows: affectedRows, exposedRows
+    };
+  }
+  function topGroup(rows, fn){
+    const m = new Map();
+    rows.forEach(r => { const k = clean(fn(r), 'Unassigned'); m.set(k, (m.get(k) || 0) + 1); });
+    const arr = Array.from(m.entries()).sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    return arr.length ? {label:arr[0][0], count:arr[0][1]} : {label:'—', count:0};
+  }
+  function buildRegister(){
+    const rt = runtime();
+    if (!rt) return [];
+    const hs = hubs(rt);
+    riskRegisterCache = hs.map(h => scenario(rt, h)).sort((a,b) => b.exposed - a.exposed || b.exposedPct - a.exposedPct || a.score - b.score || a.hubName.localeCompare(b.hubName));
+    return riskRegisterCache;
+  }
+  function dashboardHtml(rows){
+    const total = rows.length;
+    const critical = rows.filter(r => r.cls === 'critical').length;
+    const elevated = rows.filter(r => r.cls === 'elevated').length;
+    const exposedStores = rows.reduce((a,r) => a + r.exposed, 0);
+    const affectedStores = rows.reduce((a,r) => a + r.affected, 0);
+    const avgScore = total ? Math.round(rows.reduce((a,r) => a + r.score, 0) / total) : 0;
+    const top = rows[0];
+    const recommendation = critical ? 'Prioritize backup plans for critical single-point hubs before final rollout.' : elevated ? 'Review elevated hubs for backup coverage and fringe exposure.' : 'Network resiliency is mostly contained in the current scope.';
+    return '<div class="resil-v111-dashboard">' +
+      '<div class="head"><div><div class="title">Regional Continuity Dashboard — v111</div><div class="sub"><b>Purpose:</b> Scores every active RTS as a possible outage scenario using the same 75-mile read-only logic. No ownership or coverage calculations are changed.</div></div><span class="resil-v111-chip">' + esc(recommendation) + '</span></div>' +
+      '<div class="resil-v111-metrics">' +
+      '<div class="resil-v111-metric"><div class="lbl">Active RTS Scored</div><div class="val">' + total.toLocaleString() + '</div></div>' +
+      '<div class="resil-v111-metric critical"><div class="lbl">Critical Hubs</div><div class="val">' + critical.toLocaleString() + '</div></div>' +
+      '<div class="resil-v111-metric ' + (elevated ? 'elevated' : '') + '"><div class="lbl">Elevated Hubs</div><div class="val">' + elevated.toLocaleString() + '</div></div>' +
+      '<div class="resil-v111-metric"><div class="lbl">Avg Resiliency Score</div><div class="val">' + avgScore.toLocaleString() + '</div></div>' +
+      '</div>' +
+      '<div class="resil-v111-route">' +
+      '<div class="resil-v111-route-row"><div><b>Highest current continuity risk</b><br><span>' + (top ? esc(top.hubName) + ' — ' + top.exposed + ' exposed of ' + top.affected + ' affected stores (' + top.exposedPct + '%)' : 'No active RTS scenarios found') + '</span></div><div>' + (top ? '<button class="resil-v111-mini-btn" data-v111-run="' + esc(top.id) + '">Select & Run</button>' : '') + '</div></div>' +
+      '<div class="resil-v111-route-row"><div><b>System exposure if every hub were tested independently</b><br><span>' + exposedStores.toLocaleString() + ' exposed store-events across ' + affectedStores.toLocaleString() + ' affected store-events. This is a stress-test total, not a unique store count.</span></div><div></div></div>' +
+      '</div></div>';
+  }
+  function tableHtml(rows){
+    return '<div class="resil-v111-table-wrap"><table class="resil-v111-table"><thead><tr>' +
+      '<th>RTS Outage Scenario</th><th class="num">Affected</th><th class="num">Exposed</th><th class="num">Exposed %</th><th class="num">Score</th><th>Risk</th><th>Top RM Exposure</th><th>Top State</th><th>Likely Backup Load</th><th>Action</th>' +
+      '</tr></thead><tbody>' + rows.map(r => '<tr>' +
+      '<td><b>' + esc(r.hubName) + '</b><br><span style="color:#64748b">Fringe ' + r.fringe + ' · dedicated overlay ' + r.dedicated + '</span></td>' +
+      '<td class="num">' + r.affected + '</td><td class="num">' + r.exposed + '</td><td class="num">' + r.exposedPct + '%</td><td class="num">' + r.score + '</td>' +
+      '<td><span class="resil-v111-tier ' + r.cls + '">' + esc(r.tier) + '</span></td>' +
+      '<td>' + esc(r.topRm) + (r.topRmCount ? ' · ' + r.topRmCount : '') + '</td>' +
+      '<td>' + esc(r.topState) + (r.topStateCount ? ' · ' + r.topStateCount : '') + '</td>' +
+      '<td>' + esc(r.backupHub) + (r.backupHubCount ? ' · ' + r.backupHubCount : '') + '</td>' +
+      '<td><button class="resil-v111-mini-btn" data-v111-run="' + esc(r.id) + '">Select & Run</button></td>' +
+      '</tr>').join('') + '</tbody></table></div>';
+  }
+  function renderDashboard(){
+    const box = $('resiliencyResults');
+    if (!box) return;
+    const rows = buildRegister();
+    box.innerHTML = dashboardHtml(rows) + tableHtml(rows);
+  }
+  function addDashboardAboveResults(){
+    const box = $('resiliencyResults');
+    if (!box) return;
+    const rows = buildRegister();
+    const old = box.innerHTML || '';
+    box.innerHTML = dashboardHtml(rows) + old;
+  }
+  function runScenario(id){
+    const sel = $('resiliencyHubSelect');
+    if (sel) sel.value = id;
+    const run = $('resiliencyRun');
+    if (run) run.click();
+  }
+  function csvCell(v){ return '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"'; }
+  function exportRegister(){
+    const rows = riskRegisterCache.length ? riskRegisterCache : buildRegister();
+    const headers = ['RTS Outage Scenario','Affected','Reassignable','Exposed','Exposed %','Score','Risk','Fringe Affected','Dedicated Overlay','Top RM','Top RM Count','Top AM','Top AM Count','Top State','Top State Count','Likely Backup Hub','Likely Backup Count'];
+    const lines = [headers.map(csvCell).join(',')].concat(rows.map(r => [r.hubName,r.affected,r.reassignable,r.exposed,r.exposedPct + '%',r.score,r.tier,r.fringe,r.dedicated,r.topRm,r.topRmCount,r.topAm,r.topAmCount,r.topState,r.topStateCount,r.backupHub,r.backupHubCount].map(csvCell).join(',')));
+    const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'rts_resiliency_risk_register_v111.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }
+  function copyBrief(){
+    const rows = riskRegisterCache.length ? riskRegisterCache : buildRegister();
+    const critical = rows.filter(r => r.cls === 'critical').length;
+    const elevated = rows.filter(r => r.cls === 'elevated').length;
+    const top = rows[0];
+    const text = 'RTS resiliency summary: ' + rows.length + ' active RTS hubs scored. ' + critical + ' critical and ' + elevated + ' elevated outage scenarios identified. Highest risk scenario: ' + (top ? top.hubName + ' with ' + top.exposed + ' exposed of ' + top.affected + ' affected stores (' + top.exposedPct + '%), top exposed RM ' + top.topRm + ', top exposed state ' + top.topState + '.' : 'none') + ' Recommended action: prioritize backup coverage for critical single-point hubs before relying on the network for outage continuity.';
+    if (navigator.clipboard) navigator.clipboard.writeText(text);
+    alert('Executive resiliency summary copied.');
+  }
+  function enhance(){
+    const toolbar = document.querySelector('.resil-toolbar');
+    const title = document.querySelector('#resiliencyModal header h3');
+    if (title) title.textContent = 'RTS Resiliency Simulator — v111';
+    if (toolbar && !$('resiliencyContinuityDashboard')){
+      const dash = document.createElement('button'); dash.id = 'resiliencyContinuityDashboard'; dash.type = 'button'; dash.className = 'btn'; dash.textContent = 'Continuity Dashboard'; dash.title = 'Score every active RTS as an outage scenario'; dash.addEventListener('click', renderDashboard);
+      const reg = document.createElement('button'); reg.id = 'resiliencyRiskRegister'; reg.type = 'button'; reg.className = 'btn'; reg.textContent = 'Risk Register'; reg.title = 'Show ranked outage scenarios by RTS'; reg.addEventListener('click', renderDashboard);
+      const exp = document.createElement('button'); exp.id = 'resiliencyRiskRegisterExport'; exp.type = 'button'; exp.className = 'btn'; exp.textContent = 'Export Risk Register'; exp.title = 'Export all RTS outage scores'; exp.addEventListener('click', exportRegister);
+      const copy = document.createElement('button'); copy.id = 'resiliencyCopyBrief'; copy.type = 'button'; copy.className = 'btn'; copy.textContent = 'Copy Exec Summary'; copy.title = 'Copy a short leadership-ready summary'; copy.addEventListener('click', copyBrief);
+      const run = $('resiliencyRun');
+      [dash, reg, exp, copy].forEach(b => toolbar.insertBefore(b, run || null));
+    }
+  }
+  document.addEventListener('click', e => {
+    const btn = e.target && e.target.closest ? e.target.closest('[data-v111-run]') : null;
+    if (btn) runScenario(btn.getAttribute('data-v111-run'));
+    if (e.target && (e.target.id === 'resiliencyBtn' || (e.target.closest && e.target.closest('#resiliencyBtn')))) setTimeout(enhance, 80);
+    if (e.target && e.target.id === 'resiliencyRun') setTimeout(addDashboardAboveResults, 120);
+  }, true);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enhance); else enhance();
+  setTimeout(enhance, 1800);
+})();
+</script>
+
 </body>
 </html>
