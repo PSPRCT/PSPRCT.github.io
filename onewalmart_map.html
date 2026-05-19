@@ -13090,5 +13090,75 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   });
 })();
 </script>
+
+
+<!-- ===== v101 Button/Modal Audit Safety Patch =====
+     Conservative only: no coverage/data logic changes. Keeps menus/modals predictable
+     and adds fallback modal opening if earlier button handlers do not fire. -->
+<style>
+.dropdown-menu[data-force-closed="1"]{display:none !important;}
+.modal.show{display:flex;}
+</style>
+<script>
+(function(){
+  if (window.__owButtonModalAuditV101) return;
+  window.__owButtonModalAuditV101 = true;
+  const $ = id => document.getElementById(id);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+  function closeDropdowns(){
+    $$('.dropdown-menu').forEach(menu => {
+      menu.style.display = 'none';
+      menu.setAttribute('data-force-closed','1');
+      setTimeout(() => menu.removeAttribute('data-force-closed'), 80);
+    });
+  }
+  function showModal(id){ const m=$(id); if (m) m.classList.add('show'); }
+  function hideModal(id){ const m=$(id); if (m) m.classList.remove('show'); }
+  function closeAllModals(){ $$('.modal.show').forEach(m => m.classList.remove('show')); }
+  function openOpsDrawer(){
+    const btn = $('railOpsIntel') || $('opcxOpsView') || $('quickOpsBtn') || $('opsDrawerToggle');
+    if (btn) { btn.click(); return; }
+    const d = $('opsDrawer');
+    if (d) d.classList.add('show');
+  }
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest && e.target.closest('button');
+    if (!btn) return;
+    const bid = btn.id || '';
+    if (btn.closest('.dropdown-menu')) setTimeout(closeDropdowns, 0);
+    const fallback = {
+      helpBtn:'helpModal', gapBtn:'gapModal', rollupBtn:'rollupModal', coverageBtn:'coverageModal',
+      suggestRtsBtn:'suggestModal', weakSwapBtn:'weakSwapModal', leadershipSummaryBtn:'leadershipSummaryModal',
+      finalReviewBtn:'finalReviewModal', comparePlansBtn:'comparePlansModal', gapSummaryBtn:'gapSummaryModal',
+      replaceSwapBtn:'replaceSwapModal', dedRollupBtn:'dedRollupModal'
+    };
+    if (fallback[bid]) setTimeout(() => showModal(fallback[bid]), 0);
+    const closeMap = {
+      helpClose:'helpModal', gapClose:'gapModal', rollupClose:'rollupModal', coverageClose:'coverageModal',
+      suggestClose:'suggestModal', weakSwapClose:'weakSwapModal', leadershipSummaryClose:'leadershipSummaryModal',
+      finalReviewClose:'finalReviewModal', comparePlansClose:'comparePlansModal', gapSummaryClose:'gapSummaryModal',
+      replaceSwapClose:'replaceSwapModal', dedRollupClose:'dedRollupModal'
+    };
+    if (closeMap[bid]) setTimeout(() => hideModal(closeMap[bid]), 0);
+    if (bid === 'opsCloseBtn') setTimeout(() => {
+      $('opsDrawer')?.classList.remove('show');
+      document.querySelector('.mapwrap')?.classList.remove('command-drawer-open');
+    }, 0);
+    if (bid === 'railOpsIntel' || bid === 'opcxOpsView' || bid === 'quickOpsBtn' || bid === 'opsDrawerToggle') setTimeout(openOpsDrawer, 0);
+  }, false);
+  document.addEventListener('click', function(e){
+    if (!e.target.closest || !e.target.closest('.dropdown')) closeDropdowns();
+    if (e.target.classList && e.target.classList.contains('modal')) e.target.classList.remove('show');
+  }, false);
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') {
+      closeDropdowns(); closeAllModals();
+      $('opsDrawer')?.classList.remove('show');
+      document.querySelector('.mapwrap')?.classList.remove('command-drawer-open');
+    }
+  });
+})();
+</script>
+
 </body>
 </html>
