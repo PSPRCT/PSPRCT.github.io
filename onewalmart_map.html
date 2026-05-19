@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>One Walmart RTS Coverage Command Center</title>
 <!-- v104 conservative cleanup: removed disabled Transition/Delta UI/marker engine and duplicate startup CSS; coverage logic unchanged. -->
-<!-- Leadership cleanup pass: RTS coverage, gaps, active RTS, manager alignment, dedicated team visibility, and performance-safe rendering. Delta/Transition ownership tools removed from the leadership workflow; RTS coverage action planning emphasized. -->
+<!-- v105 Help + Leadership polish pass: refreshed help content and clarified leadership action path. Coverage logic, One Walmart alignment, Ops Intel calculations, and modal wiring preserved from v104. -->
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
@@ -1368,6 +1368,13 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .ops-copy-box{border:1px solid #e2e8f0;background:#f8fafc;border-radius:12px;padding:10px;margin-top:10px;font-size:12.5px;line-height:1.45;}
 @media(max-width:900px){.op-breakdown-grid,.ops-leadership-grid{grid-template-columns:1fr;}}
 
+
+/* ===== v105 Help + Leadership polish ===== */
+#helpModal .card .body h4{margin:0 0 6px 0;color:#0f172a;}
+#helpModal .card .body p{margin:5px 0;}
+#helpModal .card .body li{margin-bottom:5px;}
+.ops-priority-path-card .decision-box b{display:block;margin-bottom:2px;color:#0f172a;}
+
 </style>
 </head>
 <body>
@@ -1690,27 +1697,41 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 <!-- Help modal -->
 <div class="modal" id="helpModal" aria-modal="true" role="dialog">
-  <div class="card">
+  <div class="card" style="max-width:1050px;width:94vw">
     <header>
-      <h3>Help & Shortcuts</h3>
+      <h3>One Walmart Map Help</h3>
       <button id="helpClose" class="btn" type="button">Close</button>
     </header>
-    <div class="body">
+    <div class="body" style="grid-template-columns:1fr 1fr;gap:16px">
       <div>
+        <h4>Fast workflow</h4>
+        <ol style="margin-top:6px;padding-left:20px;line-height:1.45">
+          <li><b>Start with Ops Intel → Leadership.</b> Use it for the executive story: biggest gap, workload risk, dedicated overlay exposure, and next action.</li>
+          <li><b>Use Coverage Priorities</b> when you need manager-ranked gap ownership by RM or AM.</li>
+          <li><b>Open a hub panel</b> by clicking an RTS marker to review load, fringe stores, backup need, and stores in range.</li>
+          <li><b>Use Dedicated Team Rollup</b> to isolate Unilever, P&amp;G, and Tyson without mixing them into core One Walmart filters.</li>
+        </ol>
         <h4>Keyboard</h4>
         <p><span class="kbd">Ctrl</span> / <span class="kbd">⌘</span> + <span class="kbd">K</span> — Focus search</p>
         <p><span class="kbd">↑</span> <span class="kbd">↓</span> + <span class="kbd">Enter</span> — Pick search result</p>
-        <p><span class="kbd">H</span> — Home (map only)</p>
-        <p><span class="kbd">F</span> — Focus side-panel search (when open)</p>
+        <p><span class="kbd">H</span> — Home map view</p>
+        <p><span class="kbd">F</span> — Focus hub side-panel search when open</p>
       </div>
       <div>
-        <h4>Tips</h4>
-        <ul>
-          <li>Type <b>near</b> or <b>near Dallas</b> to jump the map and suggest nearby stores.</li>
-          <li>Use <b>Within hubs</b> to see only stores covered by visible hubs.</li>
-          <li>Pin hubs to compare coverage; <b>Overlap</b> highlights shared stores.</li>
-          <li>Side panel shows counts & metrics; click a store to zoom to it.</li>
-          <li>Use <b>Views</b> to save/restore your favorite setups.</li>
+        <h4>What each tool is for</h4>
+        <ul style="line-height:1.45">
+          <li><b>Current Gap Finder:</b> finds concentrated uncovered store clusters using active RTS coverage only.</li>
+          <li><b>Manager Rollups:</b> summarizes coverage and gaps by core One Walmart RM/AM hierarchy.</li>
+          <li><b>Coverage Priorities:</b> ranks leaders by uncovered exposure and estimated staffing opportunity.</li>
+          <li><b>Suggest RTS City:</b> planning-only candidate suggestions; it does not change permanent coverage until source JSON is updated.</li>
+          <li><b>Map Layers:</b> heatmap, rings, overlap, compare, and stores-within-radius visibility controls.</li>
+        </ul>
+        <h4>Important guardrails</h4>
+        <ul style="line-height:1.45">
+          <li><b>Active RTS</b> hubs drive current coverage. <b>Future RTS</b> hubs are visual planning references only.</li>
+          <li>The One Walmart model improves network visibility and flexibility, but the routeable coverage rule remains <b>75 miles</b>.</li>
+          <li>Dedicated teams are visibility overlays, not deductions from core One Walmart coverage.</li>
+          <li>Use store popups and RTS hub panels to validate decisions before making staffing recommendations.</li>
         </ul>
       </div>
     </div>
@@ -1771,7 +1792,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 <div class="modal" id="coverageModal" aria-modal="true" role="dialog">
   <div class="card" style="max-width:1100px;width:94vw">
     <header>
-      <h3>Coverage Priorities by Manager</h3>
+      <h3>Coverage Priorities by Manager — Action Ranking</h3>
       <button id="coverageClose" class="btn" type="button">Close</button>
     </header>
     <div class="body" style="grid-template-columns:1fr;">
@@ -1784,7 +1805,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
         <button id="coverageExport" class="btn" type="button">Export CSV</button>
       </div>
       <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
-        <b>How to use:</b> This ranks managers by current RTS coverage gap. Click a manager name to filter the map and open their Gap Finder summary.
+        <b>How to use:</b> This ranks managers by current RTS coverage gap so leadership can decide where to act first. Click a manager name to filter the map and open their Gap Finder summary.
         <br><b>Estimated RTS Needed:</b> Count of consolidated 75-mile gap clusters with at least 25 uncovered stores. This is a planning estimate, not a staffing commitment.
         <br><b>Add 1 RTS Opportunity:</b> Largest consolidated current gap cluster for that manager — a rough estimate of the best single placement opportunity.
       </div>
@@ -10057,7 +10078,7 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
         </div>
         <div class="ops-leadership-grid">
           <div class="ops-leader-card"><div class="lbl">Leadership Interpretation</div>
-            Coverage decisions should be sequenced as: <b>largest uncovered concentration first</b>, then <b>RTS workload/fringe risk</b>, then <b>dedicated overlay exposure</b>. Operational Flexibility is best used as the model-benefit story, not as the first action item.
+            Decision sequence: <b>1) close the largest uncovered concentration</b>, <b>2) stabilize high-load or fringe-risk RTS hubs</b>, <b>3) assign ownership for dedicated overlay exposure</b>. Use Operational Flexibility as the model-benefit story after the action priorities are clear.
           </div>
           <div class="ops-leader-card"><div class="lbl">Key Exposure</div>
             Active RTS hubs: <b>${fmt(hubs.length)}</b><br>
@@ -10067,11 +10088,11 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
         </div>`);
       opsSet('#opsTalkingPoints', `
         <div class="ops-leadership-box"><b>Copy-ready leadership language:</b><br>
-        The One Walmart model keeps the same 75-mile RTS coverage rule while improving operational flexibility. The priority sequence is to close concentrated coverage gaps first, protect high-load RTS hubs second, and maintain separate visibility for Unilever, P&amp;G, and Tyson dedicated overlays.</div>
+        The One Walmart model keeps the same 75-mile RTS coverage rule while improving operational flexibility. Leadership should act in this order: first close the largest concentrated coverage gap, second protect high-load or fringe-risk RTS hubs, and third maintain separate visibility for Unilever, P&amp;G, and Tyson dedicated overlays.</div>
         <div class="ops-section-title" style="margin-top:12px"><span>Leadership Action Path</span><span class="ops-sub">ranked by operating priority</span></div>
         <div class="ops-priority-path">${priorities.map((p,i)=>{ const d = priorityDecision(p,i); return `<div class="ops-priority-path-card priority-${Math.min(i+1,3)}"><div class="rank">Priority ${i+1} · ${safe(p.type)}</div><div class="title">${safe(p.title)}</div><div class="metric">${safe(p.metric)}</div><span class="urgency-chip">Urgency: ${safe(d.urgency)}</span><div class="why"><b>Why it matters:</b> ${safe(p.why)}</div><div class="decision-grid"><div class="decision-box"><b>Decision owner</b>${safe(d.owner)}</div><div class="decision-box"><b>Decision needed</b>${safe(d.decision)}</div><div class="decision-box"><b>Next drilldown</b>${safe(d.next)}</div><div class="decision-box"><b>Expected outcome</b>${safe(d.outcome)}</div></div><div class="next"><b>Immediate action:</b> ${safe(p.next)}</div></div>` }).join('')}</div>
         <div class="ops-copy-box">
-          <b>Meeting flow:</b> 1) Show national/filtered coverage, 2) drill into the largest gap concentration, 3) review high-load/fringe-risk RTS hubs, 4) call out dedicated overlay visibility, 5) close with the One Walmart flexibility story and 75-mile rule clarity.
+          <b>Recommended leadership meeting flow:</b> 1) State the current coverage and gap count, 2) name the single largest gap concentration and decision owner, 3) review high-load/fringe-risk RTS hubs and backup needs, 4) call out dedicated overlay visibility separately, 5) close with the One Walmart flexibility story and 75-mile rule clarity.
         </div>`);
     }
 
