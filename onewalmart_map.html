@@ -2101,6 +2101,23 @@ let combinedRTS = [];
 let premiumConfirmed = [];
 let premiumPending   = [];
 let acostaHubs       = [];
+
+// v107 public read-only runtime bridge for additive resiliency tools.
+// This exposes current map objects without changing coverage ownership or alignment logic.
+window.__oneWalmartRuntime = function(){
+  return {
+    allStores,
+    filteredStores,
+    premiumConfirmed,
+    premiumPending,
+    acostaHubs,
+    combinedRTS,
+    map,
+    L,
+    radius: Number(radius?.value) || DEFAULT_RADIUS,
+    classifyRadius: CLASSIFY_RADIUS
+  };
+};
  
 
   
@@ -12408,5 +12425,321 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 })();
 </script>
 
+
+
+<!-- ===== v107 RTS Resiliency Tools: outage simulation + backup reassignment visibility ===== -->
+<style>
+  .resil-modal .body{grid-template-columns:1fr !important;}
+  .resil-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
+  .resil-toolbar select,.resil-toolbar input{border:1px solid #d0d7de;border-radius:8px;padding:7px 9px;background:#fff;}
+  .resil-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-bottom:10px;font-size:12.5px;line-height:1.35;}
+  .resil-kpis{display:grid;grid-template-columns:repeat(4,minmax(135px,1fr));gap:8px;margin:10px 0;}
+  .resil-kpi{border:1px solid #e2e8f0;background:#fff;border-radius:13px;padding:10px;}
+  .resil-kpi .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+  .resil-kpi .val{font-size:22px;font-weight:950;color:#0f172a;line-height:1.1;margin-top:2px;}
+  .resil-kpi.risk{border-color:#fecaca;background:#fff7f7;}
+  .resil-kpi.watch{border-color:#fed7aa;background:#fff7ed;}
+  .resil-kpi.stable{border-color:#bbf7d0;background:#f0fdf4;}
+  .resil-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .resil-card{border:1px solid #e2e8f0;background:#fff;border-radius:14px;padding:10px;min-height:80px;}
+  .resil-card h4{margin:0 0 8px 0;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;}
+  .resil-list{display:grid;gap:6px;max-height:260px;overflow:auto;}
+  .resil-row{border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;padding:8px;font-size:12.5px;line-height:1.35;display:flex;justify-content:space-between;gap:10px;}
+  .resil-row b{color:#0f172a;}
+  .resil-row span{color:#475569;}
+  .resil-action{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-top:10px;font-size:12.5px;line-height:1.35;}
+  .resil-action b{color:#0f172a;}
+  #resiliencyBtn{border-color:#bfdbfe;background:#eff6ff;}
+  .resil-map-legend{position:absolute;left:12px;bottom:70px;z-index:1300;background:rgba(255,255,255,.96);border:1px solid #dbe3ea;border-radius:14px;padding:8px 10px;box-shadow:0 8px 22px rgba(15,23,42,.12);font-size:12px;display:none;}
+  .resil-map-legend.show{display:block;}
+  .resil-map-legend div{display:flex;align-items:center;gap:6px;margin:3px 0;font-weight:800;}
+  .resil-dot{width:10px;height:10px;border-radius:999px;display:inline-block;}
+  @media(max-width:900px){.resil-kpis,.resil-grid{grid-template-columns:1fr 1fr;}}
+  @media(max-width:640px){.resil-kpis,.resil-grid{grid-template-columns:1fr;}}
+</style>
+
+<div class="modal resil-modal" id="resiliencyModal" aria-modal="true" role="dialog">
+  <div class="card" style="max-width:1180px;width:95vw">
+    <header>
+      <h3>RTS Resiliency Simulator</h3>
+      <button id="resiliencyClose" class="btn" type="button">Close</button>
+    </header>
+    <div class="body">
+      <div>
+        <div class="resil-note">
+          <b>Purpose:</b> Model a temporary RTS outage without changing source coverage logic. This estimates which stores can be absorbed by nearby active RTS hubs and which stores become exposed if the selected RTS is unavailable.
+        </div>
+        <div class="resil-toolbar">
+          <label><b>Outage RTS</b><br><select id="resiliencyHubSelect" style="min-width:310px"></select></label>
+          <label><b>Backup radius</b><br><input id="resiliencyRadius" type="number" min="25" max="150" step="5" value="75" style="width:90px"> mi</label>
+          <label class="toggle" title="Use only currently filtered map stores"><input id="resiliencyUseFilters" type="checkbox"> Use current filters</label>
+          <button id="resiliencyRun" class="btn" type="button">Run Simulation</button>
+          <button id="resiliencyDraw" class="btn" type="button">Show on Map</button>
+          <button id="resiliencyClearMap" class="btn" type="button">Clear Map Layer</button>
+          <button id="resiliencyExport" class="btn" type="button">Export CSV</button>
+        </div>
+        <div id="resiliencyResults"><div class="resil-note">Choose an active RTS and run the simulation.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  if (window.__owResiliencyV107) return;
+  window.__owResiliencyV107 = true;
+
+  let lastRows = [];
+  let lastSummary = null;
+  let mapLayer = null;
+
+  const $ = id => document.getElementById(id);
+  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const num = v => Number.isFinite(Number(v)) ? Number(v) : 0;
+  function runtime(){ return typeof window.__oneWalmartRuntime === 'function' ? window.__oneWalmartRuntime() : null; }
+  function hubName(h){
+    const city = h?.city || h?.City || '';
+    const state = h?.state || h?.State || '';
+    const base = h?.fullName || h?.name || 'RTS';
+    return /—|,/.test(base) ? base : `${base}${city || state ? ' — ' + city + (city && state ? ', ' : '') + state : ''}`;
+  }
+  function distMiles(lat1, lon1, lat2, lon2){
+    const R=3958.7613, toRad=d=>d*Math.PI/180;
+    const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+    const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    return 2*R*Math.asin(Math.sqrt(a));
+  }
+  function storeLabel(s){ return `Store ${s.storeNumberStr || s.storeNumber || ''} — ${s.storeName || 'Walmart'} (${s.city || ''}, ${s.state || ''})`; }
+  function rmLabel(s){
+    if (s.regionalManager) return s.regionalManager;
+    const p = (s.managerPaths || []).find(x => x && x.regionalManager);
+    return p?.regionalManager || 'Unassigned RM';
+  }
+  function amLabel(s){
+    if (s.areaManager) return s.areaManager;
+    const p = (s.managerPaths || []).find(x => x && x.areaManager);
+    return p?.areaManager || 'Unassigned AM';
+  }
+
+  function ensureButton(){
+    const menu = document.querySelector('#analysisDrop .dropdown-menu');
+    if (!menu || $('resiliencyBtn')) return;
+    const btn = document.createElement('button');
+    btn.id = 'resiliencyBtn';
+    btn.className = 'btn';
+    btn.type = 'button';
+    btn.style.cssText = 'display:block;width:100%;margin:4px 0;text-align:left';
+    btn.textContent = 'RTS Resiliency Simulator';
+    btn.addEventListener('click', () => { populateHubSelect(); showModal(); });
+    menu.appendChild(btn);
+  }
+
+  function showModal(){ $('resiliencyModal')?.classList.add('show'); }
+  function hideModal(){ $('resiliencyModal')?.classList.remove('show'); }
+
+  function populateHubSelect(){
+    const rt = runtime();
+    const sel = $('resiliencyHubSelect');
+    if (!rt || !sel) return;
+    const hubs = [...(rt.premiumConfirmed || []), ...(rt.acostaHubs || [])];
+    const old = sel.value;
+    sel.innerHTML = hubs
+      .slice()
+      .sort((a,b)=> hubName(a).localeCompare(hubName(b)))
+      .map(h => `<option value="${esc(h.id)}">${esc(hubName(h))}</option>`)
+      .join('');
+    if (old && [...sel.options].some(o => o.value === old)) sel.value = old;
+  }
+
+  function simulate(){
+    const rt = runtime();
+    if (!rt) return null;
+    const selectedId = $('resiliencyHubSelect')?.value;
+    const hubs = [...(rt.premiumConfirmed || []), ...(rt.acostaHubs || [])];
+    const outage = hubs.find(h => h.id === selectedId) || hubs[0];
+    if (!outage) return null;
+    const r = Math.max(1, num($('resiliencyRadius')?.value || rt.classifyRadius || 75));
+    const stores = $('resiliencyUseFilters')?.checked ? (rt.filteredStores || []) : (rt.allStores || []);
+    const backupHubs = hubs.filter(h => h.id !== outage.id);
+    const affected = stores.filter(s => Number.isFinite(num(s.lat)) && Number.isFinite(num(s.lng)) && distMiles(outage.coords[0], outage.coords[1], s.lat, s.lng) <= r);
+
+    const rows = affected.map(s => {
+      const candidates = backupHubs
+        .map(h => ({ hub:h, miles:distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) }))
+        .filter(x => x.miles <= r)
+        .sort((a,b)=> a.miles - b.miles);
+      const best = candidates[0] || null;
+      const outageMiles = distMiles(outage.coords[0], outage.coords[1], s.lat, s.lng);
+      return {
+        store:s,
+        storeNumber:s.storeNumberStr || s.storeNumber || '',
+        storeName:s.storeName || 'Walmart',
+        city:s.city || '',
+        state:s.state || '',
+        address:s.address || '',
+        rm:rmLabel(s),
+        am:amLabel(s),
+        outageHub:hubName(outage),
+        outageMiles,
+        status:best ? 'Reassignable' : 'Exposed',
+        backupHub:best ? hubName(best.hub) : '',
+        backupMiles:best ? best.miles : null,
+        backupCount:candidates.length,
+        dedicatedOverlay:(s.managerPaths || []).some(p => /unilever|tyson|p&g|pg/i.test(`${p.teamName || ''} ${p.areaManager || ''} ${p.regionalManager || ''}`)) ? 'Yes' : 'No'
+      };
+    });
+
+    const reassignable = rows.filter(x => x.status === 'Reassignable').length;
+    const exposed = rows.length - reassignable;
+    const fringe = rows.filter(x => x.outageMiles >= 60).length;
+    const dedicated = rows.filter(x => x.dedicatedOverlay === 'Yes').length;
+    const backups = new Map();
+    rows.filter(x => x.status === 'Reassignable').forEach(x => backups.set(x.backupHub, (backups.get(x.backupHub) || 0) + 1));
+    const byRm = new Map();
+    rows.filter(x => x.status === 'Exposed').forEach(x => byRm.set(x.rm, (byRm.get(x.rm) || 0) + 1));
+    const risk = exposed >= 25 ? 'Critical' : exposed >= 10 ? 'Elevated' : exposed > 0 ? 'Watch' : 'Contained';
+
+    return { outage, radius:r, rows, reassignable, exposed, fringe, dedicated, backups, byRm, risk };
+  }
+
+  function render(){
+    const res = simulate();
+    const box = $('resiliencyResults');
+    if (!box) return;
+    if (!res){ box.innerHTML = '<div class="resil-note">No active RTS hubs are available to simulate.</div>'; return; }
+    lastSummary = res;
+    lastRows = res.rows;
+    const total = res.rows.length;
+    const pct = n => total ? Math.round((n/total)*100) + '%' : '0%';
+    const riskClass = res.risk === 'Critical' ? 'risk' : res.risk === 'Elevated' || res.risk === 'Watch' ? 'watch' : 'stable';
+    const backupList = [...res.backups.entries()].sort((a,b)=>b[1]-a[1]).slice(0,10);
+    const rmList = [...res.byRm.entries()].sort((a,b)=>b[1]-a[1]).slice(0,10);
+    const exposedRows = res.rows.filter(x => x.status === 'Exposed').slice(0,30);
+    const action = res.exposed >= 25
+      ? 'Treat this RTS as a single-point coverage risk. Identify backup RTS support or alternate routing before relying on this hub alone.'
+      : res.exposed >= 10
+        ? 'Review the exposed stores and confirm whether nearby hubs can stretch beyond normal radius during a temporary outage.'
+        : res.exposed > 0
+          ? 'Small exposure remains; validate store list and keep this in the regional contingency plan.'
+          : 'Outage is mostly containable within the existing active RTS network.';
+
+    box.innerHTML = `
+      <div class="resil-kpis">
+        <div class="resil-kpi"><div class="lbl">Affected Stores</div><div class="val">${total}</div></div>
+        <div class="resil-kpi stable"><div class="lbl">Reassignable</div><div class="val">${res.reassignable} <span style="font-size:13px">${pct(res.reassignable)}</span></div></div>
+        <div class="resil-kpi ${riskClass}"><div class="lbl">Exposed</div><div class="val">${res.exposed} <span style="font-size:13px">${pct(res.exposed)}</span></div></div>
+        <div class="resil-kpi ${riskClass}"><div class="lbl">Outage Risk</div><div class="val">${esc(res.risk)}</div></div>
+      </div>
+      <div class="resil-grid">
+        <div class="resil-card"><h4>Backup RTS Reassignment</h4><div class="resil-list">
+          ${backupList.length ? backupList.map(([name,count])=>`<div class="resil-row"><div><b>${esc(name)}</b><br><span>Can absorb affected stores within ${res.radius} mi</span></div><b>${count}</b></div>`).join('') : '<div class="resil-row"><span>No backup hubs found in radius.</span></div>'}
+        </div></div>
+        <div class="resil-card"><h4>Exposed Stores by RM</h4><div class="resil-list">
+          ${rmList.length ? rmList.map(([name,count])=>`<div class="resil-row"><div><b>${esc(name)}</b><br><span>Stores without another active RTS in radius</span></div><b>${count}</b></div>`).join('') : '<div class="resil-row"><span>No exposed RM ownership found.</span></div>'}
+        </div></div>
+        <div class="resil-card"><h4>Exposure Detail</h4><div class="resil-list">
+          ${exposedRows.length ? exposedRows.map(x=>`<div class="resil-row"><div><b>${esc(storeLabel(x.store))}</b><br><span>${esc(x.address)} ${esc(x.city)}, ${esc(x.state)} · ${esc(x.am)}</span></div><b>${x.outageMiles.toFixed(1)} mi</b></div>`).join('') : '<div class="resil-row"><span>No exposed stores in this scenario.</span></div>'}
+        </div></div>
+        <div class="resil-card"><h4>Operational Context</h4>
+          <div class="resil-row"><span>Fringe affected stores at 60+ miles</span><b>${res.fringe}</b></div>
+          <div class="resil-row"><span>Dedicated overlay exposure</span><b>${res.dedicated}</b></div>
+          <div class="resil-row"><span>Backup radius used</span><b>${res.radius} mi</b></div>
+        </div>
+      </div>
+      <div class="resil-action"><b>Recommended action:</b> ${esc(action)}</div>
+    `;
+  }
+
+  function ensureLegend(){
+    let el = $('resiliencyLegend');
+    if (el) return el;
+    const wrap = document.querySelector('.mapwrap');
+    el = document.createElement('div');
+    el.id = 'resiliencyLegend';
+    el.className = 'resil-map-legend';
+    el.innerHTML = '<div><span class="resil-dot" style="background:#dc2626"></span> Exposed by outage</div><div><span class="resil-dot" style="background:#2563eb"></span> Reassignable to backup RTS</div><div><span class="resil-dot" style="background:#111827"></span> Simulated outage RTS</div>';
+    wrap?.appendChild(el);
+    return el;
+  }
+
+  function draw(){
+    if (!lastSummary) render();
+    const rt = runtime();
+    if (!rt?.map || !rt?.L || !lastSummary) return;
+    clearMapLayer();
+    const L = rt.L;
+    mapLayer = L.layerGroup().addTo(rt.map);
+    const outage = lastSummary.outage;
+    L.circle(outage.coords, { radius:lastSummary.radius*1609, color:'#111827', weight:2, fill:false, dashArray:'6 6' }).addTo(mapLayer);
+    L.circleMarker(outage.coords, { radius:9, color:'#111827', fillColor:'#111827', fillOpacity:1, weight:2 }).bindTooltip('Simulated outage: ' + hubName(outage)).addTo(mapLayer);
+    lastRows.forEach(x => {
+      const color = x.status === 'Exposed' ? '#dc2626' : '#2563eb';
+      L.circleMarker([x.store.lat, x.store.lng], { radius:x.status === 'Exposed' ? 6 : 4, color:'#fff', weight:1, fillColor:color, fillOpacity:.85 })
+        .bindTooltip(`${x.status}: ${storeLabel(x.store)}${x.backupHub ? ' → ' + x.backupHub : ''}`)
+        .addTo(mapLayer);
+    });
+    const legend = ensureLegend();
+    legend.classList.add('show');
+    try {
+      const pts = [[outage.coords[0], outage.coords[1]], ...lastRows.map(x => [x.store.lat, x.store.lng])];
+      rt.map.fitBounds(L.latLngBounds(pts), { padding:[30,30] });
+    } catch(e) {}
+  }
+
+  function clearMapLayer(){
+    const rt = runtime();
+    if (mapLayer && rt?.map) { try { rt.map.removeLayer(mapLayer); } catch(e) {} }
+    mapLayer = null;
+    $('resiliencyLegend')?.classList.remove('show');
+  }
+
+  function exportCsv(){
+    if (!lastRows.length) render();
+    if (!lastRows.length) return;
+    const headers = ['StoreNumber','StoreName','City','State','Address','RM','AM','OutageRTS','OutageMiles','Status','BackupRTS','BackupMiles','BackupCount','DedicatedOverlay'];
+    const csv = [headers.join(',')].concat(lastRows.map(x => headers.map(h => {
+      const map = {
+        StoreNumber:x.storeNumber, StoreName:x.storeName, City:x.city, State:x.state, Address:x.address, RM:x.rm, AM:x.am,
+        OutageRTS:x.outageHub, OutageMiles:x.outageMiles.toFixed(2), Status:x.status, BackupRTS:x.backupHub,
+        BackupMiles:x.backupMiles == null ? '' : x.backupMiles.toFixed(2), BackupCount:x.backupCount, DedicatedOverlay:x.dedicatedOverlay
+      };
+      return '"' + String(map[h] ?? '').replace(/"/g,'""') + '"';
+    }).join(','))).join('\n');
+    const blob = new Blob([csv], { type:'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'rts_resiliency_outage_simulation.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function patchHelp(){
+    const modal = $('helpModal');
+    const body = modal?.querySelector('.body > div:last-child ul');
+    if (!body || body.dataset.resiliencyPatched === '1') return;
+    const li = document.createElement('li');
+    li.innerHTML = '<b>RTS Resiliency Simulator:</b> model a temporary RTS outage, estimate backup reassignment capacity, and map exposed stores without changing source coverage.';
+    body.appendChild(li);
+    body.dataset.resiliencyPatched = '1';
+  }
+
+  function wire(){
+    ensureButton();
+    patchHelp();
+    $('resiliencyClose')?.addEventListener('click', hideModal);
+    $('resiliencyRun')?.addEventListener('click', render);
+    $('resiliencyDraw')?.addEventListener('click', draw);
+    $('resiliencyClearMap')?.addEventListener('click', clearMapLayer);
+    $('resiliencyExport')?.addEventListener('click', exportCsv);
+    $('resiliencyHubSelect')?.addEventListener('focus', populateHubSelect);
+    document.addEventListener('click', e => { if (e.target && e.target.id === 'resiliencyModal') hideModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') hideModal(); });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+  else wire();
+  setTimeout(() => { ensureButton(); populateHubSelect(); }, 1200);
+})();
+</script>
 </body>
 </html>
