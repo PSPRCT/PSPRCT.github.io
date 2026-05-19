@@ -14505,5 +14505,296 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 })();
 </script>
 
+
+<!-- ===== v116 RTS Operational Profile Cards (additive, no coverage logic changes) ===== -->
+<style>
+  .profile-v116-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin:8px 0 10px;font-size:12.5px;line-height:1.35;}
+  .profile-v116-tools{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px;align-items:center;}
+  .profile-v116-tools input{border:1px solid #d0d7de;border-radius:10px;padding:8px 10px;min-width:220px;}
+  .profile-v116-grid{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:8px;margin:8px 0 10px;}
+  .profile-v116-kpi{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px;}
+  .profile-v116-kpi .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+  .profile-v116-kpi .val{font-size:20px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
+  .profile-v116-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .profile-v116-table th,.profile-v116-table td{border-bottom:1px solid #eef2f7;padding:7px 8px;vertical-align:top;}
+  .profile-v116-table th{position:sticky;top:0;background:#f8fafc;text-align:left;z-index:1;}
+  .profile-v116-table td.num,.profile-v116-table th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .profile-v116-chip{display:inline-flex;border:1px solid #cbd5e1;border-radius:999px;background:#fff;padding:2px 7px;font-weight:900;font-size:11.5px;white-space:nowrap;}
+  .profile-v116-chip.critical{background:#fef2f2;border-color:#ef4444;color:#991b1b;}
+  .profile-v116-chip.high{background:#fff7ed;border-color:#fb923c;color:#9a3412;}
+  .profile-v116-chip.watch{background:#fffbeb;border-color:#f59e0b;color:#92400e;}
+  .profile-v116-chip.stable{background:#ecfdf5;border-color:#10b981;color:#065f46;}
+  .profile-v116-bar{height:8px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;overflow:hidden;margin-top:5px;min-width:95px;}
+  .profile-v116-bar span{display:block;height:100%;border-radius:999px;background:#16a34a;}
+  .profile-v116-bar.watch span{background:#f59e0b;}.profile-v116-bar.high span{background:#f97316;}.profile-v116-bar.critical span{background:#dc2626;}
+  .profile-v116-detail{border:1px solid #e2e8f0;border-radius:14px;background:#fff;padding:10px;margin:8px 0;display:none;}
+  .profile-v116-detail.show{display:block;}
+  .profile-v116-detail-grid{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:8px;margin-top:8px;}
+  .profile-v116-mini{border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;padding:8px;}
+  .profile-v116-mini .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}.profile-v116-mini .val{font-size:16px;font-weight:950;color:#0f172a;}
+  .profile-v116-legend{position:absolute;left:12px;top:142px;z-index:1600;display:none;background:rgba(255,255,255,.96);border:1px solid #dbe3ea;border-radius:14px;padding:9px 10px;box-shadow:0 8px 22px rgba(15,23,42,.14);font-size:12px;backdrop-filter:blur(8px);max-width:310px;}
+  .profile-v116-legend.show{display:block;}
+  .profile-v116-legend .line{display:flex;align-items:center;gap:7px;margin:3px 0;}.profile-v116-legend .dot{width:11px;height:11px;border-radius:999px;display:inline-block;}
+  @media(max-width:900px){.profile-v116-grid,.profile-v116-detail-grid{grid-template-columns:1fr 1fr}.profile-v116-table{font-size:11.5px}.profile-v116-legend{display:none !important;}}
+</style>
+
+<script>
+(function(){
+  'use strict';
+  const PROFILE_VERSION = 'v116';
+  let profileRows = [];
+  let profileLayer = null;
+
+  function $(id){ return document.getElementById(id); }
+  function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+  function num(v){ return Number.isFinite(Number(v)) ? Number(v) : 0; }
+  function miles(a,b,c,d){
+    const R=3958.8, toRad=x=>x*Math.PI/180;
+    const dLat=toRad(c-a), dLon=toRad(d-b);
+    const s1=Math.sin(dLat/2), s2=Math.sin(dLon/2);
+    const x=s1*s1+Math.cos(toRad(a))*Math.cos(toRad(c))*s2*s2;
+    return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+  }
+  function hubName(h){ return String(h && (h.fullName || h.name || h.label || h.city || 'RTS Hub')); }
+  function storeKey(s){ return String(s && (s.storeNumberStr || s.storeNumber || s.StoreNumber || s.id || '')); }
+  function isDedicatedStore(s){
+    return (s && Array.isArray(s.managerPaths) ? s.managerPaths : []).some(p => {
+      const txt = String([p.teamName,p.team,p.managementGroupName,p.areaManager,p.regionalManager].filter(Boolean).join(' ')).toLowerCase();
+      return txt.includes('unilever') || txt.includes('tyson') || txt.includes('p&g') || /\bpg\b/.test(txt);
+    });
+  }
+  function runtime(){ return typeof window.__oneWalmartRuntime === 'function' ? window.__oneWalmartRuntime() : {}; }
+  function activeHubs(rt){ return [...(rt.premiumConfirmed || []), ...(rt.acostaHubs || [])].filter(h => h && Array.isArray(h.coords)); }
+
+  function ensureModal(){
+    if ($('profileV116Modal')) return;
+    const div = document.createElement('div');
+    div.className = 'modal';
+    div.id = 'profileV116Modal';
+    div.setAttribute('aria-modal','true');
+    div.setAttribute('role','dialog');
+    div.innerHTML = `
+      <div class="card" style="max-width:1220px;width:96vw">
+        <header><h3>RTS Operational Profile Cards — ${PROFILE_VERSION}</h3><button id="profileV116Close" class="btn" type="button">Close</button></header>
+        <div class="body" style="grid-template-columns:1fr;">
+          <div class="profile-v116-note"><b>Purpose:</b> Profiles each active RTS hub as an operational territory, combining current load, fringe distance, no-backup stores, dedicated overlay exposure, nearby gaps, and backup options. This does <b>not</b> change coverage math.</div>
+          <div class="profile-v116-tools">
+            <input id="profileV116Search" type="text" placeholder="Search RTS hub, city, state, tier…" />
+            <button id="profileV116Refresh" class="btn" type="button">Refresh Profiles</button>
+            <button id="profileV116MapTop" class="btn" type="button">Map Top Risk Profiles</button>
+            <button id="profileV116ClearMap" class="btn" type="button">Clear Profile Map</button>
+            <button id="profileV116Export" class="btn" type="button">Export Profile CSV</button>
+          </div>
+          <div class="profile-v116-grid">
+            <div class="profile-v116-kpi"><div class="lbl">Active RTS Profiles</div><div class="val" id="profileV116KpiTotal">0</div></div>
+            <div class="profile-v116-kpi"><div class="lbl">Critical / High</div><div class="val" id="profileV116KpiRisk">0</div></div>
+            <div class="profile-v116-kpi"><div class="lbl">Avg Load</div><div class="val" id="profileV116KpiAvgLoad">0</div></div>
+            <div class="profile-v116-kpi"><div class="lbl">No-Backup Stores</div><div class="val" id="profileV116KpiNoBackup">0</div></div>
+            <div class="profile-v116-kpi"><div class="lbl">Nearby Gap Stores</div><div class="val" id="profileV116KpiGaps">0</div></div>
+          </div>
+          <div id="profileV116Detail" class="profile-v116-detail"></div>
+          <div id="profileV116Results" style="max-height:64vh;overflow:auto"></div>
+        </div>
+      </div>`;
+    document.body.appendChild(div);
+    $('profileV116Close').onclick = () => div.classList.remove('show');
+    $('profileV116Refresh').onclick = renderProfiles;
+    $('profileV116Search').addEventListener('input', renderProfileTable);
+    $('profileV116Export').onclick = exportProfiles;
+    $('profileV116MapTop').onclick = () => mapProfiles(profileRows.slice(0,10));
+    $('profileV116ClearMap').onclick = clearProfileMap;
+  }
+
+  function ensureButton(){
+    const menu = document.querySelector('#analysisDrop .dropdown-menu');
+    if (!menu || $('profileV116Btn')) return;
+    const btn = document.createElement('button');
+    btn.id = 'profileV116Btn';
+    btn.className = 'btn';
+    btn.type = 'button';
+    btn.style.cssText = 'display:block;width:100%;margin:4px 0;text-align:left';
+    btn.textContent = 'RTS Operational Profiles';
+    btn.title = 'Open RTS operational profile cards';
+    btn.onclick = () => { openProfiles(); menu.style.display = 'none'; };
+    const anchor = $('suggestRtsBtn');
+    if (anchor && anchor.parentElement === menu) anchor.insertAdjacentElement('afterend', btn); else menu.appendChild(btn);
+  }
+
+  function computeProfiles(){
+    const rt = runtime();
+    const stores = (rt.allStores || []).filter(s => Number.isFinite(num(s.lat)) && Number.isFinite(num(s.lng)));
+    const hubs = activeHubs(rt);
+    const radius = num(rt.classifyRadius || rt.radius || 75) || 75;
+    return hubs.map(h => {
+      const covered = stores.map(s => ({s, d:miles(num(h.coords[0]),num(h.coords[1]),num(s.lat),num(s.lng))})).filter(x => x.d <= radius);
+      const fringe = covered.filter(x => x.d >= 60);
+      const gaps = covered.filter(x => String(x.s.coverageType || '') === 'Uncovered');
+      const dedicated = covered.filter(x => isDedicatedStore(x.s));
+      const noBackup = covered.filter(x => !hubs.some(o => o.id !== h.id && miles(num(o.coords[0]),num(o.coords[1]),num(x.s.lat),num(x.s.lng)) <= radius));
+      const backupOptions = hubs.filter(o => o.id !== h.id).map(o => {
+        const shared = covered.filter(x => miles(num(o.coords[0]),num(o.coords[1]),num(x.s.lat),num(x.s.lng)) <= radius).length;
+        const hubMiles = miles(num(h.coords[0]),num(h.coords[1]),num(o.coords[0]),num(o.coords[1]));
+        return {hub:o, shared, hubMiles};
+      }).filter(x => x.shared > 0 || x.hubMiles <= 150).sort((a,b)=>b.shared-a.shared || a.hubMiles-b.hubMiles);
+      const avg = covered.length ? covered.reduce((a,x)=>a+x.d,0)/covered.length : 0;
+      const max = covered.length ? Math.max(...covered.map(x=>x.d)) : 0;
+      const noBackupPct = covered.length ? noBackup.length / covered.length : 0;
+      const fringePct = covered.length ? fringe.length / covered.length : 0;
+      const gapPct = covered.length ? gaps.length / covered.length : 0;
+      let score = 0;
+      score += Math.min(30, covered.length * .22);
+      score += Math.min(22, fringePct * 45);
+      score += Math.min(24, noBackupPct * 42);
+      score += Math.min(12, gapPct * 35);
+      score += Math.min(8, dedicated.length * .08);
+      score += avg >= 45 ? 6 : avg >= 35 ? 3 : 0;
+      score = Math.round(Math.min(100, score));
+      const tier = score >= 70 ? 'Critical' : score >= 52 ? 'High' : score >= 34 ? 'Watch' : 'Stable';
+      const tierClass = tier === 'Critical' ? 'critical' : tier === 'High' ? 'high' : tier === 'Watch' ? 'watch' : 'stable';
+      const primaryAction = tier === 'Critical'
+        ? 'Build a backup plan and review capacity/fringe stores.'
+        : tier === 'High'
+          ? 'Validate backup options and watch travel/fringe load.'
+          : tier === 'Watch'
+            ? 'Monitor profile; review if new gaps or outage risk increases.'
+            : 'No immediate action; normal monitoring.';
+      return {
+        hub:h, name:hubName(h), load:covered.length, fringe:fringe.length, fringePct, noBackup:noBackup.length, noBackupPct, gaps:gaps.length,
+        dedicated:dedicated.length, avg, max, backups:backupOptions.slice(0,3), score, tier, tierClass, primaryAction,
+        lat:num(h.coords[0]), lng:num(h.coords[1])
+      };
+    }).sort((a,b)=>b.score-a.score || b.load-a.load);
+  }
+
+  function updateKpis(rows){
+    const total = rows.length;
+    const avgLoad = total ? Math.round(rows.reduce((a,r)=>a+r.load,0)/total) : 0;
+    const risky = rows.filter(r => r.tier === 'Critical' || r.tier === 'High').length;
+    const noBackup = rows.reduce((a,r)=>a+r.noBackup,0);
+    const gaps = rows.reduce((a,r)=>a+r.gaps,0);
+    const set = (id, v) => { const el=$(id); if (el) el.textContent = String(v); };
+    set('profileV116KpiTotal', total);
+    set('profileV116KpiRisk', risky);
+    set('profileV116KpiAvgLoad', avgLoad);
+    set('profileV116KpiNoBackup', noBackup.toLocaleString());
+    set('profileV116KpiGaps', gaps.toLocaleString());
+  }
+
+  function renderProfileTable(){
+    const q = String($('profileV116Search')?.value || '').toLowerCase().trim();
+    const rows = profileRows.filter(r => !q || [r.name,r.tier,r.primaryAction].join(' ').toLowerCase().includes(q));
+    const html = `
+      <table class="profile-v116-table">
+        <thead><tr><th>RTS Hub</th><th>Tier</th><th class="num">Load</th><th class="num">Fringe</th><th class="num">No Backup</th><th class="num">Nearby Gaps</th><th class="num">Dedicated</th><th class="num">Risk</th><th>Action</th></tr></thead>
+        <tbody>${rows.map((r,idx)=>`
+          <tr>
+            <td><b>${esc(r.name)}</b><br><span style="color:#64748b">Avg ${r.avg.toFixed(1)} mi / Max ${r.max.toFixed(1)} mi · Backup: ${esc(r.backups[0] ? hubName(r.backups[0].hub) + ' (' + r.backups[0].shared + ')' : 'none')}</span></td>
+            <td><span class="profile-v116-chip ${r.tierClass}">${esc(r.tier)}</span></td>
+            <td class="num">${r.load}</td>
+            <td class="num">${r.fringe} (${Math.round(r.fringePct*100)}%)</td>
+            <td class="num">${r.noBackup} (${Math.round(r.noBackupPct*100)}%)</td>
+            <td class="num">${r.gaps}</td>
+            <td class="num">${r.dedicated}</td>
+            <td class="num"><b>${r.score}</b><div class="profile-v116-bar ${r.tierClass}"><span style="width:${r.score}%"></span></div></td>
+            <td>${esc(r.primaryAction)}<br><button class="btn" type="button" data-profile-idx="${profileRows.indexOf(r)}">Open profile</button> <button class="btn" type="button" data-profile-map="${profileRows.indexOf(r)}">Map hub</button></td>
+          </tr>`).join('')}</tbody>
+      </table>`;
+    $('profileV116Results').innerHTML = html;
+    $('profileV116Results').querySelectorAll('[data-profile-idx]').forEach(btn => btn.onclick = () => showDetail(profileRows[Number(btn.dataset.profileIdx)]));
+    $('profileV116Results').querySelectorAll('[data-profile-map]').forEach(btn => btn.onclick = () => mapProfiles([profileRows[Number(btn.dataset.profileMap)]]));
+  }
+
+  function showDetail(r){
+    if (!r) return;
+    const el = $('profileV116Detail');
+    el.classList.add('show');
+    el.innerHTML = `
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap">
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;font-weight:950">Selected RTS Profile</div><h3 style="margin:2px 0 0">${esc(r.name)}</h3></div>
+        <span class="profile-v116-chip ${r.tierClass}">${esc(r.tier)} · Risk ${r.score}</span>
+      </div>
+      <div class="profile-v116-detail-grid">
+        <div class="profile-v116-mini"><div class="lbl">Current Load</div><div class="val">${r.load}</div></div>
+        <div class="profile-v116-mini"><div class="lbl">Fringe Stores</div><div class="val">${r.fringe}</div></div>
+        <div class="profile-v116-mini"><div class="lbl">No Backup</div><div class="val">${r.noBackup}</div></div>
+        <div class="profile-v116-mini"><div class="lbl">Nearby Gaps</div><div class="val">${r.gaps}</div></div>
+        <div class="profile-v116-mini"><div class="lbl">Dedicated Overlay</div><div class="val">${r.dedicated}</div></div>
+        <div class="profile-v116-mini"><div class="lbl">Avg Distance</div><div class="val">${r.avg.toFixed(1)} mi</div></div>
+        <div class="profile-v116-mini"><div class="lbl">Max Distance</div><div class="val">${r.max.toFixed(1)} mi</div></div>
+        <div class="profile-v116-mini"><div class="lbl">Best Backup</div><div class="val">${esc(r.backups[0] ? hubName(r.backups[0].hub) : 'None')}</div></div>
+      </div>
+      <div class="profile-v116-note"><b>Recommended action:</b> ${esc(r.primaryAction)}</div>`;
+    el.scrollIntoView({block:'nearest'});
+  }
+
+  function renderProfiles(){
+    profileRows = computeProfiles();
+    updateKpis(profileRows);
+    renderProfileTable();
+    if (profileRows[0]) showDetail(profileRows[0]);
+  }
+
+  function openProfiles(){
+    ensureModal();
+    $('profileV116Modal').classList.add('show');
+    renderProfiles();
+  }
+
+  function ensureMapLayer(){
+    const rt = runtime();
+    if (!rt.map || !rt.L) return null;
+    if (!profileLayer) profileLayer = rt.L.layerGroup().addTo(rt.map);
+    let legend = $('profileV116Legend');
+    if (!legend){
+      legend = document.createElement('div');
+      legend.id = 'profileV116Legend';
+      legend.className = 'profile-v116-legend';
+      legend.innerHTML = '<b>RTS Profile Risk</b><div class="line"><span class="dot" style="background:#dc2626"></span>Critical</div><div class="line"><span class="dot" style="background:#f97316"></span>High</div><div class="line"><span class="dot" style="background:#f59e0b"></span>Watch</div><div class="line"><span class="dot" style="background:#16a34a"></span>Stable</div>';
+      const wrap = document.querySelector('.mapwrap') || document.body;
+      wrap.appendChild(legend);
+    }
+    return profileLayer;
+  }
+
+  function mapProfiles(rows){
+    const rt = runtime();
+    const layer = ensureMapLayer();
+    if (!layer || !rt.L || !rt.map) return;
+    layer.clearLayers();
+    const colorFor = r => r.tier === 'Critical' ? '#dc2626' : r.tier === 'High' ? '#f97316' : r.tier === 'Watch' ? '#f59e0b' : '#16a34a';
+    rows.filter(Boolean).forEach(r => {
+      const color = colorFor(r);
+      const marker = rt.L.circleMarker([r.lat,r.lng],{radius:10,color:'#111',weight:1,fillColor:color,fillOpacity:.9}).addTo(layer);
+      marker.bindTooltip(`<b>${esc(r.name)}</b><br>${esc(r.tier)} · Risk ${r.score}<br>Load ${r.load} · No backup ${r.noBackup}`, {sticky:true});
+      rt.L.circle([r.lat,r.lng],{radius:75*1609,color,weight:2,fill:false,opacity:.35}).addTo(layer);
+    });
+    $('profileV116Legend')?.classList.add('show');
+    if (rows.length){
+      const bounds = rt.L.latLngBounds(rows.map(r => [r.lat,r.lng]));
+      if (bounds.isValid()) rt.map.fitBounds(bounds.pad(.25));
+    }
+  }
+  function clearProfileMap(){ if (profileLayer) profileLayer.clearLayers(); $('profileV116Legend')?.classList.remove('show'); }
+
+  function exportProfiles(){
+    if (!profileRows.length) profileRows = computeProfiles();
+    const headers = ['RTS Hub','Tier','Risk Score','Load','Fringe Stores','No Backup Stores','Nearby Gap Stores','Dedicated Overlay Stores','Avg Miles','Max Miles','Best Backup','Primary Action'];
+    const rows = profileRows.map(r => [r.name,r.tier,r.score,r.load,r.fringe,r.noBackup,r.gaps,r.dedicated,r.avg.toFixed(1),r.max.toFixed(1),r.backups[0] ? hubName(r.backups[0].hub) : '',r.primaryAction]);
+    const csv = [headers, ...rows].map(row => row.map(v => '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"').join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'rts_operational_profiles_v116.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }
+
+  function schedule(){ ensureModal(); ensureButton(); }
+  document.addEventListener('DOMContentLoaded', schedule);
+  setTimeout(schedule, 800);
+  setTimeout(schedule, 2000);
+})();
+</script>
+
 </body>
 </html>
