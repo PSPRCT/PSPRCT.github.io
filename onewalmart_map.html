@@ -12846,5 +12846,267 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   setTimeout(() => { ensureButton(); populateHubSelect(); }, 1200);
 })();
 </script>
+
+<!-- ===== v109 Copy/Paste-Safe Resiliency UI + Dashboard Patch ===== -->
+<style id="v109ResiliencySafeStyles">
+  /* v109: keep the resiliency card usable on smaller screens without altering map/coverage logic. */
+  #resiliencyModal.resil-modal{
+    align-items:flex-start !important;
+    justify-content:center !important;
+    overflow:auto !important;
+    padding:22px 12px !important;
+    box-sizing:border-box !important;
+  }
+  #resiliencyModal .card{
+    width:min(1180px,96vw) !important;
+    max-height:calc(100vh - 44px) !important;
+    display:flex !important;
+    flex-direction:column !important;
+    overflow:hidden !important;
+    resize:both;
+    min-width:min(760px,96vw);
+    min-height:420px;
+  }
+  #resiliencyModal .card header{
+    position:sticky !important;
+    top:0 !important;
+    z-index:5 !important;
+    background:#fff !important;
+    cursor:move;
+  }
+  #resiliencyModal .card .body{
+    overflow:auto !important;
+    max-height:calc(100vh - 118px) !important;
+  }
+  #resiliencyClose{
+    border-color:#fecaca !important;
+    background:#fff7f7 !important;
+    color:#991b1b !important;
+    font-weight:900 !important;
+  }
+  .resil-toolbar{
+    position:sticky;
+    top:0;
+    z-index:4;
+    background:#fff;
+    padding:8px 0;
+    border-bottom:1px solid #eef2f7;
+  }
+  .resil-v109-banner{
+    border:1px solid #bfdbfe;
+    background:#eff6ff;
+    color:#1e3a8a;
+    border-radius:12px;
+    padding:9px 10px;
+    margin:8px 0 10px 0;
+    font-size:12.5px;
+    line-height:1.35;
+  }
+  .resil-dashboard-grid,
+  .resil-mini-grid{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:8px;
+    margin:8px 0 10px 0;
+  }
+  .resil-mini-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+  .resil-dashboard-card,
+  .resil-mini-card{
+    border:1px solid #e2e8f0;
+    border-radius:12px;
+    background:#fff;
+    padding:9px 10px;
+  }
+  .resil-dashboard-card .lbl,
+  .resil-mini-card .lbl{
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    color:#64748b;
+    font-weight:950;
+  }
+  .resil-dashboard-card .val,
+  .resil-mini-card .val{
+    font-size:20px;
+    font-weight:950;
+    color:#0f172a;
+    line-height:1.15;
+    margin-top:2px;
+  }
+  .resil-dashboard-card.risk{border-color:#fecaca;background:#fff7f7;}
+  .resil-dashboard-card.watch{border-color:#fed7aa;background:#fff7ed;}
+  .resil-dashboard-card.stable{border-color:#bbf7d0;background:#f0fdf4;}
+  .resil-v109-scroll{
+    max-height:42vh;
+    overflow:auto;
+    border:1px solid #e2e8f0;
+    border-radius:12px;
+    background:#fff;
+  }
+  .resil-v109-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .resil-v109-table th,
+  .resil-v109-table td{border-bottom:1px solid #eef2f7;padding:7px 8px;vertical-align:top;}
+  .resil-v109-table th{position:sticky;top:0;background:#f8fafc;text-align:left;z-index:1;}
+  .resil-v109-table .num{text-align:right;font-variant-numeric:tabular-nums;}
+  .resil-tier{display:inline-block;border:1px solid #cbd5e1;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:900;background:#fff;}
+  .resil-tier.critical{background:#fef2f2;border-color:#ef4444;color:#991b1b;}
+  .resil-tier.elevated{background:#fff7ed;border-color:#fb923c;color:#9a3412;}
+  .resil-tier.watch{background:#fffbeb;border-color:#f59e0b;color:#92400e;}
+  .resil-tier.contained{background:#ecfdf5;border-color:#10b981;color:#065f46;}
+  @media(max-width:900px){
+    #resiliencyModal .card{min-width:0;resize:vertical;}
+    .resil-dashboard-grid,.resil-mini-grid{grid-template-columns:1fr 1fr;}
+  }
+  @media(max-width:640px){.resil-dashboard-grid,.resil-mini-grid{grid-template-columns:1fr;}}
+</style>
+<script id="v109ResiliencySafeAddon">
+(function(){
+  if (window.__owResiliencyV109SafeAddon) return;
+  window.__owResiliencyV109SafeAddon = true;
+
+  const $ = id => document.getElementById(id);
+  const esc = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const num = v => Number(v);
+  const add = (map, label, n=1) => {
+    const key = String(label || 'Unassigned');
+    const cur = map.get(key) || { label:key, count:0 };
+    cur.count += n;
+    map.set(key, cur);
+  };
+
+  function runtime(){ return typeof window.__oneWalmartRuntime === 'function' ? window.__oneWalmartRuntime() : null; }
+  function hubName(h){ return h?.fullName || h?.name || h?.city || h?.id || 'RTS'; }
+  function distMiles(lat1, lon1, lat2, lon2){
+    const R = 3958.8;
+    const toRad = d => Number(d) * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+  function rmLabel(s){ return s?.regionalManager || s?.rm || s?.RegionalManager || 'Unassigned'; }
+  function isDedicated(s){
+    const paths = Array.isArray(s?.managerPaths) ? s.managerPaths : [];
+    return paths.some(p => /unilever|tyson|p&g|p and g|\bpg\b/i.test(String(p?.teamName || p?.team || p?.managementGroupName || '')));
+  }
+
+  function simulateHub(rt, outage, radius, stores){
+    const hubs = [...(rt.premiumConfirmed || []), ...(rt.acostaHubs || [])];
+    const backups = hubs.filter(h => h && h.id !== outage.id);
+    const affected = (stores || []).filter(s => Number.isFinite(num(s.lat)) && Number.isFinite(num(s.lng)) && distMiles(outage.coords[0], outage.coords[1], s.lat, s.lng) <= radius);
+    let exposed = 0, reassignable = 0, fringe = 0, dedicated = 0;
+    const exposedByRm = new Map();
+    affected.forEach(s => {
+      const cands = backups.map(h => ({ h, miles:distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) })).filter(x => x.miles <= radius).sort((a,b)=>a.miles-b.miles);
+      if (distMiles(outage.coords[0], outage.coords[1], s.lat, s.lng) >= 60) fringe++;
+      if (isDedicated(s)) dedicated++;
+      if (cands.length) reassignable++;
+      else { exposed++; add(exposedByRm, rmLabel(s)); }
+    });
+    const total = affected.length;
+    const exposedPct = total ? exposed / total : 0;
+    const resiliencyScore = Math.max(0, Math.round(100 - exposedPct * 100 - Math.min(20, fringe * 1.5)));
+    const tier = exposed >= 25 || exposedPct >= .35 ? 'Critical' : exposed >= 10 || exposedPct >= .18 ? 'Elevated' : exposed > 0 ? 'Watch' : 'Contained';
+    return { outage, total, exposed, reassignable, fringe, dedicated, resiliencyScore, tier, exposedByRm };
+  }
+
+  function renderDashboard(){
+    const rt = runtime();
+    const box = $('resiliencyResults');
+    if (!rt || !box) return;
+    const hubs = [...(rt.premiumConfirmed || []), ...(rt.acostaHubs || [])];
+    const radius = Math.max(1, num($('resiliencyRadius')?.value || rt.classifyRadius || 75));
+    const stores = $('resiliencyUseFilters')?.checked ? (rt.filteredStores || []) : (rt.allStores || []);
+    if (!hubs.length){ box.innerHTML = '<div class="resil-note">No active RTS hubs are available for dashboard scoring yet.</div>'; return; }
+    const rows = hubs.map(h => simulateHub(rt, h, radius, stores)).sort((a,b)=> b.exposed - a.exposed || a.resiliencyScore - b.resiliencyScore || hubName(a.outage).localeCompare(hubName(b.outage)));
+    const totalAffected = rows.reduce((a,r)=>a+r.total,0);
+    const totalExposed = rows.reduce((a,r)=>a+r.exposed,0);
+    const critical = rows.filter(r=>r.tier === 'Critical').length;
+    const avgScore = rows.length ? Math.round(rows.reduce((a,r)=>a+r.resiliencyScore,0)/rows.length) : 0;
+    const rmExposure = new Map();
+    rows.forEach(r => r.exposedByRm.forEach(v => add(rmExposure, v.label, v.count)));
+    const topRm = [...rmExposure.values()].sort((a,b)=>b.count-a.count || a.label.localeCompare(b.label))[0];
+    const cls = critical ? 'risk' : totalExposed ? 'watch' : 'stable';
+    box.innerHTML = `
+      <div class="resil-v109-banner"><b>Network continuity dashboard:</b> Scores every active RTS as a simulated outage. This is additive/read-only and does not alter ownership, One Walmart alignment, or coverage calculations.</div>
+      <div class="resil-dashboard-grid">
+        <div class="resil-dashboard-card"><div class="lbl">Active RTS Scored</div><div class="val">${hubs.length}</div></div>
+        <div class="resil-dashboard-card ${cls}"><div class="lbl">Total Exposed Store Events</div><div class="val">${totalExposed}</div></div>
+        <div class="resil-dashboard-card ${critical ? 'risk' : 'stable'}"><div class="lbl">Critical Outage Hubs</div><div class="val">${critical}</div></div>
+        <div class="resil-dashboard-card ${avgScore < 70 ? 'watch' : 'stable'}"><div class="lbl">Avg Resiliency Score</div><div class="val">${avgScore}</div></div>
+      </div>
+      <div class="resil-mini-grid">
+        <div class="resil-mini-card"><div class="lbl">Top Dependency RM</div><div class="val">${topRm ? esc(topRm.label) + ' · ' + topRm.count : 'None'}</div></div>
+        <div class="resil-mini-card"><div class="lbl">Affected Store Events</div><div class="val">${totalAffected}</div></div>
+        <div class="resil-mini-card"><div class="lbl">Backup Radius</div><div class="val">${radius} mi</div></div>
+      </div>
+      <div class="resil-v109-scroll">
+        <table class="resil-v109-table">
+          <thead><tr><th>RTS outage scenario</th><th class="num">Affected</th><th class="num">Reassignable</th><th class="num">Exposed</th><th class="num">Score</th><th>Tier</th><th>Leadership action</th></tr></thead>
+          <tbody>
+            ${rows.map(r => {
+              const action = r.tier === 'Critical' ? 'Build backup chain now' : r.tier === 'Elevated' ? 'Review regional backup coverage' : r.tier === 'Watch' ? 'Monitor single-point stores' : 'Contained';
+              const tierCls = r.tier === 'Critical' ? 'critical' : r.tier === 'Elevated' ? 'elevated' : r.tier === 'Watch' ? 'watch' : 'contained';
+              return `<tr><td><b>${esc(hubName(r.outage))}</b></td><td class="num">${r.total}</td><td class="num">${r.reassignable}</td><td class="num">${r.exposed}</td><td class="num">${r.resiliencyScore}</td><td><span class="resil-tier ${tierCls}">${r.tier}</span></td><td>${action}</td></tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  function makeDraggable(){
+    const modal = $('resiliencyModal');
+    const card = modal?.querySelector('.card');
+    const header = card?.querySelector('header');
+    if (!modal || !card || !header || header.dataset.v109Drag === '1') return;
+    header.dataset.v109Drag = '1';
+    let dragging = false, sx = 0, sy = 0, sl = 0, st = 0;
+    header.addEventListener('mousedown', e => {
+      if (e.target.closest('button,input,select,label,a')) return;
+      dragging = true;
+      sx = e.clientX; sy = e.clientY;
+      const rect = card.getBoundingClientRect();
+      sl = rect.left; st = rect.top;
+      card.style.position = 'fixed';
+      card.style.left = sl + 'px';
+      card.style.top = st + 'px';
+      card.style.margin = '0';
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      card.style.left = Math.max(8, Math.min(window.innerWidth - 80, sl + e.clientX - sx)) + 'px';
+      card.style.top = Math.max(8, Math.min(window.innerHeight - 80, st + e.clientY - sy)) + 'px';
+    });
+    window.addEventListener('mouseup', () => { dragging = false; });
+  }
+
+  function enhance(){
+    const toolbar = document.querySelector('.resil-toolbar');
+    if (toolbar && !$('resiliencyDashboard')){
+      const btn = document.createElement('button');
+      btn.id = 'resiliencyDashboard';
+      btn.type = 'button';
+      btn.className = 'btn';
+      btn.textContent = 'Network Dashboard';
+      btn.title = 'Score every active RTS as an outage scenario';
+      btn.addEventListener('click', renderDashboard);
+      const run = $('resiliencyRun');
+      toolbar.insertBefore(btn, run || toolbar.firstChild);
+    }
+    const title = document.querySelector('#resiliencyModal header h3');
+    if (title && !/v109/.test(title.textContent)) title.textContent = 'RTS Resiliency Simulator — v109';
+    makeDraggable();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enhance); else enhance();
+  document.addEventListener('click', e => {
+    if (e.target && (e.target.id === 'resiliencyBtn' || e.target.closest?.('#resiliencyBtn'))) setTimeout(enhance, 0);
+    if (e.target && e.target.id === 'resiliencyRun') setTimeout(enhance, 40);
+  }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') $('resiliencyModal')?.classList.remove('show'); });
+  setTimeout(enhance, 1500);
+})();
+</script>
 </body>
 </html>
