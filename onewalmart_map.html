@@ -4705,6 +4705,80 @@ function printSidepanelList() {
 @media(max-width:900px){#opsDrawer.ops-drawer{width:min(560px,96vw) !important;} .compact-popup-grid{grid-template-columns:1fr;} .compact-popup{min-width:300px;}}
 </style>
 
+
+<!-- ===== v102 Analysis Tools Collapse Fix =====
+     Keeps Analysis Tools as an inline left-panel list, but makes it collapse/expand
+     like the other control sections instead of staying permanently open. -->
+<style>
+  #analysisDrop{position:static !important;width:100%;display:grid;gap:6px;}
+  #analysisDrop > button{width:100%;text-align:left;cursor:pointer;background:#f8fafc;}
+  #analysisDrop .dropdown-menu{
+    position:static !important;
+    display:none !important;
+    grid-template-columns:1fr;
+    gap:6px;
+    width:100% !important;
+    min-width:0 !important;
+    max-height:none !important;
+    overflow:visible !important;
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+    background:transparent;
+    border:0;
+    border-radius:0;
+    box-shadow:none;
+    z-index:auto;
+  }
+  #analysisDrop.analysis-open .dropdown-menu{display:grid !important;}
+  #analysisDrop.analysis-open > button{background:#eef6ff;border-color:#bfdbfe;}
+  #analysisDrop .dropdown-menu .btn{margin:0 !important;text-align:left;background:#fff;}
+</style>
+<script>
+(function(){
+  if (window.__owAnalysisToggleFixV102) return;
+  window.__owAnalysisToggleFixV102 = true;
+  function $(id){ return document.getElementById(id); }
+  function closeAnalysis(){
+    var drop = $('analysisDrop');
+    if (!drop) return;
+    drop.classList.remove('analysis-open');
+    var btn = drop.querySelector(':scope > button');
+    if (btn) btn.textContent = 'Analysis Tools ▾';
+  }
+  function openAnalysis(){
+    var drop = $('analysisDrop');
+    if (!drop) return;
+    drop.classList.add('analysis-open');
+    var btn = drop.querySelector(':scope > button');
+    if (btn) btn.textContent = 'Analysis Tools ▴';
+  }
+  function toggleAnalysis(){
+    var drop = $('analysisDrop');
+    if (!drop) return;
+    drop.classList.contains('analysis-open') ? closeAnalysis() : openAnalysis();
+  }
+  document.addEventListener('click', function(e){
+    var drop = $('analysisDrop');
+    if (!drop || !e.target || !e.target.closest) return;
+    var trigger = e.target.closest('#analysisDrop > button');
+    if (trigger) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      toggleAnalysis();
+      return;
+    }
+    if (e.target.closest('#analysisDrop .dropdown-menu .btn')) {
+      setTimeout(closeAnalysis, 0);
+      return;
+    }
+    if (!e.target.closest('#analysisDrop')) closeAnalysis();
+  }, true);
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeAnalysis(); });
+  closeAnalysis();
+})();
+</script>
+
 </body></html>`);
   w.document.close();
 }
@@ -8993,6 +9067,80 @@ const projectedCoveragePct = allStores.length
 @media(max-width:900px){#opsDrawer.ops-drawer{width:min(560px,96vw) !important;} .compact-popup-grid{grid-template-columns:1fr;} .compact-popup{min-width:300px;}}
 </style>
 
+
+<!-- ===== v102 Analysis Tools Collapse Fix =====
+     Keeps Analysis Tools as an inline left-panel list, but makes it collapse/expand
+     like the other control sections instead of staying permanently open. -->
+<style>
+  #analysisDrop{position:static !important;width:100%;display:grid;gap:6px;}
+  #analysisDrop > button{width:100%;text-align:left;cursor:pointer;background:#f8fafc;}
+  #analysisDrop .dropdown-menu{
+    position:static !important;
+    display:none !important;
+    grid-template-columns:1fr;
+    gap:6px;
+    width:100% !important;
+    min-width:0 !important;
+    max-height:none !important;
+    overflow:visible !important;
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+    background:transparent;
+    border:0;
+    border-radius:0;
+    box-shadow:none;
+    z-index:auto;
+  }
+  #analysisDrop.analysis-open .dropdown-menu{display:grid !important;}
+  #analysisDrop.analysis-open > button{background:#eef6ff;border-color:#bfdbfe;}
+  #analysisDrop .dropdown-menu .btn{margin:0 !important;text-align:left;background:#fff;}
+</style>
+<script>
+(function(){
+  if (window.__owAnalysisToggleFixV102) return;
+  window.__owAnalysisToggleFixV102 = true;
+  function $(id){ return document.getElementById(id); }
+  function closeAnalysis(){
+    var drop = $('analysisDrop');
+    if (!drop) return;
+    drop.classList.remove('analysis-open');
+    var btn = drop.querySelector(':scope > button');
+    if (btn) btn.textContent = 'Analysis Tools ▾';
+  }
+  function openAnalysis(){
+    var drop = $('analysisDrop');
+    if (!drop) return;
+    drop.classList.add('analysis-open');
+    var btn = drop.querySelector(':scope > button');
+    if (btn) btn.textContent = 'Analysis Tools ▴';
+  }
+  function toggleAnalysis(){
+    var drop = $('analysisDrop');
+    if (!drop) return;
+    drop.classList.contains('analysis-open') ? closeAnalysis() : openAnalysis();
+  }
+  document.addEventListener('click', function(e){
+    var drop = $('analysisDrop');
+    if (!drop || !e.target || !e.target.closest) return;
+    var trigger = e.target.closest('#analysisDrop > button');
+    if (trigger) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      toggleAnalysis();
+      return;
+    }
+    if (e.target.closest('#analysisDrop .dropdown-menu .btn')) {
+      setTimeout(closeAnalysis, 0);
+      return;
+    }
+    if (!e.target.closest('#analysisDrop')) closeAnalysis();
+  }, true);
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeAnalysis(); });
+  closeAnalysis();
+})();
+</script>
+
 </body></html>`);
     win.document.close();
   };
@@ -13157,6 +13305,80 @@ if (!window.__quickViewReliabilityPatchInstalled) {
       document.querySelector('.mapwrap')?.classList.remove('command-drawer-open');
     }
   });
+})();
+</script>
+
+
+<!-- ===== v102 Analysis Tools Collapse Fix =====
+     Keeps Analysis Tools as an inline left-panel list, but makes it collapse/expand
+     like the other control sections instead of staying permanently open. -->
+<style>
+  #analysisDrop{position:static !important;width:100%;display:grid;gap:6px;}
+  #analysisDrop > button{width:100%;text-align:left;cursor:pointer;background:#f8fafc;}
+  #analysisDrop .dropdown-menu{
+    position:static !important;
+    display:none !important;
+    grid-template-columns:1fr;
+    gap:6px;
+    width:100% !important;
+    min-width:0 !important;
+    max-height:none !important;
+    overflow:visible !important;
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+    background:transparent;
+    border:0;
+    border-radius:0;
+    box-shadow:none;
+    z-index:auto;
+  }
+  #analysisDrop.analysis-open .dropdown-menu{display:grid !important;}
+  #analysisDrop.analysis-open > button{background:#eef6ff;border-color:#bfdbfe;}
+  #analysisDrop .dropdown-menu .btn{margin:0 !important;text-align:left;background:#fff;}
+</style>
+<script>
+(function(){
+  if (window.__owAnalysisToggleFixV102) return;
+  window.__owAnalysisToggleFixV102 = true;
+  function $(id){ return document.getElementById(id); }
+  function closeAnalysis(){
+    var drop = $('analysisDrop');
+    if (!drop) return;
+    drop.classList.remove('analysis-open');
+    var btn = drop.querySelector(':scope > button');
+    if (btn) btn.textContent = 'Analysis Tools ▾';
+  }
+  function openAnalysis(){
+    var drop = $('analysisDrop');
+    if (!drop) return;
+    drop.classList.add('analysis-open');
+    var btn = drop.querySelector(':scope > button');
+    if (btn) btn.textContent = 'Analysis Tools ▴';
+  }
+  function toggleAnalysis(){
+    var drop = $('analysisDrop');
+    if (!drop) return;
+    drop.classList.contains('analysis-open') ? closeAnalysis() : openAnalysis();
+  }
+  document.addEventListener('click', function(e){
+    var drop = $('analysisDrop');
+    if (!drop || !e.target || !e.target.closest) return;
+    var trigger = e.target.closest('#analysisDrop > button');
+    if (trigger) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      toggleAnalysis();
+      return;
+    }
+    if (e.target.closest('#analysisDrop .dropdown-menu .btn')) {
+      setTimeout(closeAnalysis, 0);
+      return;
+    }
+    if (!e.target.closest('#analysisDrop')) closeAnalysis();
+  }, true);
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeAnalysis(); });
+  closeAnalysis();
 })();
 </script>
 
