@@ -10161,8 +10161,7 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
       const crossmarkGain = blended ? (blended.crossmarkGain || 0) : 0;
       const stateText = opsTopStatesText(rows);
 const coveredStores = rows.length - gapCount;
-const healthLine = currentPct >= 75 ? 'overall coverage is strong; leadership focus should be targeted workload and remaining gap pockets.' : currentPct >= 60 ? 'coverage is moderate; leadership focus should start with concentrated gaps, then workload stress.' : 'coverage needs targeted action; leadership focus should be coverage gaps first, then workload and dedicated exposure.';
-
+const healthLine = currentPct >= 75 ? 'coverage is strong overall; leadership should focus on targeted gap pockets, backup depth, and RTS workload pressure.' : currentPct >= 60 ? 'coverage is moderate; leadership should prioritize concentrated gaps first, then address RTS workload and backup risk.' : 'coverage requires focused action; leadership should stabilize uncovered markets first, then address workload and dedicated-team exposure.';
 const leadershipRiskCounts = {
   criticalGaps: gapRows.filter(r => r.tier === 'Critical' || Number(r.gapPct || 0) >= 35).length,
   highWorkload: workRows.filter(r => r.risk === 'Critical' || r.risk === 'High').length,
