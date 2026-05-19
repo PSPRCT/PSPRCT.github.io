@@ -8600,7 +8600,32 @@ const projectedCoveragePct = allStores.length
         td:nth-child(5){text-align:right}
         h2{margin:0 0 8px}
         .meta{color:#555;margin-bottom:10px}
-      </style></head><body>
+      </style>
+
+<!-- ===== v110 Resiliency Refinement: backup chain + dependency heatmap + leadership brief ===== -->
+<style id="v110ResiliencyRefinementStyles">
+  #resiliencyModal .card{max-height:calc(100vh - 28px) !important;}
+  #resiliencyModal .card header{cursor:move;}
+  #resiliencyModal .card header .resil-v110-head-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+  .resil-v110-brief{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:10px 12px;margin:10px 0;font-size:12.5px;line-height:1.4;}
+  .resil-v110-brief b{color:#0f172a;}
+  .resil-v110-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0;}
+  .resil-v110-action{border:1px solid #dbe3ea;border-radius:12px;background:#fff;padding:9px 10px;font-size:12.5px;line-height:1.35;}
+  .resil-v110-action b{display:block;color:#0f172a;margin-bottom:2px;}
+  .resil-v110-action.critical{border-color:#fecaca;background:#fff7f7;}
+  .resil-v110-action.elevated{border-color:#fed7aa;background:#fff7ed;}
+  .resil-v110-action.watch{border-color:#bfdbfe;background:#eff6ff;}
+  .resil-v110-dependency-legend{position:absolute;left:12px;bottom:58px;z-index:1250;background:rgba(255,255,255,.96);border:1px solid #dbe3ea;border-radius:14px;box-shadow:0 8px 22px rgba(15,23,42,.12);padding:9px 10px;font-size:12px;display:none;max-width:300px;}
+  .resil-v110-dependency-legend.show{display:block;}
+  .resil-v110-dependency-legend b{display:block;margin-bottom:4px;color:#0f172a;}
+  .resil-v110-chain-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+  .resil-v110-chain-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px 10px;font-size:12.5px;line-height:1.35;}
+  .resil-v110-chain-card b{color:#0f172a;}
+  .resil-v110-chain-card .sub{color:#64748b;margin-top:3px;}
+  #resiliencyResetPosition{white-space:nowrap;}
+  @media(max-width:900px){.resil-v110-actions,.resil-v110-chain-grid{grid-template-columns:1fr;} #resiliencyModal .card header{cursor:default;}}
+</style>
+</head><body>
         <h2>Simulate New RTS</h2>
         <div class="meta">Center: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)} • Radius: <b>${rMiles} mi</b> • Stores shown: <b>${inRadius.length}</b></div>
         <table>
@@ -13105,6 +13130,225 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     if (e.target && e.target.id === 'resiliencyRun') setTimeout(enhance, 40);
   }, true);
   document.addEventListener('keydown', e => { if (e.key === 'Escape') $('resiliencyModal')?.classList.remove('show'); });
+  setTimeout(enhance, 1500);
+})();
+</script>
+
+
+<script id="v110ResiliencyRefinementAddon">
+(function(){
+  if (window.__owResiliencyV110RefinementAddon) return;
+  window.__owResiliencyV110RefinementAddon = true;
+
+  const $ = id => document.getElementById(id);
+  const esc = v => String(v ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const num = v => Number(v);
+  const runtime = () => (typeof window.__oneWalmartRuntime === 'function' ? window.__oneWalmartRuntime() : null);
+  const distMiles = (lat1, lon1, lat2, lon2) => {
+    const R = 3958.7613, toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2-lat1), dLon = toRad(lon2-lon1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  };
+  const hubName = h => String(h?.fullName || h?.name || `${h?.city || ''}${h?.city && h?.state ? ', ' : ''}${h?.state || ''}` || 'RTS').trim();
+  const rmLabel = s => String(s?.regionalManager || 'Unassigned RM').trim() || 'Unassigned RM';
+  const amLabel = s => String(s?.areaManager || 'Unassigned AM').trim() || 'Unassigned AM';
+  const add = (m,k,n=1) => m.set(k,(m.get(k)||0)+n);
+
+  let heatLayer = null;
+  let circleLayer = null;
+  let dependencyOn = false;
+
+  function activeHubs(rt){ return [...(rt?.premiumConfirmed || []), ...(rt?.acostaHubs || [])].filter(h => h?.coords); }
+  function activeStores(rt){ return ($('resiliencyUseFilters')?.checked ? (rt?.filteredStores || []) : (rt?.allStores || [])).filter(s => Number.isFinite(num(s.lat)) && Number.isFinite(num(s.lng))); }
+  function radius(rt){ return Math.max(1, num($('resiliencyRadius')?.value || rt?.classifyRadius || 75)); }
+
+  function dependencyRows(rt){
+    const hubs = activeHubs(rt);
+    const r = radius(rt);
+    return activeStores(rt).map(s => {
+      const covering = hubs.map(h => ({ hub:h, miles:distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) }))
+        .filter(x => x.miles <= r)
+        .sort((a,b)=>a.miles-b.miles);
+      const nearest = covering[0] || null;
+      const backup = covering[1] || null;
+      const fringe = nearest ? nearest.miles >= 60 : false;
+      return { store:s, covering, nearest, backup, singlePoint:covering.length === 1, uncovered:covering.length === 0, fringe };
+    });
+  }
+
+  function drawDependencyHeatmap(){
+    const rt = runtime();
+    if (!rt?.map || !rt?.L) return;
+    clearDependencyHeatmap(false);
+    const rows = dependencyRows(rt).filter(r => r.singlePoint || r.uncovered);
+    if (!rows.length){ alert('No single-point or uncovered dependency stores found for the current scope.'); return; }
+    dependencyOn = true;
+    const points = rows.map(r => [num(r.store.lat), num(r.store.lng), r.uncovered ? 1.0 : (r.fringe ? .85 : .55)]);
+    if (rt.L.heatLayer){
+      heatLayer = rt.L.heatLayer(points, { radius:24, blur:18, maxZoom:10, max:1.0 }).addTo(rt.map);
+    } else {
+      circleLayer = rt.L.layerGroup(rows.slice(0, 2500).map(r => rt.L.circleMarker([r.store.lat, r.store.lng], {
+        radius:r.uncovered ? 7 : 5, color:r.uncovered ? '#dc2626' : '#f97316', weight:1, fillOpacity:.45
+      }).bindTooltip(`${r.uncovered ? 'Uncovered' : 'Single-point'} store ${r.store.storeNumberStr || ''}`))).addTo(rt.map);
+    }
+    showDependencyLegend(rows);
+    const btn = $('resiliencyDependencyHeatmap');
+    if (btn) btn.textContent = 'Hide Dependency Heatmap';
+  }
+
+  function clearDependencyHeatmap(updateBtn=true){
+    const rt = runtime();
+    try { if (heatLayer && rt?.map) rt.map.removeLayer(heatLayer); } catch(e){}
+    try { if (circleLayer && rt?.map) rt.map.removeLayer(circleLayer); } catch(e){}
+    heatLayer = null; circleLayer = null; dependencyOn = false;
+    $('resilV110DependencyLegend')?.classList.remove('show');
+    if (updateBtn && $('resiliencyDependencyHeatmap')) $('resiliencyDependencyHeatmap').textContent = 'Show Dependency Heatmap';
+  }
+
+  function showDependencyLegend(rows){
+    let el = $('resilV110DependencyLegend');
+    if (!el){
+      el = document.createElement('div');
+      el.id = 'resilV110DependencyLegend';
+      el.className = 'resil-v110-dependency-legend';
+      const wrap = document.querySelector('.mapwrap') || document.body;
+      wrap.appendChild(el);
+    }
+    const single = rows.filter(r=>r.singlePoint).length;
+    const uncovered = rows.filter(r=>r.uncovered).length;
+    const fringe = rows.filter(r=>r.singlePoint && r.fringe).length;
+    el.innerHTML = `<b>RTS Dependency Heatmap</b>${single.toLocaleString()} single-point stores · ${fringe.toLocaleString()} fringe single-point · ${uncovered.toLocaleString()} uncovered in current scope.<br><span style="color:#64748b">Read-only layer; coverage math unchanged.</span>`;
+    el.classList.add('show');
+  }
+
+  function networkSummary(){
+    const rt = runtime();
+    if (!rt) return null;
+    const rows = dependencyRows(rt);
+    const hubs = activeHubs(rt);
+    const single = rows.filter(r=>r.singlePoint);
+    const uncovered = rows.filter(r=>r.uncovered);
+    const fringeSingle = single.filter(r=>r.fringe);
+    const byHub = new Map(), byRm = new Map(), byAm = new Map();
+    single.forEach(r => {
+      add(byHub, r.nearest?.hub?.id || 'unknown');
+      add(byRm, rmLabel(r.store)); add(byAm, amLabel(r.store));
+    });
+    const hubIndex = Object.fromEntries(hubs.map(h => [h.id, h]));
+    const topHub = [...byHub.entries()].map(([id,count]) => ({ hub:hubIndex[id], count })).sort((a,b)=>b.count-a.count)[0];
+    const topRm = [...byRm.entries()].sort((a,b)=>b[1]-a[1])[0];
+    const topAm = [...byAm.entries()].sort((a,b)=>b[1]-a[1])[0];
+    const redundancyRate = rows.length ? Math.round(((rows.length - single.length - uncovered.length) / rows.length) * 100) : 0;
+    const score = Math.max(0, Math.min(100, Math.round(redundancyRate - Math.min(25, fringeSingle.length / Math.max(1, rows.length) * 100))));
+    const tier = score < 50 || single.length >= 100 ? 'Critical' : score < 70 || single.length >= 50 ? 'Elevated' : score < 85 || single.length ? 'Watch' : 'Stable';
+    return { rows, hubs, single, uncovered, fringeSingle, topHub, topRm, topAm, redundancyRate, score, tier };
+  }
+
+  function renderLeadershipBrief(){
+    const box = $('resiliencyResults');
+    const s = networkSummary();
+    if (!box || !s) return;
+    const tierCls = s.tier === 'Critical' ? 'critical' : s.tier === 'Elevated' ? 'elevated' : s.tier === 'Watch' ? 'watch' : 'contained';
+    const action1 = s.topHub?.hub ? `Prioritize backup coverage for ${esc(hubName(s.topHub.hub))} (${s.topHub.count} single-point stores).` : 'No single-point hub dependency currently identified.';
+    const action2 = s.topRm ? `Review RM exposure with ${esc(s.topRm[0])} (${s.topRm[1]} single-point stores).` : 'No RM-level single-point exposure found.';
+    const action3 = s.fringeSingle.length ? `Validate ${s.fringeSingle.length} fringe single-point stores at 60+ miles before relying on emergency reassignment.` : 'Fringe single-point exposure is currently contained.';
+    box.insertAdjacentHTML('afterbegin', `
+      <div class="resil-v110-brief"><b>v110 leadership brief:</b> Current scope has <b>${s.single.length.toLocaleString()}</b> single-point stores, <b>${s.fringeSingle.length.toLocaleString()}</b> fringe single-point stores, and <b>${s.uncovered.length.toLocaleString()}</b> uncovered stores. Network continuity score: <b>${s.score}</b> / tier <span class="resil-tier ${tierCls}">${s.tier}</span>.</div>
+      <div class="resil-v110-actions">
+        <div class="resil-v110-action ${tierCls}"><b>1. Backup chain priority</b>${action1}</div>
+        <div class="resil-v110-action elevated"><b>2. Leadership follow-up</b>${action2}</div>
+        <div class="resil-v110-action watch"><b>3. Travel/fringe check</b>${action3}</div>
+      </div>
+    `);
+  }
+
+  function renderBackupChains(){
+    const rt = runtime();
+    const box = $('resiliencyResults');
+    if (!rt || !box) return;
+    const hubs = activeHubs(rt);
+    const r = radius(rt);
+    const selectedId = $('resiliencyHubSelect')?.value;
+    const outage = hubs.find(h => h.id === selectedId) || hubs[0];
+    if (!outage) return;
+    const affected = activeStores(rt).filter(s => distMiles(outage.coords[0], outage.coords[1], s.lat, s.lng) <= r);
+    const backups = hubs.filter(h => h.id !== outage.id).map(h => {
+      const stores = affected.filter(s => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= r);
+      const avg = stores.length ? stores.reduce((a,s)=>a+distMiles(s.lat,s.lng,h.coords[0],h.coords[1]),0)/stores.length : 0;
+      return { hub:h, stores:stores.length, avg };
+    }).filter(x=>x.stores).sort((a,b)=>b.stores-a.stores || a.avg-b.avg).slice(0,6);
+    const html = `<div class="resil-v110-chain-grid">${backups.length ? backups.map((b,i)=>`<div class="resil-v110-chain-card"><b>${i+1}. ${esc(hubName(b.hub))}</b><div class="sub">Can absorb ${b.stores} affected store(s); avg backup distance ${b.avg.toFixed(1)} mi.</div></div>`).join('') : '<div class="resil-v110-chain-card"><b>No backup chain found</b><div class="sub">Affected stores do not have another active RTS inside the selected backup radius.</div></div>'}</div>`;
+    box.insertAdjacentHTML('afterbegin', `<div class="resil-v110-brief"><b>Backup chain for ${esc(hubName(outage))}:</b> top alternate RTS options below, ranked by affected stores they can absorb within ${r} miles.</div>${html}`);
+  }
+
+  function exportDependencyCsv(){
+    const rt = runtime();
+    if (!rt) return;
+    const rows = dependencyRows(rt).map(r => ({
+      Store:r.store.storeNumberStr || '', StoreName:r.store.storeName || '', City:r.store.city || '', State:r.store.state || '',
+      RM:rmLabel(r.store), AM:amLabel(r.store), DependencyStatus:r.uncovered ? 'Uncovered' : r.singlePoint ? 'Single Point' : 'Redundant',
+      PrimaryRTS:r.nearest ? hubName(r.nearest.hub) : '', PrimaryMiles:r.nearest ? r.nearest.miles.toFixed(1) : '',
+      BackupRTS:r.backup ? hubName(r.backup.hub) : '', BackupMiles:r.backup ? r.backup.miles.toFixed(1) : '',
+      CoveringRTSCount:r.covering.length
+    }));
+    const headers = Object.keys(rows[0] || {Store:'',StoreName:'',City:'',State:'',RM:'',AM:'',DependencyStatus:'',PrimaryRTS:'',PrimaryMiles:'',BackupRTS:'',BackupMiles:'',CoveringRTSCount:''});
+    const csv = [headers.join(','), ...rows.map(row => headers.map(h => '"' + String(row[h] ?? '').replace(/"/g,'""') + '"').join(','))].join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+    a.download = 'rts_dependency_heatmap_detail.csv';
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+  }
+
+  function resetModalPosition(){
+    const card = $('resiliencyModal')?.querySelector('.card');
+    if (!card) return;
+    ['position','left','top','margin','transform'].forEach(p => card.style[p] = '');
+  }
+
+  function enhance(){
+    const modal = $('resiliencyModal');
+    const toolbar = document.querySelector('.resil-toolbar');
+    const header = modal?.querySelector('.card header');
+    const title = header?.querySelector('h3');
+    if (title && !/v110/.test(title.textContent)) title.textContent = 'RTS Resiliency Simulator — v110';
+    if (header && !$('resiliencyResetPosition')){
+      const wrap = document.createElement('div');
+      wrap.className = 'resil-v110-head-actions';
+      const reset = document.createElement('button');
+      reset.id = 'resiliencyResetPosition'; reset.type = 'button'; reset.className = 'btn'; reset.textContent = 'Reset Position';
+      reset.title = 'Re-center the resiliency card if it was dragged or resized';
+      reset.addEventListener('click', resetModalPosition);
+      wrap.appendChild(reset);
+      const close = $('resiliencyClose');
+      header.insertBefore(wrap, close || null);
+    }
+    if (toolbar && !$('resiliencyDependencyHeatmap')){
+      const heat = document.createElement('button');
+      heat.id = 'resiliencyDependencyHeatmap'; heat.type = 'button'; heat.className = 'btn'; heat.textContent = 'Show Dependency Heatmap';
+      heat.title = 'Map single-point and uncovered dependency stores in the current resiliency scope';
+      heat.addEventListener('click', () => dependencyOn ? clearDependencyHeatmap() : drawDependencyHeatmap());
+      const chain = document.createElement('button');
+      chain.id = 'resiliencyBackupChains'; chain.type = 'button'; chain.className = 'btn'; chain.textContent = 'Backup Chains';
+      chain.title = 'Show best alternate RTS chain for the selected outage scenario';
+      chain.addEventListener('click', renderBackupChains);
+      const brief = document.createElement('button');
+      brief.id = 'resiliencyLeadershipBrief'; brief.type = 'button'; brief.className = 'btn'; brief.textContent = 'Leadership Brief';
+      brief.title = 'Insert a concise leadership-ready continuity summary';
+      brief.addEventListener('click', renderLeadershipBrief);
+      const exp = document.createElement('button');
+      exp.id = 'resiliencyDependencyExport'; exp.type = 'button'; exp.className = 'btn'; exp.textContent = 'Export Dependency CSV';
+      exp.addEventListener('click', exportDependencyCsv);
+      [heat, chain, brief, exp].forEach(b => toolbar.appendChild(b));
+    }
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enhance); else enhance();
+  document.addEventListener('click', e => {
+    if (e.target && (e.target.id === 'resiliencyBtn' || e.target.closest?.('#resiliencyBtn'))) setTimeout(enhance, 60);
+    if (e.target && e.target.id === 'resiliencyClearMap') clearDependencyHeatmap();
+  }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') clearDependencyHeatmap(); });
   setTimeout(enhance, 1500);
 })();
 </script>
