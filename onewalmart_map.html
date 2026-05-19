@@ -10171,10 +10171,10 @@ const leadershipRiskCounts = {
 };
 
 const leadershipSummaryLabel =
-  leadershipRiskCounts.criticalGaps > 0 ? 'Immediate Coverage Risk' :
-  leadershipRiskCounts.highWorkload > 0 ? 'RTS Capacity Watch' :
-  leadershipRiskCounts.dedicatedWatch > 0 ? 'Dedicated Overlay Watch' :
-  'Stable / Monitor';
+ leadershipRiskCounts.criticalGaps > 0 ? 'Action Required: Coverage' :
+  leadershipRiskCounts.highWorkload > 0 ? 'Action Required: RTS Capacity' :
+  leadershipRiskCounts.dedicatedWatch > 0 ? 'Watch: Dedicated Overlay' :
+  'Stable: Monitor';
       const priorityCandidates = [];
       if (topGap) priorityCandidates.push({
         tier:1,
