@@ -12456,12 +12456,38 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   .resil-dot{width:10px;height:10px;border-radius:999px;display:inline-block;}
   @media(max-width:900px){.resil-kpis,.resil-grid{grid-template-columns:1fr 1fr;}}
   @media(max-width:640px){.resil-kpis,.resil-grid{grid-template-columns:1fr;}}
+
+  /* v108 additive resiliency summaries */
+  .resil-kpis.v108{grid-template-columns:repeat(5,minmax(125px,1fr));}
+  .resil-tier{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-weight:950;font-size:11px;border:1px solid #cbd5e1;background:#fff;white-space:nowrap;}
+  .resil-tier.critical{background:#fef2f2;border-color:#ef4444;color:#991b1b;}
+  .resil-tier.elevated{background:#fff7ed;border-color:#fb923c;color:#9a3412;}
+  .resil-tier.watch{background:#fffbeb;border-color:#f59e0b;color:#92400e;}
+  .resil-tier.contained{background:#ecfdf5;border-color:#10b981;color:#065f46;}
+  .resil-mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0;}
+  .resil-mini-card{border:1px solid #e2e8f0;background:#fff;border-radius:13px;padding:9px;}
+  .resil-mini-card .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+  .resil-mini-card .val{font-size:18px;font-weight:950;color:#0f172a;line-height:1.1;margin-top:2px;}
+  .resil-scorebar{height:8px;border-radius:999px;background:#f1f5f9;border:1px solid #e2e8f0;overflow:hidden;margin-top:5px;}
+  .resil-scorebar span{display:block;height:100%;border-radius:999px;background:#16a34a;}
+  .resil-scorebar.watch span{background:#f59e0b;}
+  .resil-scorebar.elevated span{background:#f97316;}
+  .resil-scorebar.critical span{background:#dc2626;}
+  .resil-chain{display:grid;gap:6px;}
+  .resil-chain-row{border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:8px;font-size:12.5px;line-height:1.35;display:grid;grid-template-columns:1.2fr auto 1.2fr;gap:8px;align-items:center;}
+  .resil-chain-arrow{font-weight:950;color:#2563eb;text-align:center;}
+  .resil-spof{border:1px solid #fecaca;background:#fff7f7;color:#991b1b;border-radius:12px;padding:9px 10px;margin:10px 0;font-size:12.5px;line-height:1.35;}
+  .resil-spof.ok{border-color:#bbf7d0;background:#f0fdf4;color:#166534;}
+  .resil-spof b{color:#0f172a;}
+  @media(max-width:900px){.resil-kpis.v108,.resil-mini-grid{grid-template-columns:1fr 1fr;}.resil-chain-row{grid-template-columns:1fr;}.resil-chain-arrow{text-align:left;}}
+  @media(max-width:640px){.resil-kpis.v108,.resil-mini-grid{grid-template-columns:1fr;}}
+
 </style>
 
 <div class="modal resil-modal" id="resiliencyModal" aria-modal="true" role="dialog">
   <div class="card" style="max-width:1180px;width:95vw">
     <header>
-      <h3>RTS Resiliency Simulator</h3>
+      <h3>RTS Resiliency Simulator — v108</h3>
       <button id="resiliencyClose" class="btn" type="button">Close</button>
     </header>
     <div class="body">
@@ -12520,6 +12546,39 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     const p = (s.managerPaths || []).find(x => x && x.areaManager);
     return p?.areaManager || 'Unassigned AM';
   }
+
+  // v108: normalize manager names before grouping. This prevents repeated rows like
+  // "Sinclair, Elizabeth" showing as separate one-count records when source rows contain
+  // hidden spaces, non-breaking spaces, or different dash/comma spacing.
+  function cleanGroupLabel(v, fallback){
+    const s = String(v ?? '')
+      .replace(/\u00a0/g, ' ')
+      .replace(/[\u2013\u2014]/g, '-')
+      .replace(/\s*,\s*/g, ', ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return s || fallback || 'Unassigned';
+  }
+  function groupKey(v){ return cleanGroupLabel(v, 'Unassigned').toLowerCase(); }
+  function addGrouped(map, rawLabel, amount=1, fallback='Unassigned'){
+    const label = cleanGroupLabel(rawLabel, fallback);
+    const key = groupKey(label);
+    const prev = map.get(key) || { label, count:0 };
+    // Preserve the most complete display label if a later row has one.
+    if ((label || '').length > (prev.label || '').length) prev.label = label;
+    prev.count += amount;
+    map.set(key, prev);
+  }
+  function aggEntries(map){ return [...map.values()].sort((a,b)=> b.count - a.count || a.label.localeCompare(b.label)); }
+  function stateLabel(s){ return cleanGroupLabel(s?.state || 'Unknown State', 'Unknown State'); }
+  function severityFromExposure(exposed, total){
+    const pct = total ? exposed / total : 0;
+    if (exposed >= 25 || pct >= .35) return { label:'Critical', cls:'critical', score:95 };
+    if (exposed >= 10 || pct >= .18) return { label:'Elevated', cls:'elevated', score:72 };
+    if (exposed > 0) return { label:'Watch', cls:'watch', score:38 };
+    return { label:'Contained', cls:'contained', score:10 };
+  }
+  function scoreClass(score){ return score >= 80 ? 'critical' : score >= 55 ? 'elevated' : score >= 25 ? 'watch' : 'contained'; }
 
   function ensureButton(){
     const menu = document.querySelector('#analysisDrop .dropdown-menu');
@@ -12594,12 +12653,36 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     const fringe = rows.filter(x => x.outageMiles >= 60).length;
     const dedicated = rows.filter(x => x.dedicatedOverlay === 'Yes').length;
     const backups = new Map();
-    rows.filter(x => x.status === 'Reassignable').forEach(x => backups.set(x.backupHub, (backups.get(x.backupHub) || 0) + 1));
-    const byRm = new Map();
-    rows.filter(x => x.status === 'Exposed').forEach(x => byRm.set(x.rm, (byRm.get(x.rm) || 0) + 1));
-    const risk = exposed >= 25 ? 'Critical' : exposed >= 10 ? 'Elevated' : exposed > 0 ? 'Watch' : 'Contained';
+    rows.filter(x => x.status === 'Reassignable').forEach(x => addGrouped(backups, x.backupHub, 1, 'Backup RTS'));
 
-    return { outage, radius:r, rows, reassignable, exposed, fringe, dedicated, backups, byRm, risk };
+    const byRm = new Map();
+    const byAm = new Map();
+    const byState = new Map();
+    rows.filter(x => x.status === 'Exposed').forEach(x => {
+      addGrouped(byRm, x.rm, 1, 'Unassigned RM');
+      addGrouped(byAm, x.am, 1, 'Unassigned AM');
+      addGrouped(byState, x.state, 1, 'Unknown State');
+    });
+
+    const affectedByRm = new Map();
+    rows.forEach(x => addGrouped(affectedByRm, x.rm, 1, 'Unassigned RM'));
+    const rmScoreRows = aggEntries(affectedByRm).map(rm => {
+      const exposedCount = (byRm.get(groupKey(rm.label)) || { count:0 }).count;
+      const sev = severityFromExposure(exposedCount, rm.count);
+      return { rm:rm.label, affected:rm.count, exposed:exposedCount, reassigned:rm.count - exposedCount, ...sev };
+    }).sort((a,b)=> b.exposed - a.exposed || b.affected - a.affected || a.rm.localeCompare(b.rm));
+
+    const backupChain = rows
+      .filter(x => x.status === 'Reassignable')
+      .sort((a,b)=> (b.backupCount - a.backupCount) || (b.outageMiles - a.outageMiles))
+      .slice(0,12);
+
+    const singlePointCount = rows.filter(x => x.status === 'Exposed').length;
+    const riskInfo = severityFromExposure(exposed, rows.length);
+    const risk = riskInfo.label;
+    const resiliencyScore = Math.max(0, Math.round(100 - (exposed * 100 / Math.max(rows.length, 1)) - Math.min(20, fringe * 1.5)));
+
+    return { outage, radius:r, rows, reassignable, exposed, fringe, dedicated, backups, byRm, byAm, byState, affectedByRm, rmScoreRows, backupChain, singlePointCount, risk, riskInfo, resiliencyScore };
   }
 
   function render(){
@@ -12612,8 +12695,11 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     const total = res.rows.length;
     const pct = n => total ? Math.round((n/total)*100) + '%' : '0%';
     const riskClass = res.risk === 'Critical' ? 'risk' : res.risk === 'Elevated' || res.risk === 'Watch' ? 'watch' : 'stable';
-    const backupList = [...res.backups.entries()].sort((a,b)=>b[1]-a[1]).slice(0,10);
-    const rmList = [...res.byRm.entries()].sort((a,b)=>b[1]-a[1]).slice(0,10);
+    const backupList = aggEntries(res.backups).slice(0,10);
+    const rmList = aggEntries(res.byRm).slice(0,10);
+    const stateList = aggEntries(res.byState).slice(0,8);
+    const amList = aggEntries(res.byAm).slice(0,8);
+    const regionalScoreRows = (res.rmScoreRows || []).slice(0,8);
     const exposedRows = res.rows.filter(x => x.status === 'Exposed').slice(0,30);
     const action = res.exposed >= 25
       ? 'Treat this RTS as a single-point coverage risk. Identify backup RTS support or alternate routing before relying on this hub alone.'
@@ -12624,18 +12710,19 @@ if (!window.__quickViewReliabilityPatchInstalled) {
           : 'Outage is mostly containable within the existing active RTS network.';
 
     box.innerHTML = `
-      <div class="resil-kpis">
+      <div class="resil-kpis v108">
         <div class="resil-kpi"><div class="lbl">Affected Stores</div><div class="val">${total}</div></div>
         <div class="resil-kpi stable"><div class="lbl">Reassignable</div><div class="val">${res.reassignable} <span style="font-size:13px">${pct(res.reassignable)}</span></div></div>
         <div class="resil-kpi ${riskClass}"><div class="lbl">Exposed</div><div class="val">${res.exposed} <span style="font-size:13px">${pct(res.exposed)}</span></div></div>
         <div class="resil-kpi ${riskClass}"><div class="lbl">Outage Risk</div><div class="val">${esc(res.risk)}</div></div>
+        <div class="resil-kpi"><div class="lbl">Resiliency Score</div><div class="val">${res.resiliencyScore}</div><div class="resil-scorebar ${scoreClass(100-res.resiliencyScore)}"><span style="width:${Math.max(4,res.resiliencyScore)}%"></span></div></div>
       </div>
       <div class="resil-grid">
         <div class="resil-card"><h4>Backup RTS Reassignment</h4><div class="resil-list">
-          ${backupList.length ? backupList.map(([name,count])=>`<div class="resil-row"><div><b>${esc(name)}</b><br><span>Can absorb affected stores within ${res.radius} mi</span></div><b>${count}</b></div>`).join('') : '<div class="resil-row"><span>No backup hubs found in radius.</span></div>'}
+          ${backupList.length ? backupList.map(x=>`<div class="resil-row"><div><b>${esc(x.label)}</b><br><span>Can absorb affected stores within ${res.radius} mi</span></div><b>${x.count}</b></div>`).join('') : '<div class="resil-row"><span>No backup hubs found in radius.</span></div>'}
         </div></div>
         <div class="resil-card"><h4>Exposed Stores by RM</h4><div class="resil-list">
-          ${rmList.length ? rmList.map(([name,count])=>`<div class="resil-row"><div><b>${esc(name)}</b><br><span>Stores without another active RTS in radius</span></div><b>${count}</b></div>`).join('') : '<div class="resil-row"><span>No exposed RM ownership found.</span></div>'}
+          ${rmList.length ? rmList.map(x=>`<div class="resil-row"><div><b>${esc(x.label)}</b><br><span>Stores without another active RTS in radius</span></div><b>${x.count}</b></div>`).join('') : '<div class="resil-row"><span>No exposed RM ownership found.</span></div>'}
         </div></div>
         <div class="resil-card"><h4>Exposure Detail</h4><div class="resil-list">
           ${exposedRows.length ? exposedRows.map(x=>`<div class="resil-row"><div><b>${esc(storeLabel(x.store))}</b><br><span>${esc(x.address)} ${esc(x.city)}, ${esc(x.state)} · ${esc(x.am)}</span></div><b>${x.outageMiles.toFixed(1)} mi</b></div>`).join('') : '<div class="resil-row"><span>No exposed stores in this scenario.</span></div>'}
@@ -12646,6 +12733,23 @@ if (!window.__quickViewReliabilityPatchInstalled) {
           <div class="resil-row"><span>Backup radius used</span><b>${res.radius} mi</b></div>
         </div>
       </div>
+      <div class="resil-spof ${res.singlePointCount ? '' : 'ok'}"><b>Single-point-of-failure check:</b> ${res.singlePointCount ? `${res.singlePointCount} store(s) do not have another active RTS within the backup radius if this RTS is unavailable.` : 'No exposed single-point stores detected for this scenario.'}</div>
+
+      <div class="resil-mini-grid">
+        <div class="resil-mini-card"><div class="lbl">Top Exposed State</div><div class="val">${stateList[0] ? esc(stateList[0].label) + ' · ' + stateList[0].count : 'None'}</div></div>
+        <div class="resil-mini-card"><div class="lbl">Top Exposed AM</div><div class="val">${amList[0] ? esc(amList[0].label) + ' · ' + amList[0].count : 'None'}</div></div>
+        <div class="resil-mini-card"><div class="lbl">Backup Chain Records</div><div class="val">${res.backupChain.length}</div></div>
+      </div>
+
+      <div class="resil-grid">
+        <div class="resil-card"><h4>Regional Resiliency Summary</h4><div class="resil-list">
+          ${regionalScoreRows.length ? regionalScoreRows.map(x=>`<div class="resil-row"><div><b>${esc(x.rm)}</b><br><span>${x.reassigned} reassigned / ${x.exposed} exposed of ${x.affected} affected</span><div class="resil-scorebar ${esc(x.cls)}"><span style="width:${Math.max(4, 100-x.score)}%"></span></div></div><span class="resil-tier ${esc(x.cls)}">${esc(x.label)}</span></div>`).join('') : '<div class="resil-row"><span>No affected RM ownership found.</span></div>'}
+        </div></div>
+        <div class="resil-card"><h4>Backup RTS Chain Visualization</h4><div class="resil-chain">
+          ${res.backupChain.length ? res.backupChain.map(x=>`<div class="resil-chain-row"><div><b>${esc(storeLabel(x.store))}</b><br><span>${x.outageMiles.toFixed(1)} mi from outage hub</span></div><div class="resil-chain-arrow">→</div><div><b>${esc(x.backupHub)}</b><br><span>${x.backupMiles == null ? '' : x.backupMiles.toFixed(1) + ' mi'} backup distance · ${x.backupCount} option(s)</span></div></div>`).join('') : '<div class="resil-row"><span>No backup reassignment chain available.</span></div>'}
+        </div></div>
+      </div>
+
       <div class="resil-action"><b>Recommended action:</b> ${esc(action)}</div>
     `;
   }
@@ -12674,7 +12778,8 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     L.circleMarker(outage.coords, { radius:9, color:'#111827', fillColor:'#111827', fillOpacity:1, weight:2 }).bindTooltip('Simulated outage: ' + hubName(outage)).addTo(mapLayer);
     lastRows.forEach(x => {
       const color = x.status === 'Exposed' ? '#dc2626' : '#2563eb';
-      L.circleMarker([x.store.lat, x.store.lng], { radius:x.status === 'Exposed' ? 6 : 4, color:'#fff', weight:1, fillColor:color, fillOpacity:.85 })
+      const dependencyRadius = x.status === 'Exposed' ? 8 : Math.max(4, Math.min(7, 3 + (x.backupCount || 1)));
+      L.circleMarker([x.store.lat, x.store.lng], { radius:dependencyRadius, color:'#fff', weight:1, fillColor:color, fillOpacity:.85 })
         .bindTooltip(`${x.status}: ${storeLabel(x.store)}${x.backupHub ? ' → ' + x.backupHub : ''}`)
         .addTo(mapLayer);
     });
@@ -12718,7 +12823,7 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     const body = modal?.querySelector('.body > div:last-child ul');
     if (!body || body.dataset.resiliencyPatched === '1') return;
     const li = document.createElement('li');
-    li.innerHTML = '<b>RTS Resiliency Simulator:</b> model a temporary RTS outage, estimate backup reassignment capacity, and map exposed stores without changing source coverage.';
+    li.innerHTML = '<b>RTS Resiliency Simulator:</b> model a temporary RTS outage, estimate backup reassignment capacity, view grouped RM/regional resiliency summaries, and map exposed stores without changing source coverage.';
     body.appendChild(li);
     body.dataset.resiliencyPatched = '1';
   }
