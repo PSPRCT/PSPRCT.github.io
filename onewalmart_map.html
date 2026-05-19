@@ -13806,5 +13806,289 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 })();
 </script>
 
+
+<!-- ===== v113 Leadership Priority Queue + Operational Actions (additive only) ===== -->
+<style id="v113LeadershipPriorityQueueStyles">
+  .resil-v113-brief{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:14px;padding:11px 12px;margin:10px 0;font-size:12.5px;line-height:1.4;}
+  .resil-v113-brief b{color:#0f172a;}
+  .resil-v113-kpis{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:8px;margin:10px 0;}
+  .resil-v113-kpi{border:1px solid #e2e8f0;background:#fff;border-radius:13px;padding:9px;}
+  .resil-v113-kpi .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+  .resil-v113-kpi .val{font-size:21px;font-weight:950;color:#0f172a;line-height:1.1;margin-top:2px;}
+  .resil-v113-kpi .sub{font-size:11.5px;color:#64748b;line-height:1.25;margin-top:3px;}
+  .resil-v113-toolbar{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px;}
+  .resil-v113-card{border:1px solid #e2e8f0;background:#fff;border-radius:14px;padding:10px;margin-bottom:8px;}
+  .resil-v113-card.critical{border-color:#fecaca;background:#fff7f7;}
+  .resil-v113-card.high{border-color:#fed7aa;background:#fff7ed;}
+  .resil-v113-card.medium{border-color:#bfdbfe;background:#eff6ff;}
+  .resil-v113-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
+  .resil-v113-rank{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;font-weight:950;}
+  .resil-v113-title{font-size:15px;font-weight:950;color:#0f172a;line-height:1.2;margin-top:2px;}
+  .resil-v113-tier{display:inline-flex;align-items:center;border:1px solid #cbd5e1;border-radius:999px;background:#fff;padding:4px 9px;font-size:11.5px;font-weight:950;white-space:nowrap;}
+  .resil-v113-tier.critical{border-color:#ef4444;color:#991b1b;background:#fef2f2;}
+  .resil-v113-tier.high{border-color:#f97316;color:#9a3412;background:#fff7ed;}
+  .resil-v113-tier.medium{border-color:#2563eb;color:#1d4ed8;background:#eff6ff;}
+  .resil-v113-grid{display:grid;grid-template-columns:repeat(4,minmax(90px,1fr));gap:7px;margin-top:8px;}
+  .resil-v113-mini{border:1px solid #e2e8f0;background:#fff;border-radius:11px;padding:7px;}
+  .resil-v113-mini .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;font-weight:950;}
+  .resil-v113-mini .val{font-size:15px;font-weight:950;color:#0f172a;line-height:1.15;}
+  .resil-v113-text{font-size:12.5px;line-height:1.35;color:#334155;margin-top:8px;}
+  .resil-v113-action{border-top:1px solid #e2e8f0;margin-top:8px;padding-top:8px;color:#1e3a8a;font-size:12.5px;line-height:1.35;}
+  .resil-v113-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+  .resil-v113-copy{border:1px solid #e2e8f0;background:#f8fafc;border-radius:12px;padding:10px;margin-top:10px;font-size:12.5px;line-height:1.45;white-space:pre-wrap;}
+  .resil-v113-legend{position:absolute;left:12px;bottom:164px;z-index:1360;background:rgba(255,255,255,.97);border:1px solid #dbe3ea;border-radius:14px;box-shadow:0 8px 22px rgba(15,23,42,.12);padding:9px 10px;font-size:12px;display:none;max-width:340px;}
+  .resil-v113-legend.show{display:block;}
+  .resil-v113-legend b{display:block;color:#0f172a;margin-bottom:5px;}
+  .resil-v113-legend .row{min-height:0;padding:3px 0;display:flex;align-items:center;gap:7px;box-shadow:none;border-radius:0;cursor:default;}
+  .resil-v113-legend .dot{width:11px;height:11px;border-radius:999px;display:inline-block;border:1px solid rgba(15,23,42,.25);}
+  @media(max-width:900px){.resil-v113-kpis,.resil-v113-grid{grid-template-columns:1fr 1fr;}.resil-v113-head{display:block}.resil-v113-tier{margin-top:6px;}}
+</style>
+<script id="v113LeadershipPriorityQueueAddon">
+(function(){
+  if (window.__owResiliencyV113PriorityQueueAddon) return;
+  window.__owResiliencyV113PriorityQueueAddon = true;
+
+  const $ = id => document.getElementById(id);
+  const esc = v => String(v == null ? '' : v).replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
+  const num = v => Number.isFinite(Number(v)) ? Number(v) : 0;
+  let priorityRows = [];
+  let priorityLayer = null;
+
+  function runtime(){ return typeof window.__oneWalmartRuntime === 'function' ? window.__oneWalmartRuntime() : null; }
+  function hubs(rt){ return [].concat(rt && rt.premiumConfirmed || [], rt && rt.acostaHubs || []).filter(h => h && h.coords && Number.isFinite(num(h.coords[0])) && Number.isFinite(num(h.coords[1]))); }
+  function stores(rt){ return $('resiliencyUseFilters') && $('resiliencyUseFilters').checked ? (rt.filteredStores || []) : (rt.allStores || []); }
+  function radius(rt){ return Math.max(1, num(($('resiliencyRadius') && $('resiliencyRadius').value) || (rt && rt.classifyRadius) || 75)); }
+  function nameHub(h){
+    const city = h && (h.city || h.City) || '';
+    const state = h && (h.state || h.State) || '';
+    const base = h && (h.fullName || h.name) || 'RTS';
+    return /—|,/.test(base) ? base : base + (city || state ? ' — ' + city + (city && state ? ', ' : '') + state : '');
+  }
+  function clean(v, fallback){ return String(v == null ? '' : v).replace(/\u00a0/g,' ').replace(/[\u2013\u2014]/g,'-').replace(/\s*,\s*/g,', ').replace(/\s+/g,' ').trim() || fallback || 'Unassigned'; }
+  function manager(s, key, fallback){
+    if (s && s[key]) return clean(s[key], fallback);
+    const paths = s && Array.isArray(s.managerPaths) ? s.managerPaths : [];
+    const row = paths.find(p => p && p[key]);
+    return clean(row && row[key], fallback);
+  }
+  function dMiles(lat1, lon1, lat2, lon2){
+    const R = 3958.7613, rad = d => d * Math.PI / 180;
+    const dLat = rad(lat2-lat1), dLon = rad(lon2-lon1);
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+  function scenario(rt, outage){
+    const r = radius(rt);
+    const remaining = hubs(rt).filter(h => h.id !== outage.id);
+    const affected = stores(rt).filter(s => s && Number.isFinite(num(s.lat)) && Number.isFinite(num(s.lng)) && dMiles(outage.coords[0], outage.coords[1], num(s.lat), num(s.lng)) <= r);
+    const rows = affected.map(s => {
+      const backups = remaining.map(h => ({hub:h, miles:dMiles(num(s.lat), num(s.lng), h.coords[0], h.coords[1])})).filter(x => x.miles <= r).sort((a,b) => a.miles - b.miles);
+      const outageMiles = dMiles(outage.coords[0], outage.coords[1], num(s.lat), num(s.lng));
+      const kind = backups.length ? (outageMiles >= 60 || backups[0].miles >= 60 ? 'fragile' : 'reassignable') : 'exposed';
+      return {store:s, outage, outageMiles, backup:backups[0] || null, backupCount:backups.length, kind};
+    });
+    const exposed = rows.filter(r => r.kind === 'exposed').length;
+    const fragile = rows.filter(r => r.kind === 'fragile').length;
+    const reassignable = rows.filter(r => r.kind === 'reassignable').length;
+    const fringe = rows.filter(r => r.outageMiles >= 60).length;
+    const affectedCount = rows.length;
+    const rms = new Set(rows.map(r => manager(r.store, 'regionalManager', 'Unassigned RM')));
+    const ams = new Set(rows.map(r => manager(r.store, 'areaManager', 'Unassigned AM')));
+    const backupCounts = new Map();
+    rows.forEach(r => { if (r.backup) backupCounts.set(r.backup.hub.id, (backupCounts.get(r.backup.hub.id) || 0) + 1); });
+    const maxBackupLoad = Math.max(0, ...Array.from(backupCounts.values()));
+    const exposureRate = affectedCount ? exposed / affectedCount : 0;
+    const fragileRate = affectedCount ? fragile / affectedCount : 0;
+    const fringeRate = affectedCount ? fringe / affectedCount : 0;
+    const score = Math.round(
+      exposed * 4.5 +
+      fragile * 1.9 +
+      affectedCount * 0.8 +
+      maxBackupLoad * 1.2 +
+      rms.size * 5 +
+      ams.size * 2 +
+      fringeRate * 55 +
+      exposureRate * 95 +
+      fragileRate * 35
+    );
+    let tier = 'medium';
+    if (exposed >= 20 || score >= 260 || (affectedCount >= 65 && exposureRate >= 0.20)) tier = 'critical';
+    else if (exposed >= 8 || fragile >= 25 || score >= 150 || affectedCount >= 55) tier = 'high';
+    const action = tier === 'critical'
+      ? 'Immediate continuity review: identify a named backup RTS, validate exposed stores, and evaluate whether a new or temporary support hub is needed.'
+      : tier === 'high'
+        ? 'Plan backup coverage: review fragile backup chains, confirm reassignment capacity, and monitor fringe travel burden.'
+        : 'Monitor: retain in the resiliency watch list and revisit after staffing or territory changes.';
+    const issue = exposed >= 20 ? 'Single-point outage exposure' : fragile >= 25 ? 'Fragile backup-chain exposure' : affectedCount >= 65 ? 'Large outage blast radius' : maxBackupLoad >= 40 ? 'Backup saturation risk' : 'Resiliency watch item';
+    return {hub:outage, rows, affected:affectedCount, exposed, fragile, reassignable, fringe, rms:rms.size, ams:ams.size, maxBackupLoad, score, tier, action, issue};
+  }
+  function buildQueue(limit){
+    const rt = runtime();
+    if (!rt) return [];
+    const list = hubs(rt).map(h => scenario(rt, h)).sort((a,b) => b.score - a.score || b.exposed - a.exposed || b.affected - a.affected);
+    return list.slice(0, limit || 25);
+  }
+  function tierLabel(t){ return t === 'critical' ? 'Critical' : t === 'high' ? 'High' : 'Watch'; }
+  function renderQueue(){
+    const box = $('resiliencyResults');
+    if (!box) return alert('Open the RTS Resiliency Simulator first.');
+    priorityRows = buildQueue(25);
+    const critical = priorityRows.filter(r => r.tier === 'critical').length;
+    const high = priorityRows.filter(r => r.tier === 'high').length;
+    const totalExposed = priorityRows.reduce((a,r) => a + r.exposed, 0);
+    const top = priorityRows[0];
+    const topName = top ? nameHub(top.hub) : 'None';
+    const html = '<div class="resil-v113-brief"><b>Leadership Priority Queue — v113:</b> ranks active RTS outage scenarios by operational risk using affected stores, no-backup exposure, fragile backup chains, backup saturation, fringe distance, and RM/AM blast radius. This is additive only and does not change coverage ownership.</div>' +
+      '<div class="resil-v113-kpis">' +
+        '<div class="resil-v113-kpi"><div class="lbl">Critical Items</div><div class="val">' + critical + '</div><div class="sub">Need continuity review</div></div>' +
+        '<div class="resil-v113-kpi"><div class="lbl">High Items</div><div class="val">' + high + '</div><div class="sub">Backup planning needed</div></div>' +
+        '<div class="resil-v113-kpi"><div class="lbl">No-Backup Stores</div><div class="val">' + totalExposed.toLocaleString() + '</div><div class="sub">Across top ranked scenarios</div></div>' +
+        '<div class="resil-v113-kpi"><div class="lbl">Top Risk</div><div class="val" style="font-size:14px">' + esc(topName) + '</div><div class="sub">Highest weighted outage score</div></div>' +
+      '</div>' +
+      '<div class="resil-v113-toolbar"><button class="btn" id="resiliencyV113Export" type="button">Export Priority Queue</button><button class="btn" id="resiliencyV113Copy" type="button">Copy Exec Summary</button><button class="btn" id="resiliencyV113MapTop" type="button">Map Top 5 Risks</button><button class="btn" id="resiliencyV113ClearMap" type="button">Clear Priority Overlay</button></div>' +
+      priorityRows.map((r,idx) => cardHtml(r, idx)).join('');
+    box.innerHTML = html;
+  }
+  function cardHtml(r, idx){
+    return '<div class="resil-v113-card ' + r.tier + '">' +
+      '<div class="resil-v113-head"><div><div class="resil-v113-rank">Priority ' + (idx + 1) + ' · Score ' + r.score + '</div><div class="resil-v113-title">' + esc(nameHub(r.hub)) + '</div></div><span class="resil-v113-tier ' + r.tier + '">' + tierLabel(r.tier) + '</span></div>' +
+      '<div class="resil-v113-grid">' +
+        '<div class="resil-v113-mini"><div class="lbl">Affected</div><div class="val">' + r.affected + '</div></div>' +
+        '<div class="resil-v113-mini"><div class="lbl">No Backup</div><div class="val">' + r.exposed + '</div></div>' +
+        '<div class="resil-v113-mini"><div class="lbl">Fragile</div><div class="val">' + r.fragile + '</div></div>' +
+        '<div class="resil-v113-mini"><div class="lbl">RM / AM</div><div class="val">' + r.rms + ' / ' + r.ams + '</div></div>' +
+      '</div>' +
+      '<div class="resil-v113-text"><b>Issue:</b> ' + esc(r.issue) + '. Largest estimated backup load: <b>' + r.maxBackupLoad + '</b> stores. Fringe stores: <b>' + r.fringe + '</b>.</div>' +
+      '<div class="resil-v113-action"><b>Recommended action:</b> ' + esc(r.action) + '</div>' +
+      '<div class="resil-v113-actions"><button class="btn" type="button" data-v113-map="' + esc(r.hub.id) + '">Map this outage</button><button class="btn" type="button" data-v113-run="' + esc(r.hub.id) + '">Load in simulator</button></div>' +
+      '</div>';
+  }
+  function selectedOrBuilt(){ if (!priorityRows.length) priorityRows = buildQueue(25); return priorityRows; }
+  function csvCell(v){ return '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"'; }
+  function exportQueue(){
+    const rows = selectedOrBuilt();
+    if (!rows.length) return alert('No priority queue data available.');
+    const headers = ['Priority','Tier','RTS Hub','Weighted Score','Issue','Affected Stores','No Backup Stores','Fragile Backup Stores','Reassignable Stores','Fringe Stores','RM Count','AM Count','Max Backup Load','Recommended Action'];
+    const lines = [headers.map(csvCell).join(',')].concat(rows.map((r,i) => [i+1,tierLabel(r.tier),nameHub(r.hub),r.score,r.issue,r.affected,r.exposed,r.fragile,r.reassignable,r.fringe,r.rms,r.ams,r.maxBackupLoad,r.action].map(csvCell).join(',')));
+    const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'rts_leadership_priority_queue_v113.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+  }
+  function execSummaryText(){
+    const rows = selectedOrBuilt().slice(0,5);
+    if (!rows.length) return 'No RTS resiliency priority queue data is available.';
+    const critical = selectedOrBuilt().filter(r => r.tier === 'critical').length;
+    const high = selectedOrBuilt().filter(r => r.tier === 'high').length;
+    return 'One Walmart RTS resiliency priority queue summary:\n' +
+      '- Critical continuity items: ' + critical + '\n' +
+      '- High-priority backup planning items: ' + high + '\n' +
+      '- Highest-risk RTS outage scenario: ' + nameHub(rows[0].hub) + ' (' + rows[0].affected + ' affected stores, ' + rows[0].exposed + ' with no backup).\n\n' +
+      'Top priorities:\n' + rows.map((r,i) => (i+1) + '. ' + nameHub(r.hub) + ' — ' + tierLabel(r.tier) + ' — ' + r.issue + '; affected stores: ' + r.affected + '; no-backup stores: ' + r.exposed + '; recommended action: ' + r.action).join('\n');
+  }
+  function copySummary(){
+    const txt = execSummaryText();
+    navigator.clipboard && navigator.clipboard.writeText(txt).then(() => alert('Executive summary copied.'), () => showSummaryBox(txt));
+    showSummaryBox(txt);
+  }
+  function showSummaryBox(txt){
+    const box = $('resiliencyResults');
+    if (!box) return;
+    const existing = $('resiliencyV113CopyBox');
+    if (existing) existing.remove();
+    const div = document.createElement('div');
+    div.id = 'resiliencyV113CopyBox';
+    div.className = 'resil-v113-copy';
+    div.textContent = txt;
+    box.insertAdjacentElement('afterbegin', div);
+  }
+  function ensureLegend(rt){
+    let leg = $('resiliencyV113Legend');
+    if (!leg){
+      const wrap = document.querySelector('.mapwrap') || document.body;
+      leg = document.createElement('div');
+      leg.id = 'resiliencyV113Legend';
+      leg.className = 'resil-v113-legend';
+      wrap.appendChild(leg);
+    }
+    return leg;
+  }
+  function clearPriorityMap(){
+    const rt = runtime();
+    if (rt && rt.map && priorityLayer) { try { rt.map.removeLayer(priorityLayer); } catch(e){} }
+    priorityLayer = null;
+    const leg = $('resiliencyV113Legend');
+    if (leg) leg.classList.remove('show');
+  }
+  function markerColor(tier){ return tier === 'critical' ? '#dc2626' : tier === 'high' ? '#f97316' : '#2563eb'; }
+  function mapRows(rows, title){
+    const rt = runtime();
+    if (!rt || !rt.map || !rt.L) return;
+    clearPriorityMap();
+    priorityLayer = rt.L.layerGroup().addTo(rt.map);
+    const bounds = [];
+    rows.forEach((scenarioRow, idx) => {
+      scenarioRow.rows.forEach(r => {
+        const s = r.store;
+        const fill = r.kind === 'exposed' ? '#dc2626' : r.kind === 'fragile' ? '#f59e0b' : markerColor(scenarioRow.tier);
+        const m = rt.L.circleMarker([num(s.lat), num(s.lng)], {radius: scenarioRow.tier === 'critical' ? 6 : 5, color:'#fff', weight:1.5, fillColor:fill, fillOpacity:.86}).bindPopup(
+          '<div style="min-width:260px;font-size:12.5px;line-height:1.35"><b>Priority ' + (idx+1) + ': ' + esc(nameHub(scenarioRow.hub)) + '</b><br>' +
+          'Store ' + esc(s.storeNumberStr || s.storeNumber || '') + ' — ' + esc(s.city || '') + ', ' + esc(s.state || '') + '<br>' +
+          '<b>Status:</b> ' + esc(r.kind) + '<br><b>Recommended action:</b> ' + esc(scenarioRow.action) + '</div>', {maxWidth:420}
+        );
+        m.addTo(priorityLayer);
+        bounds.push([num(s.lat), num(s.lng)]);
+      });
+    });
+    const leg = ensureLegend(rt);
+    leg.innerHTML = '<b>' + esc(title) + '</b>' +
+      '<div class="row"><span class="dot" style="background:#dc2626"></span> Critical / no-backup exposure</div>' +
+      '<div class="row"><span class="dot" style="background:#f97316"></span> High-priority outage exposure</div>' +
+      '<div class="row"><span class="dot" style="background:#f59e0b"></span> Fragile backup-chain store</div>' +
+      '<div class="row"><span class="dot" style="background:#2563eb"></span> Watch / reassignable exposure</div>';
+    leg.classList.add('show');
+    if (bounds.length) rt.map.fitBounds(bounds, {padding:[28,28], maxZoom:8});
+  }
+  function mapTop(){ mapRows(selectedOrBuilt().slice(0,5), 'Leadership Priority Overlay — Top 5 RTS Risks'); }
+  function mapHub(hubId){
+    const row = selectedOrBuilt().find(r => r.hub && r.hub.id === hubId);
+    if (row) mapRows([row], 'Priority Outage Overlay — ' + nameHub(row.hub));
+  }
+  function runHub(hubId){
+    const sel = $('resiliencyHubSelect');
+    if (sel) sel.value = hubId;
+    const run = $('resiliencyRun');
+    if (run) run.click();
+  }
+  function enhance(){
+    const toolbar = document.querySelector('.resil-toolbar');
+    const title = document.querySelector('#resiliencyModal header h3');
+    if (title && !/v113/.test(title.textContent)) title.textContent = title.textContent.replace(/\s+—\s+v\d+|\s+—\s+v112|\s+—\s+v111|\s+—\s+v110/g,'') + ' — v113';
+    if (toolbar && !$('resiliencyV113PriorityQueue')){
+      const q = document.createElement('button'); q.id = 'resiliencyV113PriorityQueue'; q.type = 'button'; q.className = 'btn'; q.textContent = 'Leadership Priority Queue'; q.title = 'Rank RTS outage scenarios by operational risk'; q.addEventListener('click', renderQueue);
+      const m = document.createElement('button'); m.id = 'resiliencyV113MapTopBtn'; m.type = 'button'; m.className = 'btn'; m.textContent = 'Map Top 5 Priorities'; m.addEventListener('click', mapTop);
+      const c = document.createElement('button'); c.id = 'resiliencyV113CopyBtn'; c.type = 'button'; c.className = 'btn'; c.textContent = 'Copy Exec Summary'; c.addEventListener('click', copySummary);
+      const run = $('resiliencyRun');
+      [q,m,c].forEach(b => toolbar.insertBefore(b, run || null));
+    }
+  }
+  document.addEventListener('click', e => {
+    if (e.target && (e.target.id === 'resiliencyBtn' || (e.target.closest && e.target.closest('#resiliencyBtn')))) setTimeout(enhance, 80);
+    if (e.target && e.target.id === 'resiliencyV113Export') exportQueue();
+    if (e.target && e.target.id === 'resiliencyV113Copy') copySummary();
+    if (e.target && e.target.id === 'resiliencyV113MapTop') mapTop();
+    if (e.target && e.target.id === 'resiliencyV113ClearMap') clearPriorityMap();
+    const mapBtn = e.target && e.target.closest ? e.target.closest('[data-v113-map]') : null;
+    if (mapBtn) mapHub(mapBtn.getAttribute('data-v113-map'));
+    const runBtn = e.target && e.target.closest ? e.target.closest('[data-v113-run]') : null;
+    if (runBtn) runHub(runBtn.getAttribute('data-v113-run'));
+  }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') clearPriorityMap(); });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enhance); else enhance();
+  setTimeout(enhance, 1800);
+})();
+</script>
+
 </body>
 </html>
