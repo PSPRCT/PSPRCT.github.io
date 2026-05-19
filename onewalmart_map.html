@@ -1375,6 +1375,38 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 #helpModal .card .body li{margin-bottom:5px;}
 .ops-priority-path-card .decision-box b{display:block;margin-bottom:2px;color:#0f172a;}
 
+.ops-leadership-summary-strip{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+
+.ops-leadership-summary-strip .ops-action-tile:first-child{
+  border-color:#bfdbfe;
+  background:#eff6ff;
+}
+
+.ops-leadership-summary-strip .ops-action-tile:first-child .val{
+  font-size:16px;
+  color:#1e3a8a;
+}
+
+.ops-priority-path-card .urgency-chip{
+  display:inline-flex;
+  margin-top:6px;
+  border:1px solid #cbd5e1;
+  background:#fff;
+  color:#334155;
+  border-radius:999px;
+  padding:3px 8px;
+  font-size:11px;
+  font-weight:950;
+}
+
+@media(max-width:900px){
+  .ops-leadership-summary-strip{
+    grid-template-columns:1fr;
+  }
+}
+
 
 /* ===== v106 RTS Scorecards: clearer hub risk and action cards ===== */
 .op-scorecard-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
@@ -10128,9 +10160,21 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
       const rescueCases = blended ? (blended.premiumRescueByAcosta + blended.acostaRescueByPremium) : 0;
       const crossmarkGain = blended ? (blended.crossmarkGain || 0) : 0;
       const stateText = opsTopStatesText(rows);
-      const coveredStores = rows.length - gapCount;
-      const healthLine = currentPct >= 75 ? 'overall coverage is strong; leadership focus should be targeted workload and remaining gap pockets.' : currentPct >= 60 ? 'coverage is moderate; leadership focus should start with concentrated gaps, then workload stress.' : 'coverage needs targeted action; leadership focus should be coverage gaps first, then workload and dedicated exposure.';
+const coveredStores = rows.length - gapCount;
+const healthLine = currentPct >= 75 ? 'overall coverage is strong; leadership focus should be targeted workload and remaining gap pockets.' : currentPct >= 60 ? 'coverage is moderate; leadership focus should start with concentrated gaps, then workload stress.' : 'coverage needs targeted action; leadership focus should be coverage gaps first, then workload and dedicated exposure.';
 
+const leadershipRiskCounts = {
+  criticalGaps: gapRows.filter(r => r.tier === 'Critical' || Number(r.gapPct || 0) >= 35).length,
+  highWorkload: workRows.filter(r => r.risk === 'Critical' || r.risk === 'High').length,
+  backupWatch: workRows.filter(r => r.total > 0 && r.fringe >= 15).length,
+  dedicatedWatch: dedicatedRows.filter(r => r.gaps > 0).length
+};
+
+const leadershipSummaryLabel =
+  leadershipRiskCounts.criticalGaps > 0 ? 'Immediate Coverage Risk' :
+  leadershipRiskCounts.highWorkload > 0 ? 'RTS Capacity Watch' :
+  leadershipRiskCounts.dedicatedWatch > 0 ? 'Dedicated Overlay Watch' :
+  'Stable / Monitor';
       const priorityCandidates = [];
       if (topGap) priorityCandidates.push({
         tier:1,
@@ -10223,14 +10267,17 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
           <b>Executive readout:</b> One Walmart RTS coverage is <b>${currentPct}%</b> in <b>${opsScopeMode === 'national' ? 'National View' : 'Filtered View'}</b>; ${healthLine}
           Current uncovered exposure is <b>${fmt(gapCount)}</b> stores. The first priority should be <b>${safe(priorities[0]?.title || 'no priority flagged')}</b>.
         </div>
-        <div class="ops-action-band">
+      <div class="ops-action-band ops-leadership-summary-strip">
+          <div class="ops-action-tile"><div class="lbl">Leadership Status</div><div class="val">${safe(leadershipSummaryLabel)}</div><div class="ops-sub">Primary executive readout</div></div>
           <div class="ops-action-tile"><div class="lbl">Coverage</div><div class="val">${currentPct}%</div><div class="ops-sub">${fmt(coveredStores)} covered / ${fmt(rows.length)} stores</div></div>
           <div class="ops-action-tile"><div class="lbl">Coverage gap</div><div class="val">${fmt(gapCount)}</div><div class="ops-sub">Largest: ${safe(topGap?.label || 'None flagged')}</div></div>
-          <div class="ops-action-tile"><div class="lbl">Workload risk</div><div class="val">${fmt(criticalWorkload.length || overloaded.length)}</div><div class="ops-sub">RTS hubs needing review</div></div>
+          <div class="ops-action-tile"><div class="lbl">RTS Capacity Watch</div><div class="val">${fmt(leadershipRiskCounts.highWorkload)}</div><div class="ops-sub">High-load or critical hubs</div></div>
+          <div class="ops-action-tile"><div class="lbl">Backup Watch</div><div class="val">${fmt(leadershipRiskCounts.backupWatch)}</div><div class="ops-sub">Fringe-heavy hubs needing review</div></div>
+          <div class="ops-action-tile"><div class="lbl">Dedicated Watch</div><div class="val">${fmt(leadershipRiskCounts.dedicatedWatch)}</div><div class="ops-sub">Dedicated teams with gap exposure</div></div>
         </div>
         <div class="ops-leadership-grid">
           <div class="ops-leader-card"><div class="lbl">Leadership Interpretation</div>
-            Decision sequence: <b>1) close the largest uncovered concentration</b>, <b>2) stabilize high-load or fringe-risk RTS hubs</b>, <b>3) assign ownership for dedicated overlay exposure</b>. Use Operational Flexibility as the model-benefit story after the action priorities are clear.
+            Recommended decision sequence: <b>1) resolve the largest uncovered concentration</b>, <b>2) protect high-load or fringe-risk RTS hubs with backup coverage</b>, <b>3) assign ownership for dedicated overlay gaps</b>, and <b>4) use Operational Flexibility as the model-benefit story</b> after action priorities are clear.
           </div>
           <div class="ops-leader-card"><div class="lbl">Key Exposure</div>
             Active RTS hubs: <b>${fmt(hubs.length)}</b><br>
@@ -10239,8 +10286,8 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
           </div>
         </div>`);
       opsSet('#opsTalkingPoints', `
-        <div class="ops-leadership-box"><b>Copy-ready leadership language:</b><br>
-        The One Walmart model keeps the same 75-mile RTS coverage rule while improving operational flexibility. Leadership should act in this order: first close the largest concentrated coverage gap, second protect high-load or fringe-risk RTS hubs, and third maintain separate visibility for Unilever, P&amp;G, and Tyson dedicated overlays.</div>
+       <div class="ops-leadership-box"><b>Copy-ready leadership language:</b><br>
+        The One Walmart model keeps the same 75-mile RTS coverage rule while improving operational flexibility. Leadership should act in this order: first resolve the largest concentrated uncovered market, second protect high-load or fringe-risk RTS hubs with backup support, third assign ownership for Unilever, P&amp;G, and Tyson dedicated overlay gaps, and finally use cross-network flexibility as the operating model benefit.</div>
         <div class="ops-section-title" style="margin-top:12px"><span>Leadership Action Path</span><span class="ops-sub">ranked by operating priority</span></div>
         <div class="ops-priority-path">${priorities.map((p,i)=>{ const d = priorityDecision(p,i); return `<div class="ops-priority-path-card priority-${Math.min(i+1,3)}"><div class="rank">Priority ${i+1} · ${safe(p.type)}</div><div class="title">${safe(p.title)}</div><div class="metric">${safe(p.metric)}</div><span class="urgency-chip">Urgency: ${safe(d.urgency)}</span><div class="why"><b>Why it matters:</b> ${safe(p.why)}</div><div class="decision-grid"><div class="decision-box"><b>Decision owner</b>${safe(d.owner)}</div><div class="decision-box"><b>Decision needed</b>${safe(d.decision)}</div><div class="decision-box"><b>Next drilldown</b>${safe(d.next)}</div><div class="decision-box"><b>Expected outcome</b>${safe(d.outcome)}</div></div><div class="next"><b>Immediate action:</b> ${safe(p.next)}</div></div>` }).join('')}</div>
         <div class="ops-copy-box">
