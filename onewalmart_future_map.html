@@ -1532,22 +1532,6 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .ops-copy-box{border:1px solid #e2e8f0;background:#f8fafc;border-radius:12px;padding:10px;margin-top:10px;font-size:12.5px;line-height:1.45;}
 @media(max-width:900px){.op-breakdown-grid,.ops-leadership-grid{grid-template-columns:1fr;}}
 
-
-
-/* ===== Help + Resilience Tool Visibility Update ===== */
-.help-card-v2{max-width:1120px;width:94vw;}
-.help-body-v2{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:12px !important;max-height:72vh;overflow:auto;}
-.help-section{border:1px solid #e2e8f0;border-radius:14px;background:#fff;padding:12px;}
-.help-section h4{margin:0 0 8px 0;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;font-weight:950;}
-.help-section ul,.help-section ol{margin:0 0 0 18px;padding:0;display:grid;gap:6px;line-height:1.35;}
-.help-section p{margin:6px 0;line-height:1.35;}
-.ops-resilience-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
-.ops-resilience-card{border:1px solid #dbeafe;background:#eff6ff;border-radius:12px;padding:10px;font-size:12.5px;line-height:1.35;}
-.ops-resilience-card b{display:block;color:#0f172a;margin-bottom:3px;}
-.ops-resilience-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
-.ops-resilience-actions .btn{font-size:12px;}
-@media(max-width:850px){.help-body-v2,.ops-resilience-grid{grid-template-columns:1fr !important;}}
-
 </style>
 </head>
 <body>
@@ -1870,62 +1854,29 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 <!-- Help modal -->
 <div class="modal" id="helpModal" aria-modal="true" role="dialog">
-  <div class="card help-card-v2">
+  <div class="card">
     <header>
-      <h3>Help & Command Guide</h3>
+      <h3>Help & Shortcuts</h3>
       <button id="helpClose" class="btn" type="button">Close</button>
     </header>
-    <div class="body help-body-v2">
-      <section class="help-section">
-        <h4>Primary workflow</h4>
-        <ol>
-          <li><b>Start in Leadership</b> for the copy-ready executive summary and ranked action path.</li>
-          <li><b>Use Gaps</b> to drill into uncovered stores by manager, region, and market cluster.</li>
-          <li><b>Use RTS Load</b> to validate workload/fringe risk before recommending a staffing or backup action.</li>
-          <li><b>Use Resilience Tools</b> for true backup logic, outage simulation, RTS scorecards, and regional executive summaries.</li>
-        </ol>
-      </section>
-      <section class="help-section">
-        <h4>New RTS resilience tools</h4>
-        <ul>
-          <li><b>True Backup RTS Logic:</b> a store is backup-protected only when it has a second active RTS within 75 miles.</li>
-          <li><b>RTS Outage Simulator:</b> select one RTS and see which primary stores shift to a backup RTS versus become stranded.</li>
-          <li><b>RTS Scorecards:</b> ranks every RTS by primary stores, no-backup risk, fringe stores, average miles, and recommended action.</li>
-          <li><b>Regional Executive Summaries:</b> ranks regions by uncovered gaps plus no-backup exposure for leadership planning.</li>
-        </ul>
-      </section>
-      <section class="help-section">
-        <h4>Map controls</h4>
-        <ul>
-          <li><b>Active RTS</b> drives coverage. Future RTS are display-only and do not reduce current gaps.</li>
-          <li><b>Radius rings</b> show the selected visual radius; coverage classification remains based on the 75-mile rule.</li>
-          <li><b>Stores within RTS radius</b> filters to stores covered by visible active RTS hubs.</li>
-          <li><b>Overlap</b> highlights stores with more than one RTS in range, useful for resiliency and backup visibility.</li>
-        </ul>
-      </section>
-      <section class="help-section">
-        <h4>Hub side panel</h4>
-        <ul>
-          <li><b>Workload</b> summarizes primary store volume, fringe distance, gap exposure, and dedicated overlay visibility.</li>
-          <li><b>Backup RTS availability</b> shows whether the hub has practical secondary support inside the 75-mile model.</li>
-          <li><b>Best backup/support RTS</b> lists nearby hubs that can cover this hub’s primary territory if needed.</li>
-        </ul>
-      </section>
-      <section class="help-section">
+    <div class="body">
+      <div>
         <h4>Keyboard</h4>
         <p><span class="kbd">Ctrl</span> / <span class="kbd">⌘</span> + <span class="kbd">K</span> — Focus search</p>
         <p><span class="kbd">↑</span> <span class="kbd">↓</span> + <span class="kbd">Enter</span> — Pick search result</p>
-        <p><span class="kbd">H</span> — Home map view</p>
-        <p><span class="kbd">F</span> — Focus side-panel search when a hub is open</p>
-      </section>
-      <section class="help-section">
-        <h4>Search tips</h4>
+        <p><span class="kbd">H</span> — Home (map only)</p>
+        <p><span class="kbd">F</span> — Focus side-panel search (when open)</p>
+      </div>
+      <div>
+        <h4>Tips</h4>
         <ul>
-          <li>Search by store number, city/state, manager, or RTS name.</li>
-          <li>Type <b>near Dallas</b> to jump to an area and suggest nearby stores.</li>
-          <li>Use <b>Views</b> to save/restore common leadership or operations setups.</li>
+          <li>Type <b>near</b> or <b>near Dallas</b> to jump the map and suggest nearby stores.</li>
+          <li>Use <b>Within hubs</b> to see only stores covered by visible hubs.</li>
+          <li>Pin hubs to compare coverage; <b>Overlap</b> highlights shared stores.</li>
+          <li>Side panel shows counts & metrics; click a store to zoom to it.</li>
+          <li>Use <b>Views</b> to save/restore your favorite setups.</li>
         </ul>
-      </section>
+      </div>
     </div>
   </div>
 </div>
@@ -4720,9 +4671,44 @@ function printSidepanelList() {
       <tbody>${htmlRows}</tbody>
     </table>
     <script>window.addEventListener('load',()=>{ setTimeout(()=>{ window.print(); }, 50); });<\/script>
-  </body></html>`);
-  win.document.close();
+  
+
+
+<style>
+/* ===== Immediate Performance + Clarity Pass ===== */
+#opsDrawer.ops-drawer{width:min(620px,94vw) !important;max-width:94vw !important;}
+#opsDrawer .ops-tabs{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #e5e7eb;padding:8px 10px;gap:7px;overflow-x:auto;scrollbar-width:none;}
+#opsDrawer .ops-tabs::-webkit-scrollbar{display:none;}
+#opsDrawer .ops-tab{font-size:12px;padding:6px 10px;white-space:nowrap;}
+#opsDrawer .ops-body{overflow:auto;overscroll-behavior:contain;}
+#opsDrawer .ops-card{margin-bottom:10px;}
+#opsDrawer .ops-table.ops-tight-table{font-size:11.5px;line-height:1.25;}
+#opsDrawer .ops-table.ops-tight-table th,#opsDrawer .ops-table.ops-tight-table td{padding:5px 5px;}
+.ops-blended-kpis-compact{grid-template-columns:1fr 1fr !important;}
+.ops-blended-kpis-compact .ops-blended-kpi{padding:8px;}
+.ops-blended-kpis-compact .ops-blended-kpi .val{font-size:18px;}
+.compact-popup{max-width:520px;min-width:340px;font-size:12.5px;}
+.compact-popup .store-popup-title{font-size:16px;}
+.compact-popup .store-popup-header{gap:8px;}
+.compact-popup .store-popup-delta{font-size:11px;padding:4px 8px;}
+.popup-section{border:1px solid #dbe3ea;border-radius:12px;background:#f8fafc;margin-top:9px;overflow:hidden;}
+.popup-section summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:900;padding:8px 10px;background:#fff;}
+.popup-section summary::-webkit-details-marker{display:none;}
+.popup-section summary::after{content:'▾';color:#64748b;font-size:12px;}
+.popup-section:not([open]) summary::after{content:'▸';}
+.popup-section summary span{font-size:11px;color:#64748b;font-weight:800;}
+.popup-section-body{padding:8px 10px;display:grid;gap:5px;}
+.compact-popup-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+.compact-owner-row{padding:6px 0;border-top:1px solid #e5e7eb;}
+.compact-owner-row:first-child{border-top:0;}
+.compact-note{font-size:12px;padding:8px;margin-top:9px;}
+@media(max-width:900px){#opsDrawer.ops-drawer{width:min(560px,96vw) !important;} .compact-popup-grid{grid-template-columns:1fr;} .compact-popup{min-width:300px;}}
+</style>
+
+</body></html>`);
+  w.document.close();
 }
+
 
   // Dataset badge revision helpers
   function getRevs(){ try{return JSON.parse(localStorage.getItem(REV_KEY)||'{}')}catch{ return {}; } }
@@ -8975,6 +8961,38 @@ const projectedCoveragePct = allStores.length
         <script>window.print()<\\/script>
       
 
+
+<style>
+/* ===== Immediate Performance + Clarity Pass ===== */
+#opsDrawer.ops-drawer{width:min(620px,94vw) !important;max-width:94vw !important;}
+#opsDrawer .ops-tabs{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #e5e7eb;padding:8px 10px;gap:7px;overflow-x:auto;scrollbar-width:none;}
+#opsDrawer .ops-tabs::-webkit-scrollbar{display:none;}
+#opsDrawer .ops-tab{font-size:12px;padding:6px 10px;white-space:nowrap;}
+#opsDrawer .ops-body{overflow:auto;overscroll-behavior:contain;}
+#opsDrawer .ops-card{margin-bottom:10px;}
+#opsDrawer .ops-table.ops-tight-table{font-size:11.5px;line-height:1.25;}
+#opsDrawer .ops-table.ops-tight-table th,#opsDrawer .ops-table.ops-tight-table td{padding:5px 5px;}
+.ops-blended-kpis-compact{grid-template-columns:1fr 1fr !important;}
+.ops-blended-kpis-compact .ops-blended-kpi{padding:8px;}
+.ops-blended-kpis-compact .ops-blended-kpi .val{font-size:18px;}
+.compact-popup{max-width:520px;min-width:340px;font-size:12.5px;}
+.compact-popup .store-popup-title{font-size:16px;}
+.compact-popup .store-popup-header{gap:8px;}
+.compact-popup .store-popup-delta{font-size:11px;padding:4px 8px;}
+.popup-section{border:1px solid #dbe3ea;border-radius:12px;background:#f8fafc;margin-top:9px;overflow:hidden;}
+.popup-section summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:900;padding:8px 10px;background:#fff;}
+.popup-section summary::-webkit-details-marker{display:none;}
+.popup-section summary::after{content:'▾';color:#64748b;font-size:12px;}
+.popup-section:not([open]) summary::after{content:'▸';}
+.popup-section summary span{font-size:11px;color:#64748b;font-weight:800;}
+.popup-section-body{padding:8px 10px;display:grid;gap:5px;}
+.compact-popup-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+.compact-owner-row{padding:6px 0;border-top:1px solid #e5e7eb;}
+.compact-owner-row:first-child{border-top:0;}
+.compact-note{font-size:12px;padding:8px;margin-top:9px;}
+@media(max-width:900px){#opsDrawer.ops-drawer{width:min(560px,96vw) !important;} .compact-popup-grid{grid-template-columns:1fr;} .compact-popup{min-width:300px;}}
+</style>
+
 </body></html>`);
     win.document.close();
   };
@@ -12122,884 +12140,8 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 
 
 
-
-
-/* ===== Missing Enhancement Package: True Backup RTS + Outage Simulator + RTS Scorecards + Regional Executive Summaries ===== */
-(function installRtsResiliencePackage(){
-  if (window.__owRtsResiliencePackageInstalled) return;
-  window.__owRtsResiliencePackageInstalled = true;
-
-  const RADIUS_MI = CLASSIFY_RADIUS || 75;
-  let lastScorecards = [];
-  let lastOutageRows = [];
-  let lastRegionalSummaryRows = [];
-
-  function activeRtsHubs(){
-    return [...(premiumConfirmed || []), ...(acostaHubs || [])].filter(h => h && h.coords && Number.isFinite(Number(h.coords[0])) && Number.isFinite(Number(h.coords[1])));
-  }
-
-  function hubNameSafe(h){
-    try { return hubDisplay(h); } catch(e) { return h?.fullName || h?.name || 'RTS'; }
-  }
-
-  function storeKeySafe(s){ return String(s?.storeNumberStr ?? s?.storeNumber ?? s?.StoreNumber ?? '').trim(); }
-
-  function coreRegionalForStore(s){
-    const paths = Array.isArray(s?.managerPaths) ? s.managerPaths : [];
-    const core = paths.find(p => {
-      try { return pathMatchesCoreTeam(p); } catch(e) { return false; }
-    });
-    return String(core?.regionalManager || s?.regionalManager || 'Unassigned RM').trim() || 'Unassigned RM';
-  }
-
-  function coreAreaForStore(s){
-    const paths = Array.isArray(s?.managerPaths) ? s.managerPaths : [];
-    const core = paths.find(p => {
-      try { return pathMatchesCoreTeam(p); } catch(e) { return false; }
-    });
-    return String(core?.areaManager || s?.areaManager || 'Unassigned AM').trim() || 'Unassigned AM';
-  }
-
-  function sortedRtsCoverageForStore(s, excludeHubId=''){
-    const out = activeRtsHubs()
-      .filter(h => !excludeHubId || h.id !== excludeHubId)
-      .map(h => ({ hub:h, miles:distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) }))
-      .filter(x => Number.isFinite(x.miles) && x.miles <= RADIUS_MI)
-      .sort((a,b) => a.miles - b.miles);
-    return out;
-  }
-
-  function backupProfileForStore(s, excludeHubId=''){
-    const hits = sortedRtsCoverageForStore(s, excludeHubId);
-    return { primary:hits[0] || null, backup:hits[1] || null, hits };
-  }
-
-  function buildTrueBackupStoreRows(sourceStores){
-    return (sourceStores || allStores || []).filter(s => Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lng))).map(s => {
-      const profile = backupProfileForStore(s);
-      return {
-        store:s,
-        storeNumber:storeKeySafe(s),
-        city:s.city || '',
-        state:s.state || '',
-        rm:coreRegionalForStore(s),
-        am:coreAreaForStore(s),
-        primaryHub:profile.primary?.hub || null,
-        primaryMiles:profile.primary?.miles ?? null,
-        backupHub:profile.backup?.hub || null,
-        backupMiles:profile.backup?.miles ?? null,
-        rtsCount:profile.hits.length,
-        covered:!!profile.primary,
-        backupCovered:!!profile.backup,
-        noBackupRisk:!!profile.primary && !profile.backup
-      };
-    });
-  }
-
-  function buildHubScorecard(h){
-    const rows = buildTrueBackupStoreRows(allStores);
-    const primaryRows = rows.filter(r => r.primaryHub?.id === h.id);
-    const withinRows = (allStores || []).filter(s => distMiles(h.coords[0], h.coords[1], s.lat, s.lng) <= RADIUS_MI);
-    const noBackup = primaryRows.filter(r => !r.backupCovered);
-    const protectedRows = primaryRows.filter(r => r.backupCovered);
-    const fringe = primaryRows.filter(r => Number(r.primaryMiles) >= 60);
-    const avg = primaryRows.length ? primaryRows.reduce((a,r)=>a+Number(r.primaryMiles || 0),0)/primaryRows.length : 0;
-    const max = primaryRows.length ? Math.max(...primaryRows.map(r => Number(r.primaryMiles || 0))) : 0;
-    const backupPct = primaryRows.length ? Math.round(protectedRows.length * 1000 / primaryRows.length) / 10 : 0;
-    const riskPct = primaryRows.length ? Math.round(noBackup.length * 1000 / primaryRows.length) / 10 : 0;
-    const nearbySupport = activeRtsHubs().filter(x => x.id !== h.id).map(other => {
-      const shared = primaryRows.filter(r => distMiles(r.store.lat, r.store.lng, other.coords[0], other.coords[1]) <= RADIUS_MI).length;
-      const hubMiles = distMiles(h.coords[0], h.coords[1], other.coords[0], other.coords[1]);
-      return { hub:other, shared, hubMiles };
-    }).filter(x => x.shared > 0).sort((a,b)=>b.shared-a.shared || a.hubMiles-b.hubMiles).slice(0,3);
-    let tier = 'Stable';
-    let cls = 'stable';
-    if (noBackup.length >= 40 || riskPct >= 70 || primaryRows.length >= 110) { tier = 'Critical'; cls = 'critical'; }
-    else if (noBackup.length >= 25 || riskPct >= 50 || primaryRows.length >= 85) { tier = 'High'; cls = 'high'; }
-    else if (noBackup.length >= 10 || riskPct >= 30 || primaryRows.length >= 60) { tier = 'Watch'; cls = 'watch'; }
-    const action = tier === 'Critical'
-      ? 'Assign backup coverage plan now; validate whether nearby RTS can temporarily absorb stranded stores.'
-      : tier === 'High'
-        ? 'Monitor as elevated risk; pre-identify backup RTS for high-distance and no-backup stores.'
-        : tier === 'Watch'
-          ? 'Keep in review; verify backup support for fringe stores during PTO or vacancy windows.'
-          : 'No immediate action; keep as normal monitoring.';
-    return { hub:h, primaryRows, withinRows, noBackup, protectedRows, fringe, avg, max, backupPct, riskPct, nearbySupport, tier, cls, action };
-  }
-
-  function pct(n,d){ return d ? `${(Math.round((n/d)*1000)/10).toFixed(1)}%` : '0.0%'; }
-
-  function kpiBox(label, value, sub=''){
-    return `<div class="res-kpi"><div class="lbl">${escape(label)}</div><div class="val">${escape(value)}</div>${sub ? `<div class="sub">${escape(sub)}</div>` : ''}</div>`;
-  }
-
-  function ensureResilienceShell(){
-    if (!document.getElementById('rtsResilienceModals')) {
-      document.body.insertAdjacentHTML('beforeend', `
-        <div id="rtsResilienceModals">
-          <div class="modal" id="rtsOutageModal" aria-modal="true" role="dialog">
-            <div class="card rts-res-card"><header><h3>RTS Outage Simulator</h3><button id="rtsOutageClose" class="btn" type="button">Close</button></header>
-              <div class="body" style="grid-template-columns:1fr;">
-                <div class="res-toolbar"><label class="toggle">Simulate RTS unavailable <select id="rtsOutageSelect"></select></label><button id="rtsOutageRun" class="btn" type="button">Run Simulation</button><button id="rtsOutageExport" class="btn" type="button">Export CSV</button></div>
-                <div class="res-note"><b>True outage logic:</b> a store is stranded only when the selected RTS is its primary/nearest active RTS and there is no second active RTS within 75 miles. Stores with a backup RTS remain covered but are flagged as shifted workload.</div>
-                <div id="rtsOutageResults" class="res-results"></div>
-              </div>
-            </div>
-          </div>
-          <div class="modal" id="rtsScorecardModal" aria-modal="true" role="dialog">
-            <div class="card rts-res-card"><header><h3>RTS Scorecards</h3><button id="rtsScorecardClose" class="btn" type="button">Close</button></header>
-              <div class="body" style="grid-template-columns:1fr;">
-                <div class="res-toolbar"><button id="rtsScorecardRefresh" class="btn" type="button">Refresh Scorecards</button><button id="rtsScorecardExport" class="btn" type="button">Export CSV</button></div>
-                <div class="res-note"><b>Scorecard logic:</b> primary stores are assigned to their nearest active RTS. Backup protection requires a second active RTS inside 75 miles.</div>
-                <div id="rtsScorecardResults" class="res-results"></div>
-              </div>
-            </div>
-          </div>
-          <div class="modal" id="regionalExecModal" aria-modal="true" role="dialog">
-            <div class="card rts-res-card"><header><h3>Regional Executive Summaries</h3><button id="regionalExecClose" class="btn" type="button">Close</button></header>
-              <div class="body" style="grid-template-columns:1fr;">
-                <div class="res-toolbar"><label class="toggle"><input type="checkbox" id="regionalExecUseFilters"> Use current filters</label><button id="regionalExecRefresh" class="btn" type="button">Refresh Summary</button><button id="regionalExecExport" class="btn" type="button">Export CSV</button></div>
-                <div class="res-note"><b>Leadership use:</b> regions are ranked by uncovered stores plus no-backup exposure, then translated into a clear action path.</div>
-                <div id="regionalExecResults" class="res-results"></div>
-              </div>
-            </div>
-          </div>
-        </div>`);
-    }
-    const menu = document.querySelector('#analysisDrop .dropdown-menu');
-    if (menu && !document.getElementById('rtsScorecardBtn')) {
-      const anchor = document.getElementById('coverageBtn') || menu.lastElementChild;
-      const html = `
-        <button id="rtsScorecardBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">RTS Scorecards</button>
-        <button id="rtsOutageBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">RTS Outage Simulator</button>
-        <button id="regionalExecBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Regional Executive Summaries</button>`;
-      anchor.insertAdjacentHTML('afterend', html);
-    }
-  }
-
-  function openModal(idv){ ensureResilienceShell(); document.getElementById(idv)?.classList.add('show'); }
-  function closeModal(idv){ document.getElementById(idv)?.classList.remove('show'); }
-
-  function renderOutageSelector(selectedId=''){
-    ensureResilienceShell();
-    const select = document.getElementById('rtsOutageSelect');
-    if (!select) return;
-    const hubs = activeRtsHubs().sort((a,b)=>hubNameSafe(a).localeCompare(hubNameSafe(b)));
-    select.innerHTML = hubs.map(h => `<option value="${escape(h.id)}" ${h.id === selectedId ? 'selected' : ''}>${escape(hubNameSafe(h))}</option>`).join('');
-  }
-
-  function renderOutageSimulation(){
-    ensureResilienceShell();
-    const select = document.getElementById('rtsOutageSelect');
-    const h = activeRtsHubs().find(x => x.id === select?.value) || activeRtsHubs()[0];
-    const out = document.getElementById('rtsOutageResults');
-    if (!h || !out) { if(out) out.innerHTML = '<div class="res-empty">No active RTS hubs available.</div>'; return; }
-    renderOutageSelector(h.id);
-    const rows = buildTrueBackupStoreRows(allStores);
-    const affected = rows.filter(r => r.primaryHub?.id === h.id);
-    const shifted = affected.filter(r => backupProfileForStore(r.store, h.id).primary);
-    const stranded = affected.filter(r => !backupProfileForStore(r.store, h.id).primary);
-    const coveredNow = rows.filter(r => r.covered).length;
-    const coveredAfter = coveredNow - stranded.length;
-    const states = groupCount(stranded, r => r.state || 'NA').slice(0,8);
-    const managers = groupCount(stranded, r => r.am || 'Unassigned AM').slice(0,8);
-    lastOutageRows = affected.map(r => {
-      const fallback = backupProfileForStore(r.store, h.id).primary;
-      return { ...r, outageStatus:fallback ? 'Shifted to backup RTS' : 'Stranded / uncovered', fallbackHub:fallback?.hub || null, fallbackMiles:fallback?.miles ?? null };
-    });
-    out.innerHTML = `
-      <div class="res-kpi-grid">
-        ${kpiBox('Primary Store Load', affected.length.toLocaleString(), hubNameSafe(h))}
-        ${kpiBox('Shifted to Backup', shifted.length.toLocaleString(), pct(shifted.length, affected.length))}
-        ${kpiBox('Stranded Stores', stranded.length.toLocaleString(), pct(stranded.length, affected.length))}
-        ${kpiBox('Coverage After Outage', pct(coveredAfter, allStores.length), `${coveredAfter.toLocaleString()} of ${allStores.length.toLocaleString()} stores`)}
-      </div>
-      <div class="res-action ${stranded.length ? 'critical' : 'stable'}"><b>Action path:</b> ${stranded.length ? `Pre-assign backup support for ${stranded.length.toLocaleString()} stranded stores before PTO/vacancy, starting with the highest-volume states and AMs below.` : 'This RTS territory has backup coverage for all primary stores inside the 75-mile model.'}</div>
-      <div class="res-two-col">
-        <div><h4>Top stranded states</h4>${miniGroupTable(states, 'State')}</div>
-        <div><h4>Top stranded AMs</h4>${miniGroupTable(managers, 'Area Manager')}</div>
-      </div>
-      <h4>Store impact detail</h4>
-      ${resTable(lastOutageRows.slice(0,300), [
-        ['Store', r=>`#${escape(r.storeNumber)} — ${escape(r.city)}, ${escape(r.state)}`],
-        ['Current Primary', r=>escape(hubNameSafe(r.primaryHub))],
-        ['Backup Result', r=>escape(r.outageStatus)],
-        ['Fallback RTS', r=>r.fallbackHub ? `${escape(hubNameSafe(r.fallbackHub))} (${Number(r.fallbackMiles).toFixed(1)} mi)` : '—'],
-        ['AM', r=>escape(r.am)]
-      ])}`;
-  }
-
-  function renderScorecards(){
-    ensureResilienceShell();
-    const out = document.getElementById('rtsScorecardResults');
-    if (!out) return;
-    lastScorecards = activeRtsHubs().map(buildHubScorecard).sort((a,b)=> b.noBackup.length - a.noBackup.length || b.primaryRows.length - a.primaryRows.length);
-    const totalPrimary = lastScorecards.reduce((a,x)=>a+x.primaryRows.length,0);
-    const totalRisk = lastScorecards.reduce((a,x)=>a+x.noBackup.length,0);
-    const critical = lastScorecards.filter(x=>x.cls === 'critical').length;
-    out.innerHTML = `
-      <div class="res-kpi-grid">
-        ${kpiBox('Active RTS', lastScorecards.length.toLocaleString())}
-        ${kpiBox('Assigned Primary Stores', totalPrimary.toLocaleString())}
-        ${kpiBox('No-Backup Store Risk', totalRisk.toLocaleString(), pct(totalRisk,totalPrimary))}
-        ${kpiBox('Critical RTS Territories', critical.toLocaleString())}
-      </div>
-      <div class="res-action"><b>Leadership read:</b> prioritize RTS territories with high primary load and low backup protection. Click Open Hub to drill into the existing RTS side panel.</div>
-      ${resTable(lastScorecards, [
-        ['RTS', x=>`<button class="res-link" data-open-hub="${escape(x.hub.id)}">${escape(hubNameSafe(x.hub))}</button>`],
-        ['Tier', x=>`<span class="res-tier ${x.cls}">${escape(x.tier)}</span>`],
-        ['Primary Stores', x=>x.primaryRows.length.toLocaleString()],
-        ['No Backup', x=>`${x.noBackup.length.toLocaleString()} (${x.riskPct.toFixed(1)}%)`],
-        ['Backup Protected', x=>`${x.protectedRows.length.toLocaleString()} (${x.backupPct.toFixed(1)}%)`],
-        ['Fringe 60–75', x=>x.fringe.length.toLocaleString()],
-        ['Avg / Max Mi', x=>`${x.avg.toFixed(1)} / ${x.max.toFixed(1)}`],
-        ['Recommended Action', x=>escape(x.action)]
-      ])}`;
-  }
-
-  function renderRegionalExecSummaries(){
-    ensureResilienceShell();
-    const out = document.getElementById('regionalExecResults');
-    const useFilters = document.getElementById('regionalExecUseFilters')?.checked;
-    const source = useFilters ? (filteredStores || []) : (allStores || []);
-    const rows = buildTrueBackupStoreRows(source);
-    const groups = new Map();
-    rows.forEach(r => {
-      const key = r.rm || 'Unassigned RM';
-      if (!groups.has(key)) groups.set(key, { region:key, total:0, covered:0, gaps:0, noBackup:0, ams:new Set(), primaryHubCounts:new Map(), stores:[] });
-      const g = groups.get(key);
-      g.total++; g.stores.push(r); g.ams.add(r.am || 'Unassigned AM');
-      if (r.covered) g.covered++; else g.gaps++;
-      if (r.noBackupRisk) g.noBackup++;
-      if (r.primaryHub) g.primaryHubCounts.set(r.primaryHub.id, (g.primaryHubCounts.get(r.primaryHub.id) || 0) + 1);
-    });
-    lastRegionalSummaryRows = Array.from(groups.values()).map(g => {
-      const topHubId = Array.from(g.primaryHubCounts.entries()).sort((a,b)=>b[1]-a[1])[0]?.[0];
-      const topHub = activeRtsHubs().find(h => h.id === topHubId);
-      const gapPct = g.total ? Math.round(g.gaps * 1000 / g.total) / 10 : 0;
-      const riskPct = g.covered ? Math.round(g.noBackup * 1000 / g.covered) / 10 : 0;
-      let tier='Stable', cls='stable', action='Maintain current coverage posture; monitor normal changes.';
-      if (g.gaps >= 75 || g.noBackup >= 75 || gapPct >= 40) { tier='Priority 1'; cls='critical'; action='Immediate leadership review: validate gap clusters and pre-assign backup RTS coverage for no-backup stores.'; }
-      else if (g.gaps >= 35 || g.noBackup >= 35 || gapPct >= 25) { tier='Priority 2'; cls='high'; action='Build near-term mitigation: targeted backup assignments and next-best RTS placement review.'; }
-      else if (g.gaps >= 15 || g.noBackup >= 15 || riskPct >= 35) { tier='Priority 3'; cls='watch'; action='Monitor and prepare contingency support for highest-risk AM territories.'; }
-      return { ...g, gapPct, riskPct, topHub, tier, cls, action };
-    }).sort((a,b)=> (b.gaps + b.noBackup) - (a.gaps + a.noBackup));
-    const total = lastRegionalSummaryRows.reduce((a,x)=>a+x.total,0);
-    const gaps = lastRegionalSummaryRows.reduce((a,x)=>a+x.gaps,0);
-    const noBackup = lastRegionalSummaryRows.reduce((a,x)=>a+x.noBackup,0);
-    const covered = lastRegionalSummaryRows.reduce((a,x)=>a+x.covered,0);
-    out.innerHTML = `
-      <div class="res-kpi-grid">
-        ${kpiBox('Scope', useFilters ? 'Filtered' : 'National', `${total.toLocaleString()} stores`)}
-        ${kpiBox('Covered', pct(covered,total), `${covered.toLocaleString()} stores`)}
-        ${kpiBox('Gap Stores', gaps.toLocaleString(), pct(gaps,total))}
-        ${kpiBox('No-Backup Risk', noBackup.toLocaleString(), pct(noBackup,covered))}
-      </div>
-      <div class="res-action"><b>Executive action path:</b> work Priority 1 regions first, then Priority 2 regions with the largest combined gap + no-backup exposure. Use RTS Scorecards to identify the hub-level support plan.</div>
-      ${resTable(lastRegionalSummaryRows, [
-        ['Region / RM', x=>escape(x.region)],
-        ['Priority', x=>`<span class="res-tier ${x.cls}">${escape(x.tier)}</span>`],
-        ['Stores', x=>x.total.toLocaleString()],
-        ['Covered', x=>`${x.covered.toLocaleString()} (${pct(x.covered,x.total)})`],
-        ['Gaps', x=>`${x.gaps.toLocaleString()} (${x.gapPct.toFixed(1)}%)`],
-        ['No Backup', x=>`${x.noBackup.toLocaleString()} (${x.riskPct.toFixed(1)}%)`],
-        ['AMs', x=>x.ams.size.toLocaleString()],
-        ['Primary RTS Anchor', x=>x.topHub ? `<button class="res-link" data-open-hub="${escape(x.topHub.id)}">${escape(hubNameSafe(x.topHub))}</button>` : '—'],
-        ['Recommended Action', x=>escape(x.action)]
-      ])}`;
-  }
-
-  function groupCount(rows, keyFn){
-    const m = new Map();
-    rows.forEach(r => { const k = String(keyFn(r) || 'Unassigned'); m.set(k, (m.get(k) || 0) + 1); });
-    return Array.from(m.entries()).map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count);
-  }
-
-  function miniGroupTable(rows, label){
-    if (!rows.length) return '<div class="res-empty">No stranded stores in this slice.</div>';
-    return `<table class="res-table mini"><thead><tr><th>${escape(label)}</th><th>Stores</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escape(r.name)}</td><td class="num">${r.count.toLocaleString()}</td></tr>`).join('')}</tbody></table>`;
-  }
-
-  function resTable(rows, cols){
-    if (!rows.length) return '<div class="res-empty">No rows to show.</div>';
-    return `<table class="res-table"><thead><tr>${cols.map(c=>`<th>${escape(c[0])}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${typeof c[1] === 'function' ? c[1](r) : ''}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
-  }
-
-  function exportCsv(filename, rows, columns){
-    if (!rows?.length) { alert('No rows to export yet.'); return; }
-    const csv = [columns.map(c=>`"${String(c[0]).replace(/"/g,'""')}"`).join(',')].concat(rows.map(r => columns.map(c => {
-      const v = typeof c[1] === 'function' ? c[1](r) : r[c[1]];
-      return `"${String(v ?? '').replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/"/g,'""')}"`;
-    }).join(','))).join('\n');
-    const blob = new Blob([csv], {type:'text/csv'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
-  }
-
-  function enhanceHubPanelWithTrueBackup(){
-    const original = renderSidepanelMeta;
-    renderSidepanelMeta = function(){
-      original.apply(this, arguments);
-      if (!spHub || !spMeta) return;
-      const score = buildHubScorecard(spHub);
-      const topBackups = score.nearbySupport.map(x => `<div class="true-backup-row"><div><b>${escape(hubNameSafe(x.hub))}</b><span>${x.shared.toLocaleString()} stores could back up this RTS</span></div><em>${x.hubMiles.toFixed(0)} mi hub-to-hub</em></div>`).join('');
-      spMeta.insertAdjacentHTML('beforeend', `
-        <div class="true-backup-panel">
-          <div class="true-backup-title">True Backup RTS Logic</div>
-          <div class="true-backup-grid">
-            <div><span>Primary Stores</span><b>${score.primaryRows.length.toLocaleString()}</b></div>
-            <div><span>Backup Protected</span><b>${score.protectedRows.length.toLocaleString()} (${score.backupPct.toFixed(1)}%)</b></div>
-            <div><span>No-Backup Risk</span><b>${score.noBackup.length.toLocaleString()} (${score.riskPct.toFixed(1)}%)</b></div>
-            <div><span>Scorecard Tier</span><b>${escape(score.tier)}</b></div>
-          </div>
-          <div class="true-backup-action"><b>Action:</b> ${escape(score.action)}</div>
-          <div class="true-backup-title small">Best backup/support RTS</div>
-          ${topBackups || '<div class="true-backup-empty">No alternate active RTS overlaps this primary territory inside 75 miles.</div>'}
-        </div>`);
-    };
-  }
-
-  function wireResilienceEvents(){
-    document.addEventListener('click', function(e){
-      const btn = e.target.closest('button');
-      if (!btn) return;
-      const bid = btn.id || '';
-      if (bid === 'rtsOutageBtn') { e.preventDefault(); e.stopPropagation(); ensureResilienceShell(); renderOutageSelector(); openModal('rtsOutageModal'); renderOutageSimulation(); }
-      if (bid === 'rtsScorecardBtn') { e.preventDefault(); e.stopPropagation(); openModal('rtsScorecardModal'); renderScorecards(); }
-      if (bid === 'regionalExecBtn') { e.preventDefault(); e.stopPropagation(); openModal('regionalExecModal'); renderRegionalExecSummaries(); }
-      if (bid === 'rtsOutageClose') closeModal('rtsOutageModal');
-      if (bid === 'rtsScorecardClose') closeModal('rtsScorecardModal');
-      if (bid === 'regionalExecClose') closeModal('regionalExecModal');
-      if (bid === 'rtsOutageRun') renderOutageSimulation();
-      if (bid === 'rtsScorecardRefresh') renderScorecards();
-      if (bid === 'regionalExecRefresh') renderRegionalExecSummaries();
-      if (bid === 'rtsOutageExport') exportCsv('rts_outage_simulation.csv', lastOutageRows, [['Store',r=>r.storeNumber],['City',r=>r.city],['State',r=>r.state],['AM',r=>r.am],['Primary RTS',r=>hubNameSafe(r.primaryHub)],['Outage Status',r=>r.outageStatus],['Fallback RTS',r=>r.fallbackHub ? hubNameSafe(r.fallbackHub) : ''],['Fallback Miles',r=>r.fallbackMiles == null ? '' : Number(r.fallbackMiles).toFixed(1)]]);
-      if (bid === 'rtsScorecardExport') exportCsv('rts_scorecards.csv', lastScorecards, [['RTS',x=>hubNameSafe(x.hub)],['Tier',x=>x.tier],['Primary Stores',x=>x.primaryRows.length],['No Backup',x=>x.noBackup.length],['Backup Protected',x=>x.protectedRows.length],['Fringe 60-75',x=>x.fringe.length],['Avg Miles',x=>x.avg.toFixed(1)],['Max Miles',x=>x.max.toFixed(1)],['Action',x=>x.action]]);
-      if (bid === 'regionalExecExport') exportCsv('regional_executive_summaries.csv', lastRegionalSummaryRows, [['Region',x=>x.region],['Priority',x=>x.tier],['Stores',x=>x.total],['Covered',x=>x.covered],['Gaps',x=>x.gaps],['No Backup',x=>x.noBackup],['AM Count',x=>x.ams.size],['Primary RTS Anchor',x=>x.topHub ? hubNameSafe(x.topHub) : ''],['Recommended Action',x=>x.action]]);
-      const openHubId = btn.getAttribute('data-open-hub');
-      if (openHubId) {
-        e.preventDefault(); e.stopPropagation();
-        const hub = activeRtsHubs().find(h => h.id === openHubId);
-        if (hub) {
-          document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
-          try { document.getElementById('opsDrawer')?.classList.remove('show'); } catch(err) {}
-          openSidepanel(hub);
-        }
-      }
-    }, true);
-    document.addEventListener('change', function(e){
-      if (e.target?.id === 'rtsOutageSelect') renderOutageSimulation();
-      if (e.target?.id === 'regionalExecUseFilters') renderRegionalExecSummaries();
-    });
-  }
-
-  ensureResilienceShell();
-  enhanceHubPanelWithTrueBackup();
-  wireResilienceEvents();
-  window.OW_RTS_Resilience = { buildTrueBackupStoreRows, buildHubScorecard, renderScorecards, renderOutageSimulation, renderRegionalExecSummaries };
-})();
-
 // Startup performance guard: do not pre-render Transition Readiness on page load.
 // It is rendered by Ops Intel / Leadership / Delta actions when needed.
-
-
-/* ===== FINAL OPS INTEL STABILIZATION PATCH v4 =====
-   Keeps Operations / Leadership drawer self-contained and prevents the
-   permanent "Drawer restored" fallback or raw script text issue. */
-(function(){
-  if (window.__OW_OPS_STABLE_PATCH_V4) return;
-  window.__OW_OPS_STABLE_PATCH_V4 = true;
-
-  const PATCH_STAMP = '12:18 PM';
-
-  function owEsc(v){
-    return String(v ?? '').replace(/[&<>"']/g, ch => ({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-    }[ch]));
-  }
-  function owPct(n,d){ return d ? `${Math.round((n/d)*1000)/10}%` : '0%'; }
-  function owNum(n){ return Number(n || 0).toLocaleString(); }
-  function owRows(){
-    const rows = (Array.isArray(filteredStores) && filteredStores.length) ? filteredStores : (Array.isArray(allStores) ? allStores : []);
-    return rows.filter(s => s && Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lng)));
-  }
-  function owAllRows(){
-    return (Array.isArray(allStores) ? allStores : []).filter(s => s && Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lng)));
-  }
-  function owHubs(){
-    return [
-      ...((Array.isArray(premiumConfirmed) ? premiumConfirmed : [])),
-      ...((Array.isArray(acostaHubs) ? acostaHubs : []))
-    ].filter(h => h && Array.isArray(h.coords) && Number.isFinite(Number(h.coords[0])) && Number.isFinite(Number(h.coords[1])));
-  }
-  function owGap(s){ return String(s?.coverageType || '') === 'Uncovered'; }
-  function owManager(s){
-    const direct = String(s?.areaManager || '').trim();
-    if (direct) return direct;
-    const paths = Array.isArray(s?.managerPaths) ? s.managerPaths : [];
-    const core = paths.find(p => {
-      try { return typeof pathMatchesCoreTeam === 'function' ? pathMatchesCoreTeam(p) : true; }
-      catch(e){ return true; }
-    });
-    return String(core?.areaManager || core?.AreaManager || core?.am || 'Unassigned / Unknown').trim() || 'Unassigned / Unknown';
-  }
-  function owRegion(s){
-    const direct = String(s?.regionalManager || '').trim();
-    if (direct) return direct;
-    const paths = Array.isArray(s?.managerPaths) ? s.managerPaths : [];
-    const core = paths.find(p => {
-      try { return typeof pathMatchesCoreTeam === 'function' ? pathMatchesCoreTeam(p) : true; }
-      catch(e){ return true; }
-    });
-    return String(core?.regionalManager || core?.RegionalManager || core?.rm || 'Unassigned / Unknown').trim() || 'Unassigned / Unknown';
-  }
-  function owMarket(s){ return [s?.city, s?.state].filter(Boolean).join(', ') || 'Unknown market'; }
-  function owHubName(h){
-    try { if (typeof hubDisplay === 'function') return hubDisplay(h); } catch(e){}
-    return h?.fullName || h?.name || [h?.city,h?.state].filter(Boolean).join(', ') || 'RTS';
-  }
-  function owMiles(a,b,c,d){
-    try { return distMiles(a,b,c,d); }
-    catch(e){
-      const R=3958.8, toRad=x=>Number(x)*Math.PI/180;
-      const dLat=toRad(c-a), dLon=toRad(d-b);
-      const la1=toRad(a), la2=toRad(c);
-      const x=Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;
-      return 2*R*Math.asin(Math.sqrt(x));
-    }
-  }
-  function owNearest(s, predicate){
-    let best = null;
-    owHubs().filter(predicate || (()=>true)).forEach(h => {
-      const m = owMiles(Number(s.lat), Number(s.lng), Number(h.coords[0]), Number(h.coords[1]));
-      if (!best || m < best.miles) best = { hub:h, miles:m };
-    });
-    return best;
-  }
-  function owHubsInRange(s, radius=75){
-    return owHubs().map(h => ({hub:h, miles:owMiles(Number(s.lat), Number(s.lng), Number(h.coords[0]), Number(h.coords[1]))}))
-      .filter(x => x.miles <= radius).sort((a,b)=>a.miles-b.miles);
-  }
-  function owDedicatedTeams(s){
-    const paths = Array.isArray(s?.managerPaths) ? s.managerPaths : [];
-    const teams = new Set();
-    paths.forEach(p => {
-      let t = '';
-      try {
-        const typ = typeof getTeamType === 'function' ? getTeamType(p) : '';
-        t = typ === 'unilever' ? 'Unilever' : typ === 'pg' ? 'P&G' : typ === 'tyson' ? 'Tyson' : '';
-      } catch(e){}
-      const text = String([p?.teamName,p?.team,p?.managementGroupName].filter(Boolean).join(' ')).toLowerCase();
-      if (!t && text.includes('unilever')) t = 'Unilever';
-      if (!t && (text.includes('p&g') || text.includes('p and g'))) t = 'P&G';
-      if (!t && text.includes('tyson')) t = 'Tyson';
-      if (t) teams.add(t);
-    });
-    return [...teams];
-  }
-  function owGroup(rows, keyFn){
-    const m = new Map();
-    rows.forEach(s => {
-      const key = keyFn(s) || 'Unassigned / Unknown';
-      const cur = m.get(key) || { name:key, total:0, gaps:0, covered:0, dedicated:0, stores:[] };
-      cur.total++;
-      if (owGap(s)) cur.gaps++; else cur.covered++;
-      if (owDedicatedTeams(s).length) cur.dedicated++;
-      cur.stores.push(s);
-      m.set(key, cur);
-    });
-    return [...m.values()].sort((a,b)=>b.gaps-a.gaps || b.total-a.total || a.name.localeCompare(b.name));
-  }
-  function owHubLoadRows(rows){
-    const by = new Map();
-    owHubs().forEach(h => by.set(h.id || owHubName(h), {
-      hub:h, name:owHubName(h), primary:0, fringe:0, noBackup:0, dedicated:0, avgMiles:0, milesTotal:0, stores:[]
-    }));
-    rows.forEach(s => {
-      const inRange = owHubsInRange(s, 75);
-      if (!inRange.length) return;
-      const first = inRange[0];
-      const key = first.hub.id || owHubName(first.hub);
-      const cur = by.get(key);
-      if (!cur) return;
-      cur.primary++;
-      cur.milesTotal += first.miles;
-      if (first.miles >= 60) cur.fringe++;
-      if (inRange.length < 2) cur.noBackup++;
-      if (owDedicatedTeams(s).length) cur.dedicated++;
-      cur.stores.push(s);
-    });
-    return [...by.values()].map(r => ({
-      ...r,
-      avgMiles: r.primary ? r.milesTotal / r.primary : 0,
-      loadLevel: r.primary >= 90 || r.noBackup >= 65 ? 'critical' : r.primary >= 70 || r.fringe >= 25 ? 'high' : r.primary >= 45 ? 'watch' : 'stable'
-    })).sort((a,b)=>b.primary-a.primary || b.noBackup-a.noBackup || a.name.localeCompare(b.name));
-  }
-  function owApplyManagerFilter(manager){
-    let matched = false;
-    try {
-      if (typeof opsSetFilteredManager === 'function') matched = !!opsSetFilteredManager(manager);
-    } catch(e){}
-    if (!matched) {
-      const amSel = document.getElementById('amFilter');
-      if (amSel) {
-        Array.from(amSel.options).forEach(o => { o.selected = (o.value === manager || o.textContent === manager); });
-        matched = true;
-      }
-    }
-    try { lastFilterChanged = 'opsStableManager'; } catch(e){}
-    try { runFilter(); renderChips(); saveState(); updateEnhancedUi?.(); } catch(e){}
-    try { fitToResults?.(); } catch(e){}
-    return matched;
-  }
-  function owOpenHub(h){
-    closeOpsDrawer();
-    setTimeout(() => {
-      try { openSidepanel?.(h); } catch(e){}
-      try { map?.panInside(h.coords, { paddingTopLeft:[20,20], paddingBottomRight:[430,20] }); } catch(e){}
-    }, 40);
-  }
-
-  function injectOpsStyle(){
-    if (document.getElementById('owOpsStableStyle')) return;
-    const css = `
-      #opsDrawer.ow-ops-stable{position:absolute;top:0;right:0;bottom:0;width:min(680px,94vw)!important;max-width:94vw!important;background:#fff;border-left:1px solid #e5e7eb;box-shadow:-12px 0 32px rgba(15,23,42,.18);z-index:8500!important;display:none!important;flex-direction:column;overflow:hidden;}
-      #opsDrawer.ow-ops-stable.show{display:flex!important;}
-      #opsDrawer.ow-ops-stable .ow-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #e5e7eb;background:#fff;}
-      #opsDrawer.ow-ops-stable .ow-head h3{margin:0;font-size:18px;line-height:1.15;flex:1;}
-      #opsDrawer.ow-ops-stable .ow-stamp{font-size:12px;color:#64748b;white-space:nowrap;}
-      #opsDrawer.ow-ops-stable .ow-close,#opsDrawer.ow-ops-stable .ow-refresh{border:1px solid #cbd5e1;background:#fff;border-radius:10px;padding:7px 10px;font-weight:900;cursor:pointer;}
-      #opsDrawer.ow-ops-stable .ow-tabs{display:flex;gap:7px;padding:9px 12px;border-bottom:1px solid #e5e7eb;background:#f8fafc;overflow:auto;scrollbar-width:none;}
-      #opsDrawer.ow-ops-stable .ow-tab{border:1px solid #cbd5e1;background:#fff;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;white-space:nowrap;cursor:pointer;}
-      #opsDrawer.ow-ops-stable .ow-tab.active{background:#111827;color:#fff;border-color:#111827;}
-      #opsDrawer.ow-ops-stable .ow-body{flex:1;overflow:auto;padding:12px;background:#f8fafc;}
-      #opsDrawer.ow-ops-stable .ow-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-bottom:10px;font-size:12px;line-height:1.35;}
-      #opsDrawer.ow-ops-stable .ow-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px;}
-      #opsDrawer.ow-ops-stable .ow-card{border:1px solid #e2e8f0;background:#fff;border-radius:13px;padding:10px;}
-      #opsDrawer.ow-ops-stable .ow-card .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
-      #opsDrawer.ow-ops-stable .ow-card .val{font-size:22px;font-weight:950;color:#0f172a;line-height:1.15;}
-      #opsDrawer.ow-ops-stable .ow-card .sub{font-size:12px;color:#64748b;line-height:1.25;margin-top:3px;}
-      #opsDrawer.ow-ops-stable .ow-section-title{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;font-weight:950;margin:12px 0 7px;}
-      #opsDrawer.ow-ops-stable .ow-list{display:grid;gap:7px;}
-      #opsDrawer.ow-ops-stable .ow-row{border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:9px 10px;}
-      #opsDrawer.ow-ops-stable .ow-row.hot{border-color:#fecaca;background:#fff7f7;}
-      #opsDrawer.ow-ops-stable .ow-row.warn{border-color:#fed7aa;background:#fff7ed;}
-      #opsDrawer.ow-ops-stable .ow-row.good{border-color:#bbf7d0;background:#f0fdf4;}
-      #opsDrawer.ow-ops-stable .ow-row-title{font-weight:950;color:#0f172a;line-height:1.2;}
-      #opsDrawer.ow-ops-stable .ow-row-sub{font-size:12px;color:#475569;line-height:1.35;margin-top:3px;}
-      #opsDrawer.ow-ops-stable .ow-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;}
-      #opsDrawer.ow-ops-stable .ow-mini{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:4px 8px;font-size:12px;font-weight:850;cursor:pointer;}
-      #opsDrawer.ow-ops-stable .ow-mini.primary{background:#111827;color:#fff;border-color:#111827;}
-      #opsDrawer.ow-ops-stable .ow-bar{height:8px;border:1px solid #e2e8f0;background:#f1f5f9;border-radius:999px;overflow:hidden;margin-top:7px;}
-      #opsDrawer.ow-ops-stable .ow-bar span{display:block;height:100%;background:#2563eb;border-radius:999px;}
-      #opsDrawer.ow-ops-stable .ow-bar.critical span{background:#dc2626;}
-      #opsDrawer.ow-ops-stable .ow-bar.high span{background:#f97316;}
-      #opsDrawer.ow-ops-stable .ow-bar.watch span{background:#f59e0b;}
-      .mapwrap.command-drawer-open #opsDrawer.ow-ops-stable{display:flex!important;}
-      @media(max-width:900px){#opsDrawer.ow-ops-stable{width:96vw!important;}.ow-grid{grid-template-columns:1fr!important;}}
-    `;
-    const style = document.createElement('style');
-    style.id = 'owOpsStableStyle';
-    style.textContent = css;
-    document.head.appendChild(style);
-  }
-
-  let activePane = 'overview';
-
-  function ensureOpsDrawer(){
-    injectOpsStyle();
-    const mapwrap = document.querySelector('.mapwrap') || document.body;
-    let drawer = document.getElementById('opsDrawer');
-    if (!drawer) {
-      drawer = document.createElement('div');
-      drawer.id = 'opsDrawer';
-      mapwrap.appendChild(drawer);
-    }
-    drawer.className = 'ops-drawer ow-ops-stable';
-    drawer.innerHTML = `
-      <div class="ow-head">
-        <h3>Operations Intelligence</h3>
-        <span class="ow-stamp">Updated ${owEsc(PATCH_STAMP)}</span>
-        <button class="ow-refresh" type="button" data-ow-action="refresh">Refresh</button>
-        <button class="ow-close" type="button" data-ow-action="close">×</button>
-      </div>
-      <div class="ow-note" style="margin:10px 12px 0">
-        <b>Consolidated interpretation:</b> shared RTS reach is treated as coverage density/resiliency visibility, not a penalty. Primary planning focus is 75-mile active coverage, uncovered gaps, dedicated-team exposure, and RTS workload.
-      </div>
-      <div class="ow-tabs">
-        <button class="ow-tab" data-ow-pane="overview" type="button">Overview</button>
-        <button class="ow-tab" data-ow-pane="gaps" type="button">Gaps</button>
-        <button class="ow-tab" data-ow-pane="load" type="button">RTS Load</button>
-        <button class="ow-tab" data-ow-pane="resilience" type="button">Resilience Tools</button>
-        <button class="ow-tab" data-ow-pane="leadership" type="button">Leadership</button>
-      </div>
-      <div class="ow-body" id="owOpsBody"></div>
-    `;
-    drawer.addEventListener('click', handleOpsClick, true);
-    return drawer;
-  }
-
-  function openOpsDrawer(pane='overview'){
-    activePane = pane || activePane || 'overview';
-    const drawer = ensureOpsDrawer();
-    drawer.classList.add('show');
-    document.querySelector('.mapwrap')?.classList.add('command-drawer-open');
-    renderOpsPane();
-  }
-  function closeOpsDrawer(){
-    const drawer = document.getElementById('opsDrawer');
-    if (drawer) drawer.classList.remove('show');
-    document.querySelector('.mapwrap')?.classList.remove('command-drawer-open');
-  }
-  function handleOpsClick(e){
-    const action = e.target.closest?.('[data-ow-action]')?.dataset?.owAction;
-    if (action === 'close') { e.preventDefault(); e.stopPropagation(); closeOpsDrawer(); return; }
-    if (action === 'refresh') { e.preventDefault(); e.stopPropagation(); renderOpsPane(); return; }
-    const tab = e.target.closest?.('[data-ow-pane]');
-    if (tab) { e.preventDefault(); e.stopPropagation(); activePane = tab.dataset.owPane; renderOpsPane(); return; }
-
-    const managerBtn = e.target.closest?.('[data-ow-manager]');
-    if (managerBtn) {
-      e.preventDefault(); e.stopPropagation();
-      owApplyManagerFilter(managerBtn.dataset.owManager || '');
-      return;
-    }
-    const hubBtn = e.target.closest?.('[data-ow-hub]');
-    if (hubBtn) {
-      e.preventDefault(); e.stopPropagation();
-      const hubId = hubBtn.dataset.owHub;
-      const hub = owHubs().find(h => String(h.id || owHubName(h)) === hubId);
-      if (hub) owOpenHub(hub);
-      return;
-    }
-  }
-
-  function opsMetrics(rows){
-    const total = rows.length;
-    const gaps = rows.filter(owGap).length;
-    const covered = total - gaps;
-    const dedicated = rows.filter(s => owDedicatedTeams(s).length).length;
-    const backupProtected = rows.filter(s => owHubsInRange(s,75).length >= 2).length;
-    const coveredNoBackup = rows.filter(s => !owGap(s) && owHubsInRange(s,75).length === 1).length;
-    return { total, gaps, covered, dedicated, backupProtected, coveredNoBackup };
-  }
-  function kpiGrid(m){
-    return `
-      <div class="ow-grid">
-        <div class="ow-card"><div class="lbl">Stores in scope</div><div class="val">${owNum(m.total)}</div><div class="sub">Current map/filter scope</div></div>
-        <div class="ow-card"><div class="lbl">75-mile coverage</div><div class="val">${owPct(m.covered,m.total)}</div><div class="sub">${owNum(m.covered)} covered / ${owNum(m.gaps)} gaps</div></div>
-        <div class="ow-card"><div class="lbl">Backup-protected</div><div class="val">${owPct(m.backupProtected,m.total)}</div><div class="sub">${owNum(m.coveredNoBackup)} covered stores have no second RTS inside 75 mi</div></div>
-      </div>
-    `;
-  }
-  function renderOverview(rows){
-    const m = opsMetrics(rows);
-    const managerRows = owGroup(rows, owManager).slice(0,5);
-    const loadRows = owHubLoadRows(rows).slice(0,5);
-    const ded = owGroup(rows.filter(s => owDedicatedTeams(s).length), s => owDedicatedTeams(s).join(' + ') || 'Dedicated').slice(0,5);
-    return `
-      ${kpiGrid(m)}
-      <div class="ow-note"><b>Planning readout:</b> use Gaps for uncovered-store concentration, RTS Load for workload pressure, Resilience Tools for backup exposure, and Leadership for ranked action priorities.</div>
-      <div class="ow-section-title">Largest current gap concentrations</div>
-      <div class="ow-list">${managerRows.map((r,i)=>`
-        <div class="ow-row ${i===0?'hot':''}">
-          <div class="ow-row-title">${owEsc(r.name)}</div>
-          <div class="ow-row-sub">${owNum(r.gaps)} uncovered of ${owNum(r.total)} stores · ${owPct(r.gaps,r.total)} gap rate</div>
-          <div class="ow-actions"><button class="ow-mini primary" data-ow-manager="${owEsc(r.name)}" type="button">Drill into manager</button></div>
-        </div>`).join('') || `<div class="ow-row good"><div class="ow-row-title">No uncovered gap concentration in current scope.</div></div>`}</div>
-      <div class="ow-section-title">Highest RTS workload</div>
-      <div class="ow-list">${loadRows.map(r=>`
-        <div class="ow-row ${r.loadLevel==='critical'?'hot':r.loadLevel==='high'?'warn':''}">
-          <div class="ow-row-title">${owEsc(r.name)}</div>
-          <div class="ow-row-sub">${owNum(r.primary)} primary stores · ${owNum(r.fringe)} fringe stores · ${owNum(r.noBackup)} no-backup stores</div>
-          <div class="ow-bar ${r.loadLevel}"><span style="width:${Math.min(100,Math.round(r.primary/100*100))}%"></span></div>
-          <div class="ow-actions"><button class="ow-mini" data-ow-hub="${owEsc(String(r.hub.id || owHubName(r.hub)))}" type="button">Open RTS hub</button></div>
-        </div>`).join('') || `<div class="ow-row"><div class="ow-row-title">No active RTS load available.</div></div>`}</div>
-      <div class="ow-section-title">Dedicated-team exposure</div>
-      <div class="ow-list">${ded.map(r=>`
-        <div class="ow-row">
-          <div class="ow-row-title">${owEsc(r.name)}</div>
-          <div class="ow-row-sub">${owNum(r.total)} dedicated-aligned stores · ${owNum(r.gaps)} current gaps</div>
-        </div>`).join('') || `<div class="ow-row"><div class="ow-row-title">No dedicated-team stores in current scope.</div></div>`}</div>
-    `;
-  }
-  function renderGaps(rows){
-    const gaps = rows.filter(owGap);
-    const managers = owGroup(gaps, owManager).slice(0,15);
-    const markets = owGroup(gaps, owMarket).slice(0,12);
-    return `
-      <div class="ow-note"><b>Gap focus:</b> these are stores without an active RTS inside the fixed 75-mile coverage model. Future/reference RTS do not reduce this count.</div>
-      <div class="ow-grid">
-        <div class="ow-card"><div class="lbl">Current gaps</div><div class="val">${owNum(gaps.length)}</div><div class="sub">${owPct(gaps.length,rows.length)} of current scope</div></div>
-        <div class="ow-card"><div class="lbl">Managers impacted</div><div class="val">${owNum(managers.length)}</div><div class="sub">Managers with at least one gap</div></div>
-        <div class="ow-card"><div class="lbl">Top market gaps</div><div class="val">${owNum(markets[0]?.gaps || 0)}</div><div class="sub">${owEsc(markets[0]?.name || 'None')}</div></div>
-      </div>
-      <div class="ow-section-title">Manager gap leaderboard</div>
-      <div class="ow-list">${managers.map((r,i)=>`
-        <div class="ow-row ${i<3?'hot':i<7?'warn':''}">
-          <div class="ow-row-title">${i+1}. ${owEsc(r.name)}</div>
-          <div class="ow-row-sub">${owNum(r.gaps)} uncovered stores · ${owNum(r.dedicated)} dedicated-overlay stores · primary region: ${owEsc(owRegion(r.stores[0]))}</div>
-          <div class="ow-actions"><button class="ow-mini primary" data-ow-manager="${owEsc(r.name)}" type="button">Filter map to manager</button></div>
-        </div>`).join('') || `<div class="ow-row good"><div class="ow-row-title">No uncovered stores in current scope.</div></div>`}</div>
-      <div class="ow-section-title">Market clusters</div>
-      <div class="ow-list">${markets.map((r,i)=>`
-        <div class="ow-row">
-          <div class="ow-row-title">${owEsc(r.name)}</div>
-          <div class="ow-row-sub">${owNum(r.gaps)} uncovered stores · ${owNum(r.dedicated)} dedicated-overlay stores</div>
-        </div>`).join('') || `<div class="ow-row good"><div class="ow-row-title">No market gaps in scope.</div></div>`}</div>
-    `;
-  }
-  function renderLoad(rows){
-    const loads = owHubLoadRows(rows);
-    const high = loads.filter(r => ['critical','high'].includes(r.loadLevel)).length;
-    return `
-      <div class="ow-note"><b>RTS Load:</b> primary stores are assigned to the closest active RTS inside 75 miles. Fringe stores are 60–75 miles away and may require backup planning.</div>
-      <div class="ow-grid">
-        <div class="ow-card"><div class="lbl">Active RTS</div><div class="val">${owNum(loads.length)}</div><div class="sub">Confirmed active hubs only</div></div>
-        <div class="ow-card"><div class="lbl">High-load hubs</div><div class="val">${owNum(high)}</div><div class="sub">High or critical workload indicators</div></div>
-        <div class="ow-card"><div class="lbl">Largest load</div><div class="val">${owNum(loads[0]?.primary || 0)}</div><div class="sub">${owEsc(loads[0]?.name || 'None')}</div></div>
-      </div>
-      <div class="ow-section-title">RTS workload ranking</div>
-      <div class="ow-list">${loads.slice(0,30).map((r,i)=>`
-        <div class="ow-row ${r.loadLevel==='critical'?'hot':r.loadLevel==='high'?'warn':''}">
-          <div class="ow-row-title">${i+1}. ${owEsc(r.name)}</div>
-          <div class="ow-row-sub">${owNum(r.primary)} primary stores · ${owNum(r.fringe)} fringe · ${owNum(r.noBackup)} without backup · avg ${Math.round(r.avgMiles*10)/10} mi</div>
-          <div class="ow-bar ${r.loadLevel}"><span style="width:${Math.min(100,Math.round(r.primary/100*100))}%"></span></div>
-          <div class="ow-actions"><button class="ow-mini primary" data-ow-hub="${owEsc(String(r.hub.id || owHubName(r.hub)))}" type="button">Open RTS hub</button></div>
-        </div>`).join('') || `<div class="ow-row"><div class="ow-row-title">No RTS load available.</div></div>`}</div>
-    `;
-  }
-  function renderResilience(rows){
-    const covered = rows.filter(s => !owGap(s));
-    const withBackup = covered.filter(s => owHubsInRange(s,75).length >= 2);
-    const noBackup = covered.filter(s => owHubsInRange(s,75).length === 1);
-    const loads = owHubLoadRows(rows).sort((a,b)=>b.noBackup-a.noBackup || b.primary-a.primary).slice(0,12);
-    return `
-      <div class="ow-note"><b>Resilience definition:</b> a store is backup-protected only when it has a second active RTS inside 75 miles. Shared reach is treated as resiliency density, not a coverage penalty.</div>
-      <div class="ow-grid">
-        <div class="ow-card"><div class="lbl">Covered stores</div><div class="val">${owNum(covered.length)}</div><div class="sub">In current scope</div></div>
-        <div class="ow-card"><div class="lbl">Backup protected</div><div class="val">${owPct(withBackup.length,covered.length)}</div><div class="sub">${owNum(withBackup.length)} stores with 2+ RTS in range</div></div>
-        <div class="ow-card"><div class="lbl">Single-RTS exposure</div><div class="val">${owNum(noBackup.length)}</div><div class="sub">Covered but no second RTS inside 75 mi</div></div>
-      </div>
-      <div class="ow-section-title">Outage sensitivity ranking</div>
-      <div class="ow-list">${loads.map((r,i)=>`
-        <div class="ow-row ${i<3?'hot':i<8?'warn':''}">
-          <div class="ow-row-title">${owEsc(r.name)}</div>
-          <div class="ow-row-sub">${owNum(r.noBackup)} primary stores would lack same-radius backup · ${owNum(r.primary)} primary stores total</div>
-          <div class="ow-actions"><button class="ow-mini primary" data-ow-hub="${owEsc(String(r.hub.id || owHubName(r.hub)))}" type="button">Open RTS hub</button></div>
-        </div>`).join('') || `<div class="ow-row good"><div class="ow-row-title">No outage exposure in current scope.</div></div>`}</div>
-    `;
-  }
-  function renderLeadership(rows){
-    const m = opsMetrics(rows);
-    const managers = owGroup(rows, owManager);
-    const loads = owHubLoadRows(rows);
-    const topGap = managers[0];
-    const topLoad = loads[0];
-    const topNoBackup = [...loads].sort((a,b)=>b.noBackup-a.noBackup)[0];
-    return `
-      <div class="ow-note"><b>Leadership Action Path:</b> prioritize true uncovered gaps first, then single-RTS resiliency exposure, then high/fringe workload pressure. Dedicated overlays remain visible but are not subtracted from One Walmart coverage.</div>
-      <div class="ow-grid">
-        <div class="ow-card"><div class="lbl">Coverage</div><div class="val">${owPct(m.covered,m.total)}</div><div class="sub">${owNum(m.gaps)} stores remain uncovered</div></div>
-        <div class="ow-card"><div class="lbl">No-backup exposure</div><div class="val">${owNum(m.coveredNoBackup)}</div><div class="sub">Covered stores with one RTS in range</div></div>
-        <div class="ow-card"><div class="lbl">Dedicated visibility</div><div class="val">${owNum(m.dedicated)}</div><div class="sub">Stores with dedicated overlay alignment</div></div>
-      </div>
-      <div class="ow-section-title">Priority-based action path</div>
-      <div class="ow-list">
-        ${topGap ? `<div class="ow-row hot">
-          <div class="ow-row-title">Priority 1: Close largest gap concentration — ${owEsc(topGap.name)}</div>
-          <div class="ow-row-sub"><b>${owNum(topGap.gaps)}</b> uncovered stores · ${owPct(topGap.gaps,topGap.total)} gap rate. Largest current coverage exposure under the active 75-mile model.</div>
-          <div class="ow-actions"><button class="ow-mini primary" data-ow-manager="${owEsc(topGap.name)}" type="button">Filter map to this priority</button></div>
-        </div>` : ''}
-        ${topNoBackup ? `<div class="ow-row warn">
-          <div class="ow-row-title">Priority 2: Build backup depth — ${owEsc(topNoBackup.name)}</div>
-          <div class="ow-row-sub"><b>${owNum(topNoBackup.noBackup)}</b> primary stores have no second active RTS inside 75 miles. Use backup planning, cross-training, or nearby RTS support.</div>
-          <div class="ow-actions"><button class="ow-mini primary" data-ow-hub="${owEsc(String(topNoBackup.hub.id || owHubName(topNoBackup.hub)))}" type="button">Open RTS hub</button></div>
-        </div>` : ''}
-        ${topLoad ? `<div class="ow-row">
-          <div class="ow-row-title">Priority 3: Validate workload/fringe risk — ${owEsc(topLoad.name)}</div>
-          <div class="ow-row-sub"><b>${owNum(topLoad.primary)}</b> primary stores · <b>${owNum(topLoad.fringe)}</b> fringe-distance stores. Review travel practicality and backup coverage.</div>
-          <div class="ow-actions"><button class="ow-mini primary" data-ow-hub="${owEsc(String(topLoad.hub.id || owHubName(topLoad.hub)))}" type="button">Open RTS hub</button></div>
-        </div>` : ''}
-      </div>
-      <div class="ow-section-title">Copy-ready summary</div>
-      <div class="ow-card">
-        Current One Walmart RTS model covers ${owPct(m.covered,m.total)} of the selected store scope with ${owNum(m.gaps)} uncovered stores remaining. Leadership should prioritize the largest manager gap concentration first, then reduce single-RTS backup exposure, then validate high-load/fringe RTS hubs for travel and execution risk.
-      </div>
-    `;
-  }
-
-  function renderOpsPane(){
-    const drawer = ensureOpsDrawer();
-    const body = drawer.querySelector('#owOpsBody');
-    const rows = owRows();
-    drawer.querySelectorAll('.ow-tab').forEach(b => b.classList.toggle('active', b.dataset.owPane === activePane));
-    try {
-      const html = activePane === 'gaps' ? renderGaps(rows)
-        : activePane === 'load' ? renderLoad(rows)
-        : activePane === 'resilience' ? renderResilience(rows)
-        : activePane === 'leadership' ? renderLeadership(rows)
-        : renderOverview(rows);
-      body.innerHTML = html;
-    } catch(err) {
-      console.error('[Ops Stable Drawer] render failed', err);
-      body.innerHTML = `<div class="ow-row hot"><div class="ow-row-title">Ops Intel failed to render this pane.</div><div class="ow-row-sub">${owEsc(err?.message || String(err))}</div><div class="ow-actions"><button class="ow-mini primary" data-ow-action="refresh" type="button">Try again</button></div></div>`;
-    }
-  }
-
-  function wireStableButtons(){
-    const ids = ['opcxOpsView','railOpsIntel','opsDrawerToggle'];
-    const leadershipIds = ['opcxLeadershipView','railLeadership'];
-    ids.forEach(btnId => {
-      const b = document.getElementById(btnId);
-      if (!b || b.dataset.owStableWired === '1') return;
-      b.dataset.owStableWired = '1';
-      b.addEventListener('click', e => { e.preventDefault(); e.stopImmediatePropagation(); openOpsDrawer('overview'); }, true);
-    });
-    leadershipIds.forEach(btnId => {
-      const b = document.getElementById(btnId);
-      if (!b || b.dataset.owStableWired === '1') return;
-      b.dataset.owStableWired = '1';
-      b.addEventListener('click', e => { e.preventDefault(); e.stopImmediatePropagation(); openOpsDrawer('leadership'); }, true);
-    });
-  }
-
-  document.addEventListener('click', function(e){
-    const b = e.target.closest?.('button');
-    if (!b) return;
-    const text = (b.textContent || '').trim().toLowerCase();
-    const idv = b.id || '';
-    if (idv === 'opcxOpsView' || idv === 'railOpsIntel' || idv === 'opsDrawerToggle' || text === 'operations' || text === 'ops intel') {
-      e.preventDefault(); e.stopImmediatePropagation(); openOpsDrawer('overview');
-    }
-    if (idv === 'opcxLeadershipView' || idv === 'railLeadership' || text === 'leadership') {
-      e.preventDefault(); e.stopImmediatePropagation(); openOpsDrawer('leadership');
-    }
-  }, true);
-
-  function start(){
-    try {
-      injectOpsStyle();
-      wireStableButtons();
-      const d = document.getElementById('opsDrawer');
-      if (d && (d.textContent.includes('Drawer restored') || d.textContent.includes('Refresh/reopen after data finishes loading'))) {
-        d.remove();
-      }
-    } catch(e){ console.warn('[Ops Stable Drawer] startup warning', e); }
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
-  setTimeout(start, 300);
-  setTimeout(start, 1200);
-  setTimeout(start, 3000);
-
-  window.owOpenStableOpsDrawer = openOpsDrawer;
-})();
-
-
 })();
 </script>
 
@@ -13106,26 +12248,23 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   }
 
   function ensureOpsDrawer(){
-    const drawer = $('opsDrawer');
-    if (drawer && /Drawer restored|shell restored|Refresh\/reopen/i.test(drawer.textContent || '')) {
-      drawer.remove();
-      return null;
-    }
-    return drawer || null;
+    let drawer = $('opsDrawer');
+    if (drawer) return drawer;
+    const wrap = document.querySelector('.mapwrap') || document.body;
+    drawer=document.createElement('div');
+    drawer.id='opsDrawer'; drawer.className='ops-drawer show';
+    drawer.innerHTML = `<div class="ops-head"><h3>Operations Intelligence</h3><button id="opsCloseBtn" class="btn" type="button">Close</button></div><div class="ops-body"><div class="ops-pane show"><div class="ops-card"><b>Ops Intel</b><br>Drawer shell restored by emergency wiring.</div></div></div>`;
+    wrap.appendChild(drawer);
+    $('opsCloseBtn')?.addEventListener('click',()=>drawer.classList.remove('show'));
+    return drawer;
   }
   function openOps(pane){
     closeMenus();
-    const stablePane = pane === 'leadership' ? 'leadership' : 'overview';
-    if (typeof window.owOpenStableOpsDrawer === 'function') {
-      window.owOpenStableOpsDrawer(stablePane);
-    } else {
-      const existing = ensureOpsDrawer();
-      if (existing) existing.classList.add('show');
-      setTimeout(() => {
-        if (typeof window.owOpenStableOpsDrawer === 'function') window.owOpenStableOpsDrawer(stablePane);
-      }, 350);
-    }
+    const drawer=ensureOpsDrawer(); drawer.classList.add('show');
     document.querySelector('.mapwrap')?.classList.add('command-drawer-open');
+    const tab = pane ? document.querySelector(`.ops-tab[data-pane="${pane}"]`) : null;
+    if (tab) tab.click();
+    try { window.updateOpsIntel?.(); } catch(_) {}
     setTimeout(()=>{ try { window.dispatchEvent(new Event('resize')); } catch(_){} },80);
   }
   function leadership(){ document.body.classList.add('clean-mode'); openOps('leadership'); toast('Leadership view opened'); }
@@ -13579,45 +12718,60 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   }
 
   function ensureOpsDrawer(){
-    const drawer = $('opsDrawer');
-    if (drawer && /Drawer restored|shell restored|Refresh\/reopen/i.test(drawer.textContent || '')) {
-      drawer.remove();
-      return null;
-    }
-    return drawer || null;
+    let drawer = $('opsDrawer');
+    if (drawer) return drawer;
+
+    const wrap = document.querySelector('.mapwrap') || document.body;
+    drawer = document.createElement('aside');
+    drawer.id = 'opsDrawer';
+    drawer.className = 'ops-drawer show';
+    drawer.innerHTML = `
+      <div class="ops-head">
+        <h3>Operations Intelligence</h3>
+        <span class="ops-refresh-stamp">Drawer restored</span>
+        <button id="opsCloseBtn" class="btn" type="button">×</button>
+      </div>
+      <div class="ops-body">
+        <div class="ops-pane active show">
+          <div class="ops-card"><b>Ops Intel</b><br>The Operations Intelligence drawer shell was restored. Refresh/reopen after data finishes loading.</div>
+        </div>
+      </div>`;
+    wrap.appendChild(drawer);
+    return drawer;
   }
 
   function openOpsIntel(pane='overview'){
+    const drawer = ensureOpsDrawer();
+    const wrap = document.querySelector('.mapwrap');
+
     document.body.classList.remove('clean-mode','opcx-leadership');
     setOperatingView('ops');
-    const targetPane = pane === 'leadership' ? 'leadership' : 'overview';
-    if (typeof window.owOpenStableOpsDrawer === 'function') {
-      window.owOpenStableOpsDrawer(targetPane);
-    } else {
-      ensureOpsDrawer();
-      setTimeout(() => {
-        if (typeof window.owOpenStableOpsDrawer === 'function') window.owOpenStableOpsDrawer(targetPane);
-      }, 350);
-    }
+
+    drawer.classList.add('show');
+    drawer.style.transform = 'translateX(0)';
+    if (wrap) wrap.classList.add('command-drawer-open');
+
     qa('.rail-btn').forEach(b => b.classList.remove('active','ops-hotfix-active'));
     $('railOpsIntel')?.classList.add('active','ops-hotfix-active');
-    document.querySelector('.mapwrap')?.classList.add('command-drawer-open');
+
+    const targetPane = pane === 'leadership' ? 'leadership' : pane;
+    const tab = document.querySelector(`.ops-tab[data-pane="${targetPane}"]`) || document.querySelector('.ops-tab[data-pane="overview"]');
+    if (tab) tab.click();
+
+    try { window.updateOpsIntel?.(); } catch(err) { console.warn('Ops Intel refresh skipped:', err); }
     try { window.dispatchEvent(new Event('resize')); } catch(_) {}
     setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch(_) {} }, 120);
   }
 
   function openLeadership(){
+    const drawer = ensureOpsDrawer();
     document.body.classList.add('clean-mode');
     setOperatingView('leadership');
-    if (typeof window.owOpenStableOpsDrawer === 'function') {
-      window.owOpenStableOpsDrawer('leadership');
-    } else {
-      ensureOpsDrawer();
-      setTimeout(() => {
-        if (typeof window.owOpenStableOpsDrawer === 'function') window.owOpenStableOpsDrawer('leadership');
-      }, 350);
-    }
+    drawer.classList.add('show');
+    drawer.style.transform = 'translateX(0)';
     document.querySelector('.mapwrap')?.classList.add('command-drawer-open');
+    document.querySelector('.ops-tab[data-pane="leadership"]')?.click();
+    try { window.updateOpsIntel?.(); } catch(_) {}
     setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch(_) {} }, 120);
   }
 
@@ -13894,559 +13048,7 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   .ops-priority-path-card .decision-grid,
   .op-redundancy-grid{grid-template-columns:1fr;}
 }
-
-
-/* ===== Missing Enhancement Package UI ===== */
-.rts-res-card{max-width:1200px;width:96vw;}
-.res-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
-.res-toolbar select{border:1px solid #d0d7de;border-radius:9px;padding:6px 8px;background:#fff;color:#111;max-width:360px;}
-.res-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-bottom:10px;font-size:12.5px;line-height:1.35;}
-.res-results{max-height:68vh;overflow:auto;}
-.res-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:8px;margin-bottom:10px;}
-.res-kpi{border:1px solid #e2e8f0;border-radius:13px;background:#fff;padding:10px;}
-.res-kpi .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.055em;color:#64748b;font-weight:950;}
-.res-kpi .val{font-size:22px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
-.res-kpi .sub{font-size:11.5px;color:#64748b;line-height:1.25;margin-top:3px;}
-.res-action{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin:8px 0 12px 0;font-size:12.5px;line-height:1.35;}
-.res-action.critical{border-color:#fca5a5;background:#fff1f2;color:#991b1b;}
-.res-action.stable{border-color:#86efac;background:#ecfdf5;color:#166534;}
-.res-two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
-.res-table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;}
-.res-table th{position:sticky;top:0;background:#f8fafc;color:#334155;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.045em;z-index:1;}
-.res-table th,.res-table td{border-bottom:1px solid #eef2f7;padding:7px 8px;vertical-align:top;}
-.res-table td.num{text-align:right;font-variant-numeric:tabular-nums;}
-.res-table.mini th,.res-table.mini td{padding:6px 7px;}
-.res-link{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:4px 8px;font:inherit;font-weight:850;cursor:pointer;text-align:left;color:#1d4ed8;}
-.res-link:hover{background:#eff6ff;border-color:#60a5fa;}
-.res-tier{display:inline-flex;align-items:center;border:1px solid #cbd5e1;border-radius:999px;background:#fff;padding:3px 8px;font-size:11px;font-weight:950;white-space:nowrap;}
-.res-tier.stable{border-color:#86efac;background:#ecfdf5;color:#166534;}
-.res-tier.watch{border-color:#fde68a;background:#fffbeb;color:#92400e;}
-.res-tier.high{border-color:#fdba74;background:#fff7ed;color:#9a3412;}
-.res-tier.critical{border-color:#fca5a5;background:#fff1f2;color:#991b1b;}
-.res-empty{border:1px dashed #cbd5e1;border-radius:12px;background:#f8fafc;color:#64748b;padding:10px;font-size:12.5px;}
-.true-backup-panel{border:1px solid #bfdbfe;background:#eff6ff;border-radius:14px;padding:10px;margin-top:10px;}
-.true-backup-title{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#1d4ed8;font-weight:950;margin-bottom:7px;}
-.true-backup-title.small{margin-top:10px;}
-.true-backup-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.true-backup-grid>div{border:1px solid #dbeafe;background:#fff;border-radius:10px;padding:8px;}
-.true-backup-grid span{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:900;}
-.true-backup-grid b{display:block;font-size:16px;color:#0f172a;margin-top:2px;}
-.true-backup-action{border:1px solid #dbeafe;background:#fff;border-radius:10px;padding:8px;margin-top:8px;color:#1e3a8a;font-size:12px;line-height:1.35;}
-.true-backup-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border:1px solid #dbeafe;background:#fff;border-radius:10px;padding:7px 8px;margin-top:6px;font-size:12px;}
-.true-backup-row span{display:block;color:#64748b;margin-top:2px;}
-.true-backup-row em{font-style:normal;color:#475569;font-weight:850;white-space:nowrap;}
-.true-backup-empty{border:1px dashed #bfdbfe;background:#fff;border-radius:10px;padding:8px;color:#64748b;font-size:12px;}
-@media(max-width:900px){.res-kpi-grid,.res-two-col,.true-backup-grid{grid-template-columns:1fr}.rts-res-card{width:94vw}.res-results{max-height:62vh}}
 </style>
-
-
-<script>
-/* ===== Resilience visibility + updated Help wiring ===== */
-(function(){
-  function $(id){ return document.getElementById(id); }
-  function q(sel,root=document){ return root.querySelector(sel); }
-  function qa(sel,root=document){ return Array.from(root.querySelectorAll(sel)); }
-  function clickIf(id){ const el=$(id); if(el) el.click(); }
-  function injectOpsResiliencePane(){
-    const drawer = $('opsDrawer') || $('opsIntelDrawer');
-    if(!drawer) return;
-    const tabs = q('.ops-tabs', drawer);
-    if(!tabs || q('.ops-tab[data-pane="resilience"]', drawer)) return;
-    const tab = document.createElement('button');
-    tab.className = 'ops-tab';
-    tab.dataset.pane = 'resilience';
-    tab.type = 'button';
-    tab.textContent = 'Resilience Tools';
-    tabs.appendChild(tab);
-    const body = q('.ops-body', drawer) || drawer;
-    const pane = document.createElement('div');
-    pane.className = 'ops-pane';
-    pane.id = 'opsPaneResilience';
-    pane.innerHTML = `
-      <div class="ops-card">
-        <div class="ops-section-title"><span>RTS Resilience Tools</span><span class="ops-sub">backup + outage + scorecards</span></div>
-        <div class="ops-context-note"><b>What changed:</b> RTS resilience now separates normal coverage from true backup protection. A store only has backup protection when a second active RTS is also within 75 miles.</div>
-        <div class="ops-resilience-grid">
-          <div class="ops-resilience-card"><b>True Backup RTS Logic</b>Uses the nearest active RTS as primary and the next active RTS within 75 miles as backup. This avoids treating simple overlap as a penalty.</div>
-          <div class="ops-resilience-card"><b>RTS Outage Simulator</b>Select an RTS and identify stores that shift to backup versus become stranded if that RTS is unavailable.</div>
-          <div class="ops-resilience-card"><b>RTS Scorecards</b>Ranks hubs by primary load, no-backup risk, fringe miles, and leadership action tier.</div>
-          <div class="ops-resilience-card"><b>Regional Executive Summaries</b>Ranks regions by uncovered gaps plus no-backup exposure for leadership planning.</div>
-        </div>
-        <div class="ops-resilience-actions">
-          <button class="btn" type="button" id="opsOpenOutage">Open Outage Simulator</button>
-          <button class="btn" type="button" id="opsOpenScorecards">Open RTS Scorecards</button>
-          <button class="btn" type="button" id="opsOpenRegionalExec">Open Regional Executive Summaries</button>
-        </div>
-      </div>`;
-    body.appendChild(pane);
-    tab.addEventListener('click', function(){
-      qa('.ops-tab', drawer).forEach(t => t.classList.toggle('active', t === tab));
-      qa('.ops-pane', drawer).forEach(p => p.classList.toggle('show', p === pane));
-    });
-  }
-  function injectRailButton(){
-    const rail = q('.map-action-rail');
-    if(!rail || $('railResilience')) return;
-    const btn=document.createElement('button');
-    btn.id='railResilience';
-    btn.className='rail-btn';
-    btn.type='button';
-    btn.textContent='Resilience';
-    btn.title='Open RTS backup, outage, scorecard, and regional summary tools';
-    rail.appendChild(btn);
-  }
-  function wireExtraButtons(){
-    document.addEventListener('click', function(e){
-      const b=e.target.closest('button');
-      if(!b) return;
-      if(b.id === 'opsOpenOutage'){ e.preventDefault(); clickIf('rtsOutageBtn'); }
-      if(b.id === 'opsOpenScorecards'){ e.preventDefault(); clickIf('rtsScorecardBtn'); }
-      if(b.id === 'opsOpenRegionalExec'){ e.preventDefault(); clickIf('regionalExecBtn'); }
-      if(b.id === 'railResilience'){
-        e.preventDefault();
-        const ops = $('railOps') || $('quickOpsBtn') || $('opsDrawerToggle');
-        if(ops) ops.click();
-        setTimeout(()=>{
-          injectOpsResiliencePane();
-          const tab=q('.ops-tab[data-pane="resilience"]');
-          if(tab) tab.click();
-        },160);
-      }
-    }, true);
-  }
-  function addAnalysisMenuHelperText(){
-    const menu=q('#analysisDrop .dropdown-menu');
-    if(!menu || $('resilienceMenuHint')) return;
-    const hint=document.createElement('div');
-    hint.id='resilienceMenuHint';
-    hint.style.cssText='border-top:1px solid #e2e8f0;margin:6px 0 4px 0;padding:8px 6px 4px 6px;font-size:11.5px;line-height:1.3;color:#64748b;';
-    hint.innerHTML='<b style="color:#0f172a">RTS resilience tools:</b><br>Use Scorecards, Outage Simulator, and Regional Executive Summaries for backup/action planning.';
-    menu.appendChild(hint);
-  }
-  function loop(){ injectOpsResiliencePane(); injectRailButton(); addAnalysisMenuHelperText(); }
-  wireExtraButtons();
-  const mo=new MutationObserver(loop);
-  mo.observe(document.body,{childList:true,subtree:true});
-  document.addEventListener('DOMContentLoaded', loop);
-  setTimeout(loop,500); setTimeout(loop,1500); setTimeout(loop,3000);
-})();
-</script>
-
-
-
-<script>
-/* ===== Resilience Tools access + Ops tab activation fix v2 ===== */
-(function(){
-  function $(id){ return document.getElementById(id); }
-  function q(sel, root=document){ return root.querySelector(sel); }
-  function qa(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
-
-  function ensureOpsDrawerVisible(){
-    let drawer = $('opsDrawer') || $('opsIntelDrawer');
-    if (!drawer) {
-      const opener = $('railOpsIntel') || $('railOps') || $('quickOpsBtn') || $('opsDrawerToggle');
-      if (opener) opener.click();
-      drawer = $('opsDrawer') || $('opsIntelDrawer');
-    }
-    if (drawer) {
-      drawer.classList.add('show');
-      drawer.style.transform = 'translateX(0)';
-      q('.mapwrap')?.classList.add('command-drawer-open');
-    }
-    return drawer;
-  }
-
-  function activateOpsPane(drawer, paneName){
-    if (!drawer) return;
-    const name = String(paneName || 'overview').toLowerCase();
-    const cap = name.charAt(0).toUpperCase() + name.slice(1);
-    const tab = q(`.ops-tab[data-pane="${name}"]`, drawer);
-    const pane = q(`#opsPane${cap}`, drawer);
-    if (!tab || !pane) return;
-    qa('.ops-tab', drawer).forEach(t => t.classList.toggle('active', t === tab));
-    qa('.ops-pane', drawer).forEach(p => {
-      p.classList.remove('active','show');
-      p.style.display = '';
-    });
-    pane.classList.add('active');
-    try { window.updateOpsIntel?.(); } catch(_) {}
-    try { window.dispatchEvent(new Event('resize')); } catch(_) {}
-  }
-
-  function ensureResiliencePane(){
-    const drawer = ensureOpsDrawerVisible();
-    if (!drawer) return null;
-    const tabs = q('.ops-tabs', drawer);
-    const body = q('.ops-body', drawer) || drawer;
-    if (!tabs) return drawer;
-
-    let tab = q('.ops-tab[data-pane="resilience"]', drawer);
-    if (!tab) {
-      tab = document.createElement('button');
-      tab.className = 'ops-tab';
-      tab.dataset.pane = 'resilience';
-      tab.type = 'button';
-      tab.textContent = 'Resilience Tools';
-      tabs.appendChild(tab);
-    }
-
-    let pane = q('#opsPaneResilience', drawer);
-    if (!pane) {
-      pane = document.createElement('div');
-      pane.className = 'ops-pane';
-      pane.id = 'opsPaneResilience';
-      pane.innerHTML = `
-        <div class="ops-card">
-          <div class="ops-section-title"><span>RTS Resilience Tools</span><span class="ops-sub">backup + outage + scorecards</span></div>
-          <div class="ops-context-note"><b>What changed:</b> RTS resilience now separates normal coverage from true backup protection. A store only has backup protection when a second active RTS is also within 75 miles.</div>
-          <div class="ops-resilience-grid">
-            <div class="ops-resilience-card"><b>True Backup RTS Logic</b>Uses the nearest active RTS as primary and the next active RTS within 75 miles as backup. This avoids treating shared reach as a penalty.</div>
-            <div class="ops-resilience-card"><b>RTS Outage Simulator</b>Select an RTS and identify stores that shift to backup versus become stranded if that RTS is unavailable.</div>
-            <div class="ops-resilience-card"><b>RTS Scorecards</b>Ranks hubs by primary load, no-backup risk, fringe miles, and leadership action tier.</div>
-            <div class="ops-resilience-card"><b>Regional Executive Summaries</b>Ranks regions by uncovered gaps plus no-backup exposure for leadership planning.</div>
-          </div>
-          <div class="ops-resilience-actions">
-            <button class="btn" type="button" data-open-res-tool="outage">Open Outage Simulator</button>
-            <button class="btn" type="button" data-open-res-tool="scorecards">Open RTS Scorecards</button>
-            <button class="btn" type="button" data-open-res-tool="regional">Open Regional Executive Summaries</button>
-          </div>
-        </div>`;
-      body.appendChild(pane);
-    }
-
-    // Critical fix: the dynamically injected tab must use .active, not .show.
-    tab.onclick = function(e){
-      e.preventDefault();
-      e.stopPropagation();
-      activateOpsPane(drawer, 'resilience');
-    };
-    return drawer;
-  }
-
-  function openResilienceTab(){
-    const drawer = ensureResiliencePane();
-    setTimeout(() => activateOpsPane(drawer || ensureOpsDrawerVisible(), 'resilience'), 40);
-  }
-
-  function clickTool(id){
-    const el = $(id);
-    if (el) { el.click(); return true; }
-    return false;
-  }
-
-  function addVisibleLeftPanelButtons(){
-    if ($('resilienceVisibleTools')) return;
-    const toolsSection = $('analysisDrop')?.closest('.section-body') || $('analysisDrop')?.parentElement || $('helpBtn')?.parentElement;
-    if (!toolsSection) return;
-    const box = document.createElement('div');
-    box.id = 'resilienceVisibleTools';
-    box.style.cssText = 'border-top:1px solid #e2e8f0;margin-top:8px;padding-top:8px;display:grid;gap:6px;';
-    box.innerHTML = `
-      <div style="font-size:11.5px;line-height:1.35;color:#64748b;"><b style="color:#0f172a">RTS resilience tools</b><br>Backup logic, outage simulation, RTS scorecards, and regional executive summaries.</div>
-      <button id="openResiliencePaneBtn" class="btn" type="button" style="width:100%;text-align:left">Open Resilience Tools</button>
-      <button id="openVisibleScorecardsBtn" class="btn" type="button" style="width:100%;text-align:left">RTS Scorecards</button>
-      <button id="openVisibleOutageBtn" class="btn" type="button" style="width:100%;text-align:left">RTS Outage Simulator</button>
-      <button id="openVisibleRegionalExecBtn" class="btn" type="button" style="width:100%;text-align:left">Regional Executive Summaries</button>`;
-    toolsSection.appendChild(box);
-  }
-
-  function addAnalysisDropdownButtons(){
-    const menu = q('#analysisDrop .dropdown-menu');
-    if (!menu) return;
-    const add = (id, text, afterId) => {
-      if ($(id)) return;
-      const b = document.createElement('button');
-      b.id = id;
-      b.className = 'btn';
-      b.type = 'button';
-      b.style.cssText = 'display:block;width:100%;margin:4px 0;text-align:left';
-      b.textContent = text;
-      const anchor = afterId ? $(afterId) : menu.lastElementChild;
-      if (anchor && anchor.parentElement === menu) anchor.insertAdjacentElement('afterend', b);
-      else menu.appendChild(b);
-    };
-    add('rtsScorecardBtn','RTS Scorecards','coverageBtn');
-    add('rtsOutageBtn','RTS Outage Simulator','rtsScorecardBtn');
-    add('regionalExecBtn','Regional Executive Summaries','rtsOutageBtn');
-  }
-
-  function addRailButton(){
-    const rail = q('.map-action-rail');
-    if (!rail || $('railResilience')) return;
-    const b = document.createElement('button');
-    b.id = 'railResilience';
-    b.className = 'rail-btn';
-    b.type = 'button';
-    b.textContent = 'Resilience';
-    b.title = 'Open RTS backup, outage, scorecard, and regional summary tools';
-    rail.appendChild(b);
-  }
-
-  function refreshAccessPoints(){
-    ensureResiliencePane();
-    addVisibleLeftPanelButtons();
-    addAnalysisDropdownButtons();
-    addRailButton();
-  }
-
-  document.addEventListener('click', function(e){
-    const b = e.target.closest('button');
-    if (!b) return;
-    const tool = b.dataset.openResTool;
-    if (b.id === 'railResilience' || b.id === 'openResiliencePaneBtn') {
-      e.preventDefault(); e.stopPropagation(); openResilienceTab(); return;
-    }
-    if (tool === 'outage' || b.id === 'openVisibleOutageBtn') { e.preventDefault(); e.stopPropagation(); clickTool('rtsOutageBtn'); return; }
-    if (tool === 'scorecards' || b.id === 'openVisibleScorecardsBtn') { e.preventDefault(); e.stopPropagation(); clickTool('rtsScorecardBtn'); return; }
-    if (tool === 'regional' || b.id === 'openVisibleRegionalExecBtn') { e.preventDefault(); e.stopPropagation(); clickTool('regionalExecBtn'); return; }
-    if (b.matches('.ops-tab[data-pane="resilience"]')) {
-      e.preventDefault(); e.stopPropagation();
-      activateOpsPane(b.closest('#opsDrawer,#opsIntelDrawer') || ensureOpsDrawerVisible(), 'resilience');
-      return;
-    }
-  }, true);
-
-  const mo = new MutationObserver(() => refreshAccessPoints());
-  function start(){ refreshAccessPoints(); mo.observe(document.body, { childList:true, subtree:true }); }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
-  else start();
-  setTimeout(refreshAccessPoints, 300);
-  setTimeout(refreshAccessPoints, 1200);
-  setTimeout(refreshAccessPoints, 3000);
-})();
-</script>
-
-
-<script>
-/* ===== Ops Intel final cleanup shim =====
-   Removes legacy placeholder drawers and delegates all Ops Intel / Leadership opens
-   to the stable in-scope renderer created by the main map script. */
-(function(){
-  if (window.__OW_OPS_FINAL_CLEAN_SHIM) return;
-  window.__OW_OPS_FINAL_CLEAN_SHIM = true;
-  function stale(drawer){ return drawer && /Drawer restored|shell restored|Refresh\/reopen/i.test(drawer.textContent || ''); }
-  function cleanup(){
-    var drawer = document.getElementById('opsDrawer');
-    if (stale(drawer)) drawer.remove();
-  }
-  function openStable(pane){
-    cleanup();
-    var target = pane === 'leadership' ? 'leadership' : 'overview';
-    if (typeof window.owOpenStableOpsDrawer === 'function') {
-      window.owOpenStableOpsDrawer(target);
-      return true;
-    }
-    setTimeout(function(){
-      cleanup();
-      if (typeof window.owOpenStableOpsDrawer === 'function') window.owOpenStableOpsDrawer(target);
-    }, 250);
-    return false;
-  }
-  document.addEventListener('click', function(e){
-    var btn = e.target && e.target.closest && e.target.closest('button');
-    if (!btn) return;
-    var id = btn.id || '';
-    if (/^(railOpsIntel|opsDrawerToggle|quickOpsBtn|opcxOpsView)$/.test(id)) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      openStable('overview');
-    }
-    if (/^(railLeadership|quickLeadershipBtn|opcxLeadershipView)$/.test(id)) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      openStable('leadership');
-    }
-  }, true);
-  cleanup();
-  setTimeout(cleanup, 250);
-  setTimeout(cleanup, 1000);
-  setTimeout(cleanup, 2500);
-})();
-</script>
-
-
-<style>
-/* ===== Safe final cleanup: collapsible Analysis Tools + no duplicate visible resilience block ===== */
-#analysisDrop .dropdown-menu{
-  position:static !important;
-  left:auto !important;
-  right:auto !important;
-  top:auto !important;
-  width:100% !important;
-  min-width:0 !important;
-  max-height:none !important;
-  overflow:visible !important;
-  box-shadow:none !important;
-  margin-top:6px !important;
-  background:#fff !important;
-}
-#analysisDrop:not(.analysis-open) .dropdown-menu{ display:none !important; }
-#analysisDrop.analysis-open .dropdown-menu{ display:block !important; }
-#resilienceVisibleTools,#resilienceMenuHint{ display:none !important; }
-</style>
-<script>
-/* ===== Safe final cleanup: restore loading + wire resilience actions without breaking startup ===== */
-(function(){
-  if (window.__OW_SAFE_FINAL_RESILIENCE_CLEANUP__) return;
-  window.__OW_SAFE_FINAL_RESILIENCE_CLEANUP__ = true;
-
-  function $(id){ return document.getElementById(id); }
-  function q(sel, root){ return (root || document).querySelector(sel); }
-  function qa(sel, root){ return Array.from((root || document).querySelectorAll(sel)); }
-
-  function dedupeById(id, keepInsideSelector){
-    const els = qa('#' + id);
-    if (els.length <= 1) return;
-    let keep = keepInsideSelector ? els.find(el => el.closest(keepInsideSelector)) : els[0];
-    if (!keep) keep = els[0];
-    els.forEach(el => { if (el !== keep) el.remove(); });
-  }
-
-  function ensureAnalysisButtons(){
-    const menu = q('#analysisDrop .dropdown-menu');
-    if (!menu) return;
-    const add = function(id, text, afterId){
-      let btn = $(id);
-      if (!btn || !btn.closest('#analysisDrop .dropdown-menu')) {
-        btn = document.createElement('button');
-        btn.id = id;
-        btn.className = 'btn';
-        btn.type = 'button';
-        btn.style.cssText = 'display:block;width:100%;margin:4px 0;text-align:left';
-        btn.textContent = text;
-        const anchor = afterId ? $(afterId) : menu.lastElementChild;
-        if (anchor && anchor.parentElement === menu) anchor.insertAdjacentElement('afterend', btn);
-        else menu.appendChild(btn);
-      }
-    };
-    add('rtsScorecardBtn','RTS Scorecards','coverageBtn');
-    add('rtsOutageBtn','RTS Outage Simulator','rtsScorecardBtn');
-    add('regionalExecBtn','Regional Executive Summaries','rtsOutageBtn');
-    ['rtsScorecardBtn','rtsOutageBtn','regionalExecBtn'].forEach(id => dedupeById(id, '#analysisDrop .dropdown-menu'));
-  }
-
-  function cleanupLeftPane(){
-    qa('#resilienceVisibleTools,#resilienceMenuHint').forEach(el => el.remove());
-    ensureAnalysisButtons();
-  }
-
-  function setupAnalysisDropdown(){
-    const drop = $('analysisDrop');
-    const menu = q('#analysisDrop .dropdown-menu');
-    const btn = q('#analysisDrop > button');
-    if (!drop || !menu || !btn) return;
-    if (btn.__owFinalAnalysisToggle) return;
-    btn.__owFinalAnalysisToggle = true;
-    btn.onclick = function(ev){
-      ev.preventDefault();
-      ev.stopPropagation();
-      ev.stopImmediatePropagation && ev.stopImmediatePropagation();
-      drop.classList.toggle('analysis-open');
-      menu.style.display = '';
-    };
-  }
-
-  document.addEventListener('click', function(ev){
-    const drop = $('analysisDrop');
-    if (drop && !drop.contains(ev.target)) {
-      drop.classList.remove('analysis-open');
-      const menu = q('#analysisDrop .dropdown-menu');
-      if (menu) menu.style.display = '';
-    }
-  }, true);
-
-  function openExistingModal(id){
-    const modal = $(id);
-    if (modal) {
-      modal.classList.add('show');
-      return true;
-    }
-    return false;
-  }
-
-  function openTool(tool){
-    const api = window.OW_RTS_Resilience || {};
-    if (tool === 'scorecards') {
-      if (openExistingModal('rtsScorecardModal')) {
-        setTimeout(function(){ try { api.renderScorecards && api.renderScorecards(); } catch(e){ console.warn(e); } }, 0);
-        return true;
-      }
-      return false;
-    }
-    if (tool === 'outage') {
-      if (openExistingModal('rtsOutageModal')) {
-        setTimeout(function(){ try { api.renderOutageSimulation && api.renderOutageSimulation(); } catch(e){ console.warn(e); } }, 0);
-        return true;
-      }
-      return false;
-    }
-    if (tool === 'regional') {
-      if (openExistingModal('regionalExecModal')) {
-        setTimeout(function(){ try { api.renderRegionalExecSummaries && api.renderRegionalExecSummaries(); } catch(e){ console.warn(e); } }, 0);
-        return true;
-      }
-      return false;
-    }
-    return false;
-  }
-
-  function openResilienceTab(){
-    try {
-      if (typeof window.owOpenStableOpsDrawer === 'function') window.owOpenStableOpsDrawer('overview');
-    } catch(e) {}
-    setTimeout(function(){
-      const tab = q('.ops-tab[data-pane="resilience"]') || q('.ow-tab[data-ow-pane="resilience"]');
-      if (tab) tab.click();
-    }, 100);
-  }
-
-  document.addEventListener('click', function(ev){
-    const btn = ev.target && ev.target.closest && ev.target.closest('button');
-    if (!btn) return;
-    const id = btn.id || '';
-    const tool = btn.dataset ? btn.dataset.openResTool : '';
-
-    if (id === 'openResiliencePaneBtn' || id === 'railResilience') {
-      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation && ev.stopImmediatePropagation();
-      openResilienceTab();
-      return;
-    }
-
-    if (id === 'rtsScorecardBtn' || id === 'openVisibleScorecardsBtn' || id === 'opsOpenScorecards' || tool === 'scorecards') {
-      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation && ev.stopImmediatePropagation();
-      if (!openTool('scorecards') && id !== 'rtsScorecardBtn') $('rtsScorecardBtn')?.click();
-      return;
-    }
-    if (id === 'rtsOutageBtn' || id === 'openVisibleOutageBtn' || id === 'opsOpenOutage' || tool === 'outage') {
-      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation && ev.stopImmediatePropagation();
-      if (!openTool('outage') && id !== 'rtsOutageBtn') $('rtsOutageBtn')?.click();
-      return;
-    }
-    if (id === 'regionalExecBtn' || id === 'openVisibleRegionalExecBtn' || id === 'opsOpenRegionalExec' || tool === 'regional') {
-      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation && ev.stopImmediatePropagation();
-      if (!openTool('regional') && id !== 'regionalExecBtn') $('regionalExecBtn')?.click();
-      return;
-    }
-  }, true);
-
-  function cleanupLoop(){
-    cleanupLeftPane();
-    setupAnalysisDropdown();
-  }
-
-  function start(){
-    cleanupLoop();
-    const mo = new MutationObserver(cleanupLoop);
-    mo.observe(document.body, { childList:true, subtree:true });
-    setTimeout(cleanupLoop, 250);
-    setTimeout(cleanupLoop, 1000);
-    setTimeout(cleanupLoop, 2500);
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
-  else start();
-})();
-</script>
 
 </body>
 </html>
