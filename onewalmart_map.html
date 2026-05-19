@@ -1375,6 +1375,22 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 #helpModal .card .body li{margin-bottom:5px;}
 .ops-priority-path-card .decision-box b{display:block;margin-bottom:2px;color:#0f172a;}
 
+
+/* ===== v106 RTS Scorecards: clearer hub risk and action cards ===== */
+.op-scorecard-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.op-scorecard-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px;}
+.op-scorecard-card .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+.op-scorecard-card .val{font-size:17px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
+.op-scorecard-card .sub{font-size:11.5px;color:#64748b;line-height:1.3;margin-top:4px;}
+.op-scorecard-card.risk{border-color:#fecaca;background:#fff7f7;}
+.op-scorecard-card.watch{border-color:#fed7aa;background:#fff7ed;}
+.op-scorecard-card.stable{border-color:#bbf7d0;background:#f0fdf4;}
+.op-next-action-list{display:grid;gap:6px;margin-top:8px;}
+.op-next-action-item{border:1px solid #dbe3ea;border-radius:12px;background:#fff;padding:8px 10px;font-size:12.5px;line-height:1.35;}
+.op-next-action-item b{color:#0f172a;}
+.op-scorecard-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-top:9px;font-size:12.5px;line-height:1.35;}
+@media(max-width:720px){.op-scorecard-grid{grid-template-columns:1fr;}}
+
 </style>
 </head>
 <body>
@@ -3876,10 +3892,10 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
   const dedicatedScore = dedRatio >= .65 && dedStoreSet.size >= 20 ? 1 : 0;
   const workloadScore = volumeScore + fringeScore + distanceScore + gapScore + dedicatedScore;
 
-  let workload = 'Stable', workloadClass = 'stable';
-  if (workloadScore >= 6 || (fringePct >= .40 && covered.length >= 25)) { workload = 'Critical Stretch'; workloadClass = 'critical'; }
-  else if (workloadScore >= 4) { workload = 'High Load'; workloadClass = 'high'; }
-  else if (workloadScore >= 2) { workload = 'Watch'; workloadClass = 'watch'; }
+  let workload = 'Stable Coverage', workloadClass = 'stable';
+  if (workloadScore >= 6 || (fringePct >= .40 && covered.length >= 25)) { workload = 'Coverage Risk'; workloadClass = 'critical'; }
+  else if (workloadScore >= 4) { workload = 'High Support Load'; workloadClass = 'high'; }
+  else if (workloadScore >= 2) { workload = 'Moderate Stretch'; workloadClass = 'watch'; }
 
   const reasons = [];
   if (volumeScore >= 2) reasons.push(`${covered.length} covered stores in range`);
@@ -3898,10 +3914,10 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
   else if (covered.length >= 45 && avgMi < 35) role = 'Dense Metro Hub';
 
   let action = 'No immediate action; continue normal monitoring.';
-  if (workloadClass === 'critical') action = 'Review backup RTS support, fringe-store travel burden, and whether nearby hubs can absorb part of the load.';
-  else if (workloadClass === 'high') action = 'Monitor travel load and validate whether the highest-fringe stores need secondary support.';
-  else if (role === 'Gap-Adjacent Hub') action = 'Use Gap Finder to determine whether nearby uncovered stores can be solved by a future placement or reassignment.';
-  else if (role === 'Dedicated Overlay Hub') action = 'Use Dedicated Team Rollup for visibility; do not treat overlay exposure as a deduction from core coverage.';
+  if (workloadClass === 'critical') action = 'Add backup RTS support nearby, review fringe-store travel burden, and confirm whether adjacent hubs can absorb part of the load.';
+  else if (workloadClass === 'high') action = 'Consider secondary coverage overlap and validate whether the highest-fringe stores need split support.';
+  else if (role === 'Gap-Adjacent Hub') action = 'Use Gap Finder to determine whether nearby uncovered stores can be solved by an added backup hub, future placement, or reassignment.';
+  else if (role === 'Dedicated Overlay Hub') action = 'Monitor dedicated overlay dependency in Dedicated Team Rollup; do not treat overlay exposure as a deduction from core coverage.';
 
   const statusChip = isFutureHub
     ? `<span class="sp-chip op-status planning"><b>Status:</b> Future / display-only — not counted in coverage</span>`
@@ -3932,6 +3948,26 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
   if (redundancyPct >= 65) redundancyLabel = 'Strong';
   else if (redundancyPct >= 35) redundancyLabel = 'Moderate';
   else if (redundancyPct >= 15) redundancyLabel = 'Limited';
+
+  if (redundancyPct < 15 && covered.length >= 25 && workloadClass !== 'critical') {
+    workload = 'No Backup Coverage';
+    workloadClass = 'critical';
+  }
+
+  const backupNeed = redundancyPct < 15 && covered.length >= 25 ? 'High'
+    : redundancyPct < 35 && covered.length >= 25 ? 'Moderate'
+    : redundancyPct < 65 ? 'Low / Watch'
+    : 'Low';
+  const strainLabel = workloadClass === 'critical' ? 'Coverage Risk'
+    : workloadClass === 'high' ? 'High Support Load'
+    : workloadClass === 'watch' ? 'Moderate Stretch'
+    : 'Stable Coverage';
+  const primaryNextActions = [];
+  if (backupNeed === 'High') primaryNextActions.push('Add backup RTS nearby or identify an adjacent hub that can absorb emergency coverage.');
+  if (fringe.length >= 15 || fringePct >= .25) primaryNextActions.push('Review fringe stores at 60–75 miles for split support or route-balancing opportunities.');
+  if (uncovered.length >= 15) primaryNextActions.push('Use Gap Finder for nearby uncovered stores before adding more load to this RTS.');
+  if (dedStoreSet.size >= 20) primaryNextActions.push('Monitor dedicated overlay dependency in Dedicated Team Rollup.');
+  if (!primaryNextActions.length) primaryNextActions.push('Continue normal monitoring; this hub is not currently flagged for operational support.');
 
   const recommendationTier = workloadClass === 'critical' ? 'Capacity review required'
     : workloadClass === 'high' ? 'Capacity review recommended'
@@ -3978,12 +4014,24 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
       <div class="op-breakdown-card"><div class="lbl">Distance Burden</div><div class="val">${distanceScore >= 2 ? 'High' : distanceScore ? 'Watch' : 'Normal'}</div><div class="sub">Avg ${covered.length ? avgMi.toFixed(1) : '—'} / Max ${covered.length ? maxMi.toFixed(1) : '—'} mi</div></div>
       <div class="op-breakdown-card"><div class="lbl">Dedicated Complexity</div><div class="val">${dedicatedScore ? 'Overlay Heavy' : dedStoreSet.size ? 'Visible' : 'Low'}</div><div class="sub">${dedStoreSet.size} unique overlay stores</div></div>
     </div>
+    <div class="op-scorecard-grid">
+      <div class="op-scorecard-card ${workloadClass === 'critical' ? 'risk' : workloadClass === 'high' || workloadClass === 'watch' ? 'watch' : 'stable'}"><div class="lbl">Estimated Operational Strain</div><div class="val">${escape(strainLabel)}</div><div class="sub">Composite of store volume, fringe mileage, nearby gaps, distance burden, and dedicated overlay complexity.</div></div>
+      <div class="op-scorecard-card ${backupNeed === 'High' ? 'risk' : backupNeed === 'Moderate' ? 'watch' : 'stable'}"><div class="lbl">Backup Coverage Need</div><div class="val">${escape(backupNeed)}</div><div class="sub">${redundancyPct}% of covered stores have another active RTS within 75 miles.</div></div>
+      <div class="op-scorecard-card"><div class="lbl">Gap-Adjacent Exposure</div><div class="val">${uncovered.length}</div><div class="sub">Nearby currently uncovered stores inside the selected ${r}-mile hub radius.</div></div>
+      <div class="op-scorecard-card"><div class="lbl">Dedicated Overlay Exposure</div><div class="val">${dedStoreSet.size}</div><div class="sub">Unique stores with Unilever, P&amp;G, or Tyson visibility in this hub area.</div></div>
+    </div>
+
     <div class="op-workload-meter ${workloadClass}"><span style="width:${scorePct}%"></span></div>
 
     <div class="op-hub-note">
       <b>Why this rating:</b> ${escape(whyLine)}. Gap cluster nearby: <b>${gapClusterNearby}</b>. ${isFutureHub ? 'This future/reference hub is not included in current coverage math.' : 'Active One Walmart RTS coverage is evaluated with the 75-mile rule.'}
     </div>
     <div class="op-action-callout"><b>Recommended action:</b> ${escape(action)}</div>
+    <div class="op-scorecard-note"><b>RTS scorecard interpretation:</b> Treat this as a read-only operational scorecard. It does not change the 75-mile coverage rule; it highlights backup need, fringe exposure, gap adjacency, and support load.</div>
+    <div class="op-section-title">Next Actions</div>
+    <div class="op-next-action-list">
+      ${primaryNextActions.map((txt, idx) => `<div class="op-next-action-item"><b>${idx + 1}.</b> ${escape(txt)}</div>`).join('')}
+    </div>
 
     <div class="op-redundancy-grid">
       <div class="op-redundancy-card"><div class="lbl">Backup RTS Availability</div><div class="val">${redundancyLabel}</div><div class="sub">${redundancyPct}% of covered stores also have another active RTS within 75 mi</div></div>
@@ -4271,6 +4319,22 @@ function printSidepanelList() {
 .compact-owner-row:first-child{border-top:0;}
 .compact-note{font-size:12px;padding:8px;margin-top:9px;}
 @media(max-width:900px){#opsDrawer.ops-drawer{width:min(560px,96vw) !important;} .compact-popup-grid{grid-template-columns:1fr;} .compact-popup{min-width:300px;}}
+
+/* ===== v106 RTS Scorecards: clearer hub risk and action cards ===== */
+.op-scorecard-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.op-scorecard-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px;}
+.op-scorecard-card .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+.op-scorecard-card .val{font-size:17px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
+.op-scorecard-card .sub{font-size:11.5px;color:#64748b;line-height:1.3;margin-top:4px;}
+.op-scorecard-card.risk{border-color:#fecaca;background:#fff7f7;}
+.op-scorecard-card.watch{border-color:#fed7aa;background:#fff7ed;}
+.op-scorecard-card.stable{border-color:#bbf7d0;background:#f0fdf4;}
+.op-next-action-list{display:grid;gap:6px;margin-top:8px;}
+.op-next-action-item{border:1px solid #dbe3ea;border-radius:12px;background:#fff;padding:8px 10px;font-size:12.5px;line-height:1.35;}
+.op-next-action-item b{color:#0f172a;}
+.op-scorecard-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-top:9px;font-size:12.5px;line-height:1.35;}
+@media(max-width:720px){.op-scorecard-grid{grid-template-columns:1fr;}}
+
 </style>
 
 </body></html>`);
@@ -8559,6 +8623,22 @@ const projectedCoveragePct = allStores.length
 .compact-owner-row:first-child{border-top:0;}
 .compact-note{font-size:12px;padding:8px;margin-top:9px;}
 @media(max-width:900px){#opsDrawer.ops-drawer{width:min(560px,96vw) !important;} .compact-popup-grid{grid-template-columns:1fr;} .compact-popup{min-width:300px;}}
+
+/* ===== v106 RTS Scorecards: clearer hub risk and action cards ===== */
+.op-scorecard-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.op-scorecard-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px;}
+.op-scorecard-card .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+.op-scorecard-card .val{font-size:17px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
+.op-scorecard-card .sub{font-size:11.5px;color:#64748b;line-height:1.3;margin-top:4px;}
+.op-scorecard-card.risk{border-color:#fecaca;background:#fff7f7;}
+.op-scorecard-card.watch{border-color:#fed7aa;background:#fff7ed;}
+.op-scorecard-card.stable{border-color:#bbf7d0;background:#f0fdf4;}
+.op-next-action-list{display:grid;gap:6px;margin-top:8px;}
+.op-next-action-item{border:1px solid #dbe3ea;border-radius:12px;background:#fff;padding:8px 10px;font-size:12.5px;line-height:1.35;}
+.op-next-action-item b{color:#0f172a;}
+.op-scorecard-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-top:9px;font-size:12.5px;line-height:1.35;}
+@media(max-width:720px){.op-scorecard-grid{grid-template-columns:1fr;}}
+
 </style>
 
 </body></html>`);
@@ -9795,9 +9875,9 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
 
     function opsActionForWorkload(r){
       if (!r) return 'No workload action needed.';
-      if (r.risk === 'High' || r.risk === 'Critical') return 'Review fringe stores and nearby gap clusters for possible workload relief, split support, or backup assignment.';
-      if (r.risk === 'Watch') return 'Monitor distance/fringe mix before adding more stores to this RTS.';
-      return 'No immediate balancing action needed.';
+      if (r.risk === 'High' || r.risk === 'Critical') return 'Add backup coverage review, validate fringe stores, and identify nearby RTS support before adding more load.';
+      if (r.risk === 'Watch') return 'Monitor as Moderate Stretch; review distance/fringe mix before adding more stores to this RTS.';
+      return 'Stable Coverage; no immediate balancing action needed.';
     }
 
     function opsRtsLoadClass(r){
@@ -9847,7 +9927,7 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
       opsSet('#opsTopGaps', `
         <div class="ops-mini-grid">
           <div class="ops-mini-card"><div class="lbl">Dedicated Gaps</div><div class="val">${fmt(dedicatedRows.reduce((a,r)=>a+r.gaps,0))}</div><div class="sub">Unilever / P&amp;G / Tyson exposure</div></div>
-          <div class="ops-mini-card"><div class="lbl">RTS Load Warnings</div><div class="val">${fmt(workloadWarnings.length)}</div><div class="sub">High/Watch active hubs</div></div>
+          <div class="ops-mini-card"><div class="lbl">RTS Load Warnings</div><div class="val">${fmt(workloadWarnings.length)}</div><div class="sub">High/Moderate/high support active hubs</div></div>
         </div>
         ${gapRows[0] ? `<div class="ops-rec"><b>Recommended next action:</b> ${safe(opsActionForGap(gapRows[0]))}<div class="ops-drill-hint">Use the region button below to drill into the map without recalculating the full national view.</div></div>` : ''}
         ${gapRows.length ? `
@@ -11685,6 +11765,22 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 @media(max-width:1200px){
   #opsDrawer.ops-drawer{width:min(500px,94vw) !important;}
 }
+
+/* ===== v106 RTS Scorecards: clearer hub risk and action cards ===== */
+.op-scorecard-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.op-scorecard-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px;}
+.op-scorecard-card .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+.op-scorecard-card .val{font-size:17px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
+.op-scorecard-card .sub{font-size:11.5px;color:#64748b;line-height:1.3;margin-top:4px;}
+.op-scorecard-card.risk{border-color:#fecaca;background:#fff7f7;}
+.op-scorecard-card.watch{border-color:#fed7aa;background:#fff7ed;}
+.op-scorecard-card.stable{border-color:#bbf7d0;background:#f0fdf4;}
+.op-next-action-list{display:grid;gap:6px;margin-top:8px;}
+.op-next-action-item{border:1px solid #dbe3ea;border-radius:12px;background:#fff;padding:8px 10px;font-size:12.5px;line-height:1.35;}
+.op-next-action-item b{color:#0f172a;}
+.op-scorecard-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-top:9px;font-size:12.5px;line-height:1.35;}
+@media(max-width:720px){.op-scorecard-grid{grid-template-columns:1fr;}}
+
 </style>
 <script>
 /* ===== Ops Intel Rail Hotfix v2 =====
@@ -11850,6 +11946,22 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 #railLeadership,#railField{display:none !important;}
 .map-action-rail{max-width:112px !important;}
 .map-layers-panel label[title*="overlap"], .map-layers-panel label:has(#tgOverlap){ }
+
+/* ===== v106 RTS Scorecards: clearer hub risk and action cards ===== */
+.op-scorecard-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.op-scorecard-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px;}
+.op-scorecard-card .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+.op-scorecard-card .val{font-size:17px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
+.op-scorecard-card .sub{font-size:11.5px;color:#64748b;line-height:1.3;margin-top:4px;}
+.op-scorecard-card.risk{border-color:#fecaca;background:#fff7f7;}
+.op-scorecard-card.watch{border-color:#fed7aa;background:#fff7ed;}
+.op-scorecard-card.stable{border-color:#bbf7d0;background:#f0fdf4;}
+.op-next-action-list{display:grid;gap:6px;margin-top:8px;}
+.op-next-action-item{border:1px solid #dbe3ea;border-radius:12px;background:#fff;padding:8px 10px;font-size:12.5px;line-height:1.35;}
+.op-next-action-item b{color:#0f172a;}
+.op-scorecard-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-top:9px;font-size:12.5px;line-height:1.35;}
+@media(max-width:720px){.op-scorecard-grid{grid-template-columns:1fr;}}
+
 </style>
 
 
@@ -11882,6 +11994,22 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 .compact-owner-row:first-child{border-top:0;}
 .compact-note{font-size:12px;padding:8px;margin-top:9px;}
 @media(max-width:900px){#opsDrawer.ops-drawer{width:min(560px,96vw) !important;} .compact-popup-grid{grid-template-columns:1fr;} .compact-popup{min-width:300px;}}
+
+/* ===== v106 RTS Scorecards: clearer hub risk and action cards ===== */
+.op-scorecard-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.op-scorecard-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px;}
+.op-scorecard-card .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+.op-scorecard-card .val{font-size:17px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
+.op-scorecard-card .sub{font-size:11.5px;color:#64748b;line-height:1.3;margin-top:4px;}
+.op-scorecard-card.risk{border-color:#fecaca;background:#fff7f7;}
+.op-scorecard-card.watch{border-color:#fed7aa;background:#fff7ed;}
+.op-scorecard-card.stable{border-color:#bbf7d0;background:#f0fdf4;}
+.op-next-action-list{display:grid;gap:6px;margin-top:8px;}
+.op-next-action-item{border:1px solid #dbe3ea;border-radius:12px;background:#fff;padding:8px 10px;font-size:12.5px;line-height:1.35;}
+.op-next-action-item b{color:#0f172a;}
+.op-scorecard-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-top:9px;font-size:12.5px;line-height:1.35;}
+@media(max-width:720px){.op-scorecard-grid{grid-template-columns:1fr;}}
+
 </style>
 
 <style>
@@ -12036,10 +12164,27 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   .ops-priority-path-card .decision-grid,
   .op-redundancy-grid{grid-template-columns:1fr;}
 }
+
+/* ===== v106 RTS Scorecards: clearer hub risk and action cards ===== */
+.op-scorecard-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.op-scorecard-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px;}
+.op-scorecard-card .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+.op-scorecard-card .val{font-size:17px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
+.op-scorecard-card .sub{font-size:11.5px;color:#64748b;line-height:1.3;margin-top:4px;}
+.op-scorecard-card.risk{border-color:#fecaca;background:#fff7f7;}
+.op-scorecard-card.watch{border-color:#fed7aa;background:#fff7ed;}
+.op-scorecard-card.stable{border-color:#bbf7d0;background:#f0fdf4;}
+.op-next-action-list{display:grid;gap:6px;margin-top:8px;}
+.op-next-action-item{border:1px solid #dbe3ea;border-radius:12px;background:#fff;padding:8px 10px;font-size:12.5px;line-height:1.35;}
+.op-next-action-item b{color:#0f172a;}
+.op-scorecard-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-top:9px;font-size:12.5px;line-height:1.35;}
+@media(max-width:720px){.op-scorecard-grid{grid-template-columns:1fr;}}
+
 </style>
 
 
 
+<!-- v106 RTS Scorecards: additive hub risk/backup scorecard polish only. Core map/data/coverage logic unchanged. -->
 <!-- Stable hotfix pass v100: non-invasive cleanup only. Core map/data logic from restored stable baseline is unchanged. -->
 <style id="stable-hotfix-v100-css">
   /* Retire leftover transition/delta UI without touching the underlying stable data engine. */
@@ -12048,6 +12193,22 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   }
   /* Keep tool dropdowns compact and scrollable instead of visually expanding the left rail. */
   #analysisDrop .dropdown-menu,#exportDrop .dropdown-menu,#viewsDrop .dropdown-menu{max-height:70vh;overflow:auto;}
+
+/* ===== v106 RTS Scorecards: clearer hub risk and action cards ===== */
+.op-scorecard-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.op-scorecard-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px;}
+.op-scorecard-card .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+.op-scorecard-card .val{font-size:17px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
+.op-scorecard-card .sub{font-size:11.5px;color:#64748b;line-height:1.3;margin-top:4px;}
+.op-scorecard-card.risk{border-color:#fecaca;background:#fff7f7;}
+.op-scorecard-card.watch{border-color:#fed7aa;background:#fff7ed;}
+.op-scorecard-card.stable{border-color:#bbf7d0;background:#f0fdf4;}
+.op-next-action-list{display:grid;gap:6px;margin-top:8px;}
+.op-next-action-item{border:1px solid #dbe3ea;border-radius:12px;background:#fff;padding:8px 10px;font-size:12.5px;line-height:1.35;}
+.op-next-action-item b{color:#0f172a;}
+.op-scorecard-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-top:9px;font-size:12.5px;line-height:1.35;}
+@media(max-width:720px){.op-scorecard-grid{grid-template-columns:1fr;}}
+
 </style>
 <script id="stable-hotfix-v100-js">
 (function(){
@@ -12086,6 +12247,22 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 <style>
 .dropdown-menu[data-force-closed="1"]{display:none !important;}
 .modal.show{display:flex;}
+
+/* ===== v106 RTS Scorecards: clearer hub risk and action cards ===== */
+.op-scorecard-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.op-scorecard-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px;}
+.op-scorecard-card .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+.op-scorecard-card .val{font-size:17px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
+.op-scorecard-card .sub{font-size:11.5px;color:#64748b;line-height:1.3;margin-top:4px;}
+.op-scorecard-card.risk{border-color:#fecaca;background:#fff7f7;}
+.op-scorecard-card.watch{border-color:#fed7aa;background:#fff7ed;}
+.op-scorecard-card.stable{border-color:#bbf7d0;background:#f0fdf4;}
+.op-next-action-list{display:grid;gap:6px;margin-top:8px;}
+.op-next-action-item{border:1px solid #dbe3ea;border-radius:12px;background:#fff;padding:8px 10px;font-size:12.5px;line-height:1.35;}
+.op-next-action-item b{color:#0f172a;}
+.op-scorecard-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-top:9px;font-size:12.5px;line-height:1.35;}
+@media(max-width:720px){.op-scorecard-grid{grid-template-columns:1fr;}}
+
 </style>
 <script>
 (function(){
@@ -12172,6 +12349,22 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   }
   #analysisDrop:not(.analysis-open) .dropdown-menu{display:none !important;}
   #analysisDrop.analysis-open .dropdown-menu{display:block !important;}
+
+/* ===== v106 RTS Scorecards: clearer hub risk and action cards ===== */
+.op-scorecard-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.op-scorecard-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px;}
+.op-scorecard-card .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+.op-scorecard-card .val{font-size:17px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
+.op-scorecard-card .sub{font-size:11.5px;color:#64748b;line-height:1.3;margin-top:4px;}
+.op-scorecard-card.risk{border-color:#fecaca;background:#fff7f7;}
+.op-scorecard-card.watch{border-color:#fed7aa;background:#fff7ed;}
+.op-scorecard-card.stable{border-color:#bbf7d0;background:#f0fdf4;}
+.op-next-action-list{display:grid;gap:6px;margin-top:8px;}
+.op-next-action-item{border:1px solid #dbe3ea;border-radius:12px;background:#fff;padding:8px 10px;font-size:12.5px;line-height:1.35;}
+.op-next-action-item b{color:#0f172a;}
+.op-scorecard-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-top:9px;font-size:12.5px;line-height:1.35;}
+@media(max-width:720px){.op-scorecard-grid{grid-template-columns:1fr;}}
+
 </style>
 <script>
 (function(){
