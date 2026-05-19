@@ -1391,6 +1391,36 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .op-scorecard-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-top:9px;font-size:12.5px;line-height:1.35;}
 @media(max-width:720px){.op-scorecard-grid{grid-template-columns:1fr;}}
 
+
+
+/* ===== v114 RTS Capacity + Load Forecasting Dashboard ===== */
+.cap-v114-grid{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:8px;margin:8px 0 10px;}
+.cap-v114-kpi{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px;}
+.cap-v114-kpi .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
+.cap-v114-kpi .val{font-size:21px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
+.cap-v114-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin:8px 0 10px;font-size:12.5px;line-height:1.35;}
+.cap-v114-tools{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px;}
+.cap-v114-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.cap-v114-table th,.cap-v114-table td{border-bottom:1px solid #eef2f7;padding:7px 8px;vertical-align:top;}
+.cap-v114-table th{position:sticky;top:0;background:#f8fafc;text-align:left;z-index:1;}
+.cap-v114-table td.num,.cap-v114-table th.num{text-align:right;font-variant-numeric:tabular-nums;}
+.cap-v114-chip{display:inline-flex;border:1px solid #cbd5e1;border-radius:999px;background:#fff;padding:2px 7px;font-weight:900;font-size:11.5px;white-space:nowrap;}
+.cap-v114-chip.critical{background:#fef2f2;border-color:#ef4444;color:#991b1b;}
+.cap-v114-chip.high{background:#fff7ed;border-color:#fb923c;color:#9a3412;}
+.cap-v114-chip.elevated{background:#fffbeb;border-color:#f59e0b;color:#92400e;}
+.cap-v114-chip.healthy{background:#ecfdf5;border-color:#10b981;color:#065f46;}
+.cap-v114-bar{height:8px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;overflow:hidden;margin-top:5px;min-width:92px;}
+.cap-v114-bar span{display:block;height:100%;border-radius:999px;background:#16a34a;}
+.cap-v114-bar.elevated span{background:#f59e0b;}
+.cap-v114-bar.high span{background:#f97316;}
+.cap-v114-bar.critical span{background:#dc2626;}
+.cap-v114-copy{white-space:pre-wrap;border:1px solid #e2e8f0;background:#f8fafc;border-radius:12px;padding:10px;margin:8px 0;font-size:12.5px;line-height:1.4;color:#334155;}
+.cap-v114-legend{position:absolute;left:12px;top:96px;z-index:1600;display:none;background:rgba(255,255,255,.96);border:1px solid #dbe3ea;border-radius:14px;padding:9px 10px;box-shadow:0 8px 22px rgba(15,23,42,.14);font-size:12px;backdrop-filter:blur(8px);max-width:300px;}
+.cap-v114-legend.show{display:block;}
+.cap-v114-legend .row{min-height:0;padding:3px 0;display:flex;align-items:center;gap:7px;box-shadow:none;cursor:default;}
+.cap-v114-legend .dot{width:11px;height:11px;border-radius:999px;display:inline-block;}
+@media(max-width:900px){.cap-v114-grid{grid-template-columns:1fr 1fr}.cap-v114-table{font-size:11.5px}.cap-v114-legend{display:none !important;}}
+
 </style>
 </head>
 <body>
@@ -14088,6 +14118,230 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enhance); else enhance();
   setTimeout(enhance, 1800);
 })();
+
+
+/* ===== v114 Add-on: RTS Capacity + Load Forecasting Dashboard ===== */
+(function(){
+  'use strict';
+  const V114 = { layer:null, lastRows:null };
+  const $ = id => document.getElementById(id);
+  const esc = v => String(v ?? '').replace(/[&<>\"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]));
+  const num = v => Number.isFinite(Number(v)) ? Number(v) : 0;
+  const mi = (a,b,c,d) => {
+    const R=3958.7613, toRad=x=>x*Math.PI/180;
+    const dLat=toRad(c-a), dLon=toRad(d-b);
+    const s1=Math.sin(dLat/2), s2=Math.sin(dLon/2);
+    const x=s1*s1+Math.cos(toRad(a))*Math.cos(toRad(c))*s2*s2;
+    return 2*R*Math.asin(Math.sqrt(Math.max(0,x)));
+  };
+  function rt(){ return (typeof window.__oneWalmartRuntime === 'function') ? window.__oneWalmartRuntime() : null; }
+  function hubName(h){
+    if (!h) return 'Unknown RTS';
+    if (h.fullName) return h.fullName;
+    const city = h.city || h.City || '';
+    const st = h.state || h.State || '';
+    return (h.name || h.Name || 'RTS') + (city || st ? ' — ' + city + (city && st ? ', ' : '') + st : '');
+  }
+  function storeId(s){ return String(s?.storeNumberStr || s?.storeNumber || s?.StoreNumber || s?.id || ''); }
+  function validStores(rows){ return (Array.isArray(rows) ? rows : []).filter(s => Number.isFinite(num(s.lat)) && Number.isFinite(num(s.lng))); }
+  function activeHubs(runtime){ return [...(runtime?.premiumConfirmed || []), ...(runtime?.acostaHubs || [])].filter(h => h && Array.isArray(h.coords)); }
+  function coveredBy(h, stores, radius){
+    return stores.filter(s => mi(num(h.coords[0]), num(h.coords[1]), num(s.lat), num(s.lng)) <= radius)
+      .map(s => ({store:s, miles:mi(num(h.coords[0]), num(h.coords[1]), num(s.lat), num(s.lng))}));
+  }
+  function backupChoices(store, hub, hubs, radius){
+    return hubs.filter(h => h && h.id !== hub.id && Array.isArray(h.coords))
+      .map(h => ({hub:h, miles:mi(num(h.coords[0]), num(h.coords[1]), num(store.lat), num(store.lng))}))
+      .filter(x => x.miles <= radius)
+      .sort((a,b)=>a.miles-b.miles);
+  }
+  function tierFor(load, fringePct, noBackupPct, projectedPeak){
+    if (load >= 95 || projectedPeak >= 115 || noBackupPct >= 55) return 'critical';
+    if (load >= 75 || projectedPeak >= 95 || noBackupPct >= 35 || fringePct >= 45) return 'high';
+    if (load >= 50 || projectedPeak >= 75 || noBackupPct >= 18 || fringePct >= 25) return 'elevated';
+    return 'healthy';
+  }
+  function tierLabel(t){ return t === 'critical' ? 'Critical' : t === 'high' ? 'High' : t === 'elevated' ? 'Elevated' : 'Healthy'; }
+  function tierAction(t, row){
+    if (t === 'critical') return 'Create a backup RTS plan, review capacity immediately, and identify relief coverage for no-backup or fringe stores.';
+    if (t === 'high') return 'Review split-support opportunities and confirm whether nearest backup RTS can absorb temporary reassignment.';
+    if (t === 'elevated') return 'Monitor volume, fringe mileage, and backup coverage; consider cross-training or backup pairing.';
+    return 'No immediate capacity action; continue normal monitoring.';
+  }
+  function buildRows(){
+    const runtime = rt();
+    const stores = validStores(runtime?.allStores || []);
+    const hubs = activeHubs(runtime);
+    const radius = num(runtime?.classifyRadius || runtime?.radius || 75) || 75;
+    const currentLoads = new Map();
+    hubs.forEach(h => currentLoads.set(h.id, coveredBy(h, stores, radius).length));
+    const rows = hubs.map(h => {
+      const covered = coveredBy(h, stores, radius);
+      const load = covered.length;
+      const fringe = covered.filter(x => x.miles >= 60).length;
+      const noBackup = covered.filter(x => !backupChoices(x.store, h, hubs, radius).length).length;
+      const avgMiles = load ? covered.reduce((a,x)=>a+x.miles,0)/load : 0;
+      const maxMiles = load ? Math.max(...covered.map(x=>x.miles)) : 0;
+      const reassignment = new Map();
+      covered.forEach(x => {
+        const b = backupChoices(x.store, h, hubs, radius)[0];
+        if (b) reassignment.set(b.hub.id, (reassignment.get(b.hub.id) || 0) + 1);
+      });
+      let projectedPeak = 0;
+      let topBackup = null;
+      reassignment.forEach((added, id) => {
+        const base = currentLoads.get(id) || 0;
+        const total = base + added;
+        if (total > projectedPeak) { projectedPeak = total; topBackup = {id, added, base, total, hub:hubs.find(x=>x.id===id)}; }
+      });
+      const fringePct = load ? Math.round(fringe/load*100) : 0;
+      const noBackupPct = load ? Math.round(noBackup/load*100) : 0;
+      const tier = tierFor(load, fringePct, noBackupPct, projectedPeak);
+      const capacityScore = Math.min(100, Math.round((load/95)*40 + (fringePct/100)*18 + (noBackupPct/100)*24 + (projectedPeak/115)*18));
+      return { hub:h, hubName:hubName(h), load, fringe, fringePct, noBackup, noBackupPct, avgMiles, maxMiles, projectedPeak, topBackup, tier, capacityScore, action:tierAction(tier) };
+    });
+    rows.sort((a,b) => {
+      const rank = {critical:4, high:3, elevated:2, healthy:1};
+      return (rank[b.tier]-rank[a.tier]) || b.capacityScore-a.capacityScore || b.load-a.load;
+    });
+    V114.lastRows = rows;
+    return rows;
+  }
+  function renderDashboard(){
+    const box = $('resiliencyResults') || $('analyticsDock') || document.body;
+    const rows = buildRows();
+    const total = rows.length;
+    const critical = rows.filter(r=>r.tier==='critical').length;
+    const high = rows.filter(r=>r.tier==='high').length;
+    const elevated = rows.filter(r=>r.tier==='elevated').length;
+    const avgLoad = total ? Math.round(rows.reduce((a,r)=>a+r.load,0)/total) : 0;
+    box.innerHTML = `
+      <div class="cap-v114-note"><b>v114 RTS Capacity Dashboard:</b> This adds soft capacity/load forecasting on top of the existing 75-mile coverage model. It does <b>not</b> change ownership or coverage calculations; it identifies RTS hubs where volume, fringe travel, no-backup stores, or outage reassignment could strain operations.</div>
+      <div class="cap-v114-grid">
+        <div class="cap-v114-kpi"><div class="lbl">Critical Capacity Risks</div><div class="val">${critical}</div></div>
+        <div class="cap-v114-kpi"><div class="lbl">High Risks</div><div class="val">${high}</div></div>
+        <div class="cap-v114-kpi"><div class="lbl">Elevated Watch</div><div class="val">${elevated}</div></div>
+        <div class="cap-v114-kpi"><div class="lbl">Average RTS Load</div><div class="val">${avgLoad}</div></div>
+      </div>
+      <div class="cap-v114-tools">
+        <button id="capV114Map" class="btn" type="button">Map Capacity Risks</button>
+        <button id="capV114Export" class="btn" type="button">Export Capacity CSV</button>
+        <button id="capV114Copy" class="btn" type="button">Copy Capacity Summary</button>
+        <button id="capV114Clear" class="btn" type="button">Clear Capacity Map</button>
+      </div>
+      <div style="max-height:58vh;overflow:auto;border:1px solid #e2e8f0;border-radius:12px;background:#fff;">
+        <table class="cap-v114-table">
+          <thead><tr><th>RTS Hub</th><th>Tier</th><th class="num">Load</th><th class="num">Fringe</th><th class="num">No Backup</th><th class="num">Projected Peak</th><th class="num">Score</th><th>Primary Action</th></tr></thead>
+          <tbody>${rows.map(r => `
+            <tr>
+              <td><b>${esc(r.hubName)}</b><br><span style="color:#64748b">Avg ${r.avgMiles.toFixed(1)} mi / Max ${r.maxMiles.toFixed(1)} mi${r.topBackup ? ` • backup load to ${esc(hubName(r.topBackup.hub))}: +${r.topBackup.added}` : ''}</span></td>
+              <td><span class="cap-v114-chip ${r.tier}">${tierLabel(r.tier)}</span></td>
+              <td class="num">${r.load}</td>
+              <td class="num">${r.fringe} (${r.fringePct}%)</td>
+              <td class="num">${r.noBackup} (${r.noBackupPct}%)</td>
+              <td class="num">${r.projectedPeak || '—'}</td>
+              <td class="num"><b>${r.capacityScore}</b><div class="cap-v114-bar ${r.tier}"><span style="width:${Math.min(100,r.capacityScore)}%"></span></div></td>
+              <td>${esc(r.action)}<br><button class="btn" type="button" data-cap-v114-map="${esc(r.hub.id)}" style="margin-top:5px;padding:4px 7px;font-size:11px">Map this hub</button></td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+  }
+  function csv(){
+    const rows = V114.lastRows || buildRows();
+    const head = ['RTS Hub','Tier','Capacity Score','Current Load','Fringe Stores','Fringe %','No Backup Stores','No Backup %','Average Miles','Max Miles','Projected Neighbor Peak','Top Backup Hub','Top Backup Added Load','Recommended Action'];
+    const lines = [head.join(',')];
+    rows.forEach(r => {
+      const vals = [r.hubName,tierLabel(r.tier),r.capacityScore,r.load,r.fringe,r.fringePct,r.noBackup,r.noBackupPct,r.avgMiles.toFixed(1),r.maxMiles.toFixed(1),r.projectedPeak || '',r.topBackup ? hubName(r.topBackup.hub) : '',r.topBackup ? r.topBackup.added : '',r.action];
+      lines.push(vals.map(v=>'"'+String(v ?? '').replace(/"/g,'""')+'"').join(','));
+    });
+    return lines.join('\
+');
+  }
+  function exportCsv(){
+    const blob = new Blob([csv()], {type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'rts_capacity_dashboard_v114.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+  }
+  function summary(){
+    const rows = V114.lastRows || buildRows();
+    const critical = rows.filter(r=>r.tier==='critical');
+    const high = rows.filter(r=>r.tier==='high');
+    const top = rows.slice(0,5);
+    return 'One Walmart RTS capacity and load forecast summary:\
+' +
+      '- Critical capacity risks: ' + critical.length + '\
+' +
+      '- High capacity risks: ' + high.length + '\
+' +
+      '- Highest capacity score: ' + (top[0] ? top[0].hubName + ' (' + top[0].capacityScore + ')' : 'n/a') + '\
+\
+' +
+      'Top RTS capacity priorities:\
+' + top.map((r,i)=> (i+1) + '. ' + r.hubName + ' — ' + tierLabel(r.tier) + '; load ' + r.load + '; fringe ' + r.fringe + '; no backup ' + r.noBackup + '; projected neighbor peak ' + (r.projectedPeak || 'n/a') + '; action: ' + r.action).join('\
+');
+  }
+  function copySummary(){
+    const txt = summary();
+    navigator.clipboard && navigator.clipboard.writeText(txt).catch(()=>{});
+    const box = $('resiliencyResults') || document.body;
+    const old = $('capV114CopyBox'); if (old) old.remove();
+    const div = document.createElement('div'); div.id='capV114CopyBox'; div.className='cap-v114-copy'; div.textContent = txt;
+    box.insertAdjacentElement('afterbegin', div);
+  }
+  function color(t){ return t === 'critical' ? '#dc2626' : t === 'high' ? '#f97316' : t === 'elevated' ? '#f59e0b' : '#16a34a'; }
+  function clearMap(){
+    const runtime = rt();
+    if (runtime && runtime.map && V114.layer) { try { runtime.map.removeLayer(V114.layer); } catch(e){} }
+    V114.layer = null;
+    const leg = $('capV114Legend'); if (leg) leg.classList.remove('show');
+  }
+  function ensureLegend(){
+    let leg = $('capV114Legend');
+    if (!leg){
+      leg = document.createElement('div'); leg.id='capV114Legend'; leg.className='cap-v114-legend';
+      (document.querySelector('.mapwrap') || document.body).appendChild(leg);
+    }
+    leg.innerHTML = '<b>Capacity Risk Overlay</b><div class="row"><span class="dot" style="background:#dc2626"></span> Critical</div><div class="row"><span class="dot" style="background:#f97316"></span> High</div><div class="row"><span class="dot" style="background:#f59e0b"></span> Elevated</div><div class="row"><span class="dot" style="background:#16a34a"></span> Healthy / monitor</div>';
+    leg.classList.add('show');
+  }
+  function mapRows(filterHubId){
+    const runtime = rt(); if (!runtime || !runtime.map || !runtime.L) return;
+    const rows = (V114.lastRows || buildRows()).filter(r => !filterHubId || r.hub.id === filterHubId).slice(0, filterHubId ? 1 : 20);
+    clearMap();
+    V114.layer = runtime.L.layerGroup().addTo(runtime.map);
+    const bounds=[];
+    rows.forEach(r => {
+      const marker = runtime.L.circleMarker([num(r.hub.coords[0]), num(r.hub.coords[1])], {radius:r.tier==='critical'?12:r.tier==='high'?10:8, color:'#fff', weight:2, fillColor:color(r.tier), fillOpacity:.9}).bindPopup(
+        '<div style="min-width:280px;font-size:12.5px;line-height:1.35"><b>' + esc(r.hubName) + '</b><br><b>Capacity Tier:</b> ' + esc(tierLabel(r.tier)) + '<br><b>Capacity Score:</b> ' + r.capacityScore + '<br><b>Current Load:</b> ' + r.load + '<br><b>Fringe:</b> ' + r.fringe + ' (' + r.fringePct + '%)<br><b>No backup:</b> ' + r.noBackup + ' (' + r.noBackupPct + '%)<br><b>Projected neighbor peak:</b> ' + (r.projectedPeak || '—') + '<br><b>Action:</b> ' + esc(r.action) + '</div>', {maxWidth:440});
+      marker.addTo(V114.layer); bounds.push([num(r.hub.coords[0]), num(r.hub.coords[1])]);
+    });
+    ensureLegend();
+    if (bounds.length) runtime.map.fitBounds(bounds, {padding:[35,35], maxZoom:7});
+  }
+  function enhance(){
+    const toolbar = document.querySelector('.resil-toolbar');
+    const title = document.querySelector('#resiliencyModal header h3');
+    if (title && !/v114/.test(title.textContent)) title.textContent = title.textContent.replace(/\\s+—\\s+v\\d+/g,'') + ' — v114';
+    if (toolbar && !$('capV114Btn')){
+      const b = document.createElement('button'); b.id='capV114Btn'; b.type='button'; b.className='btn'; b.textContent='Capacity Dashboard'; b.title='Show RTS load forecasting and capacity risk scoring'; b.addEventListener('click', renderDashboard);
+      const run = $('resiliencyRun'); toolbar.insertBefore(b, run || null);
+    }
+  }
+  document.addEventListener('click', e => {
+    if (e.target && (e.target.id === 'resiliencyBtn' || (e.target.closest && e.target.closest('#resiliencyBtn')))) setTimeout(enhance, 100);
+    if (e.target && e.target.id === 'capV114Map') mapRows();
+    if (e.target && e.target.id === 'capV114Export') exportCsv();
+    if (e.target && e.target.id === 'capV114Copy') copySummary();
+    if (e.target && e.target.id === 'capV114Clear') clearMap();
+    const m = e.target && e.target.closest ? e.target.closest('[data-cap-v114-map]') : null;
+    if (m) mapRows(m.getAttribute('data-cap-v114-map'));
+  }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') clearMap(); });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enhance); else enhance();
+  setTimeout(enhance, 2000);
+})();
+
 </script>
 
 </body>
