@@ -5,6 +5,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>One Walmart RTS Coverage Command Center</title>
+<!-- v104 conservative cleanup: removed disabled Transition/Delta UI/marker engine and duplicate startup CSS; coverage logic unchanged. -->
 <!-- Leadership cleanup pass: RTS coverage, gaps, active RTS, manager alignment, dedicated team visibility, and performance-safe rendering. Delta/Transition ownership tools removed from the leadership workflow; RTS coverage action planning emphasized. -->
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -504,44 +505,6 @@ select[multiple]{
 .display-options-collapsed{
   display:none !important;
 }
-  .delta-legend{
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  margin-top:10px;
-}
-
-.delta-item{
-  display:flex;
-  align-items:flex-start;
-  gap:10px;
-  font-size:12px;
-  line-height:1.4;
-}
-
-.delta-dot{
-  width:12px;
-  height:12px;
-  border-radius:50%;
-  margin-top:3px;
-  flex-shrink:0;
-}
-
-.delta-new{
-  background:#16a34a;
-}
-
-.delta-improved{
-  background:#2563eb;
-}
-
-.delta-lost{
-  background:#dc2626;
-}
-
-.delta-owner{
-  background:#b45309;
-}
 
 
   /* ===== Enterprise UI polish pack ===== */
@@ -1021,51 +984,6 @@ select[multiple]{
 .ops-transition-metric .val{font-size:20px;font-weight:950;color:#0f172a;}
 .ops-transition-list{display:grid;gap:6px;font-size:12px;}
 .ops-transition-row{border:1px solid #e2e8f0;border-radius:10px;padding:8px;background:#f8fafc;}
-/* ===== Startup performance pass ===== */
-.launch-status{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  padding:6px 10px;
-  font-size:12px;
-  color:#334155;
-  background:#fff;
-  border-bottom:1px solid #eef0f3;
-}
-.launch-status .launch-dot{
-  width:9px;
-  height:9px;
-  border-radius:999px;
-  background:#f59e0b;
-  box-shadow:0 0 0 4px rgba(245,158,11,.14);
-}
-.launch-status.ready .launch-dot{
-  background:#16a34a;
-  box-shadow:0 0 0 4px rgba(22,163,74,.14);
-}
-.launch-status .launch-step{font-weight:900;color:#0f172a;}
-.launch-status .launch-sub{color:#64748b;}
-.ops-lazy-note{
-  padding:10px 12px;
-  border:1px dashed #cbd5e1;
-  border-radius:12px;
-  background:#f8fafc;
-  color:#475569;
-  font-size:12px;
-  line-height:1.35;
-  margin-bottom:10px;
-}
-
-.store-popup-shell{font-size:13px;line-height:1.35;}
-.store-popup-title{font-size:18px;}
-.leaflet-popup-content{margin:16px 18px;}
-@media(max-width:900px){
-  #floatingKpis,.ops-exec-ribbon{display:none !important;}
-  .map-action-rail{top:76px;right:8px;}
-  .map-action-rail .rail-btn{min-width:auto;padding:8px 9px;font-size:12px;}
-  .command-mini-legend{display:none;}
-}
-
 /* ===== Performance-safe v3 polish ===== */
 .mapwrap.marker-rendering::after{
   content:'Rendering visible stores…';
@@ -1138,88 +1056,6 @@ select[multiple]{
 @media(max-width:720px){
   .map-action-rail{ display:none !important; }
   #floatingKpis{ display:none !important; }
-}
-
-/* ===== Transition Intelligence v4 polish ===== */
-#opsIntelDrawer,
-#opsDrawer{
-  width:420px;
-  max-width:38vw;
-  overflow:hidden;
-}
-
-.ops-pane{
-  overflow-y:auto;
-  overscroll-behavior:contain;
-}
-
-.delta-pane-toolbar{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  align-items:center;
-}
-
-.delta-filter-btn.active{
-  background:#111827;
-  color:#fff;
-  border-color:#111827;
-}
-
-.exec-ribbon{
-  display:flex;
-  gap:8px;
-  padding:8px 10px;
-  background:#fff;
-  border-bottom:1px solid #e5e7eb;
-  overflow:auto;
-  scrollbar-width:none;
-}
-
-.exec-ribbon::-webkit-scrollbar{
-  display:none;
-}
-
-.exec-card{
-  background:#fff;
-  border:1px solid #dbe3ea;
-  border-radius:12px;
-  padding:7px 11px;
-  min-width:118px;
-  box-shadow:0 2px 8px rgba(15,23,42,.04);
-}
-
-.exec-label{
-  font-size:10px;
-  color:#64748b;
-  text-transform:uppercase;
-  letter-spacing:.04em;
-  font-weight:900;
-}
-
-.exec-value{
-  font-size:20px;
-  font-weight:950;
-  color:#0f172a;
-  line-height:1.1;
-}
-
-@media (max-width:1450px){
-  #opsIntelDrawer,
-  #opsDrawer{
-    width:360px;
-    max-width:42vw;
-  }
-
-  .ops-transition-grid{
-    grid-template-columns:1fr;
-  }
-}
-
-@media (max-width:900px){
-  .exec-ribbon{
-    display:none;
-  }
 }
 
 
@@ -2429,296 +2265,14 @@ syncLegends();
   let lastMarkerRenderStartedAt = 0;
   const mapWrapEl = document.querySelector('.mapwrap');
 
-  // =====================================================
-// TRANSITION CACHE + RENDER STATE
-// =====================================================
-
-let activeDeltaFilter = 'all';
-let transitionSummaryCache = null;
-let transitionCacheKey = '';
-let deltaMarkersRendered = false;
-let deltaRenderQueued = false;
-let popupHtmlCache = new Map();
-let activeRenderToken = 0;
-
-const DELTA_RENDER_LIMIT = 900;
-const DELTA_RENDER_CHUNK = 120;
-const DELTA_MIN_ZOOM = 5;
-
-/* ===== Global Transition/Delta engine fix =====
-   These functions intentionally live in the main IIFE scope.
-   A previous enhancement defined the Delta helpers inside the Ops drawer builder, which meant
-   startup calls such as transitionInvalidateCache?.(...) and ribbon calls to buildDeltaSummary()
-   could fail or silently return 0. Keep these global-to-the-IIFE and lightweight/cached.
-*/
-function transitionInvalidateCache(reason='unknown'){
-  transitionSummaryCache = null;
-  transitionCacheKey = '';
-  if (popupHtmlCache && typeof popupHtmlCache.clear === 'function') popupHtmlCache.clear();
-  if (typeof console !== 'undefined' && console.debug) {
-    console.debug('[TransitionDelta] cache cleared:', reason);
+  // v104 cleanup: legacy Transition/Delta comparison engine removed from the leadership workflow.
+  // Keep only the lightweight popup/cache invalidator used by current rendering paths.
+  let popupHtmlCache = new Map();
+  let activeRenderToken = 0;
+  function transitionInvalidateCache(reason='unknown'){
+    if (popupHtmlCache && typeof popupHtmlCache.clear === 'function') popupHtmlCache.clear();
+    if (typeof console !== 'undefined' && console.debug) console.debug('[v104] cache cleared:', reason);
   }
-}
-
-function deltaNormalizeName(v){
-  return String(v ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/&amp;/g,'&')
-    .replace(/\([^)]*\)/g,' ')
-    .replace(/[^a-z0-9&]+/g,' ')
-    .replace(/\s+/g,' ')
-    .trim();
-}
-
-function deltaCleanDisplay(v){
-  if (Array.isArray(v)) return v.filter(Boolean).map(x => String(x).trim()).filter(Boolean).join(' | ');
-  return String(v ?? '').trim();
-}
-
-function deltaPushIfValue(arr, v){
-  const text = deltaCleanDisplay(v);
-  if (!text) return;
-  text.split(/\s*[|;]\s*/).map(x => x.trim()).filter(Boolean).forEach(x => arr.push(x));
-}
-
-function deltaComparableSet(values){
-  const out = [...new Set((values || []).map(deltaNormalizeName).filter(Boolean))];
-  return out.length ? out.sort().join('|') : '__blank__';
-}
-
-function deltaStoreManagerFields(store){
-  const ams = [];
-  const rms = [];
-  const teams = [];
-  const groups = [];
-
-  // Flattened store fields.
-  deltaPushIfValue(ams, store?.areaManager ?? store?.AreaManager ?? store?.am ?? store?.AM);
-  deltaPushIfValue(rms, store?.regionalManager ?? store?.RegionalManager ?? store?.rm ?? store?.RM);
-  deltaPushIfValue(teams, store?.teamName ?? store?.team ?? store?.Team ?? store?.TeamName);
-  deltaPushIfValue(groups, store?.managementGroupName ?? store?.ManagementGroupName ?? store?.managementGroup ?? store?.ManagementGroup);
-  deltaPushIfValue(groups, store?.managementGroupId ?? store?.ManagementGroupID ?? store?.teamId ?? store?.TeamID);
-
-  // Manager-path arrays are safer when alignment switching overwrites areaManager/regionalManager.
-  const paths = Array.isArray(store?.managerPaths) ? store.managerPaths : [];
-  paths.forEach(path => {
-    deltaPushIfValue(ams, path?.areaManager ?? path?.AreaManager ?? path?.am ?? path?.AM ?? path?.['Mgr 1 Name']);
-    deltaPushIfValue(rms, path?.regionalManager ?? path?.RegionalManager ?? path?.rm ?? path?.RM ?? path?.['Mgr 2 Name']);
-    deltaPushIfValue(teams, path?.teamName ?? path?.TeamName ?? path?.team ?? path?.Team ?? path?.legacyBrand ?? path?.LegacyBrand);
-    deltaPushIfValue(groups, path?.managementGroupName ?? path?.ManagementGroupName ?? path?.managementGroup ?? path?.ManagementGroup ?? path?.['Mngnt Grp Name']);
-    deltaPushIfValue(groups, path?.managementGroupId ?? path?.ManagementGroupID ?? path?.teamId ?? path?.TeamID ?? path?.['Mngnt Grp Id']);
-  });
-
-  return {
-    amDisplay: deltaCleanDisplay(ams.length ? [...new Set(ams)].join(' | ') : ''),
-    rmDisplay: deltaCleanDisplay(rms.length ? [...new Set(rms)].join(' | ') : ''),
-    teamDisplay: deltaCleanDisplay(teams.length ? [...new Set(teams)].join(' | ') : ''),
-    groupDisplay: deltaCleanDisplay(groups.length ? [...new Set(groups)].join(' | ') : ''),
-    amKey: deltaComparableSet(ams),
-    rmKey: deltaComparableSet(rms),
-    teamKey: deltaComparableSet(teams),
-    groupKey: deltaComparableSet(groups)
-  };
-}
-
-function deltaOwnerCompare(currentStore, futureStore){
-  const current = deltaStoreManagerFields(currentStore);
-  const future = deltaStoreManagerFields(futureStore);
-  const amChanged = current.amKey !== future.amKey;
-  const rmChanged = current.rmKey !== future.rmKey;
-  const teamChanged = current.teamKey !== future.teamKey;
-  const groupChanged = current.groupKey !== future.groupKey;
-
-  return {
-    changed: amChanged || rmChanged || teamChanged || groupChanged,
-    amChanged,
-    rmChanged,
-    teamChanged,
-    groupChanged,
-    current,
-    future
-  };
-}
-
-function deltaCoveredByActiveHub(store){
-  try {
-    return transitionCoverageMetrics(store, [...(premiumConfirmed || []), ...(acostaHubs || [])]).covered;
-  } catch(e) {
-    return String(store?.coverageType || '').trim() !== 'Uncovered';
-  }
-}
-
-function deltaNearestHub(store){
-  try {
-    return transitionNearestFromFields(store) || transitionNearestFromHubs(store, [...(premiumConfirmed || []), ...(acostaHubs || [])]);
-  } catch(e) {
-    return null;
-  }
-}
-
-function deltaStoreType(currentStore, futureStore){
-  const currentCovered = deltaCoveredByActiveHub(currentStore);
-  const futureCovered = deltaCoveredByActiveHub(futureStore);
-
-  const currentNearest = deltaNearestHub(currentStore);
-  const futureNearest = deltaNearestHub(futureStore);
-
-  const currentMiles = currentNearest && Number.isFinite(Number(currentNearest.miles)) ? Number(currentNearest.miles) : 999;
-  const futureMiles = futureNearest && Number.isFinite(Number(futureNearest.miles)) ? Number(futureNearest.miles) : 999;
-
-  const distanceChange = currentMiles - futureMiles;
-  const ownership = deltaOwnerCompare(currentStore, futureStore);
-  const ownershipChanged = ownership.changed;
-
-  let type = 'Coverage Retained';
-
-  if (!currentCovered && futureCovered){
-    type = 'Reassigned';
-  } else if (currentCovered && !futureCovered){
-    type = 'Lost Coverage';
-  } else if (currentCovered && futureCovered && distanceChange >= 15){
-    type = 'Improved Coverage';
-  } else if (currentCovered && futureCovered && distanceChange <= -15){
-    type = 'Coverage Regressed';
-  } else if (!currentCovered && !futureCovered){
-    type = 'Still Uncovered';
-  }
-
-  return {
-    type,
-    ownershipChanged,
-    ownership,
-    distanceChange,
-    currentCovered,
-    futureCovered,
-    currentMiles,
-    futureMiles
-  };
-}
-
-function buildDeltaSummary(){
-  const curMap = new Map();
-  const futMap = new Map();
-
-  (currentStores || []).forEach(s => {
-    const k = transitionStoreKey(s);
-    if (k) curMap.set(k, s);
-  });
-
-  (futureStores || []).forEach(s => {
-    const k = transitionStoreKey(s);
-    if (k) futMap.set(k, s);
-  });
-
-  const visibleKeys = new Set((filteredStores || []).map(s => transitionStoreKey(s)).filter(Boolean));
-  const keys = visibleKeys.size
-    ? [...visibleKeys]
-    : [...new Set([...curMap.keys(), ...futMap.keys()])];
-
-  const cacheKey = JSON.stringify({
-    activeAlignmentMode,
-    activeCoreTeamMode,
-    filterKey: keys.join('|'),
-    currentCount:(currentStores || []).length,
-    futureCount:(futureStores || []).length,
-    activeHubCount:(premiumConfirmed || []).length + (acostaHubs || []).length,
-    currentManagerRows: currentManagerRollupMap?.size || 0,
-    futureManagerRows: futureManagerRollupMap?.size || 0
-  });
-
-  if (transitionSummaryCache && transitionCacheKey === cacheKey){
-    return transitionSummaryCache;
-  }
-
-  const out = {
-    comparable:0,
-    missingCurrent:0,
-    missingFuture:0,
-    newlyCovered:[],
-    improvedCoverage:[],
-    lostCoverage:[],
-    newlyGap:[],
-    ownerChanged:[],
-    coverageRegressed:[],
-    retained:[],
-    unchanged:[],
-    ownershipBreakdown:{ am:0, rm:0, team:0, group:0 },
-    sampleOwnershipChanges:[]
-  };
-
-  keys.forEach(k => {
-    const current = curMap.get(k);
-    const future = futMap.get(k);
-
-    if (!current) { out.missingCurrent++; return; }
-    if (!future) { out.missingFuture++; return; }
-
-    out.comparable++;
-
-    const result = deltaStoreType(current, future);
-
-    future.deltaResult = result;
-    future.deltaType = result.type;
-    future.deltaCurrentStore = current;
-    future.deltaFutureStore = future;
-
-    if (result.type === 'Reassigned') out.newlyCovered.push(future);
-    if (result.type === 'Improved Coverage') out.improvedCoverage.push(future);
-    if (result.type === 'Lost Coverage') {
-      out.lostCoverage.push(future);
-      out.newlyGap.push(future);
-    }
-    if (result.type === 'Coverage Regressed') out.coverageRegressed.push(future);
-    if (result.type === 'Coverage Retained') out.retained.push(future);
-    if (result.type === 'Still Uncovered') out.unchanged.push(future);
-
-    if (result.ownershipChanged) {
-      out.ownerChanged.push(future);
-      if (result.ownership?.amChanged) out.ownershipBreakdown.am++;
-      if (result.ownership?.rmChanged) out.ownershipBreakdown.rm++;
-      if (result.ownership?.teamChanged) out.ownershipBreakdown.team++;
-      if (result.ownership?.groupChanged) out.ownershipBreakdown.group++;
-      if (out.sampleOwnershipChanges.length < 12) {
-        out.sampleOwnershipChanges.push({
-          store:k,
-          city: future.city || current.city || '',
-          state: future.state || current.state || '',
-          currentAM: result.ownership.current.amDisplay || '',
-          futureAM: result.ownership.future.amDisplay || '',
-          currentRM: result.ownership.current.rmDisplay || '',
-          futureRM: result.ownership.future.rmDisplay || '',
-          currentTeam: result.ownership.current.teamDisplay || result.ownership.current.groupDisplay || '',
-          futureTeam: result.ownership.future.teamDisplay || result.ownership.future.groupDisplay || ''
-        });
-      }
-    }
-  });
-
-  transitionSummaryCache = out;
-  transitionCacheKey = cacheKey;
-
-  if (typeof console !== 'undefined' && console.groupCollapsed) {
-    console.groupCollapsed('[TransitionDelta] current vs future audit');
-    console.table({
-      comparable: out.comparable,
-      missingCurrent: out.missingCurrent,
-      missingFuture: out.missingFuture,
-      ownerChanged: out.ownerChanged.length,
-      newlyCovered: out.newlyCovered.length,
-      lostCoverage: out.lostCoverage.length,
-      coverageRegressed: out.coverageRegressed.length,
-      retained: out.retained.length,
-      unchanged: out.unchanged.length
-    });
-    console.table(out.ownershipBreakdown);
-    if (out.sampleOwnershipChanges.length) console.table(out.sampleOwnershipChanges);
-    console.groupEnd();
-  }
-
-  return out;
-}
-
 
   function afterNextFrame(fn){
     requestAnimationFrame(() => setTimeout(fn, MARKER_RENDER_PAUSE_MS));
@@ -3114,13 +2668,6 @@ spRowsEl.addEventListener('click', (e)=>{
     updateInViewCount();
 
     scheduleHeatRefresh(300);
-
-    if (typeof deltaModeOn !== 'undefined' && deltaModeOn && typeof renderDeltaMarkers === 'function') {
-      clearTimeout(window.__deltaMoveTimer);
-      window.__deltaMoveTimer = setTimeout(() => {
-        renderDeltaMarkers();
-      }, 180);
-    }
 
     saveState();
   });
@@ -9673,8 +9220,6 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
     const mapwrap = document.querySelector('.mapwrap');
     if (!mapwrap || document.getElementById('opsDrawer')) return;
 
-    const deltaLayer = L.layerGroup().addTo(map);
-    let deltaModeOn = false;
 
     const ribbon = document.createElement('div');
     ribbon.id = 'opsExecRibbon';
@@ -9684,7 +9229,6 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
       <div class="ops-exec-card"><div class="lbl">Gap Stores</div><div class="val" id="opsExecGaps">—</div></div>
       <div class="ops-exec-card"><div class="lbl">Active RTS</div><div class="val" id="opsExecActive">—</div></div>
       <div class="ops-exec-card"><div class="lbl">Highest Risk</div><div class="val" id="opsExecRisk">—</div></div>
-      <button id="opsDeltaToggle" class="ops-exec-action" type="button" title="Delta tooling is disabled in the leadership cleanup view">Alignment Mode</button>
     `;
 
     const toggle = document.createElement('button');
@@ -9947,456 +9491,7 @@ Alignment Mode highlights manager/reassignment changes only. Coverage calculatio
       }).filter(r => r.total >= 5).sort((a,b)=> a.score - b.score || b.gaps - a.gaps).slice(0,10);
     }
 
-function deltaNormalizeName(v){
-  return String(v ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/&amp;/g,'&')
-    .replace(/\([^)]*\)/g,' ')
-    .replace(/[^a-z0-9&]+/g,' ')
-    .replace(/\s+/g,' ')
-    .trim();
-}
-
-function deltaCleanDisplay(v){
-  if (Array.isArray(v)) return v.filter(Boolean).map(x => String(x).trim()).filter(Boolean).join(' | ');
-  return String(v ?? '').trim();
-}
-
-function deltaPushIfValue(arr, v){
-  const text = deltaCleanDisplay(v);
-  if (!text) return;
-  text.split(/\s*[|;]\s*/).map(x => x.trim()).filter(Boolean).forEach(x => arr.push(x));
-}
-
-function deltaComparableSet(values){
-  const out = [...new Set((values || []).map(deltaNormalizeName).filter(Boolean))];
-  return out.length ? out.sort().join('|') : '__blank__';
-}
-
-function deltaStoreManagerFields(store){
-  const ams = [];
-  const rms = [];
-  const teams = [];
-  const groups = [];
-
-  // Direct flattened fields first. These are what the current/future popups usually display.
-  deltaPushIfValue(ams, store?.areaManager ?? store?.AreaManager ?? store?.am ?? store?.AM);
-  deltaPushIfValue(rms, store?.regionalManager ?? store?.RegionalManager ?? store?.rm ?? store?.RM);
-  deltaPushIfValue(teams, store?.teamName ?? store?.team ?? store?.Team ?? store?.TeamName);
-  deltaPushIfValue(groups, store?.managementGroupName ?? store?.ManagementGroupName ?? store?.managementGroup ?? store?.ManagementGroup);
-  deltaPushIfValue(groups, store?.managementGroupId ?? store?.ManagementGroupID ?? store?.teamId ?? store?.TeamID);
-
-  // Manager-path arrays are the safer source when the alignment switch has overwritten areaManager/regionalManager.
-  const paths = Array.isArray(store?.managerPaths) ? store.managerPaths : [];
-  paths.forEach(path => {
-    deltaPushIfValue(ams, path?.areaManager ?? path?.AreaManager ?? path?.am ?? path?.AM ?? path?.['Mgr 1 Name']);
-    deltaPushIfValue(rms, path?.regionalManager ?? path?.RegionalManager ?? path?.rm ?? path?.RM ?? path?.['Mgr 2 Name']);
-    deltaPushIfValue(teams, path?.teamName ?? path?.TeamName ?? path?.team ?? path?.Team ?? path?.legacyBrand ?? path?.LegacyBrand);
-    deltaPushIfValue(groups, path?.managementGroupName ?? path?.ManagementGroupName ?? path?.managementGroup ?? path?.ManagementGroup ?? path?.['Mngnt Grp Name']);
-    deltaPushIfValue(groups, path?.managementGroupId ?? path?.ManagementGroupID ?? path?.teamId ?? path?.TeamID ?? path?.['Mngnt Grp Id']);
-  });
-
-  return {
-    amDisplay: deltaCleanDisplay(ams.length ? [...new Set(ams)].join(' | ') : ''),
-    rmDisplay: deltaCleanDisplay(rms.length ? [...new Set(rms)].join(' | ') : ''),
-    teamDisplay: deltaCleanDisplay(teams.length ? [...new Set(teams)].join(' | ') : ''),
-    groupDisplay: deltaCleanDisplay(groups.length ? [...new Set(groups)].join(' | ') : ''),
-    amKey: deltaComparableSet(ams),
-    rmKey: deltaComparableSet(rms),
-    teamKey: deltaComparableSet(teams),
-    groupKey: deltaComparableSet(groups)
-  };
-}
-
-function deltaOwnerCompare(currentStore, futureStore){
-  const current = deltaStoreManagerFields(currentStore);
-  const future = deltaStoreManagerFields(futureStore);
-  const amChanged = current.amKey !== future.amKey;
-  const rmChanged = current.rmKey !== future.rmKey;
-  const teamChanged = current.teamKey !== future.teamKey;
-  const groupChanged = current.groupKey !== future.groupKey;
-
-  return {
-    changed: amChanged || rmChanged || teamChanged || groupChanged,
-    amChanged,
-    rmChanged,
-    teamChanged,
-    groupChanged,
-    current,
-    future
-  };
-}
-
-function deltaCoveredByActiveHub(store){
-  return transitionCoverageMetrics(store, [...(premiumConfirmed || []), ...(acostaHubs || [])]).covered;
-}
-function deltaNearestHub(store){
-  return transitionNearestFromFields(store) || transitionNearestFromHubs(store, [...(premiumConfirmed || []), ...(acostaHubs || [])]);
-}
-function deltaStoreType(currentStore, futureStore){
-  const currentCovered = deltaCoveredByActiveHub(currentStore);
-  const futureCovered = deltaCoveredByActiveHub(futureStore);
-
-  const currentNearest = deltaNearestHub(currentStore);
-  const futureNearest = deltaNearestHub(futureStore);
-
-  const currentMiles = currentNearest ? Number(currentNearest.miles) : 999;
-  const futureMiles = futureNearest ? Number(futureNearest.miles) : 999;
-
-  const distanceChange = currentMiles - futureMiles;
-  const ownership = deltaOwnerCompare(currentStore, futureStore);
-  const ownershipChanged = ownership.changed;
-
-  let type = 'Coverage Retained';
-
-  if (!currentCovered && futureCovered){
-    type = 'Reassigned';
-  }
-  else if (currentCovered && !futureCovered){
-    type = 'Lost Coverage';
-  }
-  else if (currentCovered && futureCovered && distanceChange >= 15){
-    type = 'Improved Coverage';
-  }
-  else if (currentCovered && futureCovered && distanceChange <= -15){
-    type = 'Coverage Regressed';
-  }
-  else if (!currentCovered && !futureCovered){
-    type = 'Still Uncovered';
-  }
-
-  return {
-    type,
-    ownershipChanged,
-    ownership,
-    distanceChange,
-    currentCovered,
-    futureCovered,
-    currentMiles,
-    futureMiles
-  };
-}
-
-function transitionInvalidateCache(reason='unknown'){
-  transitionSummaryCache = null;
-  transitionCacheKey = '';
-  popupHtmlCache?.clear?.();
-  if (typeof console !== 'undefined' && console.debug) console.debug('[TransitionDelta] cache cleared:', reason);
-}
-
-function buildDeltaSummary(){
-  const curMap = new Map();
-  const futMap = new Map();
-
-  (currentStores || []).forEach(s => {
-    const k = storeKey(s);
-    if (k) curMap.set(k, s);
-  });
-
-  (futureStores || []).forEach(s => {
-    const k = storeKey(s);
-    if (k) futMap.set(k, s);
-  });
-
-  const visibleKeys = new Set((filteredStores || []).map(s => storeKey(s)).filter(Boolean));
-  const keys = visibleKeys.size
-    ? [...visibleKeys]
-    : [...new Set([...curMap.keys(), ...futMap.keys()])];
-
-  const cacheKey = JSON.stringify({
-    activeAlignmentMode,
-    activeCoreTeamMode,
-    filterKey: keys.join('|'),
-    currentCount:(currentStores || []).length,
-    futureCount:(futureStores || []).length,
-    activeHubCount:(premiumConfirmed || []).length + (acostaHubs || []).length,
-    currentManagerRows: currentManagerRollupMap?.size || 0,
-    futureManagerRows: futureManagerRollupMap?.size || 0
-  });
-
-  if (transitionSummaryCache && transitionCacheKey === cacheKey){
-    return transitionSummaryCache;
-  }
-
-  const out = {
-    comparable:0,
-    missingCurrent:0,
-    missingFuture:0,
-    newlyCovered:[],
-    improvedCoverage:[],
-    lostCoverage:[],
-    newlyGap:[],
-    ownerChanged:[],
-    coverageRegressed:[],
-    retained:[],
-    unchanged:[],
-    ownershipBreakdown:{ am:0, rm:0, team:0, group:0 },
-    sampleOwnershipChanges:[]
-  };
-
-  keys.forEach(k => {
-    const current = curMap.get(k);
-    const future = futMap.get(k);
-
-    if (!current) { out.missingCurrent++; return; }
-    if (!future) { out.missingFuture++; return; }
-
-    out.comparable++;
-
-    const result = deltaStoreType(current, future);
-
-    future.deltaResult = result;
-    future.deltaType = result.type;
-    future.deltaCurrentStore = current;
-    future.deltaFutureStore = future;
-
-    if (result.type === 'Reassigned') out.newlyCovered.push(future);
-    if (result.type === 'Improved Coverage') out.improvedCoverage.push(future);
-    if (result.type === 'Lost Coverage'){
-      out.lostCoverage.push(future);
-      out.newlyGap.push(future);
-    }
-    if (result.type === 'Coverage Regressed') out.coverageRegressed.push(future);
-
-    if (result.ownershipChanged){
-      out.ownerChanged.push(future);
-      if (result.ownership?.amChanged) out.ownershipBreakdown.am++;
-      if (result.ownership?.rmChanged) out.ownershipBreakdown.rm++;
-      if (result.ownership?.teamChanged) out.ownershipBreakdown.team++;
-      if (result.ownership?.groupChanged) out.ownershipBreakdown.group++;
-      if (out.sampleOwnershipChanges.length < 12){
-        out.sampleOwnershipChanges.push({
-          store:k,
-          currentAM:result.ownership.current.amDisplay || 'None',
-          futureAM:result.ownership.future.amDisplay || 'None',
-          currentRM:result.ownership.current.rmDisplay || 'None',
-          futureRM:result.ownership.future.rmDisplay || 'None',
-          currentTeam:result.ownership.current.teamDisplay || result.ownership.current.groupDisplay || 'None',
-          futureTeam:result.ownership.future.teamDisplay || result.ownership.future.groupDisplay || 'None'
-        });
-      }
-    }
-
-    if (result.type === 'Coverage Retained') out.retained.push(future);
-    if (result.type === 'Still Uncovered') out.unchanged.push(future);
-  });
-
-  transitionSummaryCache = out;
-  transitionCacheKey = cacheKey;
-
-  console.groupCollapsed('[TransitionDelta] summary');
-  console.table({
-    visibleKeys: keys.length,
-    comparable: out.comparable,
-    missingCurrent: out.missingCurrent,
-    missingFuture: out.missingFuture,
-    ownershipChanges: out.ownerChanged.length,
-    amChanges: out.ownershipBreakdown.am,
-    rmChanges: out.ownershipBreakdown.rm,
-    teamChanges: out.ownershipBreakdown.team,
-    groupChanges: out.ownershipBreakdown.group,
-    newlyCovered: out.newlyCovered.length,
-    improvedCoverage: out.improvedCoverage.length,
-    lostCoverage: out.lostCoverage.length,
-    coverageRegressed: out.coverageRegressed.length
-  });
-  if (out.sampleOwnershipChanges.length) console.table(out.sampleOwnershipChanges);
-  console.groupEnd();
-
-  window.__lastTransitionDeltaSummary = out;
-  return out;
-}
-
-function renderDeltaMarkers(){
-
-  if (!deltaModeOn) {
-    deltaLayer.clearLayers();
-    return;
-  }
-
-  if (map.getZoom() < DELTA_MIN_ZOOM){
-    deltaLayer.clearLayers();
-    return;
-  }
-
-  if (deltaRenderQueued) return;
-  deltaRenderQueued = true;
-
-  queueSafeRender(() => {
-
-    deltaLayer.clearLayers();
-
-    const d = buildDeltaSummary();
-
-    const deltaRowMap = new Map();
-    const addDeltaRow = (s, cls, title) => {
-      const k = storeKey(s);
-      if (!k) return;
-      const existing = deltaRowMap.get(k);
-      if (!existing) {
-        deltaRowMap.set(k, { s, cls, title, titles:[title] });
-        return;
-      }
-      if (!existing.titles.includes(title)) existing.titles.push(title);
-      if (title === 'Alignment Changed' && existing.title === 'Coverage Retained') {
-        existing.cls = cls;
-        existing.title = title;
-      }
-    };
-
-    d.newlyCovered.forEach(s => addDeltaRow(s, 'ops-delta-new', 'Reassigned'));
-    d.improvedCoverage.forEach(s => addDeltaRow(s, 'ops-delta-improved', 'Improved Coverage'));
-    d.lostCoverage.forEach(s => addDeltaRow(s, 'ops-delta-lost', 'Lost Coverage'));
-    d.coverageRegressed.forEach(s => addDeltaRow(s, 'ops-delta-regressed', 'Coverage Regressed'));
-    d.ownerChanged.forEach(s => addDeltaRow(s, 'ops-delta-owner', 'Alignment Changed'));
-
-    const rows = [...deltaRowMap.values()];
-
-    const bounds = map.getBounds();
-
-        const filteredDeltaRows = rows.filter(x => {
-      if (activeDeltaFilter === 'all') return true;
-      if (activeDeltaFilter === 'owner') return x.title === 'Alignment Changed';
-      if (activeDeltaFilter === 'new') return x.title === 'Reassigned';
-      if (activeDeltaFilter === 'lost') return x.title === 'Lost Coverage' || x.title === 'Coverage Regressed';
-      if (activeDeltaFilter === 'improved') return x.title === 'Improved Coverage';
-      return true;
-    });
-
-    const visibleRows = filteredDeltaRows
-      .filter(x => bounds.contains([x.s.lat, x.s.lng]))
-      .slice(0, DELTA_RENDER_LIMIT);
-
-    let i = 0;
-
-    function renderChunk(){
-
-      const end = Math.min(i + DELTA_RENDER_CHUNK, visibleRows.length);
-
-      for (; i < end; i++){
-
-        const x = visibleRows[i];
-
-        const icon = L.divIcon({
-          className:'',
-          html:`<div class="ops-delta-marker ${x.cls}"></div>`,
-          iconSize:[16,16],
-          iconAnchor:[8,8]
-        });
-
-        L.marker(
-          [Number(x.s.lat), Number(x.s.lng)],
-          { icon }
-        )
-          .bindPopup(deltaPopupHTML(x.s))
-          .addTo(deltaLayer);
-      }
-
-      if (i < visibleRows.length){
-        requestAnimationFrame(renderChunk);
-      }
-      else {
-        deltaRenderQueued = false;
-      }
-    }
-
-    renderChunk();
-  });
-}
-
-    function deltaPopupHTML(futureStore){
-      const cacheKey = storeKey(futureStore) + '|' + (futureStore.deltaType || '');
-
-if (popupHtmlCache.has(cacheKey)){
-  return popupHtmlCache.get(cacheKey);
-}
-  const k = storeKey(futureStore);
-  const currentStore =
-    (currentStores || []).find(s => storeKey(s) === k) || futureStore;
-
-
-  const currentNearest = deltaNearestHub(currentStore);
-  const futureNearest = deltaNearestHub(futureStore);
-
-  const currentCovered = deltaCoveredByActiveHub(currentStore);
-  const futureCovered = deltaCoveredByActiveHub(futureStore);
-
-  const currentMiles = currentNearest ? currentNearest.miles : 999;
-  const futureMiles = futureNearest ? futureNearest.miles : 999;
-  const distanceChange = currentMiles - futureMiles;
-
-  const currentRM = rmOf(currentStore);
-  const futureRM = rmOf(futureStore);
-  const currentAM = amOf(currentStore);
-  const futureAM = amOf(futureStore);
-
-  const ownershipResult = deltaOwnerCompare(currentStore, futureStore);
-  const ownershipChanged = ownershipResult.changed;
-
-  const result =
-    futureStore.deltaResult ||
-    deltaStoreType(currentStore, futureStore);
-
-  const type = result.type || result;
-
-  const flags = [];
-
-  if (result.ownershipChanged) flags.push('Alignment Changed');
-  if (type === 'Improved Coverage') flags.push('Improved');
-  if (type === 'Coverage Regressed') flags.push('Regressed');
-  if (type === 'Reassigned') flags.push('New Coverage');
-  if (type === 'Lost Coverage') flags.push('Lost Coverage');
-
-  const deltaLabel = flags.length ? flags.join(' • ') : type;
-
-  const html = `
-    <div style="min-width:320px;max-width:430px">
-      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
-        <div>
-          <div style="font-size:18px;font-weight:900">Store ${safe(futureStore.storeNumberStr || futureStore.storeNumber || '')}</div>
-          <div style="font-size:13px;color:var(--muted)">${safe(futureStore.storeName || '')}</div>
-          <div style="font-size:13px;color:var(--muted)">${safe(futureStore.city || '')}, ${safe(futureStore.state || '')}</div>
-        </div>
-        <div style="font-weight:900;border-radius:999px;padding:6px 10px;background:#f8fafc;border:1px solid var(--border)">
-                 ${safe(deltaLabel)}
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
-        <div style="border:1px solid var(--border);border-radius:12px;padding:10px;background:#f8fafc">
-          <div style="font-weight:900;margin-bottom:6px">Current State</div>
-          <div><b>Covered:</b> ${currentCovered ? 'Covered' : 'Uncovered'}</div>
-          <div><b>RTS:</b> ${safe(currentNearest?.name || 'None')}</div>
-          <div><b>Distance:</b> ${currentMiles === 999 ? '—' : currentMiles.toFixed(1) + ' mi'}</div>
-        </div>
-
-        <div style="border:1px solid var(--border);border-radius:12px;padding:10px;background:#f8fafc">
-          <div style="font-weight:900;margin-bottom:6px">Future State</div>
-          <div><b>Covered:</b> ${futureCovered ? 'Covered' : 'Uncovered'}</div>
-          <div><b>RTS:</b> ${safe(futureNearest?.name || 'None')}</div>
-          <div><b>Distance:</b> ${futureMiles === 999 ? '—' : futureMiles.toFixed(1) + ' mi'}</div>
-        </div>
-      </div>
-
-      <div style="margin-top:12px;display:grid;gap:6px;font-size:13px">
-        <div><b>Distance Change:</b> ${
-          currentMiles === 999 || futureMiles === 999
-            ? '—'
-            : distanceChange.toFixed(1) + ' mi'
-        }</div>
-        <div><b>Alignment Changed:</b> ${ownershipChanged ? 'Yes' : 'No'}</div>
-        <div><b>Current AM:</b> ${safe(currentAM || 'None')}</div>
-        <div><b>Future AM:</b> ${safe(futureAM || 'None')}</div>
-        <div><b>Current RM:</b> ${safe(currentRM || 'None')}</div>
-        <div><b>Future RM:</b> ${safe(futureRM || 'None')}</div>
-      </div>
-    </div>
-  `;
-
-  popupHtmlCache.set(cacheKey, html);
-  return html;
-}
+    // v104 cleanup: nested Delta/Transition map marker engine removed.
 
 
     function syncCommandLayout(){
@@ -11051,9 +10146,8 @@ if (popupHtmlCache.has(cacheKey)){
       return (reason='ui')=>{
         clearTimeout(t);
         t = setTimeout(()=>{
-          // Performance guard: do not run Ops analytics while the drawer is closed,
-          // unless Alignment Mode is active. This prevents pan/zoom from triggering heavy table rebuilds.
-          if (!drawer.classList.contains('show') && !deltaModeOn) return;
+          // Performance guard: do not run Ops analytics while the drawer is closed.
+          if (!drawer.classList.contains('show')) return;
           updateOpsIntel();
         }, 300);
       };
@@ -11085,12 +10179,6 @@ if (popupHtmlCache.has(cacheKey)){
         updateOpsIntel();
       });
     });
-
-    if (id('opsDeltaToggle')) id('opsDeltaToggle').onclick = ()=>{
-      deltaModeOn = false;
-      deltaLayer.clearLayers();
-      syncCommandLayout();
-    };
 
     ['covFilter','rmFilter','amFilter','hubFilter','showConfirmed','showPending','showUnilever','showPG','showTyson','tgWithin','tgCluster'].forEach(x=> id(x)?.addEventListener('change', scheduleOps));
     ['covSearch','rmSearch','amSearch','hubSearch','searchBox'].forEach(x=> id(x)?.addEventListener('input', scheduleOps));
@@ -11194,7 +10282,6 @@ if (popupHtmlCache.has(cacheKey)){
     installCoverageActionPane();
 
     const opsBtn = document.getElementById('railOpsIntel');
-    const deltaBtn = document.getElementById('railDelta');
     const fitBtnRail = document.getElementById('railFit');
     const leadershipBtn = document.getElementById('railLeadership');
     const fieldBtn = document.getElementById('railField');
@@ -11206,15 +10293,6 @@ if (popupHtmlCache.has(cacheKey)){
         if (drawer) drawer.classList.toggle('show');
         if (typeof syncCommandLayout === 'function') syncCommandLayout();
         if (typeof updateOpsIntel === 'function') updateOpsIntel();
-        renderTransitionReadinessPane();
-      };
-    }
-
-    if (deltaBtn && !deltaBtn.dataset.wired){
-      deltaBtn.dataset.wired = '1';
-      deltaBtn.onclick = () => {
-        document.getElementById('opsDeltaToggle')?.click();
-        deltaBtn.classList.toggle('active');
         renderTransitionReadinessPane();
       };
     }
@@ -11409,7 +10487,6 @@ if (popupHtmlCache.has(cacheKey)){
       const style = document.createElement('style');
       style.id = 'viewModePackV4Style';
       style.textContent = `
-        #opsDeltaToggle,#quickDeltaBtn{display:none !important;}
         .view-mode-divider{display:none !important;}
         .view-mode-divider{width:1px;align-self:stretch;background:#e2e8f0;margin:0 2px;}
         .view-mode-btn.active,
@@ -11419,45 +10496,11 @@ if (popupHtmlCache.has(cacheKey)){
           border-color:#111827 !important;
           box-shadow:0 4px 12px rgba(15,23,42,.18) !important;
         }
-        .delta-status-chip{
-          display:inline-flex;
-          align-items:center;
-          gap:6px;
-          padding:3px 8px;
-          border-radius:999px;
-          border:1px solid #dbe3ea;
-          background:#fff;
-          font-size:12px;
-          font-weight:800;
-          white-space:nowrap;
-        }
-        .delta-status-chip.on{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8;}
-        .delta-pane-toolbar{
-          display:flex;
-          gap:8px;
-          flex-wrap:wrap;
-          align-items:center;
-          margin-bottom:10px;
-          padding:8px;
-          border:1px solid #e2e8f0;
-          border-radius:12px;
-          background:#f8fafc;
-        }
       `;
       document.head.appendChild(style);
     }
 
-    if (!document.getElementById('quickDeltaBtn')){
-      const divider = document.createElement('span');
-      divider.className = 'view-mode-divider';
-      divider.setAttribute('aria-hidden','true');
-
-      const delta = document.createElement('button');
-      delta.id = 'quickDeltaBtn';
-      delta.className = 'pill compact-pill view-mode-btn';
-      delta.type = 'button';
-      delta.title = 'Highlight stores that change between current and future alignment';
-      delta.innerHTML = '<span class="dot" style="background:#2563eb"></span> Alignment Mode';
+    if (!document.getElementById('quickOpsBtn')){
 
       const ops = document.createElement('button');
       ops.id = 'quickOpsBtn';
@@ -11485,27 +10528,7 @@ if (popupHtmlCache.has(cacheKey)){
       presetBar.appendChild(field);
     }
 
-    const deltaPane = document.getElementById('opsPaneDelta');
-    if (deltaPane && !document.getElementById('deltaPaneToolbar')){
-      const toolbar = document.createElement('div');
-      toolbar.id = 'deltaPaneToolbar';
-      toolbar.className = 'delta-pane-toolbar';
-      toolbar.innerHTML = `
-        <button id="deltaPaneToggleBtn" class="btn" type="button">Show Delta on Map</button>
-        <span id="deltaStatusChip" class="delta-status-chip">Alignment Mode Off</span>
-        <button class="btn delta-filter-btn" type="button" data-delta-filter="all">All</button>
-        <button class="btn delta-filter-btn" type="button" data-delta-filter="owner">Ownership</button>
-        <button class="btn delta-filter-btn" type="button" data-delta-filter="new">New</button>
-        <button class="btn delta-filter-btn" type="button" data-delta-filter="lost">Lost</button>
-        <button class="btn delta-filter-btn" type="button" data-delta-filter="improved">Improved</button>
-        <span class="ops-sub">Performance-safe: markers render only when Alignment Mode is opened.</span>
-      `;
-      deltaPane.insertBefore(toolbar, deltaPane.firstChild);
-    }
-
     function drawer(){ return document.getElementById('opsDrawer'); }
-    function deltaToggle(){ return document.getElementById('opsDeltaToggle'); }
-    function deltaActive(){ return !!deltaToggle()?.classList.contains('active'); }
 
     function openOpsPane(pane){
       const d = drawer();
@@ -11516,53 +10539,10 @@ if (popupHtmlCache.has(cacheKey)){
       setTimeout(() => map.invalidateSize(), 120);
     }
 
-    function setDeltaMode(on){
-      const t = deltaToggle();
-      if (!t) return;
-      const isOn = deltaActive();
-      if (on !== isOn) t.click();
-      if (on) openOpsPane('overview');
-      syncButtons();
-    }
-
     function syncButtons(){
-      const on = deltaActive();
-      document.getElementById('quickDeltaBtn')?.classList.toggle('active', on);
-      document.getElementById('railDelta')?.classList.toggle('active', on);
-
-      const status = document.getElementById('deltaStatusChip');
-      if (status){
-        status.classList.toggle('on', on);
-        status.textContent = on ? 'Alignment Mode On' : 'Alignment Mode Off';
-      }
-
-          document.querySelectorAll('.delta-filter-btn').forEach(btn => {
-      if (btn.dataset.v4FilterWired) return;
-      btn.dataset.v4FilterWired = '1';
-
-      btn.onclick = () => {
-        activeDeltaFilter = btn.dataset.deltaFilter || 'all';
-
-        document.querySelectorAll('.delta-filter-btn').forEach(b => {
-          b.classList.toggle('active', b === btn);
-        });
-
-        if (typeof renderDeltaMarkers === 'function') {
-          deltaLayer?.clearLayers?.();
-          renderDeltaMarkers();
-        }
-
-        refreshExecutiveRibbon?.();
-      };
-    });
-
-    document.querySelector('.delta-filter-btn[data-delta-filter="all"]')?.classList.add('active');
-
-      const paneBtn = document.getElementById('deltaPaneToggleBtn');
-      if (paneBtn) paneBtn.textContent = on ? 'Hide Delta on Map' : 'Show Delta on Map';
+      document.getElementById('quickOpsBtn')?.classList.toggle('active', document.getElementById('opsDrawer')?.classList.contains('show'));
     }
 
-    document.getElementById('quickDeltaBtn').onclick = () => setDeltaMode(!deltaActive());
     document.getElementById('quickOpsBtn').onclick = () => openOpsPane('overview');
     document.getElementById('quickLeadershipBtn').onclick = () => {
       document.body.classList.add('clean-mode');
@@ -11571,22 +10551,9 @@ if (popupHtmlCache.has(cacheKey)){
     document.getElementById('quickFieldBtn').onclick = () => {
       document.body.classList.remove('clean-mode');
       drawer()?.classList.remove('show');
-      setDeltaMode(false);
       if (typeof syncCommandLayout === 'function') syncCommandLayout();
       setTimeout(() => map.invalidateSize(), 120);
     };
-
-    const paneBtn = document.getElementById('deltaPaneToggleBtn');
-    if (paneBtn && !paneBtn.dataset.v4Wired){
-      paneBtn.dataset.v4Wired = '1';
-      paneBtn.onclick = () => setDeltaMode(!deltaActive());
-    }
-
-    const t = deltaToggle();
-    if (t && !t.dataset.v4Observed){
-      t.dataset.v4Observed = '1';
-      t.addEventListener('click', () => setTimeout(syncButtons, 0));
-    }
 
     // Ensure right rail exists now that we explicitly call the shell installer.
     if (typeof installCommandCenterShellV3 === 'function') installCommandCenterShellV3();
@@ -11719,7 +10686,7 @@ if (popupHtmlCache.has(cacheKey)){
       }
     });
 
-    ['opsPaneTransition','opsPaneDelta','opsDeltaSummary','opsDeltaToggle','railDelta','quickDeltaBtn'].forEach(idv => {
+    ['opsPaneTransition','opsPaneDelta','opsDeltaSummary'].forEach(idv => {
       document.getElementById(idv)?.remove();
     });
 
