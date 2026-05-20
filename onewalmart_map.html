@@ -4070,7 +4070,7 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
       : 'Balanced Territory';
 
          let territoryTrend =
-    territoryBurdenScore >= 75 && redundancyPct < 20
+    territoryBurdenScore >= 75 || routeFrictionScore >= 75
       ? 'Operationally vulnerable'
       : territoryBurdenScore >= 60 || routeFrictionScore >= 60
       ? 'Operationally stretched'
