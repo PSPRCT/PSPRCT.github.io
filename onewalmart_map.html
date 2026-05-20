@@ -3971,6 +3971,63 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
   const dedicatedScore = dedRatio >= .65 && dedStoreSet.size >= 20 ? 1 : 0;
   const workloadScore = volumeScore + fringeScore + distanceScore + gapScore + dedicatedScore;
 
+  // Operational Territory Intelligence v1/v2.
+  // Planning-only: does not change the 75-mile coverage rule or imply daily travel.
+  const nearStores = covered.filter(s => Number(s._distMiles) <= 30).length;
+  const midStores = covered.filter(s => Number(s._distMiles) > 30 && Number(s._distMiles) <= 50).length;
+  const longStores = covered.filter(s => Number(s._distMiles) > 50 && Number(s._distMiles) < 60).length;
+  const outerStores = covered.filter(s => Number(s._distMiles) >= 60).length;
+
+  const territoryBurdenScore = Math.min(100, Math.round(
+    (covered.length * 0.35) +
+    (midStores * 0.25) +
+    (longStores * 0.55) +
+    (outerStores * 0.9) +
+    (uncovered.length >= 15 ? 8 : uncovered.length >= 5 ? 4 : 0) +
+    (dedStoreSet.size >= 25 ? 5 : 0)
+  ));
+
+  const territoryBurdenLabel =
+    territoryBurdenScore >= 75 ? 'Critical' :
+    territoryBurdenScore >= 55 ? 'High' :
+    territoryBurdenScore >= 35 ? 'Moderate' :
+    'Low';
+
+  const routeFrictionScore = Math.min(100, Math.round(
+    (avgMi * 0.65) +
+    (maxMi >= 70 ? 16 : maxMi >= 60 ? 9 : 0) +
+    (outerStores * 0.75) +
+    (fringePct >= .35 ? 12 : fringePct >= .20 ? 7 : 0) +
+    (redundancyPct < 15 && covered.length >= 25 ? 12 : redundancyPct < 35 && covered.length >= 25 ? 7 : 0)
+  ));
+
+  const routeFrictionLabel =
+    routeFrictionScore >= 75 ? 'Severe' :
+    routeFrictionScore >= 55 ? 'High' :
+    routeFrictionScore >= 35 ? 'Moderate' :
+    'Low';
+
+  const routeFrictionClass =
+    routeFrictionScore >= 75 ? 'risk' :
+    routeFrictionScore >= 55 ? 'watch' :
+    routeFrictionScore >= 35 ? 'watch' :
+    'stable';
+
+  const adjustedServiceLoad = Math.round(
+    nearStores +
+    (midStores * 1.15) +
+    (longStores * 1.35) +
+    (outerStores * 1.65)
+  );
+
+  const routeFrictionFlags = [];
+  if (outerStores >= 15 || fringePct >= .25) routeFrictionFlags.push('High outer-edge store concentration');
+  if (avgMi >= 45) routeFrictionFlags.push('Long average territory spread');
+  if (maxMi >= 70) routeFrictionFlags.push('Near-limit 75-mile exposure');
+  if (redundancyPct < 35 && covered.length >= 25) routeFrictionFlags.push('Limited backup RTS depth');
+  if (uncovered.length >= 15) routeFrictionFlags.push('Gap-adjacent support pressure');
+  if (!routeFrictionFlags.length) routeFrictionFlags.push('No major route-friction flags in this v1/v2 model');
+
   let workload = 'Stable Coverage', workloadClass = 'stable';
   if (workloadScore >= 6 || (fringePct >= .40 && covered.length >= 25)) { workload = 'Coverage Risk'; workloadClass = 'critical'; }
   else if (workloadScore >= 4) { workload = 'High Support Load'; workloadClass = 'high'; }
