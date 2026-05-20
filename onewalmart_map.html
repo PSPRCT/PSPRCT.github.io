@@ -4025,7 +4025,16 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
   if (maxMi >= 70) routeFrictionFlags.push('Near-limit 75-mile exposure');
     if (covered.length >= 25 && outerStores >= 15) routeFrictionFlags.push('Potential backup-depth concern for outer-edge stores');
   if (uncovered.length >= 15) routeFrictionFlags.push('Gap-adjacent support pressure');
-  if (!routeFrictionFlags.length) routeFrictionFlags.push('No major route-friction flags in this v1/v2 model');
+    if (!routeFrictionFlags.length) routeFrictionFlags.push('No major route-friction flags in this v1/v2 model');
+
+  let territoryInterpretation =
+    territoryBurdenScore >= 75
+      ? 'This territory may become operationally difficult to support consistently during onboarding surges, coverage gaps, or RTS outages.'
+      : territoryBurdenScore >= 55
+      ? 'This territory likely requires stronger backup coordination and proactive scheduling visibility during higher activity periods.'
+      : territoryBurdenScore >= 35
+      ? 'This territory appears operationally manageable but includes moderate spread or fringe-store support complexity.'
+      : 'This territory currently appears operationally efficient with manageable spread and support depth.';
 
   let workload = 'Stable Coverage', workloadClass = 'stable';
   if (workloadScore >= 6 || (fringePct >= .40 && covered.length >= 25)) { workload = 'Coverage Risk'; workloadClass = 'critical'; }
