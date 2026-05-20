@@ -4124,11 +4124,10 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
 
   const backupCovered = covered.filter(s => activeBackupHubs.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords[1]) <= CLASSIFY_RADIUS)).length;
   const redundancyPct = covered.length ? Math.round((backupCovered / covered.length) * 100) : 0;
-  let redundancyLabel = 'Weak';
-  if (redundancyPct >= 65) redundancyLabel = 'Strong';
+    let redundancyLabel = 'Weak';
+  if (redundancyPct >= 70) redundancyLabel = 'Strong';
   else if (redundancyPct >= 35) redundancyLabel = 'Moderate';
   else if (redundancyPct >= 15) redundancyLabel = 'Limited';
-
     if (covered.length >= 25 && redundancyPct < 35) {
     routeFrictionFlags.push('Limited backup RTS depth');
   }
@@ -4252,8 +4251,10 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
       ${primaryNextActions.map((txt, idx) => `<div class="op-next-action-item"><b>${idx + 1}.</b> ${escape(txt)}</div>`).join('')}
     </div>
 
+        <div class="op-scorecard-note"><b>Resiliency interpretation:</b> This estimates whether nearby RTS infrastructure could absorb support needs during PTO, attrition, escalations, leave coverage, or sudden intake spikes.</div>
+
     <div class="op-redundancy-grid">
-      <div class="op-redundancy-card"><div class="lbl">Backup RTS Availability</div><div class="val">${redundancyLabel}</div><div class="sub">${redundancyPct}% of covered stores also have another active RTS within 75 mi</div></div>
+      <div class="op-redundancy-card"><div class="lbl">Backup RTS Availability</div><div class="val">${redundancyLabel}</div><div class="sub">${redundancyPct}% of covered stores also have another active RTS within 75 mi for emergency overflow or reassignment support</div>
       <div class="op-redundancy-card"><div class="lbl">Leadership Recommendation</div><div class="val">${recommendationTier}</div><div class="sub">${leadershipOutcome}</div></div>
     </div>
     <div class="op-section-title">Nearby Backup / Support Hubs</div>
