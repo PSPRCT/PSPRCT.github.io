@@ -4253,9 +4253,17 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
 
         <div class="op-scorecard-note"><b>Resiliency interpretation:</b> This estimates whether nearby RTS infrastructure could absorb support needs during PTO, attrition, escalations, leave coverage, or sudden intake spikes.</div>
 
-    <div class="op-redundancy-grid">
-      <div class="op-redundancy-card"><div class="lbl">Backup RTS Availability</div><div class="val">${redundancyLabel}</div><div class="sub">${redundancyPct}% of covered stores also have another active RTS within 75 mi for emergency overflow or reassignment support</div>
-      <div class="op-redundancy-card"><div class="lbl">Leadership Recommendation</div><div class="val">${recommendationTier}</div><div class="sub">${leadershipOutcome}</div></div>
+   <div class="op-redundancy-grid">
+      <div class="op-redundancy-card">
+        <div class="lbl">Backup RTS Availability</div>
+        <div class="val">${redundancyLabel}</div>
+        <div class="sub">${redundancyPct}% of covered stores also have another active RTS within 75 mi for emergency overflow or reassignment support</div>
+      </div>
+      <div class="op-redundancy-card">
+        <div class="lbl">Leadership Recommendation</div>
+        <div class="val">${recommendationTier}</div>
+        <div class="sub">${leadershipOutcome}</div>
+      </div>
     </div>
     <div class="op-section-title">Nearby Backup / Support Hubs</div>
     <div class="op-support-list">
