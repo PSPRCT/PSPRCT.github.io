@@ -4052,6 +4052,17 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
       ? 'High-Volume Territory'
       : 'Balanced Territory';
 
+    let territoryRecommendation =
+    territoryBurdenScore >= 75 && routeFrictionScore >= 75
+      ? 'Consider validating backup RTS depth, reassignment flexibility, and onboarding surge readiness for this territory.'
+      : territoryBurdenScore >= 55 && routeFrictionScore >= 55
+      ? 'Monitor backup coverage coordination and scheduling flexibility during elevated support periods.'
+      : territoryBurdenScore >= 55
+      ? 'Focus on workload balancing and backup visibility more than geographic routing complexity.'
+      : routeFrictionScore >= 55
+      ? 'Territory appears manageable operationally but may involve inefficient real-world routing conditions.'
+      : 'No immediate operational territory concerns identified in the current planning model.';
+
   let territoryInterpretation =
     territoryBurdenScore >= 75
       ? 'This territory may become operationally difficult to support consistently during onboarding surges, coverage gaps, or RTS outages.'
@@ -4205,6 +4216,7 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
       <div style="margin-top:6px"><b>Interpretation:</b> ${escape(territoryInterpretation)}</div>
       <div style="margin-top:6px"><b>Distance tiers:</b> ${nearStores} within 30 mi · ${midStores} from 31–50 mi · ${longStores} from 51–59 mi · ${outerStores} from 60–75 mi</div>
       <div style="margin-top:6px"><b>Friction flags:</b> ${routeFrictionFlags.map(x => escape(x)).join(' · ')}</div>
+      <div style="margin-top:6px"><b>Model note:</b> Territory Service Burden estimates possible support complexity; Route Friction estimates likely real-world movement difficulty compared with straight-line mileage.</div>
     </div>
 
     <div class="op-breakdown-grid">
