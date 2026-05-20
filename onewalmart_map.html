@@ -4219,8 +4219,40 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
         <div style="margin-top:6px;font-size:12px;line-height:1.35;color:#334155;">
      <b>Primary operational concern:</b> ${escape(primaryOperationalConcern)}
       </div>
-      <div style="margin-top:4px;font-size:11.5px;line-height:1.35;color:#64748b;">
+       <div style="margin-top:4px;font-size:11.5px;line-height:1.35;color:#64748b;">
         Use this as the first review point when deciding whether the hub needs backup support, monitoring, or no action.
+      </div>
+
+      <div style="margin-top:8px;">
+        <span style="
+          display:inline-block;
+          padding:5px 10px;
+          border-radius:999px;
+          font-size:11px;
+          font-weight:700;
+          background:${
+            territoryBurdenScore >= 75 || routeFrictionScore >= 75
+              ? '#fee2e2'
+              : territoryBurdenScore >= 55 || routeFrictionScore >= 55
+              ? '#fef3c7'
+              : '#dcfce7'
+          };
+          color:${
+            territoryBurdenScore >= 75 || routeFrictionScore >= 75
+              ? '#991b1b'
+              : territoryBurdenScore >= 55 || routeFrictionScore >= 55
+              ? '#92400e'
+              : '#166534'
+          };
+        ">
+          ${
+            territoryBurdenScore >= 75 || routeFrictionScore >= 75
+              ? 'Active leadership visibility recommended'
+              : territoryBurdenScore >= 55 || routeFrictionScore >= 55
+              ? 'Periodic operational monitoring recommended'
+              : 'No elevated leadership action currently recommended'
+          }
+        </span>
       </div>
 
       </div>
