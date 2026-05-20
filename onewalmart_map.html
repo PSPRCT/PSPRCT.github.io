@@ -10225,39 +10225,39 @@ const leadershipSummaryLabel =
       const priorityDecision = (p,i) => {
         const t = String(p?.type || '').toLowerCase();
         if (t.includes('coverage')) return {
-          owner:'RTM + regional leadership',
-          decision:'Assign ownership for this gap pocket, confirm the nearest available RTS backup, and decide whether the market should be remote-first, reassigned, or considered for future placement.',
+          owner:'RTM + regional operations leadership',
+          decision:'Assign clear ownership for this gap pocket, validate nearest available RTS backup coverage, and determine whether the market requires reassignment, remote-first support, or future placement consideration.',
           next:'Open the manager drilldown, identify the highest-density uncovered clusters, and document the top markets requiring stabilization or reassignment review.',
           outcome:'Clear ownership for uncovered stores, a default training path, and a documented staffing recommendation where the gap is concentrated.',
           urgency:i===0?'Executive Priority':'High'
         };
         if (t.includes('workload')) return {
-          owner:'RTM with RTS manager',
-          decision:'Confirm backup coverage for this RTS, review route burden, and decide whether scheduling support or territory rebalancing is needed.',
-          next:'Open the RTS hub panel, review fringe stores, backup hubs, and stores with no practical secondary support.',
+          owner:'RTM + RTS operations leadership',
+          decision:'Validate backup RTS depth, review overall route burden, and determine whether scheduling support or territory rebalancing is required for sustained operational coverage.',
+          next:'Open the RTS hub panel, review fringe-store concentration, validate backup RTS depth, and identify markets with limited secondary coverage support.',
           outcome:'Improved RTS sustainability, stronger backup readiness, and more balanced operational coverage across high-load regions.',
           urgency:i<=1?'Operational Priority':'Monitor'
         };
         if (t.includes('dedicated')) return {
-          owner:'Dedicated team lead + RTM',
-          decision:'Confirm dedicated-team backup ownership, validate cross-trained RTS availability, and assign clear communication ownership for overlay-heavy markets.',
+          owner:'Dedicated operations leadership + RTM',
+          decision:'Validate dedicated-team backup ownership, confirm cross-trained RTS availability, and establish clear communication accountability for overlay-heavy operational markets.',
           next:'Open Dedicated Team Rollup, isolate uncovered overlay markets, confirm ownership accountability, and identify any areas lacking backup RTS depth.',
           outcome:'Clearer executive visibility into dedicated-team exposure while preserving accurate core One Walmart coverage reporting.',
           urgency:'Visibility Watch'
         };
         if (t.includes('flexibility')) return {
-          owner:'Leadership presenter',
+          owner:'Executive operations leadership',
           decision:'Present cross-network RTS access as a resiliency and staffing-strength advantage after core coverage priorities are stabilized.',
-          next:'Use Operational Flexibility as a supporting executive narrative after coverage stabilization and workload priorities are addressed.',
-          outcome:'Leadership understands that the One Walmart model improves staffing resiliency and backup flexibility while preserving the existing 75-mile coverage standard.',
-          urgency:'Talking point'
+          next:'Position Operational Flexibility as a resiliency-strength narrative after coverage stabilization and workload priorities have been clearly established.',
+          outcome:'Leadership understands that the One Walmart model strengthens staffing resiliency, improves backup flexibility, and preserves the operational integrity of the existing 75-mile coverage standard.',
+         urgency:'Strategic Narrative'
         };
         return {
-          owner:'RTM / governance',
-          decision:'Keep staffing, reassignment, and routing decisions aligned to the active 75-mile operational coverage model.',
+          owner:'RTM + operational governance leadership',
+          decision:'Ensure staffing, reassignment, and routing decisions remain aligned to the active 75-mile operational coverage framework and validated coverage standards.',
           next:'Validate all staffing or routing recommendations against store drilldowns, RTS hub visibility, and documented gap concentration before execution.',
           outcome:'Preserves consistent operational reporting and prevents visibility overlays from being mistaken for true routeable RTS coverage.',
-          urgency:'Ongoing'
+          urgency:'Operational Standard'
         };
       };
 
