@@ -4039,6 +4039,19 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
   if (uncovered.length >= 15) routeFrictionFlags.push('Gap-adjacent support pressure');
     if (!routeFrictionFlags.length) routeFrictionFlags.push('No major route-friction flags in this v1/v2 model');
 
+    let territoryType =
+    hasMetroFriction && outerStores < 8
+      ? 'Metro Dense Territory'
+      : hasMountainFriction
+      ? 'Terrain-Complex Territory'
+      : hasWaterFriction
+      ? 'Water-Barrier Territory'
+      : outerStores >= 18
+      ? 'Wide Rural Territory'
+      : covered.length >= 60
+      ? 'High-Volume Territory'
+      : 'Balanced Territory';
+
   let territoryInterpretation =
     territoryBurdenScore >= 75
       ? 'This territory may become operationally difficult to support consistently during onboarding surges, coverage gaps, or RTS outages.'
