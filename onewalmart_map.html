@@ -4068,6 +4068,12 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
       : covered.length >= 60
       ? 'High-Volume Territory'
       : 'Balanced Territory';
+      let successionRisk =
+    redundancyLabel === 'Weak' && covered.length >= 40
+      ? 'High succession exposure'
+      : redundancyLabel === 'Moderate'
+      ? 'Moderate succession exposure'
+      : 'Low succession exposure';
   let operationalCadence =
     territoryBurdenScore >= 75 || routeFrictionScore >= 75
       ? 'Weekly leadership review recommended'
@@ -4250,13 +4256,29 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
                Territory trend: ${territoryTrend}
       </div>
 
-      <div style="
+        <div style="
         margin-top:4px;
         font-size:11px;
         line-height:1.35;
         color:#64748b;
       ">
         ${operationalCadence}
+      </div>
+
+      <div style="
+        margin-top:4px;
+        font-size:11px;
+        line-height:1.35;
+        color:${
+          successionRisk === 'High succession exposure'
+            ? '#991b1b'
+            : successionRisk === 'Moderate succession exposure'
+            ? '#92400e'
+            : '#166534'
+        };
+        font-weight:700;
+      ">
+        ${successionRisk}
       </div>
         <span style="
           display:inline-block;
