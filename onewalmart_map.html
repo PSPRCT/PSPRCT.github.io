@@ -4019,7 +4019,16 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
     (outerStores * 1.65)
   );
 
-  const routeFrictionFlags = [];
+    const routeFrictionFlags = [];
+
+  const territoryStates = Array.from(new Set(stores.map(s => String(s.state || '').toUpperCase()).filter(Boolean)));
+  const mountainStates = ['WV','VT','NH','ME','CO','WY','MT','ID','UT','NV','AZ','NM','TN','NC','VA','PA'];
+  const majorMetroStates = ['CA','TX','FL','GA','IL','NY','NJ','MA','WA','AZ','CO'];
+  const waterBarrierStates = ['FL','WA','NY','NJ','MA','MD','VA','LA','MS','AL','MI','MN','WI','ME','CA'];
+
+  const hasMountainFriction = territoryStates.some(st => mountainStates.includes(st)) && (avgMi >= 35 || outerStores >= 8);
+  const hasMetroFriction = territoryStates.some(st => majorMetroStates.includes(st)) && covered.length >= 45 && avgMi <= 45;
+  const hasWaterFriction = territoryStates.some(st => waterBarrierStates.includes(st)) && outerStores >= 10;
   if (outerStores >= 15 || fringePct >= .25) routeFrictionFlags.push('High outer-edge store concentration');
   if (avgMi >= 45) routeFrictionFlags.push('Long average territory spread');
   if (maxMi >= 70) routeFrictionFlags.push('Near-limit 75-mile exposure');
@@ -4160,7 +4169,7 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
      <div class="op-metric"><div class="lbl">Unique Dedicated Overlay Stores</div><div class="val">${dedStoreSet.size}</div></div>
     </div>
 
-    <div class="op-section-title">Operational Territory Intelligence</div>
+    <div class="op-section-title">Operational Territory Intelligence · Planning Only</div>
     <div class="op-scorecard-grid">
       <div class="op-scorecard-card ${territoryBurdenScore >= 75 ? 'risk' : territoryBurdenScore >= 55 ? 'watch' : 'stable'}">
         <div class="lbl">Territory Service Burden</div>
