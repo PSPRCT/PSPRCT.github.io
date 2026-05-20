@@ -3997,8 +3997,7 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
     (avgMi * 0.65) +
     (maxMi >= 70 ? 16 : maxMi >= 60 ? 9 : 0) +
     (outerStores * 0.75) +
-    (fringePct >= .35 ? 12 : fringePct >= .20 ? 7 : 0) +
-    (redundancyPct < 15 && covered.length >= 25 ? 12 : redundancyPct < 35 && covered.length >= 25 ? 7 : 0)
+    (fringePct >= .35 ? 12 : fringePct >= .20 ? 7 : 0)
   ));
 
   const routeFrictionLabel =
@@ -4024,7 +4023,7 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
   if (outerStores >= 15 || fringePct >= .25) routeFrictionFlags.push('High outer-edge store concentration');
   if (avgMi >= 45) routeFrictionFlags.push('Long average territory spread');
   if (maxMi >= 70) routeFrictionFlags.push('Near-limit 75-mile exposure');
-  if (redundancyPct < 35 && covered.length >= 25) routeFrictionFlags.push('Limited backup RTS depth');
+    if (covered.length >= 25 && outerStores >= 15) routeFrictionFlags.push('Potential backup-depth concern for outer-edge stores');
   if (uncovered.length >= 15) routeFrictionFlags.push('Gap-adjacent support pressure');
   if (!routeFrictionFlags.length) routeFrictionFlags.push('No major route-friction flags in this v1/v2 model');
 
