@@ -4202,6 +4202,13 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
         <div class="lbl">Territory Service Burden</div>
         <div class="val">${territoryBurdenLabel}</div>
         <div class="sub">${covered.length} possible stores · adjusted service load ${adjustedServiceLoad}</div>
+        <div class="sub" style="margin-top:4px">
+          ${territoryBurdenScore >= 75
+            ? 'Higher operational planning attention recommended'
+            : territoryBurdenScore >= 55
+            ? 'Moderate operational oversight recommended'
+            : 'Territory currently appears operationally manageable'}
+        </div>
       </div>
       <div class="op-scorecard-card ${routeFrictionClass}">
         <div class="lbl">Route Friction</div>
