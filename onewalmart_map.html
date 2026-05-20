@@ -4068,12 +4068,7 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
       : covered.length >= 60
       ? 'High-Volume Territory'
       : 'Balanced Territory';
-      let successionRisk =
-    redundancyLabel === 'Weak' && covered.length >= 40
-      ? 'High succession exposure'
-      : redundancyLabel === 'Moderate'
-      ? 'Moderate succession exposure'
-      : 'Low succession exposure';
+   
   let operationalCadence =
     territoryBurdenScore >= 75 || routeFrictionScore >= 75
       ? 'Weekly leadership review recommended'
@@ -4176,6 +4171,12 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
   if (redundancyPct >= 70) redundancyLabel = 'Strong';
   else if (redundancyPct >= 35) redundancyLabel = 'Moderate';
   else if (redundancyPct >= 15) redundancyLabel = 'Limited';
+      let successionRisk =
+    redundancyLabel === 'Weak' && covered.length >= 40
+      ? 'High succession exposure'
+      : redundancyLabel === 'Moderate'
+      ? 'Moderate succession exposure'
+      : 'Low succession exposure';
   if (covered.length >= 25 && redundancyPct < 35) {
     routeFrictionFlags.push('Limited backup RTS depth');
     if (redundancyPct < 15) primaryOperationalConcern = 'Limited backup RTS resiliency';
