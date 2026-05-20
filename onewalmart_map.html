@@ -4084,6 +4084,14 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
   else if (redundancyPct >= 35) redundancyLabel = 'Moderate';
   else if (redundancyPct >= 15) redundancyLabel = 'Limited';
 
+    if (covered.length >= 25 && redundancyPct < 35) {
+    routeFrictionFlags.push('Limited backup RTS depth');
+  }
+
+  if (covered.length >= 25 && redundancyPct < 15) {
+    routeFrictionFlags.push('Single-point territory exposure');
+  }
+
   if (redundancyPct < 15 && covered.length >= 25 && workloadClass !== 'critical') {
     workload = 'No Backup Coverage';
     workloadClass = 'critical';
