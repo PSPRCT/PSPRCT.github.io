@@ -4201,7 +4201,8 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
 
     <div class="op-scorecard-note">
       <b>How to read this:</b> This does not mean the RTS travels to all stores regularly. It estimates potential service complexity when new-hire training, store coverage, or escalation activity occurs inside the territory.
-     <div style="margin-top:6px"><b>Interpretation:</b> ${escape(territoryInterpretation)}</div>
+     <div style="margin-top:6px"><b>Territory type:</b> ${escape(territoryType)}</div>
+      <div style="margin-top:6px"><b>Interpretation:</b> ${escape(territoryInterpretation)}</div>
       <div style="margin-top:6px"><b>Distance tiers:</b> ${nearStores} within 30 mi · ${midStores} from 31–50 mi · ${longStores} from 51–59 mi · ${outerStores} from 60–75 mi</div>
       <div style="margin-top:6px"><b>Friction flags:</b> ${routeFrictionFlags.map(x => escape(x)).join(' · ')}</div>
     </div>
