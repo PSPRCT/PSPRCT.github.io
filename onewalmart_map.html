@@ -4069,10 +4069,8 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
       ? 'High-Volume Territory'
       : 'Balanced Territory';
 
-      let primaryOperationalConcern =
-    redundancyPct < 15 && covered.length >= 25
-      ? 'Limited backup RTS resiliency'
-      : outerStores >= 15
+       let primaryOperationalConcern =
+    outerStores >= 15
       ? 'Large outer-edge territory spread'
       : hasMetroFriction
       ? 'Major metro routing inefficiency'
@@ -4160,8 +4158,9 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
   if (redundancyPct >= 70) redundancyLabel = 'Strong';
   else if (redundancyPct >= 35) redundancyLabel = 'Moderate';
   else if (redundancyPct >= 15) redundancyLabel = 'Limited';
-    if (covered.length >= 25 && redundancyPct < 35) {
+  if (covered.length >= 25 && redundancyPct < 35) {
     routeFrictionFlags.push('Limited backup RTS depth');
+    if (redundancyPct < 15) primaryOperationalConcern = 'Limited backup RTS resiliency';
   }
 
   if (covered.length >= 25 && redundancyPct < 15) {
