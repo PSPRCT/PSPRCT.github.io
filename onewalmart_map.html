@@ -4068,7 +4068,12 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
       : covered.length >= 60
       ? 'High-Volume Territory'
       : 'Balanced Territory';
-
+  let operationalCadence =
+    territoryBurdenScore >= 75 || routeFrictionScore >= 75
+      ? 'Weekly leadership review recommended'
+      : territoryBurdenScore >= 55 || routeFrictionScore >= 55
+      ? 'Monthly operational review recommended'
+      : 'Quarterly review cadence appears sufficient';
          let territoryTrend =
     territoryBurdenScore >= 75 || routeFrictionScore >= 75
       ? 'Operationally vulnerable'
@@ -4242,7 +4247,16 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
             : '#166534'
         };
       ">
-        Territory trend: ${territoryTrend}
+               Territory trend: ${territoryTrend}
+      </div>
+
+      <div style="
+        margin-top:4px;
+        font-size:11px;
+        line-height:1.35;
+        color:#64748b;
+      ">
+        ${operationalCadence}
       </div>
         <span style="
           display:inline-block;
