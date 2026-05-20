@@ -4141,7 +4141,26 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
       <div class="op-metric"><div class="lbl">Avg Distance</div><div class="val">${covered.length ? avgMi.toFixed(1) : '—'}</div></div>
       <div class="op-metric"><div class="lbl">Max Distance</div><div class="val">${covered.length ? maxMi.toFixed(1) : '—'}</div></div>
       <div class="op-metric"><div class="lbl">Nearby Gaps</div><div class="val">${uncovered.length}</div></div>
-      <div class="op-metric"><div class="lbl">Unique Dedicated Overlay Stores</div><div class="val">${dedStoreSet.size}</div></div>
+     <div class="op-metric"><div class="lbl">Unique Dedicated Overlay Stores</div><div class="val">${dedStoreSet.size}</div></div>
+    </div>
+
+    <div class="op-section-title">Operational Territory Intelligence</div>
+    <div class="op-scorecard-grid">
+      <div class="op-scorecard-card ${territoryBurdenScore >= 75 ? 'risk' : territoryBurdenScore >= 55 ? 'watch' : 'stable'}">
+        <div class="lbl">Territory Service Burden</div>
+        <div class="val">${territoryBurdenLabel}</div>
+        <div class="sub">${covered.length} possible stores · adjusted service load ${adjustedServiceLoad}</div>
+      </div>
+      <div class="op-scorecard-card ${routeFrictionClass}">
+        <div class="lbl">Route Friction</div>
+        <div class="val">${routeFrictionLabel}</div>
+        <div class="sub">Straight-line mileage may understate real-world support difficulty.</div>
+      </div>
+    </div>
+
+    <div class="op-scorecard-note">
+      <b>How to read this:</b> This does not mean the RTS travels to all stores regularly. It estimates how difficult the territory may be to support when new-hire training, store coverage, or escalation activity occurs.
+      <div style="margin-top:6px"><b>Friction flags:</b> ${routeFrictionFlags.map(x => escape(x)).join(' · ')}</div>
     </div>
 
     <div class="op-breakdown-grid">
