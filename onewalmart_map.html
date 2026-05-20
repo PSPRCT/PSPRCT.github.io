@@ -4239,10 +4239,10 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
 
   const leadershipPostureLabel =
     territoryBurdenScore >= 75 || routeFrictionScore >= 75
-      ? 'Active leadership visibility recommended'
+           ? 'Leadership visibility recommended'
       : territoryBurdenScore >= 55 || routeFrictionScore >= 55
-      ? 'Periodic operational monitoring recommended'
-      : 'No elevated leadership action currently recommended';
+      ? 'Periodic monitoring recommended'
+      : 'No elevated action recommended';
 
   const leadershipPostureBg =
     territoryBurdenScore >= 75 || routeFrictionScore >= 75
@@ -4277,10 +4277,10 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
           <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:900;color:#64748b;margin-bottom:4px;">
             Operational Posture
           </div>
-                    <div style="display:grid;grid-template-columns:1fr;gap:6px;">
-            <div class="sp-chip" style="justify-content:space-between;"><b>Trend:</b> ${escape(territoryTrend)}</div>
-            <div class="sp-chip" style="justify-content:space-between;"><b>Cadence:</b> ${escape(operationalCadence)}</div>
-            <div class="sp-chip" style="justify-content:space-between;"><b>Succession:</b> ${escape(successionRisk)}</div>
+               <div style="display:grid;grid-template-columns:1fr;gap:5px;">
+            <div class="sp-chip" style="justify-content:space-between;padding:5px 8px;border-radius:10px;"><b>Trend:</b> <span>${escape(territoryTrend)}</span></div>
+            <div class="sp-chip" style="justify-content:space-between;padding:5px 8px;border-radius:10px;"><b>Cadence:</b> <span>${escape(operationalCadence)}</span></div>
+            <div class="sp-chip" style="justify-content:space-between;padding:5px 8px;border-radius:10px;"><b>Succession:</b> <span>${escape(successionRisk)}</span></div>
           </div>
           <div style="margin-top:7px;">
             <span style="display:inline-block;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:700;background:${leadershipPostureBg};color:${leadershipPostureColor};">
