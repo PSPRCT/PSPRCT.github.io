@@ -1275,7 +1275,13 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .op-hub-hero{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border:1px solid #dbeafe;background:#eff6ff;border-radius:14px;padding:10px;margin-bottom:8px;}
 .op-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:950;color:#1d4ed8;}
 .op-role{font-size:18px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
-.op-status{font-weight:850;white-space:nowrap;}
+.op-status{
+  font-weight:850;
+  white-space:normal;
+  max-width:160px;
+  line-height:1.15;
+  overflow-wrap:anywhere;
+}
 .op-status.stable{background:#ecfdf5;border-color:#10b981;color:#065f46;}
 .op-status.watch{background:#fffbeb;border-color:#f59e0b;color:#92400e;}
 .op-status.high{background:#fff7ed;border-color:#fb923c;color:#9a3412;}
@@ -4069,12 +4075,12 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
       ? 'High-Volume Territory'
       : 'Balanced Territory';
    
-  let operationalCadence =
+   let operationalCadence =
     territoryBurdenScore >= 75 || routeFrictionScore >= 75
-      ? 'Weekly leadership review recommended'
+      ? 'Weekly review'
       : territoryBurdenScore >= 55 || routeFrictionScore >= 55
-      ? 'Monthly operational review recommended'
-      : 'Quarterly review cadence appears sufficient';
+      ? 'Monthly review'
+      : 'Quarterly review';
          let territoryTrend =
     territoryBurdenScore >= 75 || routeFrictionScore >= 75
       ? 'Operationally vulnerable'
@@ -4171,12 +4177,12 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
   if (redundancyPct >= 70) redundancyLabel = 'Strong';
   else if (redundancyPct >= 35) redundancyLabel = 'Moderate';
   else if (redundancyPct >= 15) redundancyLabel = 'Limited';
-      let successionRisk =
+       let successionRisk =
     redundancyLabel === 'Weak' && covered.length >= 40
-      ? 'High succession exposure'
+      ? 'High exposure'
       : redundancyLabel === 'Moderate'
-      ? 'Moderate succession exposure'
-      : 'Low succession exposure';
+      ? 'Moderate exposure'
+      : 'Stable depth';
   if (covered.length >= 25 && redundancyPct < 35) {
     routeFrictionFlags.push('Limited backup RTS depth');
     if (redundancyPct < 15) primaryOperationalConcern = 'Limited backup RTS resiliency';
@@ -4260,10 +4266,10 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
           <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:900;color:#64748b;margin-bottom:4px;">
             Operational Posture
           </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-            <span class="sp-chip"><b>Trend:</b> ${escape(territoryTrend)}</span>
-            <span class="sp-chip"><b>Cadence:</b> ${escape(operationalCadence)}</span>
-            <span class="sp-chip"><b>Succession:</b> ${escape(successionRisk)}</span>
+                    <div style="display:grid;grid-template-columns:1fr;gap:6px;">
+            <div class="sp-chip" style="justify-content:space-between;"><b>Trend:</b> ${escape(territoryTrend)}</div>
+            <div class="sp-chip" style="justify-content:space-between;"><b>Cadence:</b> ${escape(operationalCadence)}</div>
+            <div class="sp-chip" style="justify-content:space-between;"><b>Succession:</b> ${escape(successionRisk)}</div>
           </div>
           <div style="margin-top:7px;">
             <span style="display:inline-block;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:700;background:${leadershipPostureBg};color:${leadershipPostureColor};">
