@@ -725,6 +725,34 @@ select[multiple]{
   .kpiLabel{font-size:11px;color:#64748b;line-height:1.1;}
   .kpiValue{font-size:18px;font-weight:800;line-height:1.2;color:#0f172a;}
 
+.exec-ribbon{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  padding:6px 10px;
+  background:#fff;
+  border-bottom:1px solid #eef0f3;
+}
+.exec-card{
+  border:1px solid #dbe3ea;
+  border-radius:12px;
+  background:#f8fafc;
+  padding:7px 10px;
+  min-width:110px;
+}
+.exec-label{
+  font-size:10.5px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  color:#64748b;
+  font-weight:900;
+}
+.exec-value{
+  font-size:18px;
+  font-weight:950;
+  color:#0f172a;
+}
+
   #analyticsDock{
     position:absolute;
     right:12px;
@@ -2231,6 +2259,9 @@ window.__oneWalmartRuntime = function(){
  
 
   
+
+let editMode = false;
+let hubMenuEl = null;
 
 // Context menu when right-clicking a hub (only shows in edit mode)
 function showHubMenu(evt, hub, marker){
