@@ -4163,9 +4163,9 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
     ? `<span class="sp-chip op-status planning"><b>Status:</b> Future / display-only</span>`
     : `<span class="sp-chip op-status ${workloadClass}"><b>Workload:</b><span>${escape(workload)}</span></span>`;
 
-  const whatIfR = [50,75,100].map(rr=>{
+    const whatIfR = [50,75,100].map(rr=>{
     const n = storesWithin(spHub.coords, rr).length;
-    return `<span class="sp-chip"><b>${rr}mi:</b> ${n}</span>`;
+    return `<span class="sp-chip" style="background:#fff;"><b>${rr}mi:</b> ${n}</span>`;
   }).join('');
 
   const coreOneWalmartCount = covered.length;
