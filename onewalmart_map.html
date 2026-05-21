@@ -885,8 +885,9 @@ letter-spacing:.01em;
 }
 
 .store-popup-title{
-  font-size:20px;
-  font-weight:900;
+  font-size:18px;
+  font-weight:800;
+  letter-spacing:-.01em;
 }
 
 .store-popup-sub{
@@ -896,24 +897,26 @@ letter-spacing:.01em;
 
 .store-popup-delta{
   border-radius:999px;
-  padding:6px 12px;
-  font-weight:800;
-  background:#f8fafc;
-  border:1px solid var(--border);
+  padding:4px 10px;
+  font-weight:700;
+  background:#ffffff;
+  border:1px solid #dbe3ea;
+  font-size:12px;
 }
 
 .store-popup-grid{
   display:grid;
   grid-template-columns:1fr 1fr;
-  gap:10px;
-  margin-top:12px;
+  gap:8px;
+  margin-top:10px;
 }
 
 .store-popup-card{
-  border:1px solid var(--border);
-  border-radius:14px;
-  padding:10px;
-  background:#f8fafc;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  padding:8px;
+  background:#fbfdff;
+  box-shadow:0 1px 2px rgba(15,23,42,.04);
 }
 
 .store-popup-card-title{
@@ -1027,7 +1030,18 @@ letter-spacing:.01em;
 .ops-exec-action{display:none !important;}
 #opsDrawerToggle{display:block !important;}
 .leaflet-top.leaflet-left{top:72px !important;}
-.leaflet-popup{margin-bottom:22px;}
+.leaflet-popup{
+  margin-bottom:18px;
+}
+
+.leaflet-popup-content-wrapper{
+  border-radius:14px;
+  box-shadow:0 8px 22px rgba(15,23,42,.14);
+}
+
+.leaflet-popup-content{
+  margin:10px 12px;
+}
 .clean-mode #summary,.clean-mode #mgrRollupSummary,.clean-mode #dataStatus{display:none !important;}
 .clean-mode #floatingKpis{right:14px !important;}
 .command-mini-legend{
