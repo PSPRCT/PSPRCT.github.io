@@ -529,7 +529,7 @@ select[multiple]{
   }
 
   .compact-mainbar{
-    min-height:52px;
+    min-height:44px;
     align-items:center;
     background:linear-gradient(180deg,#fff 0%,#f8fafc 100%);
   }
@@ -615,7 +615,7 @@ select[multiple]{
   .control-section:not(.section-collapsed) h4{background:#f8fafc;border-bottom:1px solid #eef2f7;}
 
   .section-body{
-    padding:10px;
+    padding:8px;
     max-height:1600px;
     opacity:1;
     overflow:hidden;
@@ -844,6 +844,10 @@ select[multiple]{
 }
 .launch-status .launch-step{font-weight:900;color:#0f172a;}
 .launch-status .launch-sub{color:#64748b;}
+
+.launch-status.ready{
+  display:none !important;
+}
 .ops-lazy-note{
   padding:10px 12px;
   border:1px dashed #cbd5e1;
@@ -1746,7 +1750,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 <div style="padding:6px 10px;color:var(--fg);font-size:12px;background:#f8fafc;border-top:1px solid #eef0f3;border-bottom:1px solid #eef0f3">
   <b>Future-State One Walmart Map:</b> PSP alignment reflects the post-5/31 One Walmart structure. Dedicated teams — Unilever, P&amp;G, and Tyson — are shown separately where applicable.
 </div>
-<div id="dataStatus" style="padding:6px 10px;color:var(--fg);font-size:12px"></div>
+<div id="dataStatus" style="display:none;padding:6px 10px;color:var(--fg);font-size:12px"></div>
 <div id="launchStatus" class="launch-status"><span class="launch-dot"></span><span class="launch-step">Starting map</span><span class="launch-sub">Base map first; analytics load only when opened.</span></div>
 
 <div id="executiveRibbon" class="exec-ribbon" aria-hidden="true">
