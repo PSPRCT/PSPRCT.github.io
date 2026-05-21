@@ -1083,7 +1083,11 @@ select[multiple]{
 .mapwrap.command-drawer-open .ops-exec-ribbon{ right:calc(var(--opsDrawerW) + 24px) !important; }
 .mapwrap.command-sidepanel-open .map-action-rail{ right:404px !important; }
 .mapwrap.command-sidepanel-open #floatingKpis{ right:432px !important; }
-#floatingKpis{ right:132px !important; max-width:calc(100% - 170px) !important; }
+#floatingKpis{
+  right:132px !important;
+  max-width:calc(100% - 170px) !important;
+  top:14px !important;
+}
 .ops-exec-ribbon{ right:132px !important; max-height:54px !important; overflow:hidden !important; }
 .ops-exec-card{ min-width:92px !important; padding:7px 10px !important; }
 .ops-exec-card .val{ font-size:18px !important; }
@@ -1745,7 +1749,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 <div id="dataStatus" style="padding:6px 10px;color:var(--fg);font-size:12px"></div>
 <div id="launchStatus" class="launch-status"><span class="launch-dot"></span><span class="launch-step">Starting map</span><span class="launch-sub">Base map first; analytics load only when opened.</span></div>
 
-<div id="executiveRibbon" class="exec-ribbon">
+<div id="executiveRibbon" class="exec-ribbon" aria-hidden="true">
   <div class="exec-card">
     <div class="exec-label">Stores In View</div>
     <div class="exec-value" id="execStores">0</div>
