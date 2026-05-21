@@ -245,7 +245,7 @@ select[multiple]{
   .sp-list{flex:1;min-height:160px;border:1px solid var(--border);border-radius:8px;padding:0;display:flex;flex-direction:column;overflow:auto; box-shadow: inset 0 0 0 2px rgba(0,0,0,.02)}
   .sp-list input{margin:8px;border:1px solid var(--border);border-radius:8px;padding:6px 8px}
   .sp-list input{position: sticky; top: 0; z-index: 3; background: var(--panel); border-bottom-left-radius: 0; border-bottom-right-radius: 0; box-shadow: 0 4px 6px rgba(0,0,0,.04);}
-  .sp-quick{ position: sticky; top: 0; z-index: 3; background: var(--panel); }
+    .sp-quick{ background: var(--panel); }
 
   .sp-rows{position:relative;height:auto;will-change:transform;}
   
@@ -12451,8 +12451,7 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   height:auto !important;
   min-height:0 !important;
 }
-#sidepanel .sp-list input,
-#sidepanel .sp-quick{
+#sidepanel .sp-list input{
   position:sticky !important;
   top:0 !important;
   z-index:4 !important;
