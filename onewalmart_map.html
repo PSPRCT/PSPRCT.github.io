@@ -1010,17 +1010,25 @@ letter-spacing:.01em;
 }
 .map-action-rail{
   position:absolute;
-  top:84px;
-  right:14px;
+  top:82px;
+  right:12px;
   z-index:2000;
   display:flex !important;
   flex-direction:column;
-  gap:8px;
+  gap:6px;
   pointer-events:auto;
 }
 .map-action-rail .rail-btn{
-  border:1px solid #dbe3ea;background:rgba(255,255,255,.96);border-radius:14px;padding:9px 11px;
-  font-weight:900;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,.12);min-width:92px;
+  border:1px solid #dbe3ea;
+  background:rgba(255,255,255,.94);
+  border-radius:12px;
+  padding:7px 9px;
+  font-weight:800;
+  cursor:pointer;
+  box-shadow:0 4px 12px rgba(15,23,42,.08);
+  min-width:86px;
+  font-size:11px;
+  line-height:1.1;
 }
 .map-action-rail .rail-btn.primary{background:#111827;color:#fff;}
 .map-action-rail .rail-btn.active{background:#2563eb;color:#fff;border-color:#2563eb;}
@@ -1338,10 +1346,24 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .ops-muted-section{margin-top:10px;}
 .ops-muted-section summary{cursor:pointer;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;padding:8px 10px;font-weight:900;display:flex;justify-content:space-between;gap:10px;}
 .ops-priority-list{display:grid;gap:7px;margin-top:8px;}
-.ops-priority-card{border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:9px 10px;}
-.ops-priority-card b{display:block;color:#0f172a;}
+.ops-priority-card{
+  border:1px solid #e2e8f0;
+  background:#fff;
+  border-radius:12px;
+  padding:8px 9px;
+  border-left:4px solid #cbd5e1;
+}
+.ops-priority-card b{
+  display:block;
+  color:#0f172a;
+  font-size:12px;
+  line-height:1.25;
+  margin-bottom:2px;
+}
 .ops-priority-card .ops-sub{margin-top:2px;}
-.ops-tier-block{margin-bottom:12px;}
+.ops-tier-block{
+  margin-bottom:8px;
+}
 .ops-tier-title{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:950;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:7px 9px;margin-bottom:6px;}
 .ops-risk-critical{color:#991b1b;font-weight:950;}
 .ops-risk-elevated{color:#b45309;font-weight:950;}
