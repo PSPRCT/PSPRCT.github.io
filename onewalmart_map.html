@@ -1873,12 +1873,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 }
 
 .manager-rollup-label{
-  flex:0 0 100%;
-  font-size:10px;
-  text-transform:uppercase;
-  letter-spacing:.08em;
-  color:#64748b;
-  font-weight:900;
+  composes: workbench-section-label;
 }
 
 .manager-rollup-help{
@@ -2530,6 +2525,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   border-color:#bfdbfe;
 }
 
+.workbench-section-label,
 .final-review-label{
   flex:0 0 100%;
   font-size:10px;
