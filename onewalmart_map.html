@@ -1652,11 +1652,84 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   background:#fff;
 }
 
+#leadershipSummaryResults .risk-chip,
+#leadershipSummaryResults .severity-chip,
+#leadershipSummaryResults .priority-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:3px 7px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:800;
+  background:#f8fafc;
+  border:1px solid #dbe3ea;
+}
+
+#leadershipSummaryResults .callout,
+#leadershipSummaryResults .recommendation,
+#leadershipSummaryResults .executive-note{
+  border-left:4px solid #2563eb;
+  background:#f8fbff;
+  border-radius:10px;
+  padding:10px 12px;
+  margin:8px 0;
+  line-height:1.45;
+}
+
+@media print{
+  body *{
+    visibility:hidden;
+  }
+
+  #leadershipSummaryModal,
+  #leadershipSummaryModal *{
+    visibility:visible;
+  }
+
+  #leadershipSummaryModal{
+    position:absolute;
+    inset:0;
+    display:block !important;
+    background:#fff !important;
+  }
+
+  #leadershipSummaryModal .card{
+    box-shadow:none !important;
+    border:none !important;
+    width:100% !important;
+    max-width:none !important;
+    max-height:none !important;
+  }
+
+  #leadershipSummaryModal .priority-tools,
+  #leadershipSummaryClose{
+    display:none !important;
+  }
+
+  #leadershipSummaryResults{
+  overflow:visible !important;
+}
+
+#leadershipSummaryResults section,
+#leadershipSummaryResults .ops-priority-path-card,
+#leadershipSummaryResults .ops-copy-box,
+#leadershipSummaryResults table{
+  break-inside:avoid;
+  page-break-inside:avoid;
+}
+}
+
 #leadershipSummaryResults th,
 #leadershipSummaryResults td{
   border-bottom:1px solid #eef2f7;
-  padding:7px 8px;
+  padding:8px 9px;
   vertical-align:top;
+  line-height:1.35;
+}
+
+#leadershipSummaryResults tr:hover td{
+  background:#f8fbff;
 }
 
 #leadershipSummaryResults th{
@@ -1664,6 +1737,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   top:0;
   background:#f8fafc;
   z-index:2;
+  box-shadow:0 2px 4px rgba(15,23,42,.05);
 }
 
 #leadershipSummaryResults:empty::before{
