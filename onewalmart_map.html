@@ -6223,7 +6223,10 @@ if (id('suggestRtsBtn')) {
   };
 }
 
-if (id('suggestClose')) id('suggestClose').onclick = ()=> suggestModal.classList.remove('show');
+if (id('suggestClose')) id('suggestClose').onclick = ()=>{
+  suggestModal.classList.remove('show');
+  setSuggestExecutiveStrip([]);
+};
 if (id('suggestRun')) id('suggestRun').onclick = runSuggestRtsCity;
 if (id('suggestUseFilters')) id('suggestUseFilters').onchange = runSuggestRtsCity;
 if (id('suggestExport')) id('suggestExport').onclick = exportSuggestRtsCsv;
