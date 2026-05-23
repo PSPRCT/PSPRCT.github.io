@@ -8219,8 +8219,29 @@ function buildGapSummaryRows(){
 function renderGapSummary(){
   const el = id('gapSummaryResults'); if (!el) return;
   const rows = buildGapSummaryRows(); lastGapSummaryRows = rows;
+
+  if (!rows.length){
+    el.innerHTML = `
+      <div style="
+        border:1px dashed #cbd5e1;
+        background:#f8fafc;
+        border-radius:12px;
+        padding:14px;
+        color:#475569;
+        font-size:13px;
+        line-height:1.4;
+      ">
+        <b style="color:#0f172a">No gap summary data available.</b>
+        <div style="margin-top:6px">
+          Generate or load an RTS placement plan first, then reopen the State / Region Gap Summary.
+        </div>
+      </div>
+    `;
+    return;
+  }
+
   const label = rows[0]?.by || 'State';
-  el.innerHTML = `
+  el.innerHTML = ` `
     <div class="priority-card"><b>Remaining gap by ${escape(label)}</b><span style="color:var(--muted);margin-left:8px">After active confirmed hubs plus current proposed plan.</span></div>
     <table class="priority-table">
       <thead><tr><th style="text-align:left">${escape(label)}</th><th style="text-align:right">Total Stores</th><th style="text-align:right">Current Gap</th><th style="text-align:right">Current Gap %</th><th style="text-align:right">Projected Covered</th><th style="text-align:right">Projected Covered %</th><th style="text-align:right">Remaining Gap</th><th style="text-align:right">Remaining Gap %</th></tr></thead>
