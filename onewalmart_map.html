@@ -244,7 +244,17 @@ select[multiple]{
   .sp-quick{display:flex;gap:6px;flex-wrap:wrap}
   .sp-list{flex:1;min-height:160px;border:1px solid var(--border);border-radius:8px;padding:0;display:flex;flex-direction:column;overflow:auto; box-shadow: inset 0 0 0 2px rgba(0,0,0,.02)}
   .sp-list input{margin:8px;border:1px solid var(--border);border-radius:8px;padding:6px 8px}
-  .sp-list input{position: sticky; top: 0; z-index: 3; background: var(--panel); border-bottom-left-radius: 0; border-bottom-right-radius: 0; box-shadow: 0 4px 6px rgba(0,0,0,.04);}
+  .sp-list input{
+  position:sticky;
+  top:0;
+  z-index:3;
+  background:var(--panel);
+  border-bottom-left-radius:0;
+  border-bottom-right-radius:0;
+  box-shadow:0 4px 6px rgba(0,0,0,.04);
+  margin:0;
+  padding:8px 10px;
+}
     .sp-quick{ background: var(--panel); }
 
   .sp-rows{position:relative;height:auto;will-change:transform;}
@@ -1969,9 +1979,9 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 }
 
 .sp-actions{top:0;}
-.sp-toggles{top:44px;}
+.sp-toggles{top:46px;}
 .sp-quick{
-  top:78px;
+  top:92px;
 }
 
 .sp-list{
