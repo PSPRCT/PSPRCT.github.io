@@ -8375,7 +8375,7 @@ function renderGapSummary(){
   }
 
   const label = rows[0]?.by || 'State';
-  el.innerHTML = ` `
+  el.innerHTML = `
     <div class="priority-card"><b>Remaining gap by ${escape(label)}</b><span style="color:var(--muted);margin-left:8px">After active confirmed hubs plus current proposed plan.</span></div>
     <table class="priority-table">
       <thead><tr><th style="text-align:left">${escape(label)}</th><th style="text-align:right">Total Stores</th><th style="text-align:right">Current Gap</th><th style="text-align:right">Current Gap %</th><th style="text-align:right">Projected Covered</th><th style="text-align:right">Projected Covered %</th><th style="text-align:right">Remaining Gap</th><th style="text-align:right">Remaining Gap %</th></tr></thead>
