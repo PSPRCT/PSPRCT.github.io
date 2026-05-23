@@ -3438,12 +3438,34 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
       <button id="comparePlansClose" class="btn" type="button">Close</button>
     </header>
     <div class="body" style="grid-template-columns:1fr;">
-      <div class="priority-tools">
-        <button id="comparePlansRefresh" class="btn" type="button">Refresh</button>
-        <button id="comparePlansExport" class="btn" type="button">Export Compare CSV</button>
+            <div class="priority-tools compare-plans-tools">
+
+        <div class="compare-plans-group">
+          <span class="compare-plans-label">Review</span>
+
+          <button id="comparePlansRefresh" class="btn" type="button">
+            Refresh Comparison
+          </button>
+
+          <button id="comparePlansExport" class="btn" type="button">
+            Export Comparison CSV
+          </button>
+        </div>
+
       </div>
-      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
-        Save plan snapshots after each major version, then compare projected coverage, net-new stores, approved/replacement decisions, and placement differences.
+
+      <div class="compare-plans-help">
+        <div>
+          <b>Purpose:</b> Compare saved RTS placement plans side-by-side before finalizing production placement decisions.
+        </div>
+
+        <div>
+          <b>Best use:</b> Review coverage, placement differences, net-new impact, and review decisions across plan versions.
+        </div>
+
+        <div>
+          <b>Tip:</b> Save a snapshot after each major planning version so leadership can compare options cleanly.
+        </div>
       </div>
       <div id="comparePlansResults" style="max-height:65vh;overflow:auto"></div>
     </div>
@@ -7966,7 +7988,25 @@ function renderComparePlans(){
   const el = id('comparePlansResults'); if (!el) return;
   const plans = loadSavedPlans();
   lastComparePlanRows = plans;
-  if (!plans.length){ el.innerHTML = '<div class="priority-card"><b>No saved plans yet.</b><div style="color:var(--muted);margin-top:6px">Use Save Plan Snapshot from Suggest RTS City after generating a plan.</div></div>'; return; }
+  if (!plans.length){
+    el.innerHTML = `
+      <div style="
+        border:1px dashed #cbd5e1;
+        background:#f8fafc;
+        border-radius:12px;
+        padding:14px;
+        color:#475569;
+        font-size:13px;
+        line-height:1.4;
+      ">
+        <b style="color:#0f172a">No saved plans yet.</b>
+        <div style="margin-top:6px">
+          Use <b>Save Plan Snapshot</b> from Suggest RTS City after generating a plan, then return here to compare versions.
+        </div>
+      </div>
+    `;
+    return;
+  }
   const latestTwo = plans.slice(-2).map(p=>p.id);
   el.innerHTML = `
     <div class="priority-card"><b>Saved plan snapshots</b><div style="color:var(--muted);margin-top:6px">Select two plans below to compare placement differences.</div></div>
