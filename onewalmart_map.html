@@ -1166,7 +1166,10 @@ letter-spacing:.01em;
 .leadership-popup .simplified-note{border:1px solid #e5e7eb;border-radius:12px;background:#f8fafc;padding:10px;}
 #railDelta,#quickDeltaBtn,#opsDeltaToggle,.ops-tab[data-pane="delta"]{display:none !important;}
 #opsPaneDelta{display:none !important;}
-.delta-legend,.delta-pane-toolbar,.transition-detail-panel,.transition-toggle-btn{display:none !important;}
+.delta-legend,
+.delta-pane-toolbar{
+  display:none !important;
+}
 @media(max-width:720px){.leadership-popup .owner-grid{grid-template-columns:1fr;}}
 
 
@@ -1613,11 +1616,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   max-width:560px;
 }
 
-.store-popup-card,
-.op-summary-card,
-.ded-group{
-  box-shadow:0 2px 6px rgba(15,23,42,.04);
-}
+/* normalized into shared shadow group */
 
 .store-popup-title{
   font-size:19px;
@@ -1882,7 +1881,11 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .ops-priority-path-card,
 .op-scorecard-card,
 .cap-v114-kpi,
-.exec-card{
+.exec-card,
+.store-popup-card,
+.op-summary-card,
+.ded-group,
+.ops-leader-brief{
   box-shadow:0 4px 10px rgba(15,23,42,.05);
 }
 
@@ -1922,9 +1925,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   padding:8px;
 }
 
-.ops-leader-brief{
-  box-shadow:0 4px 12px rgba(15,23,42,.06);
-}
+/* normalized into shared shadow group */
 
 /* ===== v117 RTS Hub Usability + Scroll Stabilization ===== */
 .sidepanel{
