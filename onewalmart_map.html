@@ -411,7 +411,7 @@ select[multiple]{
     display:flex;
     background:#f8fafc;
   }
-  .control-panel{
+  .control-panel{   overscroll-behavior:contain;
     width:330px;
     flex:0 0 330px;
     border-right:1px solid var(--border);
@@ -422,7 +422,7 @@ select[multiple]{
     transition:width .18s ease, flex-basis .18s ease, padding .18s ease;
     z-index:8;
   }
-  .workspace.panel-collapsed .control-panel{
+  .workspace.panel-collapsed .control-panel{   overscroll-behavior:contain;
     width:0;
     flex-basis:0;
     padding:0;
@@ -509,14 +509,14 @@ select[multiple]{
   #panelToggleBtn{white-space:nowrap}
   @media (max-width:900px){
     .workspace{position:relative}
-    .control-panel{
+    .control-panel{   overscroll-behavior:contain;
       position:absolute;
       left:0;
       top:0;
       bottom:0;
       max-width:88vw;
     }
-    .workspace.panel-collapsed .control-panel{transform:translateX(-100%)}
+    .workspace.panel-collapsed .control-panel{   overscroll-behavior:contain;transform:translateX(-100%)}
   }
   @media (max-width:720px){ .card .body{grid-template-columns:1fr;} }
   @media (max-width: 1100px){ .filters{grid-template-columns:repeat(2,minmax(220px,1fr));} }
@@ -549,14 +549,14 @@ select[multiple]{
     background:linear-gradient(180deg,#fff 0%,#f8fafc 100%);
   }
 
-.control-panel{
+.control-panel{   overscroll-behavior:contain;
     width:min(390px,94vw);
     flex-basis:min(390px,94vw);
     padding:0;
     background:#f8fafc;
   }
 
-  .workspace.panel-collapsed .control-panel{
+  .workspace.panel-collapsed .control-panel{   overscroll-behavior:contain;
     width:0 !important;
     flex-basis:0 !important;
     padding:0 !important;
@@ -821,7 +821,7 @@ letter-spacing:.01em;
   }
 
   @media (max-width:900px){
-    .control-panel{
+    .control-panel{   overscroll-behavior:contain;
       position:absolute;
       left:0;
       top:0;
@@ -830,7 +830,7 @@ letter-spacing:.01em;
       flex-basis:min(420px,94vw);
       box-shadow:8px 0 24px rgba(15,23,42,.18);
     }
-    .workspace.panel-collapsed .control-panel{transform:translateX(-102%);}
+    .workspace.panel-collapsed .control-panel{   overscroll-behavior:contain;transform:translateX(-102%);}
     #floatingKpis{top:10px;left:10px;right:10px;justify-content:flex-end;}
     .kpiBox{min-width:68px;padding:6px 9px;}
     .kpiValue{font-size:15px;}
@@ -1301,7 +1301,7 @@ letter-spacing:.01em;
   padding:3px 8px;
   font-weight:850;
 }
-body.opcx-leadership .control-panel{display:none !important;}
+body.opcx-leadership .control-panel{   overscroll-behavior:contain;display:none !important;}
 body.opcx-leadership .topbar{display:none !important;}
 body.opcx-leadership .opcx-viewbar{position:sticky;top:0;z-index:3000;box-shadow:0 6px 18px rgba(15,23,42,.12);}
 body.opcx-leadership .opcx-context-banner{display:none !important;}
@@ -1663,7 +1663,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 /* ===== v117.7 Mobile + Tablet Control Stability ===== */
 @media(max-width:900px){
-  .control-panel{
+  .control-panel{   overscroll-behavior:contain;
     z-index:3200 !important;
   }
 
