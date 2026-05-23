@@ -6388,11 +6388,19 @@ if (id('leadershipSummaryBtn')) id('leadershipSummaryBtn').onclick = openLeaders
 if (id('leadershipSummaryClose')) id('leadershipSummaryClose').onclick = ()=> id('leadershipSummaryModal')?.classList.remove('show');
 if (id('leadershipSummaryRefresh')) id('leadershipSummaryRefresh').onclick = renderLeadershipSummary;
 if (id('leadershipSummaryExport')) id('leadershipSummaryExport').onclick = exportLeadershipSummaryCsv;
-if (id('finalReviewBtn')) id('finalReviewBtn').onclick = openFinalPlanReview;
-if (id('finalReviewClose')) id('finalReviewClose').onclick = ()=> id('finalReviewModal')?.classList.remove('show');
-if (id('finalReviewRefresh')) id('finalReviewRefresh').onclick = renderFinalPlanReview;
-if (id('finalReviewExport')) id('finalReviewExport').onclick = exportFinalPlanReviewCsv;
-if (id('finalReviewClear')) id('finalReviewClear').onclick = clearFinalPlanReviews;
+function wireFinalReviewWorkbenchButtons(){
+  if (id('finalReviewBtn')) id('finalReviewBtn').onclick = openFinalPlanReview;
+  if (id('finalReviewClose')) id('finalReviewClose').onclick = ()=> id('finalReviewModal')?.classList.remove('show');
+
+  if (id('finalReviewRefresh')) id('finalReviewRefresh').onclick = renderFinalPlanReview;
+  if (id('finalReviewExport')) id('finalReviewExport').onclick = exportFinalPlanReviewCsv;
+  if (id('finalReviewClear')) id('finalReviewClear').onclick = clearFinalPlanReviews;
+
+  if (id('replaceSwapBtn2')) id('replaceSwapBtn2').onclick = openReplaceMarkedSwaps;
+  if (id('weakSwapBtn2')) id('weakSwapBtn2').onclick = openWeakSwapFinder;
+}
+
+wireFinalReviewWorkbenchButtons();
 if (id('savePlanBtn')) id('savePlanBtn').onclick = saveCurrentPlanSnapshot;
 if (id('comparePlansBtn')) id('comparePlansBtn').onclick = openComparePlans;
 if (id('comparePlansClose')) id('comparePlansClose').onclick = ()=> id('comparePlansModal')?.classList.remove('show');
