@@ -1606,6 +1606,100 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .cap-v114-legend .dot{width:9px;height:9px;border-radius:999px;display:inline-block;}
 @media(max-width:900px){.cap-v114-grid{grid-template-columns:1fr 1fr}.cap-v114-table{font-size:11.5px}.cap-v114-legend{display:none !important;}}
 
+/* ===== v122 Replace-Marked Swap Workbench ===== */
+
+.replace-swap-workbench .card{
+  width:96vw !important;
+  max-width:1220px !important;
+}
+
+.replace-swap-tools{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+}
+
+.replace-swap-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+  padding:8px;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  background:#fff;
+}
+
+.replace-swap-primary{
+  background:#eff6ff;
+  border-color:#bfdbfe;
+}
+
+.replace-swap-label{
+  flex:0 0 100%;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#64748b;
+  font-weight:900;
+}
+
+.replace-swap-help{
+  display:grid;
+  gap:6px;
+  margin-bottom:10px;
+  border:1px solid #fecdd3;
+  background:#fff1f2;
+  color:#881337;
+  border-radius:12px;
+  padding:10px 12px;
+  font-size:13px;
+  line-height:1.4;
+}
+
+.replace-swap-help b{
+  color:#111827;
+}
+
+#replaceSwapResults{
+  min-height:160px;
+  overflow:auto;
+  overscroll-behavior:contain;
+}
+
+#replaceSwapResults table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12.5px;
+}
+
+#replaceSwapResults th,
+#replaceSwapResults td{
+  border-bottom:1px solid #eef2f7;
+  padding:8px;
+  vertical-align:top;
+  line-height:1.35;
+}
+
+#replaceSwapResults th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#f8fafc;
+  box-shadow:0 2px 4px rgba(15,23,42,.05);
+}
+
+#replaceSwapResults tr:hover td{
+  background:#f8fbff !important;
+}
+
+@media(max-width:720px){
+  .replace-swap-group .btn,
+  .replace-swap-group .toggle{
+    flex:1 1 100%;
+  }
+}
+
 /* ===== v121 Weak-Pick / Swap Finder Workbench ===== */
 
 .weak-swap-workbench .card{
@@ -3293,21 +3387,49 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 <!-- Replace-marked swaps modal -->
 <div class="modal replace-swap-workbench" id="replaceSwapModal" aria-modal="true" role="dialog">
-  <div class="card" style="max-width:1200px;width:96vw">
+  <div class="card">
     <header>
       <h3>Replace-Marked Swap Recommendations</h3>
       <button id="replaceSwapClose" class="btn" type="button">Close</button>
     </header>
     <div class="body" style="grid-template-columns:1fr;">
-      <div class="priority-tools">
-        <label class="toggle" title="Only show replacements that improve net-new count by at least this much">Minimum gain
-          <input id="replaceMinGain" type="number" value="1" style="width:80px;margin-left:8px">
-        </label>
-        <button id="replaceSwapRun" class="btn" type="button">Run</button>
-        <button id="replaceSwapExport" class="btn" type="button">Export CSV</button>
+         <div class="priority-tools replace-swap-tools">
+
+        <div class="replace-swap-group">
+          <span class="replace-swap-label">Thresholds</span>
+
+          <label class="toggle" title="Only show replacements that improve net-new count by at least this much">
+            Minimum gain
+            <input id="replaceMinGain" type="number" value="1" style="width:80px;margin-left:8px">
+          </label>
+        </div>
+
+        <div class="replace-swap-group replace-swap-primary">
+          <span class="replace-swap-label">Optimization</span>
+
+          <button id="replaceSwapRun" class="btn" type="button">
+            Generate Replacement Swaps
+          </button>
+
+          <button id="replaceSwapExport" class="btn" type="button">
+            Export Replacement CSV
+          </button>
+        </div>
+
       </div>
-      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
-        Mark placements as <b>Replace</b> in Final Plan Review Mode first. This protects Approved/Maybe/Pending rows and suggests one-for-one swaps only for those Replace-marked hubs, keeping the total 100-slot cap intact.
+
+      <div class="replace-swap-help">
+        <div>
+          <b>Purpose:</b> Re-evaluate only placements explicitly marked Replace during Final Plan Review.
+        </div>
+
+        <div>
+          <b>Guardrail:</b> Approved, Maybe, and Pending placements remain protected while preserving the total trainer cap.
+        </div>
+
+        <div>
+          <b>Best use:</b> Run this after leadership review to generate targeted replacement recommendations instead of rebuilding the full plan.
+        </div>
       </div>
       <div id="replaceSwapResults" style="max-height:65vh;overflow:auto"></div>
     </div>
@@ -7869,7 +7991,25 @@ function buildReplaceMarkedSwapRows(){
 function renderReplaceMarkedSwaps(){
   const el = id('replaceSwapResults'); if (!el) return;
   const rows = buildReplaceMarkedSwapRows(); lastReplaceSwapRows = rows;
-  if (!rows.length){ el.innerHTML = '<div class="priority-card"><b>No Replace-marked placements found.</b><div style="color:var(--muted);margin-top:6px">Open Final Plan Review Mode and mark one or more placements as Replace.</div></div>'; return; }
+  if (!rows.length){
+    el.innerHTML = `
+      <div style="
+        border:1px dashed #cbd5e1;
+        background:#f8fafc;
+        border-radius:12px;
+        padding:14px;
+        color:#475569;
+        font-size:13px;
+        line-height:1.4;
+      ">
+        <b style="color:#0f172a">No Replace-marked placements found.</b>
+        <div style="margin-top:6px">
+          Open <b>Final Plan Review Mode</b> and mark one or more placements as <b>Replace</b>, then rerun this tool.
+        </div>
+      </div>
+    `;
+    return;
+  }
   el.innerHTML = `
     <div class="priority-card"><b>Replace-marked swap recommendations</b><span style="color:var(--muted);margin-left:8px">Approved/Maybe/Pending placements are protected.</span></div>
     <table class="priority-table"><thead><tr><th style="text-align:right">Rank</th><th>Replace-Marked Hub</th><th style="text-align:right">Current Net New</th><th>Suggested Replacement</th><th style="text-align:right">Replacement Net New</th><th style="text-align:right">Net Gain</th><th>Reason</th></tr></thead>
