@@ -1606,6 +1606,100 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .cap-v114-legend .dot{width:9px;height:9px;border-radius:999px;display:inline-block;}
 @media(max-width:900px){.cap-v114-grid{grid-template-columns:1fr 1fr}.cap-v114-table{font-size:11.5px}.cap-v114-legend{display:none !important;}}
 
+/* ===== v121 Weak-Pick / Swap Finder Workbench ===== */
+
+.weak-swap-workbench .card{
+  width:96vw !important;
+  max-width:1220px !important;
+}
+
+.weak-swap-tools{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+}
+
+.weak-swap-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+  padding:8px;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  background:#fff;
+}
+
+.weak-swap-primary{
+  background:#eff6ff;
+  border-color:#bfdbfe;
+}
+
+.weak-swap-label{
+  flex:0 0 100%;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#64748b;
+  font-weight:900;
+}
+
+.weak-swap-help{
+  display:grid;
+  gap:6px;
+  margin-bottom:10px;
+  border:1px solid #fed7aa;
+  background:#fff7ed;
+  color:#7c2d12;
+  border-radius:12px;
+  padding:10px 12px;
+  font-size:13px;
+  line-height:1.4;
+}
+
+.weak-swap-help b{
+  color:#111827;
+}
+
+#weakSwapResults{
+  min-height:160px;
+  overflow:auto;
+  overscroll-behavior:contain;
+}
+
+#weakSwapResults table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12.5px;
+}
+
+#weakSwapResults th,
+#weakSwapResults td{
+  border-bottom:1px solid #eef2f7;
+  padding:8px;
+  vertical-align:top;
+  line-height:1.35;
+}
+
+#weakSwapResults th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#f8fafc;
+  box-shadow:0 2px 4px rgba(15,23,42,.05);
+}
+
+#weakSwapResults tr:hover td{
+  background:#f8fbff !important;
+}
+
+@media(max-width:720px){
+  .weak-swap-group .btn,
+  .weak-swap-group .toggle{
+    flex:1 1 100%;
+  }
+}
+
 /* ===== v120 Final Plan Review Workbench ===== */
 
 .final-review-workbench .card{
@@ -3015,25 +3109,55 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 
 <!-- Weak Pick / Swap Finder modal -->
-<div class="modal" id="weakSwapModal" aria-modal="true" role="dialog">
-  <div class="card" style="max-width:1150px;width:95vw">
+<div class="modal weak-swap-workbench" id="weakSwapModal" aria-modal="true" role="dialog">
+  <div class="card">
     <header>
       <h3>Weak-Pick / Swap Finder</h3>
       <button id="weakSwapClose" class="btn" type="button">Close</button>
     </header>
     <div class="body" style="grid-template-columns:1fr;">
-      <div class="priority-tools">
-        <label class="toggle" title="Only flag placements at or below this net-new store count">Weak if net-new ≤
-          <input id="weakNetNew" type="number" value="25" style="width:80px;margin-left:8px">
-        </label>
-        <label class="toggle" title="A swap is shown only if the replacement beats the weak pick by this many net-new stores">Minimum gain
-          <input id="weakMinGain" type="number" value="5" style="width:80px;margin-left:8px">
-        </label>
-        <button id="weakSwapRun" class="btn" type="button">Run</button>
-        <button id="weakSwapExport" class="btn" type="button">Export CSV</button>
+            <div class="priority-tools weak-swap-tools">
+
+        <div class="weak-swap-group">
+          <span class="weak-swap-label">Thresholds</span>
+
+          <label class="toggle" title="Only flag placements at or below this net-new store count">
+            Weak if net-new ≤
+            <input id="weakNetNew" type="number" value="25" style="width:80px;margin-left:8px">
+          </label>
+
+          <label class="toggle" title="A swap is shown only if the replacement beats the weak pick by this many net-new stores">
+            Minimum gain
+            <input id="weakMinGain" type="number" value="5" style="width:80px;margin-left:8px">
+          </label>
+        </div>
+
+        <div class="weak-swap-group weak-swap-primary">
+          <span class="weak-swap-label">Analysis</span>
+
+          <button id="weakSwapRun" class="btn" type="button">
+            Run Swap Finder
+          </button>
+
+          <button id="weakSwapExport" class="btn" type="button">
+            Export Swap CSV
+          </button>
+        </div>
+
       </div>
-      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
-        This keeps the 100-trainer cap by identifying lower-value placements in the current Auto 100 plan and suggesting one-for-one replacements from remaining uncovered gap areas.
+
+      <div class="weak-swap-help">
+        <div>
+          <b>Purpose:</b> Identify low-value Auto 100 placements and suggest stronger one-for-one replacements.
+        </div>
+
+        <div>
+          <b>Guardrail:</b> Locked placements are protected, and swaps preserve the total placement cap.
+        </div>
+
+        <div>
+          <b>Best use:</b> Run this after Final Plan Review has started so approved placements are not disrupted.
+        </div>
       </div>
       <div id="weakSwapResults" style="max-height:65vh;overflow:auto"></div>
     </div>
@@ -7827,7 +7951,22 @@ function renderWeakSwapFinder(){
   const el = id('weakSwapResults');
   if (!el) return;
   if (!rows.length){
-    el.innerHTML = `<div class="priority-card"><b>No weak picks found.</b><div style="color:var(--muted);margin-top:6px">Try raising the weak net-new threshold, or run Auto-generate Top 100 first.</div></div>`;
+    el.innerHTML = `
+      <div style="
+        border:1px dashed #cbd5e1;
+        background:#f8fafc;
+        border-radius:12px;
+        padding:14px;
+        color:#475569;
+        font-size:13px;
+        line-height:1.4;
+      ">
+        <b style="color:#0f172a">No weak picks found.</b>
+        <div style="margin-top:6px">
+          Run <b>Auto-generate Top 100</b> first, or raise the weak net-new threshold to flag more placements.
+        </div>
+      </div>
+    `;
     return;
   }
   el.innerHTML = `
