@@ -1606,6 +1606,94 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .cap-v114-legend .dot{width:9px;height:9px;border-radius:999px;display:inline-block;}
 @media(max-width:900px){.cap-v114-grid{grid-template-columns:1fr 1fr}.cap-v114-table{font-size:11.5px}.cap-v114-legend{display:none !important;}}
 
+/* ===== v123 Compare Saved Plans Workbench ===== */
+
+.compare-plans-workbench .card{
+  width:96vw !important;
+  max-width:1280px !important;
+}
+
+.compare-plans-tools{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+}
+
+.compare-plans-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+  padding:8px;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  background:#fff;
+}
+
+.compare-plans-label{
+  flex:0 0 100%;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#64748b;
+  font-weight:900;
+}
+
+.compare-plans-help{
+  display:grid;
+  gap:6px;
+  margin-bottom:10px;
+  border:1px solid #bfdbfe;
+  background:#eff6ff;
+  color:#1e3a8a;
+  border-radius:12px;
+  padding:10px 12px;
+  font-size:13px;
+  line-height:1.4;
+}
+
+.compare-plans-help b{
+  color:#111827;
+}
+
+#comparePlansResults{
+  min-height:160px;
+  overflow:auto;
+  overscroll-behavior:contain;
+}
+
+#comparePlansResults table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12.5px;
+}
+
+#comparePlansResults th,
+#comparePlansResults td{
+  border-bottom:1px solid #eef2f7;
+  padding:8px;
+  vertical-align:top;
+  line-height:1.35;
+}
+
+#comparePlansResults th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#f8fafc;
+  box-shadow:0 2px 4px rgba(15,23,42,.05);
+}
+
+#comparePlansResults tr:hover td{
+  background:#f8fbff !important;
+}
+
+@media(max-width:720px){
+  .compare-plans-group .btn{
+    flex:1 1 100%;
+  }
+}
+
 /* ===== v122 Replace-Marked Swap Workbench ===== */
 
 .replace-swap-workbench .card{
@@ -3343,8 +3431,8 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 
 <!-- Saved Plans / Compare modal -->
-<div class="modal" id="comparePlansModal" aria-modal="true" role="dialog">
-  <div class="card" style="max-width:1200px;width:96vw">
+<div class="modal compare-plans-workbench" id="comparePlansModal" aria-modal="true" role="dialog">
+ <div class="card">
     <header>
       <h3>Compare Saved Plans</h3>
       <button id="comparePlansClose" class="btn" type="button">Close</button>
