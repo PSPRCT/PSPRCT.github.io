@@ -1606,13 +1606,33 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .cap-v114-legend .dot{width:9px;height:9px;border-radius:999px;display:inline-block;}
 @media(max-width:900px){.cap-v114-grid{grid-template-columns:1fr 1fr}.cap-v114-table{font-size:11.5px}.cap-v114-legend{display:none !important;}}
 
-/* ===== v118.1 Leadership Summary Modal Readability ===== */
+/* ===== v118 Leadership Summary Full Polish + Print Package ===== */
 #leadershipSummaryResults{
   display:grid;
   gap:10px;
   min-height:120px;
   overflow:auto;
   overscroll-behavior:contain;
+}
+
+#leadershipSummaryResults:empty::before{
+  content:'Run or refresh the Leadership Summary to generate an executive-ready view of the current RTS plan.';
+  display:block;
+  border:1px dashed #cbd5e1;
+  background:#f8fafc;
+  color:#475569;
+  border-radius:12px;
+  padding:14px;
+  font-size:13px;
+  line-height:1.4;
+}
+
+#leadershipSummaryModal .priority-tools{
+  justify-content:flex-start;
+}
+
+#leadershipSummaryModal .priority-tools .btn{
+  flex:0 1 auto;
 }
 
 #leadershipSummaryResults .ops-copy-box,
@@ -1631,6 +1651,26 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   overflow:hidden;
 }
 
+#leadershipSummaryResults th,
+#leadershipSummaryResults td{
+  border-bottom:1px solid #eef2f7;
+  padding:8px 9px;
+  vertical-align:top;
+  line-height:1.35;
+}
+
+#leadershipSummaryResults th{
+  position:sticky;
+  top:0;
+  background:#f8fafc;
+  z-index:2;
+  box-shadow:0 2px 4px rgba(15,23,42,.05);
+}
+
+#leadershipSummaryResults tr:hover td{
+  background:#f8fbff;
+}
+
 #leadershipSummaryResults h2,
 #leadershipSummaryResults h3{
   margin:4px 0 8px 0;
@@ -1638,18 +1678,18 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   letter-spacing:-.02em;
 }
 
-#leadershipSummaryResults .val,
-#leadershipSummaryResults .metric,
-#leadershipSummaryResults .kpi{
-  font-weight:900;
-  color:#0f172a;
-}
-
 #leadershipSummaryResults section{
   border:1px solid #eef2f7;
   border-radius:14px;
   padding:10px;
   background:#fff;
+}
+
+#leadershipSummaryResults .val,
+#leadershipSummaryResults .metric,
+#leadershipSummaryResults .kpi{
+  font-weight:900;
+  color:#0f172a;
 }
 
 #leadershipSummaryResults .risk-chip,
@@ -1677,6 +1717,10 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   line-height:1.45;
 }
 
+@page{
+  margin:.5in;
+}
+
 @media print{
   body *{
     visibility:hidden;
@@ -1697,38 +1741,37 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   #leadershipSummaryModal .card{
     box-shadow:none !important;
     border:none !important;
+    border-radius:0 !important;
     width:100% !important;
     max-width:none !important;
     max-height:none !important;
   }
 
-#leadershipSummaryModal .priority-tools,
-#leadershipSummaryClose,
-#leadershipSummaryModal .sticky,
-#leadershipSummaryModal .topbar{
-  display:none !important;
-}
+  #leadershipSummaryModal header{
+    border-bottom:1px solid #cbd5e1 !important;
+    padding:0 0 10px 0 !important;
+    margin-bottom:12px !important;
+  }
+
+  #leadershipSummaryModal .priority-tools,
+  #leadershipSummaryClose,
+  #leadershipSummaryModal .sticky,
+  #leadershipSummaryModal .topbar{
+    display:none !important;
+  }
 
   #leadershipSummaryResults{
-  overflow:visible !important;
-}
-
-#leadershipSummaryResults section,
-#leadershipSummaryResults .ops-priority-path-card,
-#leadershipSummaryResults .ops-copy-box,
-#leadershipSummaryResults table{
-  break-inside:avoid;
-  page-break-inside:avoid;
-}
-
-@page{
-  margin:.5in;
-}
-
-@media print{
-  #leadershipSummaryResults{
+    overflow:visible !important;
     font-size:11pt;
     color:#000;
+  }
+
+  #leadershipSummaryResults section,
+  #leadershipSummaryResults .ops-priority-path-card,
+  #leadershipSummaryResults .ops-copy-box,
+  #leadershipSummaryResults table{
+    break-inside:avoid;
+    page-break-inside:avoid;
   }
 
   #leadershipSummaryResults h1,
@@ -1744,14 +1787,14 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   }
 
   #leadershipSummaryResults th{
-  background:#f3f4f6 !important;
-  color:#000 !important;
-  border:1px solid #cbd5e1 !important;
-}
+    background:#f3f4f6 !important;
+    color:#000 !important;
+    border:1px solid #cbd5e1 !important;
+  }
 
-#leadershipSummaryResults td{
-  border:1px solid #e2e8f0 !important;
-}
+  #leadershipSummaryResults td{
+    border:1px solid #e2e8f0 !important;
+  }
 
   #leadershipSummaryResults .risk-chip,
   #leadershipSummaryResults .severity-chip,
@@ -1761,48 +1804,6 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
     background:#fff !important;
   }
 }
-}
-
-#leadershipSummaryResults th,
-#leadershipSummaryResults td{
-  border-bottom:1px solid #eef2f7;
-  padding:8px 9px;
-  vertical-align:top;
-  line-height:1.35;
-}
-
-#leadershipSummaryResults tr:hover td{
-  background:#f8fbff;
-}
-
-#leadershipSummaryResults th{
-  position:sticky;
-  top:0;
-  background:#f8fafc;
-  z-index:2;
-  box-shadow:0 2px 4px rgba(15,23,42,.05);
-}
-
-#leadershipSummaryResults:empty::before{
-  content:'Run or refresh the Leadership Summary to generate an executive-ready view of the current RTS plan.';
-  display:block;
-  border:1px dashed #cbd5e1;
-  background:#f8fafc;
-  color:#475569;
-  border-radius:12px;
-  padding:14px;
-  font-size:13px;
-  line-height:1.4;
-}
-
-#leadershipSummaryModal .priority-tools{
-  justify-content:flex-start;
-}
-
-#leadershipSummaryModal .priority-tools .btn{
-  flex:0 1 auto;
-}
-
 /* ===== v117.8 Store Popup Readability Polish ===== */
 .leaflet-popup-content{
   font-size:12.5px;
