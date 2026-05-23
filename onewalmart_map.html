@@ -1603,6 +1603,78 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .cap-v114-legend .dot{width:9px;height:9px;border-radius:999px;display:inline-block;}
 @media(max-width:900px){.cap-v114-grid{grid-template-columns:1fr 1fr}.cap-v114-table{font-size:11.5px}.cap-v114-legend{display:none !important;}}
 
+/* ===== v117 RTS Hub Usability + Scroll Stabilization ===== */
+.sidepanel{
+  width:min(460px,92vw) !important;
+  flex-basis:min(460px,92vw) !important;
+  z-index:2400 !important;
+}
+
+.sidepanel.show{
+  display:flex !important;
+}
+
+.sp-head{
+  position:sticky;
+  top:0;
+  z-index:8;
+  background:#fff;
+  box-shadow:0 4px 12px rgba(15,23,42,.08);
+}
+
+.sp-body{
+  height:auto !important;
+  flex:1 1 auto;
+  min-height:0;
+  overflow:auto !important;
+  padding-bottom:16px;
+}
+
+.sp-actions,
+.sp-toggles,
+.sp-quick{
+  position:sticky;
+  z-index:6;
+  background:#fff;
+}
+
+.sp-actions{top:0;}
+.sp-toggles{top:42px;}
+.sp-quick{
+  top:78px;
+  padding:6px;
+  border:1px solid #edf2f7;
+  border-radius:10px;
+}
+
+.sp-list{
+  min-height:260px;
+  flex:1 1 320px;
+}
+
+.sp-counts{
+  align-items:flex-start;
+}
+
+.sp-chip{
+  background:#fff;
+  line-height:1.2;
+}
+
+@media(max-width:720px){
+  .sidepanel{
+    position:absolute;
+    right:0;
+    top:0;
+    bottom:0;
+    width:94vw !important;
+    flex-basis:94vw !important;
+  }
+  .sp-body{
+    max-height:none;
+  }
+}
+
 </style>
 </head>
 <body>
