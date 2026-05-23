@@ -1718,6 +1718,42 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   break-inside:avoid;
   page-break-inside:avoid;
 }
+
+@page{
+  margin:.5in;
+}
+
+@media print{
+  #leadershipSummaryResults{
+    font-size:11pt;
+    color:#000;
+  }
+
+  #leadershipSummaryResults h1,
+  #leadershipSummaryResults h2,
+  #leadershipSummaryResults h3{
+    color:#000 !important;
+    break-after:avoid;
+    page-break-after:avoid;
+  }
+
+  #leadershipSummaryResults table{
+    font-size:10pt;
+  }
+
+  #leadershipSummaryResults th{
+    background:#f3f4f6 !important;
+    color:#000 !important;
+  }
+
+  #leadershipSummaryResults .risk-chip,
+  #leadershipSummaryResults .severity-chip,
+  #leadershipSummaryResults .priority-chip{
+    border:1px solid #999 !important;
+    color:#000 !important;
+    background:#fff !important;
+  }
+}
 }
 
 #leadershipSummaryResults th,
