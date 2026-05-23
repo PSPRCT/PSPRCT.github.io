@@ -1606,6 +1606,101 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .cap-v114-legend .dot{width:9px;height:9px;border-radius:999px;display:inline-block;}
 @media(max-width:900px){.cap-v114-grid{grid-template-columns:1fr 1fr}.cap-v114-table{font-size:11.5px}.cap-v114-legend{display:none !important;}}
 
+/* ===== v128 Coverage Priorities Workbench ===== */
+
+.coverage-priorities-workbench .card{
+  width:96vw !important;
+  max-width:1280px !important;
+}
+
+.coverage-priorities-tools{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+  margin-bottom:10px;
+}
+
+.coverage-priorities-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+  padding:8px;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  background:#fff;
+}
+
+.coverage-priorities-primary{
+  background:#eff6ff;
+  border-color:#bfdbfe;
+}
+
+.coverage-priorities-label{
+  flex:0 0 100%;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#64748b;
+  font-weight:900;
+}
+
+.coverage-priorities-help{
+  display:grid;
+  gap:6px;
+  margin-bottom:10px;
+  border:1px solid #fed7aa;
+  background:#fff7ed;
+  color:#7c2d12;
+  border-radius:12px;
+  padding:10px 12px;
+  font-size:13px;
+  line-height:1.4;
+}
+
+.coverage-priorities-help b{
+  color:#111827;
+}
+
+#coverageTable{
+  min-height:160px;
+  overflow:auto;
+  overscroll-behavior:contain;
+}
+
+#coverageTable table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12.5px;
+}
+
+#coverageTable th,
+#coverageTable td{
+  border-bottom:1px solid #eef2f7;
+  padding:8px;
+  vertical-align:top;
+  line-height:1.35;
+}
+
+#coverageTable th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#f8fafc;
+  box-shadow:0 2px 4px rgba(15,23,42,.05);
+}
+
+#coverageTable tr:hover td{
+  background:#f8fbff !important;
+}
+
+@media(max-width:720px){
+  .coverage-priorities-group .btn,
+  .coverage-priorities-group .toggle{
+    flex:1 1 100%;
+  }
+}
+
 /* ===== v127 Manager Rollup Workbench ===== */
 
 .manager-rollup-workbench .card{
@@ -3639,25 +3734,56 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 </div>
 
 <!-- Coverage Priorities modal -->
-<div class="modal" id="coverageModal" aria-modal="true" role="dialog">
-  <div class="card" style="max-width:1100px;width:94vw">
+<div class="modal coverage-priorities-workbench" id="coverageModal" aria-modal="true" role="dialog">
+  <div class="card">
     <header>
       <h3>Coverage Priorities by Manager — Action Ranking</h3>
       <button id="coverageClose" class="btn" type="button">Close</button>
     </header>
     <div class="body" style="grid-template-columns:1fr;">
-      <div class="priority-tools">
-        <label class="toggle"><input type="radio" name="coverageBy" id="coverageByRM" checked> By Regional Manager</label>
-        <label class="toggle"><input type="radio" name="coverageBy" id="coverageByAM"> By Area Manager</label>
-        <label class="toggle" title="When checked, ranking uses the stores currently visible after filters. When unchecked, it ranks against all stores.">
-          <input id="coverageUseFilters" type="checkbox"> Use current filters
-        </label>
-        <button id="coverageExport" class="btn" type="button">Export CSV</button>
+            <div class="priority-tools coverage-priorities-tools">
+
+        <div class="coverage-priorities-group">
+          <span class="coverage-priorities-label">View Mode</span>
+
+          <label class="toggle">
+            <input type="radio" name="coverageBy" id="coverageByRM" checked>
+            By Regional Manager
+          </label>
+
+          <label class="toggle">
+            <input type="radio" name="coverageBy" id="coverageByAM">
+            By Area Manager
+          </label>
+
+          <label class="toggle" title="When checked, ranking uses the stores currently visible after filters. When unchecked, it ranks against all stores.">
+            <input id="coverageUseFilters" type="checkbox">
+            Use current filters
+          </label>
+        </div>
+
+        <div class="coverage-priorities-group coverage-priorities-primary">
+          <span class="coverage-priorities-label">Actions</span>
+
+          <button id="coverageExport" class="btn" type="button">
+            Export Priorities CSV
+          </button>
+        </div>
+
       </div>
-      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
-        <b>How to use:</b> This ranks managers by current RTS coverage gap so leadership can decide where to act first. Click a manager name to filter the map and open their Gap Finder summary.
-        <br><b>Estimated RTS Needed:</b> Count of consolidated 75-mile gap clusters with at least 25 uncovered stores. This is a planning estimate, not a staffing commitment.
-        <br><b>Add 1 RTS Opportunity:</b> Largest consolidated current gap cluster for that manager — a rough estimate of the best single placement opportunity.
+
+      <div class="coverage-priorities-help">
+        <div>
+          <b>Purpose:</b> Rank managers by current RTS coverage gap so leadership can decide where to act first.
+        </div>
+
+        <div>
+          <b>Estimated RTS Needed:</b> Count of consolidated 75-mile gap clusters with at least 25 uncovered stores.
+        </div>
+
+        <div>
+          <b>Add 1 RTS Opportunity:</b> Largest current gap cluster for that manager — a planning estimate, not a staffing commitment.
+        </div>
       </div>
       <div id="coverageTable" style="max-height:65vh;overflow:auto"></div>
     </div>
