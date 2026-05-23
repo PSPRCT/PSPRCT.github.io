@@ -1610,6 +1610,9 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 #leadershipSummaryResults{
   display:grid;
   gap:10px;
+  min-height:120px;
+  overflow:auto;
+  overscroll-behavior:contain;
 }
 
 #leadershipSummaryResults .ops-copy-box,
@@ -1623,6 +1626,22 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   width:100%;
   border-collapse:collapse;
   font-size:12.5px;
+  background:#fff;
+  border-radius:12px;
+  overflow:hidden;
+}
+
+#leadershipSummaryResults h2,
+#leadershipSummaryResults h3{
+  margin:4px 0 8px 0;
+  color:#0f172a;
+}
+
+#leadershipSummaryResults section{
+  border:1px solid #eef2f7;
+  border-radius:14px;
+  padding:10px;
+  background:#fff;
 }
 
 #leadershipSummaryResults th,
