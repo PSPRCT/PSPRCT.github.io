@@ -1620,6 +1620,16 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   margin-bottom:10px;
 }
 
+.leadership-summary-tools::before{
+  content:'Actions';
+  flex:1 1 100%;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#64748b;
+  font-weight:900;
+}
+
 /* ===== v130 Modal Header Normalization ===== */
 .modal .card header{
   background:#fff;
@@ -4056,7 +4066,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
       <button id="leadershipSummaryClose" class="btn" type="button">Close</button>
     </header>
     <div class="body" style="grid-template-columns:1fr;">
-      <div class="priority-tools">
+            <div class="priority-tools leadership-summary-tools">
         <button id="leadershipSummaryRefresh" class="btn" type="button">Refresh Summary</button>
         <button id="leadershipSummaryExport" class="btn" type="button">Export Summary CSV</button>
       </div>
