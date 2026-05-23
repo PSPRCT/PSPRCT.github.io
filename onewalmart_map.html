@@ -6833,7 +6833,22 @@ Higher-ranked locations are stronger candidates for future RTS hiring or reposit
           </tr>`).join('')}
       </tbody>
     </table>
-  ` : '<div style="color:var(--muted)">No current gaps found using the selected settings.</div>';
+    ` : `
+    <div style="
+      border:1px dashed #cbd5e1;
+      background:#f8fafc;
+      border-radius:12px;
+      padding:14px;
+      color:#475569;
+      font-size:13px;
+      line-height:1.4;
+    ">
+      <b style="color:#0f172a">No current gaps found.</b>
+      <div style="margin-top:6px">
+        Try lowering the minimum uncovered count, widening the radius, or turning off current filters.
+      </div>
+    </div>
+  `;
 
   id('gapResults').innerHTML = html;
 }
