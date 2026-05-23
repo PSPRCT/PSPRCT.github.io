@@ -1606,6 +1606,100 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .cap-v114-legend .dot{width:9px;height:9px;border-radius:999px;display:inline-block;}
 @media(max-width:900px){.cap-v114-grid{grid-template-columns:1fr 1fr}.cap-v114-table{font-size:11.5px}.cap-v114-legend{display:none !important;}}
 
+/* ===== v125 Dedicated Team Rollup Workbench ===== */
+
+.dedicated-rollup-workbench .card{
+  width:96vw !important;
+  max-width:1280px !important;
+}
+
+.dedicated-rollup-tools{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+}
+
+.dedicated-rollup-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+  padding:8px;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  background:#fff;
+}
+
+.dedicated-rollup-primary{
+  background:#eff6ff;
+  border-color:#bfdbfe;
+}
+
+.dedicated-rollup-label{
+  flex:0 0 100%;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#64748b;
+  font-weight:900;
+}
+
+.dedicated-rollup-help{
+  display:grid;
+  gap:6px;
+  margin-bottom:10px;
+  border:1px solid #e9d5ff;
+  background:#faf5ff;
+  color:#581c87;
+  border-radius:12px;
+  padding:10px 12px;
+  font-size:13px;
+  line-height:1.4;
+}
+
+.dedicated-rollup-help b{
+  color:#111827;
+}
+
+#dedRollupResults{
+  min-height:160px;
+  overflow:auto;
+  overscroll-behavior:contain;
+}
+
+#dedRollupResults table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12.5px;
+}
+
+#dedRollupResults th,
+#dedRollupResults td{
+  border-bottom:1px solid #eef2f7;
+  padding:8px;
+  vertical-align:top;
+  line-height:1.35;
+}
+
+#dedRollupResults th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#f8fafc;
+  box-shadow:0 2px 4px rgba(15,23,42,.05);
+}
+
+#dedRollupResults tr:hover td{
+  background:#f8fbff !important;
+}
+
+@media(max-width:720px){
+  .dedicated-rollup-group .btn,
+  .dedicated-rollup-group .toggle{
+    flex:1 1 100%;
+  }
+}
+
 /* ===== v124 State / Region Gap Summary Workbench ===== */
 
 .gap-summary-workbench .card{
@@ -3679,25 +3773,65 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 
 <!-- Dedicated Team Rollup modal -->
-<div class="modal" id="dedRollupModal" aria-modal="true" role="dialog">
-  <div class="card" style="max-width:1200px;width:96vw">
+<div class="modal dedicated-rollup-workbench" id="dedRollupModal" aria-modal="true" role="dialog">
+  <div class="card">
     <header>
       <h3>Dedicated Team Rollup</h3>
       <button id="dedRollupClose" class="btn" type="button">Close</button>
     </header>
     <div class="body" style="grid-template-columns:1fr;">
-      <div class="priority-tools">
-        <label class="toggle"><input type="radio" name="dedRollBy" id="dedRollByTeam" checked> By Team</label>
-        <label class="toggle"><input type="radio" name="dedRollBy" id="dedRollByRM"> By Dedicated RM</label>
-        <label class="toggle"><input type="radio" name="dedRollBy" id="dedRollByAM"> By Dedicated AM</label>
-        <label class="toggle" title="When checked, uses the stores currently visible after filters. When unchecked, uses all stores.">
-          <input id="dedRollUseFilters" type="checkbox"> Use current filters
-        </label>
-        <button id="dedRollRefresh" class="btn" type="button">Refresh</button>
-        <button id="dedRollExport" class="btn" type="button">Export CSV</button>
+         <div class="priority-tools dedicated-rollup-tools">
+
+        <div class="dedicated-rollup-group">
+          <span class="dedicated-rollup-label">View Mode</span>
+
+          <label class="toggle">
+            <input type="radio" name="dedRollBy" id="dedRollByTeam" checked>
+            By Team
+          </label>
+
+          <label class="toggle">
+            <input type="radio" name="dedRollBy" id="dedRollByRM">
+            By Dedicated RM
+          </label>
+
+          <label class="toggle">
+            <input type="radio" name="dedRollBy" id="dedRollByAM">
+            By Dedicated AM
+          </label>
+
+          <label class="toggle" title="When checked, uses the stores currently visible after filters. When unchecked, uses all stores.">
+            <input id="dedRollUseFilters" type="checkbox">
+            Use current filters
+          </label>
+        </div>
+
+        <div class="dedicated-rollup-group dedicated-rollup-primary">
+          <span class="dedicated-rollup-label">Actions</span>
+
+          <button id="dedRollRefresh" class="btn" type="button">
+            Refresh Rollup
+          </button>
+
+          <button id="dedRollExport" class="btn" type="button">
+            Export Rollup CSV
+          </button>
+        </div>
+
       </div>
-      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
-        Dedicated teams remain separate from the core One Walmart hierarchy. This rollup isolates Unilever, P&amp;G, and Tyson coverage/gap exposure without mixing those managers into the main RM/AM filters.
+
+      <div class="dedicated-rollup-help">
+        <div>
+          <b>Purpose:</b> Isolate Unilever, P&amp;G, and Tyson coverage/gap exposure without mixing those managers into the core One Walmart RM/AM filters.
+        </div>
+
+        <div>
+          <b>Best use:</b> Use this view when leadership needs dedicated-client exposure separated from the broader One Walmart operating model.
+        </div>
+
+        <div>
+          <b>Guardrail:</b> Dedicated team paths remain visibility overlays and should not reduce core One Walmart coverage counts.
+        </div>
       </div>
       <div id="dedRollupResults" style="max-height:68vh;overflow:auto"></div>
     </div>
@@ -13089,7 +13223,22 @@ function renderDedicatedRollup(){
           `).join('')}
         </tbody>
       </table>
-    ` : `<div style="color:var(--muted)">No dedicated team stores found for the current view.</div>`}
+    ` : `
+      <div style="
+        border:1px dashed #cbd5e1;
+        background:#f8fafc;
+        border-radius:12px;
+        padding:14px;
+        color:#475569;
+        font-size:13px;
+        line-height:1.4;
+      ">
+        <b style="color:#0f172a">No dedicated team stores found for the current view.</b>
+        <div style="margin-top:6px">
+          Try clearing filters, turning on dedicated team visibility, or switching the rollup back to <b>By Team</b>.
+        </div>
+      </div>
+    `}
   `;
 }
 
