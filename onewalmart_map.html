@@ -1666,6 +1666,23 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   line-height:1.4;
 }
 
+.suggest-workbench-help{
+  display:grid;
+  gap:6px;
+  margin-bottom:10px;
+  border:1px solid #bfdbfe;
+  background:#eff6ff;
+  color:#1e3a8a;
+  border-radius:12px;
+  padding:10px 12px;
+  font-size:13px;
+  line-height:1.4;
+}
+
+.suggest-workbench-help b{
+  color:#0f172a;
+}
+
 #suggestResults table{
   width:100%;
   border-collapse:collapse;
@@ -2808,11 +2825,17 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
     <button id="gapSummaryBtn" class="btn" type="button" title="Summarize remaining gaps by state and manager/region after the current plan">State/Region Gap Summary</button>
   </div>
 </div>
-      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
-        <b>How to use:</b> This ranks the best current RTS posting areas using active/confirmed RTS coverage only.
-        It tests current uncovered clusters, searches nearby placement points, estimates how many currently uncovered stores one RTS could cover, and removes duplicate suggestions within the selected radius.
-        <br><b>Important:</b> This is a planning recommendation. It does not add a permanent RTS until you update your source JSON.
-      </div>
+      <div class="suggest-workbench-help">
+  <div>
+    <b>Purpose:</b> Use this workbench to identify the strongest RTS placement opportunities from current uncovered stores.
+  </div>
+  <div>
+    <b>Recommended workflow:</b> Run Suggestions first for individual opportunity areas, then use Auto-generate Top 100 when you want a complete non-overlapping plan.
+  </div>
+  <div>
+    <b>Guardrail:</b> This is planning-only. It does not change permanent RTS coverage until the source JSON is updated.
+  </div>
+</div>
       <div id="suggestResults" style="max-height:65vh;overflow:auto"></div>
     </div>
   </div>
