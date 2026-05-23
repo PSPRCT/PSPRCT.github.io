@@ -1606,6 +1606,111 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .cap-v114-legend .dot{width:9px;height:9px;border-radius:999px;display:inline-block;}
 @media(max-width:900px){.cap-v114-grid{grid-template-columns:1fr 1fr}.cap-v114-table{font-size:11.5px}.cap-v114-legend{display:none !important;}}
 
+/* ===== v120 Final Plan Review Workbench ===== */
+
+.final-review-workbench .card{
+  width:96vw !important;
+  max-width:1280px !important;
+}
+
+.final-review-tools{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+}
+
+.final-review-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+  padding:8px;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  background:#fff;
+}
+
+.final-review-primary{
+  background:#eff6ff;
+  border-color:#bfdbfe;
+}
+
+.final-review-label{
+  flex:0 0 100%;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#64748b;
+  font-weight:900;
+}
+
+.final-review-help{
+  display:grid;
+  gap:6px;
+  margin-bottom:10px;
+  border:1px solid #ddd6fe;
+  background:#f5f3ff;
+  color:#4c1d95;
+  border-radius:12px;
+  padding:10px 12px;
+  font-size:13px;
+  line-height:1.4;
+}
+
+.final-review-help b{
+  color:#111827;
+}
+
+#finalReviewResults{
+  min-height:160px;
+  overflow:auto;
+  overscroll-behavior:contain;
+}
+
+#finalReviewResults table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12.5px;
+}
+
+#finalReviewResults th,
+#finalReviewResults td{
+  border-bottom:1px solid #eef2f7;
+  padding:8px;
+  vertical-align:top;
+  line-height:1.35;
+}
+
+#finalReviewResults th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#f8fafc;
+  box-shadow:0 2px 4px rgba(15,23,42,.05);
+}
+
+#finalReviewResults tr:hover td{
+  background:#f8fbff;
+}
+
+#finalReviewResults .approve-row{
+  background:#f0fdf4;
+}
+
+#finalReviewResults .maybe-row{
+  background:#fffbeb;
+}
+
+#finalReviewResults .replace-row{
+  background:#fff1f2;
+}
+
+@media(max-width:720px){
+  .final-review-group .btn{
+    flex:1 1 100%;
+  }
+}
+
 /* ===== v119 Suggest RTS City Workbench Cleanup ===== */
 .suggest-workbench-modal .card{
   max-width:1220px !important;
@@ -2954,21 +3059,72 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 
 <!-- Final Plan Review Mode modal -->
-<div class="modal" id="finalReviewModal" aria-modal="true" role="dialog">
+<div class="modal final-review-workbench" id="finalReviewModal" aria-modal="true" role="dialog">
   <div class="card" style="max-width:1200px;width:96vw">
     <header>
       <h3>Final Plan Review Mode</h3>
       <button id="finalReviewClose" class="btn" type="button">Close</button>
     </header>
     <div class="body" style="grid-template-columns:1fr;">
-      <div class="priority-tools">
-        <button id="finalReviewRefresh" class="btn" type="button">Refresh Review</button>
-        <button id="finalReviewExport" class="btn" type="button">Export Review CSV</button>
-        <button id="finalReviewClear" class="btn" type="button">Clear Review Decisions</button>
+      <div class="priority-tools final-review-tools">
+
+  <div class="final-review-group">
+    <span class="final-review-label">Review Actions</span>
+    <button id="approveAllBtn" class="btn" type="button">
+      Approve All
+    </button>
+
+    <button id="reviewMaybeBtn" class="btn" type="button">
+      Mark Selected Maybe
+    </button>
+
+    <button id="reviewReplaceBtn" class="btn" type="button">
+      Mark Selected Replace
+    </button>
+  </div>
+
+  <div class="final-review-group final-review-primary">
+    <span class="final-review-label">Optimization</span>
+
+    <button id="replaceSwapBtn2" class="btn" type="button">
+      Generate Replacement Swaps
+    </button>
+
+    <button id="weakSwapBtn2" class="btn" type="button">
+      Recheck Weak Picks
+    </button>
+  </div>
+
+  <div class="final-review-group">
+    <span class="final-review-label">Export / Reset</span>
+
+    <button id="exportFinalReviewBtn" class="btn" type="button">
+      Export Review Decisions
+    </button>
+
+    <button id="clearReviewDecisionsBtn"
+      class="btn"
+      type="button"
+      style="border-color:#fecaca;background:#fff1f2;color:#991b1b">
+      Clear Review Decisions
+    </button>
+  </div>
+
+</div>
+              <div class="final-review-help">
+        <div>
+          <b>Purpose:</b> Review each RTS placement recommendation before finalizing a production-ready plan.
+        </div>
+
+        <div>
+          <b>Recommended workflow:</b> Approve strong placements, mark uncertain locations as Maybe, and use Replace for low-confidence or overlapping placements.
+        </div>
+
+        <div>
+          <b>Tip:</b> Replacement tools work best after an initial review pass is completed.
+        </div>
       </div>
-      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
-        Use this as the final placement meeting view. Mark each RTS placement as <b>Approve</b>, <b>Maybe</b>, or <b>Replace</b>, add notes, and export a leadership-ready review file while keeping the 100-trainer cap visible.
-      </div>
+
       <div id="finalReviewResults" style="max-height:68vh;overflow:auto"></div>
     </div>
   </div>
