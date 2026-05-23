@@ -1606,6 +1606,73 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .cap-v114-legend .dot{width:9px;height:9px;border-radius:999px;display:inline-block;}
 @media(max-width:900px){.cap-v114-grid{grid-template-columns:1fr 1fr}.cap-v114-table{font-size:11.5px}.cap-v114-legend{display:none !important;}}
 
+/* ===== v119 Suggest RTS City Workbench Cleanup ===== */
+.suggest-workbench-modal .card{
+  max-width:1220px !important;
+  width:96vw !important;
+}
+
+.suggest-workbench-tools{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+  align-items:stretch;
+}
+
+.suggest-tool-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+  padding:8px;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  background:#fff;
+}
+
+.suggest-tool-label{
+  flex:0 0 100%;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#64748b;
+  font-weight:950;
+}
+
+.suggest-primary-actions{
+  border-color:#bfdbfe;
+  background:#eff6ff;
+}
+
+.suggest-primary-actions .btn{
+  font-weight:900;
+}
+
+#suggestResults{
+  min-height:180px;
+  overflow:auto;
+  overscroll-behavior:contain;
+}
+
+#suggestResults:empty::before{
+  content:'Run Suggestions or Auto-generate Top 100 to build a planning view. Review, export, and swap tools become most useful after a plan has been generated.';
+  display:block;
+  border:1px dashed #cbd5e1;
+  background:#f8fafc;
+  color:#475569;
+  border-radius:12px;
+  padding:14px;
+  font-size:13px;
+  line-height:1.4;
+}
+
+@media(max-width:720px){
+  .suggest-tool-group .btn,
+  .suggest-tool-group .toggle{
+    flex:1 1 100%;
+  }
+}
+
 /* ===== v118 Leadership Summary Full Polish + Print Package ===== */
 #leadershipSummaryResults{
   display:grid;
