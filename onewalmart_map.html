@@ -1702,10 +1702,12 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
     max-height:none !important;
   }
 
-  #leadershipSummaryModal .priority-tools,
-  #leadershipSummaryClose{
-    display:none !important;
-  }
+#leadershipSummaryModal .priority-tools,
+#leadershipSummaryClose,
+#leadershipSummaryModal .sticky,
+#leadershipSummaryModal .topbar{
+  display:none !important;
+}
 
   #leadershipSummaryResults{
   overflow:visible !important;
@@ -1742,9 +1744,14 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   }
 
   #leadershipSummaryResults th{
-    background:#f3f4f6 !important;
-    color:#000 !important;
-  }
+  background:#f3f4f6 !important;
+  color:#000 !important;
+  border:1px solid #cbd5e1 !important;
+}
+
+#leadershipSummaryResults td{
+  border:1px solid #e2e8f0 !important;
+}
 
   #leadershipSummaryResults .risk-chip,
   #leadershipSummaryResults .severity-chip,
