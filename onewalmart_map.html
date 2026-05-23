@@ -462,11 +462,11 @@ select[multiple]{
     color:var(--muted);
   }
   .control-section .topbar-actions,
-  .control-section .panel-actions{
-    display:flex;
-    flex-wrap:wrap;
-    gap:5px;
-    align-items:center;
+.control-section .panel-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+  align-items:flex-start;
   }
   .control-section .btn{
     box-shadow:none;
@@ -1665,8 +1665,22 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   line-height:1.35;
 }
 
+#analysisDrop .dropdown-menu{
+  min-width:260px;
+}
+
 #analysisDrop .dropdown-menu .btn{
   border-radius:9px;
+  padding:9px 10px;
+  font-weight:700;
+}
+
+#analysisDrop .dropdown-menu .btn:hover{
+  transform:none;
+}
+
+#analysisDrop .dropdown-menu .analysis-menu-label:first-child{
+  margin-top:0;
 }
 
 @media(max-width:720px){
