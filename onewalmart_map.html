@@ -1606,6 +1606,75 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .cap-v114-legend .dot{width:9px;height:9px;border-radius:999px;display:inline-block;}
 @media(max-width:900px){.cap-v114-grid{grid-template-columns:1fr 1fr}.cap-v114-table{font-size:11.5px}.cap-v114-legend{display:none !important;}}
 
+/* ===== v129 Help + Analysis Navigation Polish ===== */
+.help-workbench .card{
+  width:94vw !important;
+  max-width:1100px !important;
+}
+
+.help-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+
+.help-card{
+  border:1px solid #e2e8f0;
+  border-radius:14px;
+  background:#fff;
+  padding:11px 12px;
+  font-size:13px;
+  line-height:1.45;
+}
+
+.help-card.primary{
+  border-color:#bfdbfe;
+  background:#eff6ff;
+  color:#1e3a8a;
+}
+
+.help-card b{color:#0f172a;}
+
+.help-card h4{
+  margin:0 0 6px 0 !important;
+}
+
+.help-card ol,
+.help-card ul{
+  margin:6px 0 0 18px;
+  padding:0;
+}
+
+.analysis-menu-label{
+  margin:8px 4px 4px;
+  font-size:10px;
+  font-weight:950;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#64748b;
+}
+
+.analysis-menu-note{
+  margin:6px 4px 8px;
+  padding:8px;
+  border:1px solid #dbeafe;
+  background:#eff6ff;
+  color:#1e3a8a;
+  border-radius:10px;
+  font-size:11.5px;
+  line-height:1.35;
+}
+
+#analysisDrop .dropdown-menu .btn{
+  border-radius:9px;
+}
+
+@media(max-width:720px){
+  .help-grid{
+    grid-template-columns:1fr;
+  }
+}
+
 /* ===== v128 Coverage Priorities Workbench ===== */
 
 .coverage-priorities-workbench .card{
@@ -3450,13 +3519,20 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
         <div id="viewList" style="min-width:220px"></div>
       </div>
     </div>
-    <div class="dropdown" id="analysisDrop" style="position:relative">
+      <div class="dropdown" id="analysisDrop" style="position:relative">
       <button class="btn" type="button" title="Open map analysis tools">Analysis Tools ▾</button>
       <div class="dropdown-menu">
-        <button id="gapBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Current Gap Finder</button>
-        <button id="rollupBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Manager Rollups</button>
-        <button id="coverageBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Coverage Priorities</button>
+        <div class="analysis-menu-note">Use these in order for the cleanest leadership workflow: identify gaps, review ownership, prioritize action, then model RTS placement options.</div>
+
+        <div class="analysis-menu-label">Current Coverage</div>
+        <button id="gapBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">1. Current Gap Finder</button>
+        <button id="rollupBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">2. Manager Rollups</button>
+        <button id="coverageBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">3. Coverage Priorities</button>
+
+        <div class="analysis-menu-label">Dedicated Teams</div>
         <button id="dedRollupBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Dedicated Team Rollup</button>
+
+        <div class="analysis-menu-label">Planning</div>
         <button id="suggestRtsBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Suggest RTS City</button>
       </div>
     </div>
@@ -3577,43 +3653,52 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 </div>
 
 <!-- Help modal -->
-<div class="modal" id="helpModal" aria-modal="true" role="dialog">
-  <div class="card" style="max-width:1050px;width:94vw">
+<div class="modal help-workbench" id="helpModal" aria-modal="true" role="dialog">
+  <div class="card">
     <header>
       <h3>One Walmart Map Help</h3>
       <button id="helpClose" class="btn" type="button">Close</button>
     </header>
-    <div class="body" style="grid-template-columns:1fr 1fr;gap:16px">
-      <div>
-        <h4>Fast workflow</h4>
-        <ol style="margin-top:6px;padding-left:20px;line-height:1.45">
-          <li><b>Start with Ops Intel → Leadership.</b> Use it for the executive story: biggest gap, workload risk, dedicated overlay exposure, and next action.</li>
-          <li><b>Use Coverage Priorities</b> when you need manager-ranked gap ownership by RM or AM.</li>
-          <li><b>Open a hub panel</b> by clicking an RTS marker to review load, fringe stores, backup need, and stores in range.</li>
-          <li><b>Use Dedicated Team Rollup</b> to isolate Unilever, P&amp;G, and Tyson without mixing them into core One Walmart filters.</li>
-        </ol>
-        <h4>Keyboard</h4>
-        <p><span class="kbd">Ctrl</span> / <span class="kbd">⌘</span> + <span class="kbd">K</span> — Focus search</p>
-        <p><span class="kbd">↑</span> <span class="kbd">↓</span> + <span class="kbd">Enter</span> — Pick search result</p>
-        <p><span class="kbd">H</span> — Home map view</p>
-        <p><span class="kbd">F</span> — Focus hub side-panel search when open</p>
-      </div>
-      <div>
-        <h4>What each tool is for</h4>
-        <ul style="line-height:1.45">
-          <li><b>Current Gap Finder:</b> finds concentrated uncovered store clusters using active RTS coverage only.</li>
-          <li><b>Manager Rollups:</b> summarizes coverage and gaps by core One Walmart RM/AM hierarchy.</li>
-          <li><b>Coverage Priorities:</b> ranks leaders by uncovered exposure and estimated staffing opportunity.</li>
-          <li><b>Suggest RTS City:</b> planning-only candidate suggestions; it does not change permanent coverage until source JSON is updated.</li>
-          <li><b>Map Layers:</b> heatmap, rings, overlap, compare, and stores-within-radius visibility controls.</li>
-        </ul>
-        <h4>Important guardrails</h4>
-        <ul style="line-height:1.45">
-          <li><b>Active RTS</b> hubs drive current coverage. <b>Future RTS</b> hubs are visual planning references only.</li>
-          <li>The One Walmart model improves network visibility and flexibility, but the routeable coverage rule remains <b>75 miles</b>.</li>
-          <li>Dedicated teams are visibility overlays, not deductions from core One Walmart coverage.</li>
-          <li>Use store popups and RTS hub panels to validate decisions before making staffing recommendations.</li>
-        </ul>
+        <div class="body" style="grid-template-columns:1fr;">
+      <div class="help-grid">
+        <div class="help-card primary">
+          <h4>Recommended leadership workflow</h4>
+          <ol>
+            <li><b>Start with Current Gap Finder</b> to find concentrated uncovered areas.</li>
+            <li><b>Use Manager Rollups</b> to confirm which RM or AM owns the exposure.</li>
+            <li><b>Use Coverage Priorities</b> to rank where leadership should act first.</li>
+            <li><b>Use Suggest RTS City</b> only after the gap and ownership story is clear.</li>
+          </ol>
+        </div>
+
+        <div class="help-card">
+          <h4>Map basics</h4>
+          <ul>
+            <li><b>Active RTS</b> hubs drive current coverage.</li>
+            <li><b>Future RTS</b> hubs are planning references only.</li>
+            <li><b>75 miles</b> remains the routeable coverage rule.</li>
+            <li>Click an RTS marker to open the hub panel and review stores in range.</li>
+          </ul>
+        </div>
+
+        <div class="help-card">
+          <h4>Analysis tools</h4>
+          <ul>
+            <li><b>Current Gap Finder:</b> concentrated uncovered store clusters.</li>
+            <li><b>Manager Rollups:</b> RM/AM ownership and coverage totals.</li>
+            <li><b>Coverage Priorities:</b> action ranking by leadership exposure.</li>
+            <li><b>Dedicated Team Rollup:</b> Unilever, P&amp;G, and Tyson visibility.</li>
+            <li><b>Suggest RTS City:</b> planning-only placement modeling.</li>
+          </ul>
+        </div>
+
+        <div class="help-card">
+          <h4>Shortcuts</h4>
+          <p><span class="kbd">Ctrl</span> / <span class="kbd">⌘</span> + <span class="kbd">K</span> — Focus search</p>
+          <p><span class="kbd">↑</span> <span class="kbd">↓</span> + <span class="kbd">Enter</span> — Pick search result</p>
+          <p><span class="kbd">H</span> — Home map view</p>
+          <p><span class="kbd">F</span> — Focus hub side-panel search when open</p>
+        </div>
       </div>
     </div>
   </div>
