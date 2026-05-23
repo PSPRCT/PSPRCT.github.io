@@ -1606,6 +1606,99 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .cap-v114-legend .dot{width:9px;height:9px;border-radius:999px;display:inline-block;}
 @media(max-width:900px){.cap-v114-grid{grid-template-columns:1fr 1fr}.cap-v114-table{font-size:11.5px}.cap-v114-legend{display:none !important;}}
 
+/* ===== v124 State / Region Gap Summary Workbench ===== */
+
+.gap-summary-workbench .card{
+  width:96vw !important;
+  max-width:1280px !important;
+}
+
+.gap-summary-tools{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+}
+
+.gap-summary-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+  padding:8px;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  background:#fff;
+}
+
+.gap-summary-primary{
+  background:#eff6ff;
+  border-color:#bfdbfe;
+}
+
+.gap-summary-label{
+  flex:0 0 100%;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#64748b;
+  font-weight:900;
+}
+
+.gap-summary-help{
+  display:grid;
+  gap:6px;
+  margin-bottom:10px;
+  border:1px solid #dbeafe;
+  background:#f8fbff;
+  color:#1e3a8a;
+  border-radius:12px;
+  padding:10px 12px;
+  font-size:13px;
+  line-height:1.4;
+}
+
+.gap-summary-help b{
+  color:#111827;
+}
+
+#gapSummaryResults{
+  min-height:160px;
+  overflow:auto;
+  overscroll-behavior:contain;
+}
+
+#gapSummaryResults table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12.5px;
+}
+
+#gapSummaryResults th,
+#gapSummaryResults td{
+  border-bottom:1px solid #eef2f7;
+  padding:8px;
+  vertical-align:top;
+  line-height:1.35;
+}
+
+#gapSummaryResults th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#f8fafc;
+  box-shadow:0 2px 4px rgba(15,23,42,.05);
+}
+
+#gapSummaryResults tr:hover td{
+  background:#f8fbff !important;
+}
+
+@media(max-width:720px){
+  .gap-summary-group .btn{
+    flex:1 1 100%;
+  }
+}
+
 /* ===== v123 Compare Saved Plans Workbench ===== */
 
 .compare-plans-workbench .card{
@@ -3473,22 +3566,60 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 </div>
 
 <!-- State / Region Gap Summary modal -->
-<div class="modal" id="gapSummaryModal" aria-modal="true" role="dialog">
-  <div class="card" style="max-width:1200px;width:96vw">
+<div class="modal gap-summary-workbench" id="gapSummaryModal" aria-modal="true" role="dialog">
+  <div class="card">
     <header>
       <h3>State / Region Gap Summary</h3>
       <button id="gapSummaryClose" class="btn" type="button">Close</button>
     </header>
     <div class="body" style="grid-template-columns:1fr;">
-      <div class="priority-tools">
-        <label class="toggle"><input type="radio" name="gapSummaryBy" id="gapSummaryByState" checked> By State</label>
-        <label class="toggle"><input type="radio" name="gapSummaryBy" id="gapSummaryByRM"> By Regional Manager</label>
-        <label class="toggle"><input type="radio" name="gapSummaryBy" id="gapSummaryByAM"> By Area Manager</label>
-        <button id="gapSummaryRefresh" class="btn" type="button">Refresh</button>
-        <button id="gapSummaryExport" class="btn" type="button">Export CSV</button>
+            <div class="priority-tools gap-summary-tools">
+
+        <div class="gap-summary-group">
+          <span class="gap-summary-label">View Mode</span>
+
+          <label class="toggle">
+            <input type="radio" name="gapSummaryBy" id="gapSummaryByState" checked>
+            By State
+          </label>
+
+          <label class="toggle">
+            <input type="radio" name="gapSummaryBy" id="gapSummaryByRM">
+            By Regional Manager
+          </label>
+
+          <label class="toggle">
+            <input type="radio" name="gapSummaryBy" id="gapSummaryByAM">
+            By Area Manager
+          </label>
+        </div>
+
+        <div class="gap-summary-group gap-summary-primary">
+          <span class="gap-summary-label">Actions</span>
+
+          <button id="gapSummaryRefresh" class="btn" type="button">
+            Refresh Summary
+          </button>
+
+          <button id="gapSummaryExport" class="btn" type="button">
+            Export Summary CSV
+          </button>
+        </div>
+
       </div>
-      <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
-        This estimates what remains uncovered after the active confirmed hubs plus the current proposed plan are applied. Existing confirmed Premium and Acosta hubs are counted as already filled/active before new proposed spots are added.
+
+      <div class="gap-summary-help">
+        <div>
+          <b>Purpose:</b> Estimate what remains uncovered after active confirmed hubs plus the current proposed plan are applied.
+        </div>
+
+        <div>
+          <b>Best use:</b> Use State, Regional Manager, and Area Manager views to identify remaining operational exposure.
+        </div>
+
+        <div>
+          <b>Guardrail:</b> Existing confirmed Premium and Acosta hubs are counted as already active before proposed placements are added.
+        </div>
       </div>
       <div id="gapSummaryResults" style="max-height:65vh;overflow:auto"></div>
     </div>
