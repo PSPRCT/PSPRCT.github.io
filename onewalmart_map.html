@@ -2667,35 +2667,50 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 
 <!-- Suggest RTS City modal -->
-<div class="modal" id="suggestModal" aria-modal="true" role="dialog">
+<div class="modal suggest-workbench-modal" id="suggestModal" aria-modal="true" role="dialog">
   <div class="card" style="max-width:1100px;width:94vw">
     <header>
       <h3>Suggest RTS City</h3>
       <button id="suggestClose" class="btn" type="button">Close</button>
     </header>
     <div class="body" style="grid-template-columns:1fr;">
-      <div class="priority-tools">
-        <label class="toggle" title="Only show posting areas with at least this many currently uncovered stores">Min uncovered
-          <input id="suggestMin" type="number" value="25" style="width:80px;margin-left:8px">
-        </label>
-        <label class="toggle" title="RTS coverage radius used for this suggestion">Radius (mi)
-          <input id="suggestMiles" type="number" value="75" style="width:80px;margin-left:8px">
-        </label>
-        <label class="toggle" title="When checked, suggestions use the stores currently visible after filters. When unchecked, suggestions use all stores.">
-          <input id="suggestUseFilters" type="checkbox"> Use current filters
-        </label>
-        <button id="suggestRun" class="btn" type="button">Run</button>
-        <button id="auto50Run" class="btn" type="button" title="Greedy-generate up to 100 non-overlapping RTS placements from current gaps">Auto-generate Top 100</button>
-        <button id="suggestExport" class="btn" type="button">Export CSV</button>
-        <button id="suggestImpactExport" class="btn" type="button" title="Export the final 100 plus each covered/net-new/overlap store row">Export Final 100 + Store Impact</button>
-        <button id="weakSwapBtn" class="btn" type="button" title="Find low-value placements and better swaps while keeping the 100-trainer cap">Weak-Pick / Swap Finder</button>
-        <button id="leadershipSummaryBtn" class="btn" type="button" title="Create an executive summary of the current Auto 100 plan">Leadership Summary</button>
-        <button id="finalReviewBtn" class="btn" type="button" title="Review the current Auto 100 plan and mark each placement Approve, Maybe, or Replace">Final Plan Review Mode</button>
-        <button id="savePlanBtn" class="btn" type="button" title="Save the current generated plan and review decisions in this browser">Save Plan Snapshot</button>
-        <button id="comparePlansBtn" class="btn" type="button" title="Compare two saved final plans side by side">Compare Saved Plans</button>
-        <button id="gapSummaryBtn" class="btn" type="button" title="Summarize remaining gaps by state and manager/region after the current plan">State/Region Gap Summary</button>
-        <button id="replaceSwapBtn" class="btn" type="button" title="Recommend swaps only for items marked Replace in Final Plan Review Mode">Replace-Marked Swaps</button>
-      </div>
+      <div class="priority-tools suggest-workbench-tools">
+  <div class="suggest-tool-group">
+    <span class="suggest-tool-label">Inputs</span>
+    <label class="toggle" title="Only show posting areas with at least this many currently uncovered stores">Min uncovered
+      <input id="suggestMin" type="number" value="25" style="width:80px;margin-left:8px">
+    </label>
+    <label class="toggle" title="RTS coverage radius used for this suggestion">Radius (mi)
+      <input id="suggestMiles" type="number" value="75" style="width:80px;margin-left:8px">
+    </label>
+    <label class="toggle" title="When checked, suggestions use the stores currently visible after filters. When unchecked, suggestions use all stores.">
+      <input id="suggestUseFilters" type="checkbox"> Use current filters
+    </label>
+  </div>
+
+  <div class="suggest-tool-group suggest-primary-actions">
+    <span class="suggest-tool-label">Build Plan</span>
+    <button id="suggestRun" class="btn" type="button">Run Suggestions</button>
+    <button id="auto50Run" class="btn" type="button" title="Greedy-generate up to 100 non-overlapping RTS placements from current gaps">Auto-generate Top 100</button>
+  </div>
+
+  <div class="suggest-tool-group">
+    <span class="suggest-tool-label">Review</span>
+    <button id="leadershipSummaryBtn" class="btn" type="button" title="Create an executive summary of the current Auto 100 plan">Leadership Summary</button>
+    <button id="finalReviewBtn" class="btn" type="button" title="Review the current Auto 100 plan and mark each placement Approve, Maybe, or Replace">Final Plan Review Mode</button>
+    <button id="weakSwapBtn" class="btn" type="button" title="Find low-value placements and better swaps while keeping the 100-trainer cap">Weak-Pick / Swap Finder</button>
+    <button id="replaceSwapBtn" class="btn" type="button" title="Recommend swaps only for items marked Replace in Final Plan Review Mode">Replace-Marked Swaps</button>
+  </div>
+
+  <div class="suggest-tool-group">
+    <span class="suggest-tool-label">Export / Compare</span>
+    <button id="suggestExport" class="btn" type="button">Export CSV</button>
+    <button id="suggestImpactExport" class="btn" type="button" title="Export the final 100 plus each covered/net-new/overlap store row">Export Final 100 + Store Impact</button>
+    <button id="savePlanBtn" class="btn" type="button" title="Save the current generated plan and review decisions in this browser">Save Plan Snapshot</button>
+    <button id="comparePlansBtn" class="btn" type="button" title="Compare two saved final plans side by side">Compare Saved Plans</button>
+    <button id="gapSummaryBtn" class="btn" type="button" title="Summarize remaining gaps by state and manager/region after the current plan">State/Region Gap Summary</button>
+  </div>
+</div>
       <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
         <b>How to use:</b> This ranks the best current RTS posting areas using active/confirmed RTS coverage only.
         It tests current uncovered clusters, searches nearby placement points, estimates how many currently uncovered stores one RTS could cover, and removes duplicate suggestions within the selected radius.
