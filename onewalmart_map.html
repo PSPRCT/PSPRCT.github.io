@@ -1606,6 +1606,101 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .cap-v114-legend .dot{width:9px;height:9px;border-radius:999px;display:inline-block;}
 @media(max-width:900px){.cap-v114-grid{grid-template-columns:1fr 1fr}.cap-v114-table{font-size:11.5px}.cap-v114-legend{display:none !important;}}
 
+/* ===== v127 Manager Rollup Workbench ===== */
+
+.manager-rollup-workbench .card{
+  width:96vw !important;
+  max-width:1280px !important;
+}
+
+.manager-rollup-tools{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+  margin-bottom:10px;
+}
+
+.manager-rollup-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+  padding:8px;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  background:#fff;
+}
+
+.manager-rollup-primary{
+  background:#eff6ff;
+  border-color:#bfdbfe;
+}
+
+.manager-rollup-label{
+  flex:0 0 100%;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#64748b;
+  font-weight:900;
+}
+
+.manager-rollup-help{
+  display:grid;
+  gap:6px;
+  margin-bottom:10px;
+  border:1px solid #dbeafe;
+  background:#f8fbff;
+  color:#1e3a8a;
+  border-radius:12px;
+  padding:10px 12px;
+  font-size:13px;
+  line-height:1.4;
+}
+
+.manager-rollup-help b{
+  color:#111827;
+}
+
+#rollTable{
+  min-height:160px;
+  overflow:auto;
+  overscroll-behavior:contain;
+}
+
+#rollTable table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12.5px;
+}
+
+#rollTable th,
+#rollTable td{
+  border-bottom:1px solid #eef2f7;
+  padding:8px;
+  vertical-align:top;
+  line-height:1.35;
+}
+
+#rollTable th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#f8fafc;
+  box-shadow:0 2px 4px rgba(15,23,42,.05);
+}
+
+#rollTable tr:hover td{
+  background:#f8fbff !important;
+}
+
+@media(max-width:720px){
+  .manager-rollup-group .btn,
+  .manager-rollup-group .toggle{
+    flex:1 1 100%;
+  }
+}
+
 /* ===== v126 Current Gap Finder Workbench ===== */
 
 .gap-finder-workbench .card{
@@ -3492,17 +3587,51 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 </div>
 
 <!-- Rollups modal -->
-<div class="modal" id="rollupModal" aria-modal="true" role="dialog">
+<div class="modal manager-rollup-workbench" id="rollupModal" aria-modal="true" role="dialog">
   <div class="card">
     <header>
       <h3>Manager rollups</h3>
       <button id="rollupClose" class="btn" type="button">Close</button>
     </header>
     <div class="body" style="grid-template-columns:1fr;">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
-        <label class="toggle"><input type="radio" name="rollBy" id="rollByRM" checked> By Regional Manager</label>
-        <label class="toggle"><input type="radio" name="rollBy" id="rollByAM"> By Area Manager</label>
-        <button id="rollExport" class="btn" type="button">Export CSV</button>
+            <div class="priority-tools manager-rollup-tools">
+
+        <div class="manager-rollup-group">
+          <span class="manager-rollup-label">View Mode</span>
+
+          <label class="toggle">
+            <input type="radio" name="rollBy" id="rollByRM" checked>
+            By Regional Manager
+          </label>
+
+          <label class="toggle">
+            <input type="radio" name="rollBy" id="rollByAM">
+            By Area Manager
+          </label>
+        </div>
+
+        <div class="manager-rollup-group manager-rollup-primary">
+          <span class="manager-rollup-label">Actions</span>
+
+          <button id="rollExport" class="btn" type="button">
+            Export Rollup CSV
+          </button>
+        </div>
+
+      </div>
+
+      <div class="manager-rollup-help">
+        <div>
+          <b>Purpose:</b> Summarize coverage, uncovered stores, operational pressure, and exposure by leadership hierarchy.
+        </div>
+
+        <div>
+          <b>Best use:</b> Identify Regional Managers and Area Managers carrying the highest operational burden or uncovered concentration.
+        </div>
+
+        <div>
+          <b>Tip:</b> Compare these rollups against Gap Finder and resiliency tools to prioritize RTS placement improvements.
+        </div>
       </div>
       <div id="rollTable" style="max-height:65vh;overflow:auto"></div>
     </div>
@@ -6984,7 +7113,22 @@ id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
     </tbody>
   </table>`;
 
-  id('rollTable').innerHTML = html || '<div style="color:var(--muted)">No data.</div>';
+  id('rollTable').innerHTML = html || `
+  <div style="
+    border:1px dashed #cbd5e1;
+    background:#f8fafc;
+    border-radius:12px;
+    padding:14px;
+    color:#475569;
+    font-size:13px;
+    line-height:1.4;
+  ">
+    <b style="color:#0f172a">No manager rollup data available.</b>
+    <div style="margin-top:6px">
+      Try clearing filters or switching between Regional Manager and Area Manager views.
+    </div>
+  </div>
+`;
 }
 
 // Click a manager in Rollups to filter the map and open that manager's current gap summary.
