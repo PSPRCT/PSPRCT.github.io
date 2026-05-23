@@ -9340,7 +9340,22 @@ function buildCoveragePriorities(){
         `).join('')}
       </tbody>
     </table>
-  ` : '<div style="color:var(--muted)">No manager coverage data found.</div>';
+    ` : `
+    <div style="
+      border:1px dashed #cbd5e1;
+      background:#f8fafc;
+      border-radius:12px;
+      padding:14px;
+      color:#475569;
+      font-size:13px;
+      line-height:1.4;
+    ">
+      <b style="color:#0f172a">No manager coverage data found.</b>
+      <div style="margin-top:6px">
+        Try clearing filters, switching between Regional Manager and Area Manager views, or turning off current filters.
+      </div>
+    </div>
+  `;
 
   coverageTable.innerHTML = html;
 }
