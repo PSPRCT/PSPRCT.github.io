@@ -1606,6 +1606,100 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .cap-v114-legend .dot{width:9px;height:9px;border-radius:999px;display:inline-block;}
 @media(max-width:900px){.cap-v114-grid{grid-template-columns:1fr 1fr}.cap-v114-table{font-size:11.5px}.cap-v114-legend{display:none !important;}}
 
+/* ===== v126 Current Gap Finder Workbench ===== */
+
+.gap-finder-workbench .card{
+  width:96vw !important;
+  max-width:1180px !important;
+}
+
+.gap-finder-tools{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+}
+
+.gap-finder-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+  padding:8px;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  background:#fff;
+}
+
+.gap-finder-primary{
+  background:#eff6ff;
+  border-color:#bfdbfe;
+}
+
+.gap-finder-label{
+  flex:0 0 100%;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#64748b;
+  font-weight:900;
+}
+
+.gap-finder-help{
+  display:grid;
+  gap:6px;
+  margin-bottom:10px;
+  border:1px solid #fed7aa;
+  background:#fff7ed;
+  color:#7c2d12;
+  border-radius:12px;
+  padding:10px 12px;
+  font-size:13px;
+  line-height:1.4;
+}
+
+.gap-finder-help b{
+  color:#111827;
+}
+
+#gapResults{
+  min-height:160px;
+  overflow:auto;
+  overscroll-behavior:contain;
+}
+
+#gapResults table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12.5px;
+}
+
+#gapResults th,
+#gapResults td{
+  border-bottom:1px solid #eef2f7;
+  padding:8px;
+  vertical-align:top;
+  line-height:1.35;
+}
+
+#gapResults th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#f8fafc;
+  box-shadow:0 2px 4px rgba(15,23,42,.05);
+}
+
+#gapResults tr:hover td{
+  background:#f8fbff !important;
+}
+
+@media(max-width:720px){
+  .gap-finder-group .btn,
+  .gap-finder-group .toggle{
+    flex:1 1 100%;
+  }
+}
+
 /* ===== v125 Dedicated Team Rollup Workbench ===== */
 
 .dedicated-rollup-workbench .card{
@@ -3336,7 +3430,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 </div>
 
 <!-- Gap Finder modal -->
-<div class="modal" id="gapModal" aria-modal="true" role="dialog">
+<div class="modal gap-finder-workbench" id="gapModal" aria-modal="true" role="dialog">
   <div class="card">
     <header>
      <h3>Current Gap Finder</h3>
@@ -3344,21 +3438,51 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
     </header>
     <div class="body" style="grid-template-columns:1fr;">
       <div>
-        <div style="margin-bottom:10px;color:var(--muted);font-size:13px;line-height:1.4">
-  Current Gap Finder uses active/confirmed RTS coverage only. Future or pending hubs may appear on the map if toggled on, but they do not reduce current gap counts.
+      <div class="gap-finder-help">
+  <div>
+    <b>Purpose:</b> Find concentrated uncovered store clusters using active/confirmed RTS coverage only.
+  </div>
+  <div>
+    <b>Guardrail:</b> Future or pending hubs may appear on the map, but they do not reduce current gap counts.
+  </div>
+  <div>
+    <b>Best use:</b> Run this after filtering by state, RM, AM, or dedicated team to identify localized placement opportunities.
+  </div>
 </div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
-  <label class="toggle" title="Only show clusters at least this big">Min uncovered
-    <input id="gapMin" type="number" value="25" style="width:80px;margin-left:8px">
-  </label>
-  <label class="toggle" title="Radius around each city center">Radius (mi)
-    <input id="gapMiles" type="number" value="75" style="width:80px;margin-left:8px">
-  </label>
-  <button id="gapRun" class="btn" type="button">Run</button>
-  <button id="gapExport" class="btn" type="button">Export CSV</button>
-  <label class="toggle" title="If checked, use the stores that match your current filters. If off, use all stores.">
-    <input id="gapUseFilters" type="checkbox" /> Use current filters
-  </label>
+
+<div class="priority-tools gap-finder-tools">
+
+  <div class="gap-finder-group">
+    <span class="gap-finder-label">Inputs</span>
+
+    <label class="toggle" title="Only show clusters at least this big">
+      Min uncovered
+      <input id="gapMin" type="number" value="25" style="width:80px;margin-left:8px">
+    </label>
+
+    <label class="toggle" title="Radius around each city center">
+      Radius (mi)
+      <input id="gapMiles" type="number" value="75" style="width:80px;margin-left:8px">
+    </label>
+
+    <label class="toggle" title="If checked, use the stores that match your current filters. If off, use all stores.">
+      <input id="gapUseFilters" type="checkbox" />
+      Use current filters
+    </label>
+  </div>
+
+  <div class="gap-finder-group gap-finder-primary">
+    <span class="gap-finder-label">Actions</span>
+
+    <button id="gapRun" class="btn" type="button">
+      Run Gap Finder
+    </button>
+
+    <button id="gapExport" class="btn" type="button">
+      Export Gap CSV
+    </button>
+  </div>
+
 </div>
 
         <div id="gapResults" style="max-height:65vh;overflow:auto"></div>
