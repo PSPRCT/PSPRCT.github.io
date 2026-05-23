@@ -1931,6 +1931,8 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   width:min(460px,92vw) !important;
   flex-basis:min(460px,92vw) !important;
   z-index:2400 !important;
+  contain:layout paint;
+  will-change:transform;
 }
 
 .sidepanel.show{
@@ -1950,7 +1952,9 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   flex:1 1 auto;
   min-height:0;
   overflow:auto !important;
+  overflow-x:hidden !important;
   padding-bottom:16px;
+  -webkit-overflow-scrolling:touch;
 }
 
 .sp-actions,
