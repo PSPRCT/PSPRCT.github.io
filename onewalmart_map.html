@@ -1648,6 +1648,42 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   font-weight:900;
 }
 
+.suggest-executive-strip{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:8px;
+  margin:0 0 10px 0;
+}
+
+.suggest-executive-card{
+  border:1px solid #dbeafe;
+  background:#f8fbff;
+  border-radius:14px;
+  padding:10px;
+}
+
+.suggest-executive-label{
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#64748b;
+  font-weight:900;
+  margin-bottom:6px;
+}
+
+.suggest-executive-value{
+  font-size:22px;
+  line-height:1;
+  font-weight:950;
+  color:#0f172a;
+}
+
+.suggest-executive-sub{
+  margin-top:4px;
+  font-size:11px;
+  color:#64748b;
+}
+
 #suggestResults{
   min-height:180px;
   overflow:auto;
@@ -2865,7 +2901,8 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
     <b>Guardrail:</b> This is planning-only. It does not change permanent RTS coverage until the source JSON is updated.
   </div>
 </div>
-      <div id="suggestResults" style="max-height:65vh;overflow:auto"></div>
+      <div id="suggestExecutiveStrip" class="suggest-executive-strip" style="display:none"></div>
+<div id="suggestResults" style="max-height:65vh;overflow:auto"></div>
     </div>
   </div>
 </div>
@@ -6129,6 +6166,46 @@ function exportRollupsCsv(by, rows){
 // ---------- Suggest RTS City ----------
 const suggestModal = id('suggestModal');
 const suggestResults = id('suggestResults');
+
+function setSuggestExecutiveStrip(rows=[], mode='suggestions', impact=null, cap=null){
+  const strip = id('suggestExecutiveStrip');
+  if (!strip) return;
+
+  if (!rows.length){
+    strip.style.display = 'none';
+    strip.innerHTML = '';
+    return;
+  }
+
+  const best = Math.max(...rows.map(r => Number(r.estimatedNewStores || r.netNew || 0)));
+  const total = rows.reduce((a,r)=>a + Number(r.estimatedNewStores || r.netNew || 0), 0);
+  const avg = Math.round(total / rows.length);
+
+  strip.style.display = 'grid';
+  strip.innerHTML = `
+    <div class="suggest-executive-card">
+      <div class="suggest-executive-label">${mode === 'auto100' ? 'Plan Size' : 'Suggestions'}</div>
+      <div class="suggest-executive-value">${rows.length}</div>
+      <div class="suggest-executive-sub">${mode === 'auto100' ? 'Proposed RTS placements' : 'Current recommendation count'}</div>
+    </div>
+    <div class="suggest-executive-card">
+      <div class="suggest-executive-label">Best Opportunity</div>
+      <div class="suggest-executive-value">${best}</div>
+      <div class="suggest-executive-sub">Highest net-new store impact</div>
+    </div>
+    <div class="suggest-executive-card">
+      <div class="suggest-executive-label">Average Impact</div>
+      <div class="suggest-executive-value">${avg}</div>
+      <div class="suggest-executive-sub">Avg net-new stores per placement</div>
+    </div>
+    <div class="suggest-executive-card">
+      <div class="suggest-executive-label">${impact ? 'Projected Coverage' : 'Mode'}</div>
+      <div class="suggest-executive-value">${impact ? `${impact.projectedPct}%` : 'Planning'}</div>
+      <div class="suggest-executive-sub">${cap ? `Cap used: ${cap.total}/${cap.cap}` : 'Review before source JSON update'}</div>
+    </div>
+  `;
+}
+
 let lastSuggestRows = [];
 let lockedPlacements = [];
 let excludedMetros = new Set();
@@ -6564,10 +6641,13 @@ function runSuggestRtsCity(){
   const sourceLabel = useFilt ? 'current filters' : 'all stores';
   const top3 = rows.slice(0,3);
 
-  if (!rows.length){
+ if (!rows.length){
+    setSuggestExecutiveStrip([]);
     suggestResults.innerHTML = `<div style="color:var(--muted)">No RTS city suggestions found. Try lowering the minimum uncovered count or widening the radius.</div>`;
     return;
   }
+
+  setSuggestExecutiveStrip(rows, 'suggestions');
 
   suggestResults.innerHTML = `
     <div class="priority-card">
@@ -6880,6 +6960,7 @@ function renderAuto50Results(rows){
   const cap = capStatusObject(rows);
 
   if (!rows.length){
+    setSuggestExecutiveStrip([]);
     suggestResults.innerHTML = `
       <div class="priority-card">
         <b>Auto 100 RTS Placement Generator</b>
@@ -6891,6 +6972,8 @@ function renderAuto50Results(rows){
       </div>`;
     return;
   }
+
+  setSuggestExecutiveStrip(rows, 'auto100', impact, cap);
 
   suggestResults.innerHTML = `
     <div class="priority-card">
