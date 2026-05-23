@@ -1603,6 +1603,58 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .cap-v114-legend .dot{width:9px;height:9px;border-radius:999px;display:inline-block;}
 @media(max-width:900px){.cap-v114-grid{grid-template-columns:1fr 1fr}.cap-v114-table{font-size:11.5px}.cap-v114-legend{display:none !important;}}
 
+/* ===== v117.2 Modal Readability + Analysis Tool Polish ===== */
+.modal .card{
+  max-height:92vh;
+  display:flex;
+  flex-direction:column;
+}
+
+.modal .card header{
+  position:sticky;
+  top:0;
+  z-index:4;
+  background:#fff;
+  border-top-left-radius:12px;
+  border-top-right-radius:12px;
+}
+
+.modal .card .body{
+  overflow:auto;
+  min-height:0;
+}
+
+.priority-tools{
+  position:sticky;
+  top:0;
+  z-index:3;
+  background:#fff;
+  padding:8px;
+  border:1px solid #edf2f7;
+  border-radius:12px;
+}
+
+.priority-table th,
+.ded-rollup-table th,
+.cap-v114-table th{
+  top:0;
+  box-shadow:0 2px 6px rgba(15,23,42,.06);
+}
+
+.modal .card .body > div > div[style*="color:var(--muted)"]{
+  background:#f8fafc;
+  border:1px solid #edf2f7;
+  border-radius:12px;
+  padding:9px 10px;
+}
+
+@media(max-width:720px){
+  .modal .card{
+    width:96vw !important;
+    max-height:94vh;
+  }
+}
+
 /* ===== v117.1 Leadership / Ops Card Readability Polish ===== */
 .ops-action-tile,
 .ops-leader-card,
