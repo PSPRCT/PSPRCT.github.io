@@ -5235,10 +5235,13 @@ function refreshOpsFocus(){
 
         const sev = id('opsFocusSeverity');
 
-    if (topRisk?.gapPct >= 50) {
+        const topGapPct = Number(topRisk?.gapPct || 0);
+    const topUncovered = Number(topRisk?.uncovered || 0);
+
+    if (topGapPct >= 50 && topUncovered >= 25) {
       bar.classList.add('ops-focus-critical');
       if (sev) sev.textContent = 'Critical';
-    } else if (topRisk?.gapPct >= 30) {
+    } else if ((topGapPct >= 30 && topUncovered >= 15) || topUncovered >= 50) {
       bar.classList.add('ops-focus-warning');
       if (sev) sev.textContent = 'Watch';
     } else {
