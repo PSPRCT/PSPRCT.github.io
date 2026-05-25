@@ -3593,8 +3593,10 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 <section class="control-section">
   <h4>Export / Planning Tools</h4>
-    <div class="panel-actions">
+  <div class="panel-actions planning-tools-panel">
+
     <div class="analysis-inline-label">Exports and saved views</div>
+
     <div class="dropdown" id="exportDrop" style="position:relative">
       <button class="btn" type="button" title="Download CSV of filtered stores or panel list">Export ▾</button>
       <div class="dropdown-menu">
@@ -3602,6 +3604,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
         <label class="toggle" style="margin:6px 4px;display:flex"><input id="autoReset" type="checkbox" />Auto-reset after export/print</label>
       </div>
     </div>
+
     <div class="dropdown" id="viewsDrop" style="position:relative">
       <button class="btn" type="button" title="Save or recall views">Views ▾</button>
       <div class="dropdown-menu" id="viewsMenu">
@@ -3609,11 +3612,15 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
         <div style="border-top:1px solid var(--border);margin:6px 0"></div>
         <div id="viewList" style="min-width:220px"></div>
       </div>
-        </div>
+    </div>
+
+    <button id="helpBtn" class="btn" type="button" title="Workflow guide, tool definitions, and shortcuts">Help / Guide</button>
+
     <div class="analysis-inline-label analysis-inline-label-spaced">Analysis workflow</div>
+
     <div class="dropdown" id="analysisDrop" style="position:relative">
       <button class="btn" type="button" title="Open map analysis tools">Analysis Tools ▾</button>
-            <div class="dropdown-menu">
+      <div class="dropdown-menu">
         <div class="analysis-menu-note">Recommended workflow: identify uncovered areas → confirm RM/AM ownership → prioritize leadership action → model RTS placement opportunities.</div>
 
         <div class="analysis-menu-label">Current Coverage</div>
@@ -3628,7 +3635,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
         <button id="suggestRtsBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Suggest RTS City</button>
       </div>
     </div>
-            <button id="helpBtn" class="btn" type="button" title="Workflow guide, tool definitions, and shortcuts">Help / Guide</button>
+
   </div>
 </section>
 </aside>
