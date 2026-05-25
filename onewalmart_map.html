@@ -257,8 +257,10 @@ select[multiple]{
     cursor:pointer;
   }
 
-  .ops-focus-collapse:hover{
+    .ops-focus-collapse:hover{
     background:#eff6ff;
+    border-color:#93c5fd;
+    transform:translateY(-1px);
   }
   .ops-focus-severity{
     padding:2px 7px;
@@ -344,8 +346,12 @@ select[multiple]{
     padding:5px 8px;
   }
 
-  .ops-focus-bar.ops-focus-collapsed .ops-focus-card{
+    .ops-focus-bar.ops-focus-collapsed .ops-focus-card{
     display:none;
+  }
+
+  .ops-focus-bar.ops-focus-collapsed .ops-focus-refresh{
+    opacity:.75;
   }
 
   .ops-focus-bar.ops-focus-collapsed .ops-focus-ribbon-label{
