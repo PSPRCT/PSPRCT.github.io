@@ -3861,10 +3861,10 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 <div class="summary" id="mgrRollupSummary" style="display:none;"></div>
 
 <div class="ops-focus-bar" id="opsFocusBar">
-  <div class="ops-focus-card">
-    <div class="ops-focus-label">Highest Risk Manager</div>
-    <div class="ops-focus-value" id="focusRiskRegion">—</div>
-  </div>
+  <button class="ops-focus-card ops-focus-action" id="focusRiskCard" type="button" title="Open Coverage Priorities">
+  <div class="ops-focus-label">Highest Risk Manager</div>
+  <div class="ops-focus-value" id="focusRiskRegion">—</div>
+</button>
   <div class="ops-focus-card">
     <div class="ops-focus-label">Largest State Gap</div>
     <div class="ops-focus-value" id="focusGapRegion">—</div>
@@ -5243,7 +5243,11 @@ on('change', amFilter,  ()=>{
     if (typeof openLeadershipSummary === 'function') openLeadershipSummary();
     else id('leadershipSummaryModal')?.classList.add('show');
   };
-    if (id('focusActionCard')) id('focusActionCard').onclick = ()=>{
+      if (id('focusActionCard')) id('focusActionCard').onclick = ()=>{
+    id('coverageBtn')?.click();
+  };
+
+  if (id('focusRiskCard')) id('focusRiskCard').onclick = ()=>{
     id('coverageBtn')?.click();
   };
   if (id('clearFiltersBtn')) id('clearFiltersBtn').onclick = ()=>{
