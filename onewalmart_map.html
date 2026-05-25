@@ -485,6 +485,43 @@ select[multiple]{
     }
   }
 
+    .context-breadcrumb{
+    display:none;
+    align-items:center;
+    gap:6px;
+    flex-wrap:wrap;
+    padding:5px 10px;
+    background:#f8fbff;
+    border-bottom:1px solid #dbeafe;
+    color:#1e3a8a;
+    font-size:11.5px;
+    line-height:1.25;
+    z-index:410;
+  }
+
+  .context-breadcrumb .crumb{
+    display:inline-flex;
+    align-items:center;
+    border:1px solid #bfdbfe;
+    background:#fff;
+    border-radius:999px;
+    padding:3px 8px;
+    font-weight:850;
+    color:#1d4ed8;
+  }
+
+  .context-breadcrumb .crumb.active{
+    background:#111827;
+    border-color:#111827;
+    color:#fff;
+  }
+
+  .context-breadcrumb .sep{
+    color:#64748b;
+    font-weight:900;
+    opacity:.7;
+  }
+
   #map{flex:1}
 
   .sidepanel{width:380px;max-width:90vw;flex:0 0 380px;background:var(--panel);border-left:1px solid var(--border);box-shadow:-4px 0 18px rgba(0,0,0,.12);display:none;flex-direction:column;z-index:6}
@@ -4139,6 +4176,8 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 </button>
 </div>
 
+<div id="contextBreadcrumb" class="context-breadcrumb"></div>
+
 <div class="mapwrap">
   <div id="map" role="region" aria-label="Coverage Map"></div>
   <div id="floatingKpis" aria-label="Map KPI summary">
@@ -4921,7 +4960,15 @@ let managerCascadeCacheKey = '';
   const LS_STATE = 'prt_state_v9';
   const LS_VIEWS = 'prt_views_v2';
   const LS_LAST_QUERY = 'prt_last_query';
-  const HOME_VIEW = { center:[39.5,-98.35], zoom:5 };
+    const HOME_VIEW = { center:[39.5,-98.35], zoom:5 };
+
+  const appContext = {
+    region: null,
+    manager: null,
+    tool: null,
+    focus: null
+  };
+
   const AUTO_RESET = ()=> id('autoReset')?.checked;
   const REV_KEY = 'prt_dataset_revs_v1'; // for dataset badge versioning
 
@@ -5270,10 +5317,32 @@ syncLegends();
     return selectedValues(selectEl).filter(v => v && v !== 'All').length;
   }
 
-  function setCountChip(chipId, count){
+    function setCountChip(chipId, count){
     const chip = id(chipId);
     if (chip) chip.classList.toggle('filter-count-hot', count > 0);
   }
+
+  function updateContextBreadcrumb(){
+    const wrap = id('contextBreadcrumb');
+    if (!wrap) return;
+
+    const crumbs = [];
+
+    if (appContext.region) crumbs.push(`<span class="crumb">${appContext.region}</span>`);
+    if (appContext.manager) crumbs.push(`<span class="crumb">${appContext.manager}</span>`);
+    if (appContext.tool) crumbs.push(`<span class="crumb">${appContext.tool}</span>`);
+    if (appContext.focus) crumbs.push(`<span class="crumb active">${appContext.focus}</span>`);
+
+    if (!crumbs.length){
+      wrap.style.display = 'none';
+      wrap.innerHTML = '';
+      return;
+    }
+
+    wrap.style.display = 'flex';
+    wrap.innerHTML = crumbs.join(`<span class="sep">›</span>`);
+  }
+
 function refreshOpsFocus(){
     const refreshEl = document.getElementById('opsFocusRefresh');
   if(refreshEl){
@@ -5539,27 +5608,46 @@ on('change', amFilter,  ()=>{
     updateEnhancedUi();
   };
 
-  if (id('qaCoverage')) id('qaCoverage').onclick = ()=>{
+    if (id('qaCoverage')) id('qaCoverage').onclick = ()=>{
+    appContext.tool = 'Coverage Priorities';
+    appContext.focus = 'Manager Risk Ranking';
+    updateContextBreadcrumb();
     id('coverageBtn')?.click();
   };
 
   if (id('qaLeadership')) id('qaLeadership').onclick = ()=>{
+    appContext.tool = 'Leadership Summary';
+    appContext.focus = 'Executive Review';
+    updateContextBreadcrumb();
     if (typeof openLeadershipSummary === 'function') openLeadershipSummary();
     else id('leadershipSummaryModal')?.classList.add('show');
   };
-      if (id('focusActionCard')) id('focusActionCard').onclick = ()=>{
+
+  if (id('focusActionCard')) id('focusActionCard').onclick = ()=>{
+    appContext.tool = 'Operational Focus';
+    appContext.focus = 'Recommended Action';
+    updateContextBreadcrumb();
     id('coverageBtn')?.click();
   };
 
-   if (id('focusRiskCard')) id('focusRiskCard').onclick = ()=>{
+  if (id('focusRiskCard')) id('focusRiskCard').onclick = ()=>{
+    appContext.tool = 'Operational Focus';
+    appContext.focus = 'Highest Risk Manager';
+    updateContextBreadcrumb();
     id('coverageBtn')?.click();
   };
 
   if (id('focusGapCard')) id('focusGapCard').onclick = ()=>{
+    appContext.tool = 'Operational Focus';
+    appContext.focus = 'Largest State Gap';
+    updateContextBreadcrumb();
     id('gapBtn')?.click();
   };
 
-    if (id('focusGapCountCard')) id('focusGapCountCard').onclick = ()=>{
+  if (id('focusGapCountCard')) id('focusGapCountCard').onclick = ()=>{
+    appContext.tool = 'Operational Focus';
+    appContext.focus = 'Visible Gap Stores';
+    updateContextBreadcrumb();
     id('qaUncovered')?.click();
   };
     if (id('opsFocusOpen')) id('opsFocusOpen').onclick = ()=>{
