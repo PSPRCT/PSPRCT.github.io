@@ -1736,18 +1736,27 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   color:#475569 !important;
 }
 
-  .quick-actions-bar{
-  display:flex;
-  flex-wrap:wrap;
+.quick-actions-bar{
+  display:grid;
+  grid-template-columns:1fr 1fr;
   gap:6px;
   margin:8px 0 10px;
+  padding:7px;
+  border:1px solid #dbeafe;
+  border-radius:12px;
+  background:#eff6ff;
 }
 
 .quick-action-btn{
-  flex:1 1 120px;
   border-radius:10px;
   min-height:32px;
-  font-weight:800;
+  font-weight:850;
+  background:#fff;
+  border-color:#bfdbfe;
+}
+
+.quick-action-btn:hover{
+  background:#f8fbff;
 }
 
 .analysis-menu-note{
