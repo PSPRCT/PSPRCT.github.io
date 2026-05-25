@@ -5604,6 +5604,12 @@ on('change', amFilter,  ()=>{
   };
 
   if (id('qaReset')) id('qaReset').onclick = ()=>{
+    appContext.region = null;
+    appContext.manager = null;
+    appContext.tool = null;
+    appContext.focus = null;
+    updateContextBreadcrumb();
+
     id('clearFiltersBtn')?.click();
   };
 
@@ -5710,6 +5716,13 @@ on('change', amFilter,  ()=>{
     setMulti(amFilter, ['All']);
     setMulti(hubFilter, []);
     if (tgWithin) tgWithin.checked = false;
+
+    appContext.region = null;
+    appContext.manager = null;
+    appContext.tool = null;
+    appContext.focus = null;
+    updateContextBreadcrumb();
+
     cascadeRM();
     cascadeAM();
     buildHubFilterOptions();
