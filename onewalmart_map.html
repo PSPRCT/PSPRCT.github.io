@@ -5202,10 +5202,10 @@ function refreshOpsFocus(){
   });
   const [gapRegion, gapCount] = [...stateCounts.entries()].sort((a,b)=>b[1]-a[1])[0] || ['—', 0];
 
-  set(
+    set(
     'focusRiskRegion',
     topRisk
-      ? `${topRisk.key} (${topRisk.gapPct}% gap / ${topRisk.uncovered} stores)`
+      ? `${topRisk.key} (${topRisk.gapPct}% gap / ${topRisk.uncovered} uncovered)`
       : 'No visible gap'
   );
 
