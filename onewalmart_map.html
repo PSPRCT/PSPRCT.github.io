@@ -216,12 +216,24 @@ select[multiple]{
     border-bottom:1px solid #e2e8f0;
   }
 
-  .ops-focus-card{
+   .ops-focus-card{
     background:#fff;
     border:1px solid #e2e8f0;
     border-radius:10px;
     padding:7px 8px;
     box-shadow:0 1px 3px rgba(15,23,42,.04);
+    text-align:left;
+  }
+
+  .ops-focus-action{
+    cursor:pointer;
+  }
+
+  .ops-focus-action:hover{
+    border-color:#93c5fd;
+    background:#f8fbff;
+    transform:translateY(-1px);
+    box-shadow:0 3px 8px rgba(37,99,235,.10);
   }
 
   .ops-focus-label{
@@ -3850,21 +3862,21 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 <div class="ops-focus-bar" id="opsFocusBar">
   <div class="ops-focus-card">
-    <div class="ops-focus-label">Highest Risk Region</div>
+    <div class="ops-focus-label">Highest Risk Manager</div>
     <div class="ops-focus-value" id="focusRiskRegion">—</div>
   </div>
   <div class="ops-focus-card">
-    <div class="ops-focus-label">Largest Coverage Gap</div>
+    <div class="ops-focus-label">Largest State Gap</div>
     <div class="ops-focus-value" id="focusGapRegion">—</div>
   </div>
   <div class="ops-focus-card">
     <div class="ops-focus-label">Visible Gap Stores</div>
     <div class="ops-focus-value" id="focusGapCount">—</div>
   </div>
-  <div class="ops-focus-card">
-    <div class="ops-focus-label">Recommended Action</div>
-    <div class="ops-focus-value" id="focusAction">Review Coverage</div>
-  </div>
+  <button class="ops-focus-card ops-focus-action" id="focusActionCard" type="button" title="Open Coverage Priorities">
+  <div class="ops-focus-label">Recommended Action</div>
+  <div class="ops-focus-value" id="focusAction">Review Coverage</div>
+</button>
 </div>
 
 <div class="mapwrap">
@@ -5230,6 +5242,9 @@ on('change', amFilter,  ()=>{
   if (id('qaLeadership')) id('qaLeadership').onclick = ()=>{
     if (typeof openLeadershipSummary === 'function') openLeadershipSummary();
     else id('leadershipSummaryModal')?.classList.add('show');
+  };
+    if (id('focusActionCard')) id('focusActionCard').onclick = ()=>{
+    id('coverageBtn')?.click();
   };
   if (id('clearFiltersBtn')) id('clearFiltersBtn').onclick = ()=>{
     setMulti(covFilter, ['All']);
