@@ -16028,8 +16028,30 @@ if (!window.__quickViewReliabilityPatchInstalled) {
      Starts from v101. Keeps Analysis Tools as a true collapse/expand control inside
      the left panel, without touching map, data, coverage, or modal logic. -->
 <style>
-  #analysisDrop{position:relative !important;width:100%;}
-  #analysisDrop > button{width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between;}
+   #analysisDrop{
+    position:relative !important;
+    width:100%;
+    display:grid;
+    gap:6px;
+  }
+
+  #analysisDrop > button{
+    width:100%;
+    text-align:left;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:#f8fafc;
+    border-color:#dbeafe;
+    color:#1e3a8a;
+    font-weight:950;
+  }
+
+  #analysisDrop.analysis-open > button{
+    background:#eff6ff;
+    border-color:#93c5fd;
+  }
+
   #analysisDrop .dropdown-menu{
     position:static !important;
     left:auto !important;
@@ -16040,12 +16062,36 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     max-height:none !important;
     overflow:visible !important;
     box-shadow:none !important;
-    border:0 !important;
-    padding:6px 0 0 0 !important;
-    background:transparent !important;
+    border:1px solid #dbeafe !important;
+    border-radius:12px !important;
+    padding:8px !important;
+    background:#f8fbff !important;
   }
-  #analysisDrop:not(.analysis-open) .dropdown-menu{display:none !important;}
-  #analysisDrop.analysis-open .dropdown-menu{display:block !important;}
+
+  #analysisDrop:not(.analysis-open) .dropdown-menu{
+    display:none !important;
+  }
+
+  #analysisDrop.analysis-open .dropdown-menu{
+    display:grid !important;
+    gap:5px;
+  }
+
+  #analysisDrop .analysis-menu-label{
+    margin-top:10px;
+    padding-top:8px;
+    border-top:1px solid #e2e8f0;
+  }
+
+  #analysisDrop .analysis-menu-label:first-of-type{
+    margin-top:0;
+    padding-top:0;
+    border-top:0;
+  }
+
+  #analysisDrop .analysis-menu-note{
+    margin-bottom:4px;
+  }
 
 /* ===== v106 RTS Scorecards: clearer hub risk and action cards ===== */
 .op-scorecard-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
@@ -16067,9 +16113,11 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 (function(){
   if (window.__owAnalysisAccordionV103) return;
   window.__owAnalysisAccordionV103 = true;
+
   function init(){
     var drop = document.getElementById('analysisDrop');
     if (!drop) return;
+
     var oldBtn = drop.querySelector(':scope > button');
     var menu = drop.querySelector(':scope > .dropdown-menu');
     if (!oldBtn || !menu) return;
@@ -16081,11 +16129,16 @@ if (!window.__quickViewReliabilityPatchInstalled) {
       drop.classList.toggle('analysis-open', !!open);
       btn.textContent = open ? 'Analysis Tools ▴' : 'Analysis Tools ▾';
       btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      try { localStorage.setItem('onewalmart_analysis_tools_open_v1', open ? '1' : '0'); } catch(e) {}
+      try {
+        localStorage.setItem('onewalmart_analysis_tools_open_v1', open ? '1' : '0');
+      } catch(e) {}
     }
 
     var saved = '0';
-    try { saved = localStorage.getItem('onewalmart_analysis_tools_open_v1') || '0'; } catch(e) {}
+    try {
+      saved = localStorage.getItem('onewalmart_analysis_tools_open_v1') || '0';
+    } catch(e) {}
+
     setOpen(saved === '1');
 
     btn.addEventListener('click', function(e){
@@ -16095,13 +16148,20 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     });
 
     menu.addEventListener('click', function(e){
-      if (e.target && e.target.closest && e.target.closest('button')) {
-        setTimeout(function(){ setOpen(false); }, 40);
-      }
+      var toolBtn = e.target && e.target.closest && e.target.closest('button');
+      if (!toolBtn) return;
+
+      setTimeout(function(){
+        setOpen(false);
+      }, 75);
     });
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();
 </script>
 
