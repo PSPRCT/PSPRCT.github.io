@@ -3869,10 +3869,10 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   <div class="ops-focus-label">Largest State Gap</div>
   <div class="ops-focus-value" id="focusGapRegion">—</div>
 </button>
-  <div class="ops-focus-card">
-    <div class="ops-focus-label">Visible Gap Stores</div>
-    <div class="ops-focus-value" id="focusGapCount">—</div>
-  </div>
+  <button class="ops-focus-card ops-focus-action" id="focusGapCountCard" type="button" title="Show uncovered stores">
+  <div class="ops-focus-label">Visible Gap Stores</div>
+  <div class="ops-focus-value" id="focusGapCount">—</div>
+</button>
   <button class="ops-focus-card ops-focus-action" id="focusActionCard" type="button" title="Open Coverage Priorities">
   <div class="ops-focus-label">Recommended Action</div>
   <div class="ops-focus-value" id="focusAction">Review Coverage</div>
@@ -5253,6 +5253,10 @@ on('change', amFilter,  ()=>{
 
   if (id('focusGapCard')) id('focusGapCard').onclick = ()=>{
     id('gapBtn')?.click();
+  };
+
+  if (id('focusGapCountCard')) id('focusGapCountCard').onclick = ()=>{
+    id('qaUncovered')?.click();
   };
   if (id('clearFiltersBtn')) id('clearFiltersBtn').onclick = ()=>{
     setMulti(covFilter, ['All']);
