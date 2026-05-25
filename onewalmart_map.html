@@ -5015,6 +5015,31 @@ on('change', amFilter,  ()=>{
   id('fitBtn').onclick  = ()=>{ fitToResults(); saveState(); };
   id('homeBtn').onclick = ()=>{ map.setView(HOME_VIEW.center, HOME_VIEW.zoom); };
   id('resetBtn').onclick= ()=>{ resetAll(); runFilter(); saveState(); renderChips(); updateEnhancedUi(); };
+
+  if (id('qaReset')) id('qaReset').onclick = ()=>{
+    id('clearFiltersBtn')?.click();
+  };
+
+  if (id('qaUncovered')) id('qaUncovered').onclick = ()=>{
+    setMulti(covFilter, ['Uncovered']);
+    lastFilterChanged='covFilter';
+    cascadeRM();
+    cascadeAM();
+    buildHubFilterOptions();
+    runFilter();
+    renderChips();
+    saveState();
+    updateEnhancedUi();
+  };
+
+  if (id('qaCoverage')) id('qaCoverage').onclick = ()=>{
+    id('coverageBtn')?.click();
+  };
+
+  if (id('qaLeadership')) id('qaLeadership').onclick = ()=>{
+    if (typeof openLeadershipSummary === 'function') openLeadershipSummary();
+    else id('leadershipSummaryModal')?.classList.add('show');
+  };
   if (id('clearFiltersBtn')) id('clearFiltersBtn').onclick = ()=>{
     setMulti(covFilter, ['All']);
     setMulti(rmFilter, ['All']);
