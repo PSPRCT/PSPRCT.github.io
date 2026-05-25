@@ -289,6 +289,34 @@ select[multiple]{
     border-color:#bbf7d0;
     color:#166534;
   }
+    .ops-focus-trend{
+    padding:2px 7px;
+    border-radius:999px;
+    background:#f8fafc;
+    border:1px solid #e2e8f0;
+    color:#475569;
+    font-size:9px;
+    font-weight:900;
+    letter-spacing:.05em;
+  }
+
+  .ops-focus-bar.ops-focus-critical .ops-focus-trend{
+    background:#fff1f2;
+    border-color:#fecdd3;
+    color:#9f1239;
+  }
+
+  .ops-focus-bar.ops-focus-warning .ops-focus-trend{
+    background:#fffbeb;
+    border-color:#fde68a;
+    color:#92400e;
+  }
+
+  .ops-focus-bar.ops-focus-stable .ops-focus-trend{
+    background:#f0fdf4;
+    border-color:#bbf7d0;
+    color:#166534;
+  }
     .ops-focus-live{
     padding:2px 6px;
     border-radius:999px;
@@ -4008,6 +4036,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
   <button class="ops-focus-collapse" id="opsFocusCollapse" type="button" title="Collapse Operational Focus">Collapse</button>
 <span class="ops-focus-severity" id="opsFocusSeverity">Stable</span>
+<span class="ops-focus-trend" id="opsFocusTrend">Monitoring</span>
 <span class="ops-focus-live">LIVE</span>
 </div>
   <button class="ops-focus-card ops-focus-action" id="focusRiskCard" type="button" title="Open Coverage Priorities ranked by manager risk">
@@ -5245,20 +5274,24 @@ function refreshOpsFocus(){
       'ops-focus-stable'
     );
 
-        const sev = id('opsFocusSeverity');
+            const sev = id('opsFocusSeverity');
+    const trend = id('opsFocusTrend');
 
         const topGapPct = Number(topRisk?.gapPct || 0);
     const topUncovered = Number(topRisk?.uncovered || 0);
 
     if (topGapPct >= 50 && topUncovered >= 25) {
       bar.classList.add('ops-focus-critical');
-      if (sev) sev.textContent = 'Critical';
+            if (sev) sev.textContent = 'Critical';
+      if (trend) trend.textContent = 'Escalating';
     } else if ((topGapPct >= 30 && topUncovered >= 15) || topUncovered >= 50) {
       bar.classList.add('ops-focus-warning');
-      if (sev) sev.textContent = 'Watch';
+            if (sev) sev.textContent = 'Watch';
+      if (trend) trend.textContent = 'Monitoring';
     } else {
       bar.classList.add('ops-focus-stable');
-      if (sev) sev.textContent = 'Stable';
+            if (sev) sev.textContent = 'Stable';
+      if (trend) trend.textContent = 'Contained';
     }
   }
 }
