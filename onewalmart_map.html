@@ -254,6 +254,23 @@ select[multiple]{
     font-weight:800;
     color:#64748b;
   }
+    .ops-focus-open{
+    border:1px solid #bfdbfe;
+    background:#fff;
+    color:#1d4ed8;
+    border-radius:999px;
+    padding:2px 7px;
+    font-size:9px;
+    font-weight:950;
+    letter-spacing:.04em;
+    cursor:pointer;
+  }
+
+  .ops-focus-open:hover{
+    background:#eff6ff;
+    border-color:#93c5fd;
+    transform:translateY(-1px);
+  }
 
     .ops-focus-collapse{
     border:1px solid #bfdbfe;
@@ -4065,8 +4082,12 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   <span>Operational Focus</span>
 
   <span class="ops-focus-refresh" id="opsFocusRefresh">
-    Updated just now
-  </span>
+  Updated just now
+</span>
+
+<button class="ops-focus-open" id="opsFocusOpen" type="button" title="Open recommended analysis tool">
+  Open Tool
+</button>
 
   <button class="ops-focus-collapse" id="opsFocusCollapse" type="button" title="Collapse Operational Focus">Collapse</button>
 <span class="ops-focus-severity" id="opsFocusSeverity">Stable</span>
@@ -5509,6 +5530,9 @@ on('change', amFilter,  ()=>{
 
     if (id('focusGapCountCard')) id('focusGapCountCard').onclick = ()=>{
     id('qaUncovered')?.click();
+  };
+    if (id('opsFocusOpen')) id('opsFocusOpen').onclick = ()=>{
+    id('coverageBtn')?.click();
   };
 
     if (id('opsFocusCollapse')) {
