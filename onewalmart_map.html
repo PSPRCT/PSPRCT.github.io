@@ -378,8 +378,12 @@ select[multiple]{
   }
 
   .ops-focus-bar.ops-focus-collapsed .ops-focus-refresh{
-    opacity:.75;
-  }
+  opacity:.75;
+}
+
+.ops-focus-bar.ops-focus-collapsed{
+  cursor:default;
+}
 
   .ops-focus-bar.ops-focus-collapsed .ops-focus-ribbon-label{
     margin:0;
@@ -4091,7 +4095,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
   <button class="ops-focus-collapse" id="opsFocusCollapse" type="button" title="Collapse Operational Focus">Collapse</button>
 <span class="ops-focus-severity" id="opsFocusSeverity">Stable</span>
-<span class="ops-focus-trend" id="opsFocusTrend">Monitoring</span>
+<span class="ops-focus-trend" id="opsFocusTrend">Contained</span>
 <span class="ops-focus-live">LIVE</span>
 </div>
   <button class="ops-focus-card ops-focus-action" id="focusRiskCard" type="button" title="Open Coverage Priorities ranked by manager risk">
@@ -5330,7 +5334,8 @@ function refreshOpsFocus(){
     );
 
             const sev = id('opsFocusSeverity');
-    const trend = id('opsFocusTrend');
+const trend = id('opsFocusTrend');
+const openTool = id('opsFocusOpen');
 
         const topGapPct = Number(topRisk?.gapPct || 0);
     const topUncovered = Number(topRisk?.uncovered || 0);
@@ -5338,15 +5343,18 @@ function refreshOpsFocus(){
     if (topGapPct >= 50 && topUncovered >= 25) {
       bar.classList.add('ops-focus-critical');
             if (sev) sev.textContent = 'Critical';
-      if (trend) trend.textContent = 'Escalating';
+if (trend) trend.textContent = 'Escalating';
+if (openTool) openTool.textContent = 'Open Priorities';
     } else if ((topGapPct >= 30 && topUncovered >= 15) || topUncovered >= 50) {
       bar.classList.add('ops-focus-warning');
             if (sev) sev.textContent = 'Watch';
-      if (trend) trend.textContent = 'Monitoring';
+if (trend) trend.textContent = 'Monitoring';
+if (openTool) openTool.textContent = 'Open Priorities';
     } else {
       bar.classList.add('ops-focus-stable');
             if (sev) sev.textContent = 'Stable';
-      if (trend) trend.textContent = 'Contained';
+if (trend) trend.textContent = 'Contained';
+if (openTool) openTool.textContent = 'Open Gaps';
     }
   }
 }
@@ -5532,8 +5540,13 @@ on('change', amFilter,  ()=>{
     id('qaUncovered')?.click();
   };
     if (id('opsFocusOpen')) id('opsFocusOpen').onclick = ()=>{
+  const bar = id('opsFocusBar');
+  if (bar?.classList.contains('ops-focus-critical') || bar?.classList.contains('ops-focus-warning')) {
     id('coverageBtn')?.click();
-  };
+  } else {
+    id('gapBtn')?.click();
+  }
+};
 
     if (id('opsFocusCollapse')) {
     const bar = id('opsFocusBar');
