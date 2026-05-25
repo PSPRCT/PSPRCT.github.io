@@ -1736,6 +1736,20 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   color:#475569 !important;
 }
 
+  .quick-actions-bar{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin:8px 0 10px;
+}
+
+.quick-action-btn{
+  flex:1 1 120px;
+  border-radius:10px;
+  min-height:32px;
+  font-weight:800;
+}
+
 .analysis-menu-note{
   font-size:11.5px;
   line-height:1.45;
@@ -3623,6 +3637,25 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 <section class="control-section">
   <h4>Export / Planning Tools</h4>
+  <div class="quick-actions-bar">
+
+  <button class="btn quick-action-btn" id="qaReset">
+    Reset Filters
+  </button>
+
+  <button class="btn quick-action-btn" id="qaUncovered">
+    Show Uncovered
+  </button>
+
+  <button class="btn quick-action-btn" id="qaCoverage">
+    Coverage View
+  </button>
+
+  <button class="btn quick-action-btn" id="qaLeadership">
+    Leadership View
+  </button>
+
+</div>
   <div class="panel-actions planning-tools-panel">
 
     <div class="analysis-inline-label">Exports and saved views</div>
