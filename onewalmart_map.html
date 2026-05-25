@@ -7750,7 +7750,12 @@ id('gapBtn').onclick = ()=>{
   gapModal.classList.add('show');
   runGapFinder();
 };
-id('gapClose').onclick  = ()=> gapModal.classList.remove('show');
+id('gapClose').onclick  = ()=>{
+  gapModal.classList.remove('show');
+  appContext.tool = null;
+  appContext.focus = null;
+  updateContextBreadcrumb();
+};
 id('gapRun').onclick    = runGapFinder;
 id('gapExport').onclick = ()=> exportGapCsv();
 id('gapUseFilters').onchange = runGapFinder;
@@ -8094,7 +8099,12 @@ r.center.lng
   const rollModal = id('rollupModal'); id('rollupBtn').onclick = ()=>{
   appContext.tool = 'Manager Rollups';
   appContext.focus = rollByAM?.checked ? 'Area Manager View' : 'Regional Manager View';
-  updateContextBreadcrumb(); rollModal.classList.add('show'); buildRollups(); }; id('rollupClose').onclick = ()=> rollModal.classList.remove('show');
+  updateContextBreadcrumb(); rollModal.classList.add('show'); buildRollups(); }; id('rollupClose').onclick = ()=>{
+  rollModal.classList.remove('show');
+  appContext.tool = null;
+  appContext.focus = null;
+  updateContextBreadcrumb();
+};
   id('rollByRM').onchange = buildRollups; id('rollByAM').onchange = buildRollups;
 id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
 
@@ -10079,7 +10089,12 @@ if (coverageBtn) coverageBtn.onclick = ()=>{
   coverageModal.classList.add('show');
   buildCoveragePriorities();
 };
-if (coverageClose) coverageClose.onclick = ()=> coverageModal.classList.remove('show');
+if (coverageClose) coverageClose.onclick = ()=>{
+  coverageModal.classList.remove('show');
+  appContext.tool = null;
+  appContext.focus = null;
+  updateContextBreadcrumb();
+};
 if (coverageByRM) coverageByRM.onchange = buildCoveragePriorities;
 if (coverageByAM) coverageByAM.onchange = buildCoveragePriorities;
 if (coverageUseFilters) coverageUseFilters.onchange = buildCoveragePriorities;
@@ -14667,7 +14682,12 @@ if (dedRollBtn && !dedRollBtn.dataset.wired) {
     renderDedicatedRollup();
   });
 }
-id('dedRollupClose')?.addEventListener('click', () => id('dedRollupModal')?.classList.remove('show'));
+id('dedRollupClose')?.addEventListener('click', () => {
+  id('dedRollupModal')?.classList.remove('show');
+  appContext.tool = null;
+  appContext.focus = null;
+  updateContextBreadcrumb();
+});
 id('dedRollRefresh')?.addEventListener('click', renderDedicatedRollup);
 id('dedRollExport')?.addEventListener('click', exportDedicatedRollup);
 ['dedRollByTeam','dedRollByRM','dedRollByAM','dedRollUseFilters'].forEach(x => id(x)?.addEventListener('change', renderDedicatedRollup));
