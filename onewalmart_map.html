@@ -316,7 +316,20 @@ select[multiple]{
     transform:translateY(-1px);
     box-shadow:0 3px 8px rgba(37,99,235,.10);
   }
+  .ops-focus-bar.ops-focus-critical{
+    border-bottom-color:#fecaca;
+    background:linear-gradient(180deg,#fff5f5 0%,#fff 100%);
+  }
 
+  .ops-focus-bar.ops-focus-warning{
+    border-bottom-color:#fde68a;
+    background:linear-gradient(180deg,#fffdf5 0%,#fff 100%);
+  }
+
+  .ops-focus-bar.ops-focus-stable{
+    border-bottom-color:#bbf7d0;
+    background:linear-gradient(180deg,#f7fff9 0%,#fff 100%);
+  }
   .ops-focus-action .ops-focus-value::after{
     content:' →';
     color:#2563eb;
@@ -5174,13 +5187,31 @@ function refreshOpsFocus(){
 
   set('focusGapCount', gaps.length.toLocaleString());
 
-  set(
-    'focusAction',
+    const actionText =
     topRisk?.gapPct >= 50 ? 'Prioritize manager review' :
     topRisk?.gapPct >= 30 ? 'Review coverage priorities' :
     gaps.length ? 'Monitor remaining gaps' :
-    'Coverage stable'
-  );
+    'Coverage stable';
+
+  set('focusAction', actionText);
+
+  const bar = id('opsFocusBar');
+
+  if (bar) {
+    bar.classList.remove(
+      'ops-focus-critical',
+      'ops-focus-warning',
+      'ops-focus-stable'
+    );
+
+    if (topRisk?.gapPct >= 50) {
+      bar.classList.add('ops-focus-critical');
+    } else if (topRisk?.gapPct >= 30) {
+      bar.classList.add('ops-focus-warning');
+    } else {
+      bar.classList.add('ops-focus-stable');
+    }
+  }
 }
 function refreshExecutiveRibbon(){
   if (!document.getElementById('executiveRibbon')) return;
