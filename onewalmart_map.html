@@ -260,7 +260,35 @@ select[multiple]{
   .ops-focus-collapse:hover{
     background:#eff6ff;
   }
+  .ops-focus-severity{
+    padding:2px 7px;
+    border-radius:999px;
+    background:#f8fafc;
+    border:1px solid #e2e8f0;
+    color:#475569;
+    font-size:9px;
+    font-weight:950;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+  }
 
+  .ops-focus-bar.ops-focus-critical .ops-focus-severity{
+    background:#fef2f2;
+    border-color:#fecaca;
+    color:#991b1b;
+  }
+
+  .ops-focus-bar.ops-focus-warning .ops-focus-severity{
+    background:#fffbeb;
+    border-color:#fde68a;
+    color:#92400e;
+  }
+
+  .ops-focus-bar.ops-focus-stable .ops-focus-severity{
+    background:#ecfdf5;
+    border-color:#bbf7d0;
+    color:#166534;
+  }
     .ops-focus-live{
     padding:2px 6px;
     border-radius:999px;
@@ -3970,6 +3998,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   </span>
 
   <button class="ops-focus-collapse" id="opsFocusCollapse" type="button" title="Collapse Operational Focus">Collapse</button>
+<span class="ops-focus-severity" id="opsFocusSeverity">Stable</span>
 <span class="ops-focus-live">LIVE</span>
 </div>
   <button class="ops-focus-card ops-focus-action" id="focusRiskCard" type="button" title="Open Coverage Priorities">
@@ -5204,12 +5233,17 @@ function refreshOpsFocus(){
       'ops-focus-stable'
     );
 
+        const sev = id('opsFocusSeverity');
+
     if (topRisk?.gapPct >= 50) {
       bar.classList.add('ops-focus-critical');
+      if (sev) sev.textContent = 'Critical';
     } else if (topRisk?.gapPct >= 30) {
       bar.classList.add('ops-focus-warning');
+      if (sev) sev.textContent = 'Watch';
     } else {
       bar.classList.add('ops-focus-stable');
+      if (sev) sev.textContent = 'Stable';
     }
   }
 }
