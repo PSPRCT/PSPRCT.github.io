@@ -358,10 +358,15 @@ select[multiple]{
     border-bottom-color:#bbf7d0;
     background:linear-gradient(180deg,#f7fff9 0%,#fff 100%);
   }
-  .ops-focus-action .ops-focus-value::after{
-    content:' →';
+    .ops-focus-action .ops-focus-value::after{
+    content:' ↗';
     color:#2563eb;
     font-weight:950;
+    opacity:.72;
+  }
+
+  .ops-focus-action:hover .ops-focus-value::after{
+    opacity:1;
   }
 
   .ops-focus-label{
@@ -373,12 +378,16 @@ select[multiple]{
     margin-bottom:3px;
   }
 
-    .ops-focus-value{
+      .ops-focus-value{
     font-size:13px;
     font-weight:950;
     color:#0f172a;
     line-height:1.18;
     letter-spacing:-.01em;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:6px;
   }
 
   @media(max-width:900px){
