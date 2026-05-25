@@ -3656,7 +3656,10 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
         <button id="dedRollupBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Dedicated Team Rollup</button>
 
         <div class="analysis-menu-label">Step 3 — Planning</div>
-        <button id="suggestRtsBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Suggest RTS City</button>
+<button id="suggestRtsBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Suggest RTS City</button>
+
+<div class="analysis-menu-label">Leadership Review</div>
+<button id="analysisHelpShortcut" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Help / Workflow Guide</button>
       </div>
     </div>
 
@@ -5036,6 +5039,14 @@ if (analysisDrop) {
   on('click', document.body, (e) => {
     if (!analysisDrop.contains(e.target)) analysisMenu.style.display = 'none';
   }, true);
+
+  const analysisHelpShortcut = id('analysisHelpShortcut');
+  if (analysisHelpShortcut) {
+    analysisHelpShortcut.onclick = () => {
+      analysisMenu.style.display = 'none';
+      id('helpModal')?.classList.add('show');
+    };
+  }
 }
   viewsDrop.querySelector('button').onclick = ()=> toggleDropdown(viewsMenu);
   on('click', document.body, (e)=>{ if (!viewsDrop.contains(e.target)) viewsMenu.style.display='none'; }, true);
