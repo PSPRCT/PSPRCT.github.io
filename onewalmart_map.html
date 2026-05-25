@@ -1102,6 +1102,10 @@ letter-spacing:.01em;
 .launch-status.ready{
   display:none !important;
 }
+
+.launch-status:not(.ready) ~ .ops-focus-bar{
+  display:none;
+}
 .ops-lazy-note{
   padding:10px 12px;
   border:1px dashed #cbd5e1;
