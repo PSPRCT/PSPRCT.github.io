@@ -245,6 +245,22 @@ select[multiple]{
     color:#64748b;
   }
 
+    .ops-focus-collapse{
+    border:1px solid #bfdbfe;
+    background:#fff;
+    color:#1d4ed8;
+    border-radius:999px;
+    padding:2px 7px;
+    font-size:9px;
+    font-weight:950;
+    letter-spacing:.04em;
+    cursor:pointer;
+  }
+
+  .ops-focus-collapse:hover{
+    background:#eff6ff;
+  }
+
   .ops-focus-live{
     padding:2px 6px;
     border-radius:999px;
@@ -253,6 +269,10 @@ select[multiple]{
     font-size:9px;
     font-weight:950;
     letter-spacing:.06em;
+  }
+
+  .ops-focus-bar.ops-focus-collapsed .ops-focus-card{
+    display:none;
   }
 
      .ops-focus-card{
@@ -3915,7 +3935,8 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
     Updated just now
   </span>
 
-  <span class="ops-focus-live">LIVE</span>
+  <button class="ops-focus-collapse" id="opsFocusCollapse" type="button" title="Collapse Operational Focus">Collapse</button>
+<span class="ops-focus-live">LIVE</span>
 </div>
   <button class="ops-focus-card ops-focus-action" id="focusRiskCard" type="button" title="Open Coverage Priorities">
   <div class="ops-focus-label">Highest Risk Manager</div>
@@ -5318,8 +5339,16 @@ on('change', amFilter,  ()=>{
     id('gapBtn')?.click();
   };
 
-  if (id('focusGapCountCard')) id('focusGapCountCard').onclick = ()=>{
+    if (id('focusGapCountCard')) id('focusGapCountCard').onclick = ()=>{
     id('qaUncovered')?.click();
+  };
+
+  if (id('opsFocusCollapse')) id('opsFocusCollapse').onclick = ()=>{
+    const bar = id('opsFocusBar');
+    if (!bar) return;
+    bar.classList.toggle('ops-focus-collapsed');
+    id('opsFocusCollapse').textContent = bar.classList.contains('ops-focus-collapsed') ? 'Expand' : 'Collapse';
+    setTimeout(() => map.invalidateSize(), 120);
   };
   if (id('clearFiltersBtn')) id('clearFiltersBtn').onclick = ()=>{
     setMulti(covFilter, ['All']);
