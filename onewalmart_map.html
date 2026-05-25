@@ -1744,15 +1744,19 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   padding:7px;
   border:1px solid #dbeafe;
   border-radius:12px;
-  background:#eff6ff;
+  background:linear-gradient(180deg,#f8fbff 0%,#eff6ff 100%);
+  box-shadow:0 1px 3px rgba(15,23,42,.04);
 }
-  .quick-actions-label{
+.quick-actions-label{
   grid-column:1 / -1;
   font-size:10px;
   text-transform:uppercase;
   letter-spacing:.08em;
   font-weight:900;
   color:#1e3a8a;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
 }
 
 .quick-action-btn{
@@ -3669,7 +3673,10 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 <section class="control-section">
   <h4>Export / Planning Tools</h4>
 <div class="quick-actions-bar">
-  <div class="quick-actions-label">Quick Actions</div>
+  <div class="quick-actions-label">
+  <span>Quick Actions</span>
+  <span style="opacity:.58;font-weight:800">Operations</span>
+</div>
 
 <button class="btn quick-action-btn" id="qaReset">
   Reset Filters
