@@ -217,6 +217,27 @@ select[multiple]{
     box-shadow:0 1px 2px rgba(15,23,42,.03);
   }
 
+    .ops-focus-ribbon-label{
+    grid-column:1 / -1;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:.09em;
+    font-weight:950;
+    color:#1e3a8a;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+
+  .ops-focus-ribbon-label::before{
+    content:'';
+    width:7px;
+    height:7px;
+    border-radius:999px;
+    background:#2563eb;
+    box-shadow:0 0 0 4px rgba(37,99,235,.12);
+  }
+
      .ops-focus-card{
     background:#fff;
     border:1px solid #e2e8f0;
@@ -3870,6 +3891,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 <div class="summary" id="mgrRollupSummary" style="display:none;"></div>
 
 <div class="ops-focus-bar" id="opsFocusBar">
+  <div class="ops-focus-ribbon-label">Operational Focus</div>
   <button class="ops-focus-card ops-focus-action" id="focusRiskCard" type="button" title="Open Coverage Priorities">
   <div class="ops-focus-label">Highest Risk Manager</div>
   <div class="ops-focus-value" id="focusRiskRegion">—</div>
