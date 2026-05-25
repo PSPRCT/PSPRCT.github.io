@@ -5667,6 +5667,14 @@ on('change', amFilter,  ()=>{
   };
     if (id('opsFocusOpen')) id('opsFocusOpen').onclick = ()=>{
   const bar = id('opsFocusBar');
+
+  appContext.tool = 'Operational Focus';
+  appContext.focus =
+    bar?.classList.contains('ops-focus-critical') || bar?.classList.contains('ops-focus-warning')
+      ? 'Priority Review'
+      : 'Gap Review';
+  updateContextBreadcrumb();
+
   if (bar?.classList.contains('ops-focus-critical') || bar?.classList.contains('ops-focus-warning')) {
     id('coverageBtn')?.click();
   } else {
