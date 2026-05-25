@@ -238,8 +238,14 @@ select[multiple]{
     box-shadow:0 0 0 4px rgba(37,99,235,.12);
   }
 
-  .ops-focus-live{
+    .ops-focus-refresh{
     margin-left:auto;
+    font-size:10px;
+    font-weight:800;
+    color:#64748b;
+  }
+
+  .ops-focus-live{
     padding:2px 6px;
     border-radius:999px;
     background:#dcfce7;
@@ -3904,6 +3910,11 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 <div class="ops-focus-bar" id="opsFocusBar">
   <div class="ops-focus-ribbon-label">
   <span>Operational Focus</span>
+
+  <span class="ops-focus-refresh" id="opsFocusRefresh">
+    Updated just now
+  </span>
+
   <span class="ops-focus-live">LIVE</span>
 </div>
   <button class="ops-focus-card ops-focus-action" id="focusRiskCard" type="button" title="Open Coverage Priorities">
@@ -5060,6 +5071,13 @@ syncLegends();
     if (chip) chip.classList.toggle('filter-count-hot', count > 0);
   }
 function refreshOpsFocus(){
+    const refreshEl = document.getElementById('opsFocusRefresh');
+  if(refreshEl){
+    const now = new Date();
+    refreshEl.textContent =
+      'Updated ' +
+      now.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  }
   const visibleRows = Array.isArray(filteredStores) ? filteredStores : [];
   const gaps = visibleRows.filter(s => String(s?.coverageType || '') === 'Uncovered');
 
