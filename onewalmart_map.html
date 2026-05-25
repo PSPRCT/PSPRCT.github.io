@@ -5343,13 +5343,28 @@ on('change', amFilter,  ()=>{
     id('qaUncovered')?.click();
   };
 
-  if (id('opsFocusCollapse')) id('opsFocusCollapse').onclick = ()=>{
+    if (id('opsFocusCollapse')) {
     const bar = id('opsFocusBar');
-    if (!bar) return;
-    bar.classList.toggle('ops-focus-collapsed');
-    id('opsFocusCollapse').textContent = bar.classList.contains('ops-focus-collapsed') ? 'Expand' : 'Collapse';
-    setTimeout(() => map.invalidateSize(), 120);
-  };
+    const savedCollapsed = localStorage.getItem('opsFocusCollapsed') === 'true';
+
+    if (bar && savedCollapsed) {
+      bar.classList.add('ops-focus-collapsed');
+      id('opsFocusCollapse').textContent = 'Expand';
+    }
+
+    id('opsFocusCollapse').onclick = ()=>{
+      const bar = id('opsFocusBar');
+      if (!bar) return;
+
+      bar.classList.toggle('ops-focus-collapsed');
+
+      const isCollapsed = bar.classList.contains('ops-focus-collapsed');
+      id('opsFocusCollapse').textContent = isCollapsed ? 'Expand' : 'Collapse';
+      localStorage.setItem('opsFocusCollapsed', String(isCollapsed));
+
+      setTimeout(() => map.invalidateSize(), 120);
+    };
+  }
   if (id('clearFiltersBtn')) id('clearFiltersBtn').onclick = ()=>{
     setMulti(covFilter, ['All']);
     setMulti(rmFilter, ['All']);
