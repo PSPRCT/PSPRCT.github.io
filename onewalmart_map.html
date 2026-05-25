@@ -5590,13 +5590,28 @@ on('change', amFilter,  ()=>{
 
   id('fitBtn').onclick  = ()=>{ fitToResults(); saveState(); };
   id('homeBtn').onclick = ()=>{ map.setView(HOME_VIEW.center, HOME_VIEW.zoom); };
-  id('resetBtn').onclick= ()=>{ resetAll(); runFilter(); saveState(); renderChips(); updateEnhancedUi(); };
+    id('resetBtn').onclick= ()=>{
+    resetAll();
+    appContext.region = null;
+    appContext.manager = null;
+    appContext.tool = null;
+    appContext.focus = null;
+    updateContextBreadcrumb();
+    runFilter();
+    saveState();
+    renderChips();
+    updateEnhancedUi();
+  };
 
   if (id('qaReset')) id('qaReset').onclick = ()=>{
     id('clearFiltersBtn')?.click();
   };
 
-  if (id('qaUncovered')) id('qaUncovered').onclick = ()=>{
+    if (id('qaUncovered')) id('qaUncovered').onclick = ()=>{
+    appContext.tool = 'Map Filters';
+    appContext.focus = 'Uncovered Stores';
+    updateContextBreadcrumb();
+
     setMulti(covFilter, ['Uncovered']);
     lastFilterChanged='covFilter';
     cascadeRM();
@@ -7727,7 +7742,10 @@ function printSidepanelList() {
   }
 // ---------- Current Gap Finder ----------
 const gapModal = id('gapModal');
-id('gapBtn').onclick = ()=> {
+id('gapBtn').onclick = ()=>{
+  appContext.tool = 'Current Gap Finder';
+  appContext.focus = 'Uncovered Clusters';
+  updateContextBreadcrumb();
   activeGapContext = null;
   gapModal.classList.add('show');
   runGapFinder();
@@ -8073,7 +8091,10 @@ r.center.lng
 }
 // ---------- /Current Gap Finder ----------
   // ---------- Rollups (RM/AM) ----------
-  const rollModal = id('rollupModal'); id('rollupBtn').onclick = ()=>{ rollModal.classList.add('show'); buildRollups(); }; id('rollupClose').onclick = ()=> rollModal.classList.remove('show');
+  const rollModal = id('rollupModal'); id('rollupBtn').onclick = ()=>{
+  appContext.tool = 'Manager Rollups';
+  appContext.focus = rollByAM?.checked ? 'Area Manager View' : 'Regional Manager View';
+  updateContextBreadcrumb(); rollModal.classList.add('show'); buildRollups(); }; id('rollupClose').onclick = ()=> rollModal.classList.remove('show');
   id('rollByRM').onchange = buildRollups; id('rollByAM').onchange = buildRollups;
 id('rollExport').onclick = ()=> exportRollupsCsv(lastRoll.by, lastRoll.rows);
 
