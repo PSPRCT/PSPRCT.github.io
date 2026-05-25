@@ -5216,9 +5216,12 @@ function refreshOpsFocus(){
 
   set('focusGapCount', gaps.length.toLocaleString());
 
-    const actionText =
-    topRisk?.gapPct >= 50 ? 'Prioritize manager review' :
-    topRisk?.gapPct >= 30 ? 'Review coverage priorities' :
+      const topGapPctForAction = Number(topRisk?.gapPct || 0);
+  const topUncoveredForAction = Number(topRisk?.uncovered || 0);
+
+  const actionText =
+    topGapPctForAction >= 50 && topUncoveredForAction >= 25 ? 'Prioritize manager review' :
+    (topGapPctForAction >= 30 && topUncoveredForAction >= 15) || topUncoveredForAction >= 50 ? 'Review coverage priorities' :
     gaps.length ? 'Monitor remaining gaps' :
     'Coverage stable';
 
