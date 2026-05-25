@@ -418,9 +418,23 @@ select[multiple]{
     gap:6px;
   }
 
-  @media(max-width:900px){
+    @media(max-width:900px){
     .ops-focus-bar{
       grid-template-columns:1fr 1fr;
+    }
+  }
+
+  @media(max-width:560px){
+    .ops-focus-bar{
+      grid-template-columns:1fr;
+    }
+
+    .ops-focus-ribbon-label{
+      flex-wrap:wrap;
+    }
+
+    .ops-focus-refresh{
+      margin-left:0;
     }
   }
 
