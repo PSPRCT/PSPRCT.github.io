@@ -5002,35 +5002,65 @@ syncLegends();
     const chip = id(chipId);
     if (chip) chip.classList.toggle('filter-count-hot', count > 0);
   }
-  function refreshOpsFocus(){
-  const rows = Array.isArray(filteredStores) ? filteredStores : [];
-  const gaps = rows.filter(s => String(s?.coverageType || '') === 'Uncovered');
-
-  const groupCount = (arr, keyFn) => {
-    const m = new Map();
-    arr.forEach(s => {
-      const key = keyFn(s) || 'Unassigned';
-      m.set(key, (m.get(key) || 0) + 1);
-    });
-    return [...m.entries()].sort((a,b) => b[1] - a[1])[0] || ['—', 0];
-  };
-
-  const [riskRegion, riskCount] = groupCount(gaps, s => s.regionalManager || s.state);
-  const [gapRegion, gapCount] = groupCount(gaps, s => s.state || s.city);
+function refreshOpsFocus(){
+  const visibleRows = Array.isArray(filteredStores) ? filteredStores : [];
+  const gaps = visibleRows.filter(s => String(s?.coverageType || '') === 'Uncovered');
 
   const set = (idv, val) => {
     const el = document.getElementById(idv);
     if (el) el.textContent = val;
   };
 
-  set('focusRiskRegion', riskRegion === '—' ? 'No visible gap' : `${riskRegion} (${riskCount})`);
-  set('focusGapRegion', gapRegion === '—' ? 'No visible gap' : `${gapRegion} (${gapCount})`);
+  const priorUseFilters = coverageUseFilters ? coverageUseFilters.checked : false;
+  const priorByRM = coverageByRM ? coverageByRM.checked : true;
+  const priorByAM = coverageByAM ? coverageByAM.checked : false;
+
+  let priorityRows = [];
+
+  try {
+    if (coverageUseFilters) coverageUseFilters.checked = false;
+    if (coverageByRM) coverageByRM.checked = true;
+    if (coverageByAM) coverageByAM.checked = false;
+
+    priorityRows = typeof buildCoveragePriorityRows === 'function'
+      ? buildCoveragePriorityRows()
+      : [];
+  } catch(e) {
+    console.warn('Operational Focus could not read Coverage Priorities ranking:', e);
+    priorityRows = [];
+  } finally {
+    if (coverageUseFilters) coverageUseFilters.checked = priorUseFilters;
+    if (coverageByRM) coverageByRM.checked = priorByRM;
+    if (coverageByAM) coverageByAM.checked = priorByAM;
+  }
+
+  const topRisk = priorityRows[0];
+
+  const stateCounts = new Map();
+  gaps.forEach(s => {
+    const key = s.state || 'Unassigned';
+    stateCounts.set(key, (stateCounts.get(key) || 0) + 1);
+  });
+  const [gapRegion, gapCount] = [...stateCounts.entries()].sort((a,b)=>b[1]-a[1])[0] || ['—', 0];
+
+  set(
+    'focusRiskRegion',
+    topRisk
+      ? `${topRisk.key} (${topRisk.gapPct}% gap / ${topRisk.uncovered} stores)`
+      : 'No visible gap'
+  );
+
+  set(
+    'focusGapRegion',
+    gapRegion === '—' ? 'No visible gap' : `${gapRegion} (${gapCount})`
+  );
+
   set('focusGapCount', gaps.length.toLocaleString());
 
-  const gapPct = rows.length ? gaps.length / rows.length : 0;
-  set('focusAction',
-    gapPct >= .25 ? 'Prioritize manager review' :
-    gapPct >= .10 ? 'Review coverage priorities' :
+  set(
+    'focusAction',
+    topRisk?.gapPct >= 50 ? 'Prioritize manager review' :
+    topRisk?.gapPct >= 30 ? 'Review coverage priorities' :
     gaps.length ? 'Monitor remaining gaps' :
     'Coverage stable'
   );
