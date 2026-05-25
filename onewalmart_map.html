@@ -207,6 +207,45 @@ select[multiple]{
 
   .mapwrap{position:relative;flex:1;min-height:460px;display:flex;overflow:hidden}
   
+    .ops-focus-bar{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(120px,1fr));
+    gap:6px;
+    padding:6px 8px;
+    background:#f8fafc;
+    border-bottom:1px solid #e2e8f0;
+  }
+
+  .ops-focus-card{
+    background:#fff;
+    border:1px solid #e2e8f0;
+    border-radius:10px;
+    padding:7px 8px;
+    box-shadow:0 1px 3px rgba(15,23,42,.04);
+  }
+
+  .ops-focus-label{
+    font-size:9.5px;
+    font-weight:900;
+    text-transform:uppercase;
+    color:#64748b;
+    letter-spacing:.06em;
+    margin-bottom:3px;
+  }
+
+  .ops-focus-value{
+    font-size:13px;
+    font-weight:950;
+    color:#0f172a;
+    line-height:1.15;
+  }
+
+  @media(max-width:900px){
+    .ops-focus-bar{
+      grid-template-columns:1fr 1fr;
+    }
+  }
+
   #map{flex:1}
 
   .sidepanel{width:380px;max-width:90vw;flex:0 0 380px;background:var(--panel);border-left:1px solid var(--border);box-shadow:-4px 0 18px rgba(0,0,0,.12);display:none;flex-direction:column;z-index:6}
@@ -3808,6 +3847,26 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   <span class="muted" id="inView">In view: 0</span>
 </div>
 <div class="summary" id="mgrRollupSummary" style="display:none;"></div>
+
+<div class="ops-focus-bar" id="opsFocusBar">
+  <div class="ops-focus-card">
+    <div class="ops-focus-label">Highest Risk Region</div>
+    <div class="ops-focus-value" id="focusRiskRegion">—</div>
+  </div>
+  <div class="ops-focus-card">
+    <div class="ops-focus-label">Largest Coverage Gap</div>
+    <div class="ops-focus-value" id="focusGapRegion">—</div>
+  </div>
+  <div class="ops-focus-card">
+    <div class="ops-focus-label">Visible Gap Stores</div>
+    <div class="ops-focus-value" id="focusGapCount">—</div>
+  </div>
+  <div class="ops-focus-card">
+    <div class="ops-focus-label">Recommended Action</div>
+    <div class="ops-focus-value" id="focusAction">Review Coverage</div>
+  </div>
+</div>
+
 <div class="mapwrap">
   <div id="map" role="region" aria-label="Coverage Map"></div>
   <div id="floatingKpis" aria-label="Map KPI summary">
@@ -4943,6 +5002,39 @@ syncLegends();
     const chip = id(chipId);
     if (chip) chip.classList.toggle('filter-count-hot', count > 0);
   }
+  function refreshOpsFocus(){
+  const rows = Array.isArray(filteredStores) ? filteredStores : [];
+  const gaps = rows.filter(s => String(s?.coverageType || '') === 'Uncovered');
+
+  const groupCount = (arr, keyFn) => {
+    const m = new Map();
+    arr.forEach(s => {
+      const key = keyFn(s) || 'Unassigned';
+      m.set(key, (m.get(key) || 0) + 1);
+    });
+    return [...m.entries()].sort((a,b) => b[1] - a[1])[0] || ['—', 0];
+  };
+
+  const [riskRegion, riskCount] = groupCount(gaps, s => s.regionalManager || s.state);
+  const [gapRegion, gapCount] = groupCount(gaps, s => s.state || s.city);
+
+  const set = (idv, val) => {
+    const el = document.getElementById(idv);
+    if (el) el.textContent = val;
+  };
+
+  set('focusRiskRegion', riskRegion === '—' ? 'No visible gap' : `${riskRegion} (${riskCount})`);
+  set('focusGapRegion', gapRegion === '—' ? 'No visible gap' : `${gapRegion} (${gapCount})`);
+  set('focusGapCount', gaps.length.toLocaleString());
+
+  const gapPct = rows.length ? gaps.length / rows.length : 0;
+  set('focusAction',
+    gapPct >= .25 ? 'Prioritize manager review' :
+    gapPct >= .10 ? 'Review coverage priorities' :
+    gaps.length ? 'Monitor remaining gaps' :
+    'Coverage stable'
+  );
+}
 function refreshExecutiveRibbon(){
   if (!document.getElementById('executiveRibbon')) return;
 
@@ -4985,8 +5077,11 @@ function refreshExecutiveRibbon(){
     if (id('floatRts')) id('floatRts').textContent = String((premiumConfirmed?.length || 0) + (acostaHubs?.length || 0));
       if (id('floatMode')) id('floatMode').textContent = activeAlignmentMode === 'current' ? 'Current' : 'Future';
 
-    if (typeof refreshExecutiveRibbon === 'function') {
+       if (typeof refreshExecutiveRibbon === 'function') {
       requestAnimationFrame(refreshExecutiveRibbon);
+    }
+    if (typeof refreshOpsFocus === 'function') {
+      requestAnimationFrame(refreshOpsFocus);
     }
   }
 
