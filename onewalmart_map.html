@@ -2121,13 +2121,22 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   color:#475569;
 }
 
-.analysis-menu-note{
+.analysis-menu-note,
+.ops-focus-helper{
   font-size:11.5px;
   line-height:1.45;
   opacity:.72;
   padding:2px 2px 8px;
   border-bottom:1px solid #e2e8f0;
   margin-bottom:6px;
+}
+
+.ops-focus-helper{
+  grid-column:1 / -1;
+  border-bottom:0;
+  margin:-2px 0 2px 0;
+  padding:0 2px 2px 2px;
+  color:#475569;
 }
 
 #analysisDrop .dropdown-menu{
@@ -4158,6 +4167,11 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 <span class="ops-focus-trend" id="opsFocusTrend">Contained</span>
 <span class="ops-focus-live">LIVE</span>
 </div>
+
+  <div class="ops-focus-helper">
+    Prioritizes the current visible RTS coverage story so leaders can quickly move from risk signal to the right analysis tool.
+  </div>
+
   <button class="ops-focus-card ops-focus-action" id="focusRiskCard" type="button" title="Open Coverage Priorities ranked by manager risk">
   <div class="ops-focus-label">Highest Risk Manager</div>
   <div class="ops-focus-value" id="focusRiskRegion">—</div>
@@ -4270,16 +4284,28 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
             <li><b>Use Manager Rollups</b> to confirm which RM or AM owns the exposure.</li>
             <li><b>Use Coverage Priorities</b> to rank where leadership should act first.</li>
             <li><b>Use Suggest RTS City</b> only after the gap and ownership story is clear.</li>
+              <div class="help-grid">
+        <div class="help-card primary">
+          <h4>Recommended leadership workflow</h4>
+          <p><b>Most managers should start with lookup, filters, Manager Rollups, and Coverage Priorities.</b> The deeper planning tools are mainly for Jeff, Daphney, and leadership planning review.</p>
+          <ol>
+            <li><b>Search or filter first</b> by store, city, state, RM, AM, RTS, or dedicated team.</li>
+            <li><b>Use Operational Focus</b> to identify the most urgent visible risk signal.</li>
+            <li><b>Open Current Gap Finder</b> to find concentrated uncovered areas.</li>
+            <li><b>Use Manager Rollups</b> to confirm RM/AM ownership and exposure.</li>
+            <li><b>Use Coverage Priorities</b> to rank where leadership should act first.</li>
+            <li><b>Use Suggest RTS City</b> only after the gap and ownership story is clear.</li>
           </ol>
-               </div>
+        </div>
 
         <div class="help-card">
           <h4>Map basics</h4>
-          <p><b>Production note:</b> This map is data-heavy. For day-to-day users, the lookup, filters, and rollup tools will usually be the most useful areas.</p>
+          <p><b>Production note:</b> This map is data-heavy. Most AMs/RMs will mainly need search, filters, Quick Views, Manager Rollups, and Coverage Priorities.</p>
           <ul>
             <li><b>Active RTS</b> hubs drive current coverage.</li>
-            <li><b>Future RTS</b> hubs are planning references only.</li>
-            <li><b>75 miles</b> remains the routeable coverage rule.</li>
+            <li><b>Future RTS</b> hubs are planning references only and do not reduce current gaps.</li>
+            <li><b>75 miles</b> remains the standard routeable coverage rule.</li>
+            <li><b>Current Gaps</b> are uncovered stores based on active RTS coverage.</li>
             <li>Click an RTS marker to open the hub panel and review stores in range.</li>
           </ul>
         </div>
@@ -4288,19 +4314,21 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
           <h4>Analysis tools</h4>
           <ul>
             <li><b>Current Gap Finder:</b> concentrated uncovered store clusters.</li>
-            <li><b>Manager Rollups:</b> RM/AM ownership and coverage totals.</li>
-            <li><b>Coverage Priorities:</b> action ranking by leadership exposure.</li>
-            <li><b>Dedicated Team Rollup:</b> Unilever, P&amp;G, and Tyson visibility.</li>
-            <li><b>Suggest RTS City:</b> planning-only placement modeling.</li>
+            <li><b>Manager Rollups:</b> RM/AM ownership, coverage totals, and exposure.</li>
+            <li><b>Coverage Priorities:</b> leadership action ranking by uncovered burden.</li>
+            <li><b>Dedicated Team Rollup:</b> Unilever, P&amp;G, and Tyson visibility separate from core One Walmart hierarchy.</li>
+            <li><b>Suggest RTS City:</b> planning-only placement modeling after gap review.</li>
+            <li><b>Leadership Summary:</b> executive-ready summary for review and discussion.</li>
           </ul>
         </div>
 
         <div class="help-card">
-          <h4>Shortcuts</h4>
+          <h4>Shortcuts and tips</h4>
           <p><span class="kbd">Ctrl</span> / <span class="kbd">⌘</span> + <span class="kbd">K</span> — Focus search</p>
           <p><span class="kbd">↑</span> <span class="kbd">↓</span> + <span class="kbd">Enter</span> — Pick search result</p>
           <p><span class="kbd">H</span> — Home map view</p>
           <p><span class="kbd">F</span> — Focus hub side-panel search when open</p>
+          <p><b>Tip:</b> Filter first, then open analysis tools for a cleaner manager-specific story.</p>
         </div>
       </div>
     </div>
