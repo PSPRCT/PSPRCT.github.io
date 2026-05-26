@@ -16223,19 +16223,31 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     }, 0);
     if (bid === 'railOpsIntel' || bid === 'opcxOpsView' || bid === 'quickOpsBtn' || bid === 'opsDrawerToggle') setTimeout(openOpsDrawer, 0);
   }, false);
-  document.addEventListener('click', function(e){
-        if (!e.target.closest || !e.target.closest('.dropdown')) closeDropdowns();
+    document.addEventListener('click', function(e){
+    if (!e.target.closest || !e.target.closest('.dropdown')) closeDropdowns();
+
+    const searchWrapNow = document.querySelector('.searchbox');
+    if (searchWrapNow && !searchWrapNow.contains(e.target) && typeof hideResults === 'function') {
+      hideResults();
+    }
+
     if (e.target.classList && e.target.classList.contains('modal')) {
       e.target.classList.remove('show');
       clearAppContext();
     }
   }, false);
-  document.addEventListener('keydown', function(e){
+   document.addEventListener('keydown', function(e){
     if (e.key === 'Escape') {
-            closeDropdowns();
+      closeDropdowns();
+
+      if (typeof hideResults === 'function') {
+        hideResults();
+      }
+
       closeAllModals();
       $('opsDrawer')?.classList.remove('show');
       document.querySelector('.mapwrap')?.classList.remove('command-drawer-open');
+      document.querySelector('.mapwrap')?.classList.remove('marker-rendering');
     }
   });
 })();
