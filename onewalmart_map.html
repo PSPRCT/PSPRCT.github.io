@@ -9825,7 +9825,10 @@ function renderFinalPlanReview(){
 
 function exportFinalPlanReviewCsv(){
   const rows = getCurrentAuto50Rows();
-  if (!rows.length){ alert('Run Auto-generate Top 100 first.'); return; }
+  if (!rows.length){
+    showMapToast('Run Auto-generate Top 100 before exporting review decisions.');
+    return;
+  }
   const impact = calculateCoverageImpact(rows);
   const counts = finalReviewCounts(rows);
 
