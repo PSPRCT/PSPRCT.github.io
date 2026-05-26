@@ -18723,53 +18723,31 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     else fn();
   }
 
-  function toast(msg){
-    const host = document.getElementById('toasts');
-    if (!host) return;
-    const el = document.createElement('div');
-    el.className = 'toast';
-    el.innerHTML = '<div class="row"><div>' + String(msg || 'Map notice') + '</div></div>';
-    host.appendChild(el);
-    setTimeout(function(){ el.remove(); }, 3200);
+  function clearTransientUi(){
+    const busy = document.getElementById('busy');
+    if (busy) busy.hidden = true;
+    document.querySelector('.mapwrap')?.classList.remove('marker-rendering');
   }
 
   ready(function(){
-       window.addEventListener('error', function(e){
-      const isScriptError = !!(e && (e.message || e.error || e.filename));
-
-      if (!isScriptError) {
-        console.debug('[One Walmart ignored resource warning]', e);
-        return;
-      }
-
-      console.warn('[One Walmart script warning]', {
-        message: e.message,
-        file: e.filename,
-        line: e.lineno,
-        column: e.colno,
-        error: e.error
+    window.addEventListener('error', function(e){
+      console.warn('[One Walmart script/resource warning]', {
+        message: e?.message || '',
+        file: e?.filename || '',
+        line: e?.lineno || '',
+        column: e?.colno || '',
+        error: e?.error || e
       });
-
-      const busy = document.getElementById('busy');
-      if (busy) busy.hidden = true;
-      document.querySelector('.mapwrap')?.classList.remove('marker-rendering');
+      clearTransientUi();
     });
 
     window.addEventListener('unhandledrejection', function(e){
-      console.warn('[One Walmart promise warning]', e.reason || e);
-      toast('A background map task was interrupted safely.');
-      const busy = document.getElementById('busy');
-      if (busy) busy.hidden = true;
-      document.querySelector('.mapwrap')?.classList.remove('marker-rendering');
+      console.warn('[One Walmart promise warning]', e?.reason || e);
+      clearTransientUi();
     });
 
     setTimeout(function(){
-      const busy = document.getElementById('busy');
-      if (busy && !busy.hidden){
-        busy.hidden = true;
-        toast('Startup guard cleared a stuck loading overlay.');
-      }
-      document.querySelector('.mapwrap')?.classList.remove('marker-rendering');
+      clearTransientUi();
     }, 30000);
 
     document.addEventListener('keydown', function(e){
