@@ -18733,7 +18733,7 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 
   ready(function(){
     window.addEventListener('error', function(e){
-      console.warn('[One Walmart script/resource warning]', {
+            console.debug('[One Walmart non-blocking warning]', {
         message: e?.message || '',
         file: e?.filename || '',
         line: e?.lineno || '',
@@ -18744,7 +18744,7 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     });
 
     window.addEventListener('unhandledrejection', function(e){
-      console.warn('[One Walmart promise warning]', e?.reason || e);
+            console.debug('[One Walmart non-blocking promise warning]', e?.reason || e);
       clearTransientUi();
     });
 
