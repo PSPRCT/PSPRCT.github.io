@@ -1948,7 +1948,48 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   color:#64748b;
   font-weight:900;
 }
+/* ===== v131 Universal Workbench Modal Polish ===== */
+.gap-finder-workbench .card,
+.manager-rollup-workbench .card,
+.coverage-priorities-workbench .card,
+.dedicated-rollup-workbench .card,
+.suggest-workbench-modal .card,
+.final-review-workbench .card,
+.weak-swap-workbench .card,
+.replace-swap-workbench .card,
+.compare-plans-workbench .card,
+.gap-summary-workbench .card,
+.leadership-summary-workbench .card{
+  border-radius:16px !important;
+}
 
+.gap-finder-workbench .card .body,
+.manager-rollup-workbench .card .body,
+.coverage-priorities-workbench .card .body,
+.dedicated-rollup-workbench .card .body,
+.suggest-workbench-modal .card .body,
+.final-review-workbench .card .body,
+.weak-swap-workbench .card .body,
+.replace-swap-workbench .card .body,
+.compare-plans-workbench .card .body,
+.gap-summary-workbench .card .body,
+.leadership-summary-workbench .card .body{
+  padding:16px;
+}
+
+.gap-finder-workbench .priority-tools,
+.manager-rollup-workbench .priority-tools,
+.coverage-priorities-workbench .priority-tools,
+.dedicated-rollup-workbench .priority-tools,
+.suggest-workbench-modal .priority-tools,
+.final-review-workbench .priority-tools,
+.weak-swap-workbench .priority-tools,
+.replace-swap-workbench .priority-tools,
+.compare-plans-workbench .priority-tools,
+.gap-summary-workbench .priority-tools,
+.leadership-summary-workbench .priority-tools{
+  box-shadow:0 2px 8px rgba(15,23,42,.04);
+}
 /* ===== v130 Modal Header Normalization ===== */
 .modal .card header{
   background:#fff;
@@ -3002,11 +3043,11 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .workbench-section-label,
 .final-review-label{
   flex:0 0 100%;
-  font-size:9.5px;
+  font-size:10px;
   text-transform:uppercase;
-  letter-spacing:.07em;
+  letter-spacing:.08em;
   color:#64748b;
-  font-weight:900;
+  font-weight:950;
   line-height:1.1;
 }
 
@@ -3279,6 +3320,26 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 #leadershipSummaryResults:empty::before{
   content:'Run or refresh the Leadership Summary to generate an executive-ready view of the current RTS plan.';
+  display:block;
+  border:1px dashed #cbd5e1;
+  background:#f8fafc;
+  color:#475569;
+  border-radius:12px;
+  padding:14px;
+  font-size:13px;
+  line-height:1.4;
+}
+
+#gapResults:empty::before,
+#rollTable:empty::before,
+#coverageTable:empty::before,
+#dedRollupResults:empty::before,
+#comparePlansResults:empty::before,
+#gapSummaryResults:empty::before,
+#finalReviewResults:empty::before,
+#weakSwapResults:empty::before,
+#replaceSwapResults:empty::before{
+  content:'Run or refresh this tool to generate results.';
   display:block;
   border:1px dashed #cbd5e1;
   background:#f8fafc;
