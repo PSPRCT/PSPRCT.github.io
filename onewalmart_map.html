@@ -9656,7 +9656,10 @@ function storeImpactRowsForPlacement(row, rank, radiusMi, useFilt){
 
 function exportFinal50StoreImpactCsv(){
   const rows = getCurrentAuto50Rows();
-  if (!rows.length){ alert('Run Auto-generate Top 100 first.'); return; }
+    if (!rows.length){
+    showMapToast('Run Auto-generate Top 100 before exporting review decisions.');
+    return;
+  }
   const radiusMi = Math.max(1, Number(id('suggestMiles')?.value) || 75);
   const useFilt  = !!id('suggestUseFilters')?.checked;
   const impact = calculateCoverageImpact(rows);
@@ -9860,10 +9863,13 @@ function exportFinalPlanReviewCsv(){
 }
 
 function clearFinalPlanReviews(){
-  if (!confirm('Clear all Final Plan Review decisions and notes?')) return;
+  const ok = window.confirm('Clear all Final Plan Review decisions and notes?');
+  if (!ok) return;
+
   finalPlanReviews = {};
   saveFinalPlanReviews();
   renderFinalPlanReview();
+  showMapToast('Final Plan Review decisions cleared.');
 }
 
 
@@ -9899,13 +9905,16 @@ function planSnapshotFromCurrent(name){
 }
 function saveCurrentPlanSnapshot(){
   const rows = getCurrentAuto50Rows();
-  if (!rows.length){ alert('Run Auto-generate Top 100 first.'); return; }
+    if (!rows.length){
+    showMapToast('Run Auto-generate Top 100 before saving a plan snapshot.');
+    return;
+  }
   const name = prompt('Name this plan snapshot:', `Plan ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`);
   if (!name) return;
   const plans = loadSavedPlans();
   plans.push(planSnapshotFromCurrent(name));
   saveSavedPlans(plans);
-  alert('Plan snapshot saved.');
+    showMapToast('Plan snapshot saved.');
 }
 function openComparePlans(){ id('comparePlansModal')?.classList.add('show'); renderComparePlans(); }
 function renderComparePlans(){
