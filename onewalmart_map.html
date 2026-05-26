@@ -18734,9 +18734,22 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   }
 
   ready(function(){
-    window.addEventListener('error', function(e){
-      console.warn('[One Walmart map warning]', e.message || e);
-      toast('Map warning detected. Check console if something looks off.');
+       window.addEventListener('error', function(e){
+      const isScriptError = !!(e && (e.message || e.error || e.filename));
+
+      if (!isScriptError) {
+        console.debug('[One Walmart ignored resource warning]', e);
+        return;
+      }
+
+      console.warn('[One Walmart script warning]', {
+        message: e.message,
+        file: e.filename,
+        line: e.lineno,
+        column: e.colno,
+        error: e.error
+      });
+
       const busy = document.getElementById('busy');
       if (busy) busy.hidden = true;
       document.querySelector('.mapwrap')?.classList.remove('marker-rendering');
