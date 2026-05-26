@@ -7092,8 +7092,8 @@ function hubDisplay(h){
     st.pinnedHubIds  = pinnedHubs.map(h => h.id);
     const hash = btoa(unescape(encodeURIComponent(JSON.stringify(st))));
     const url  = `${location.origin}${location.pathname}#${hash}`;
-    navigator.clipboard?.writeText(url);
-    alert('Hub link copied to clipboard.');
+        navigator.clipboard?.writeText(url);
+    showMapToast('Snapshot link copied to clipboard.');
   }
   spLink.onclick = copyHubLink;
 
@@ -7795,7 +7795,10 @@ rows.forEach((el, i) => {
   }
 
   function exportCompareCsv(){
-    if (pinnedHubs.length!==2) { alert('Pin exactly 2 hubs.'); return; }
+        if (pinnedHubs.length!==2) {
+      showMapToast('Pin exactly 2 RTS hubs before exporting compare results.');
+      return;
+    }
     const r = Number(radius.value)||DEFAULT_RADIUS;
     const [A,B] = pinnedHubs;
     const Aset = new Set(storesWithin(A.coords, r).map(s=>s.storeNumberStr));
@@ -7827,7 +7830,10 @@ rows.forEach((el, i) => {
     exportCsvWithToast(rows, `filtered_stores_${Date.now()}.csv`);
   }
   function exportSidepanelCsv(){
-    if(!spHub){ alert('Open a hub panel first.'); return; }
+        if(!spHub){
+      showMapToast('Open an RTS hub panel before exporting this list.');
+      return;
+    }
     const r = Number(radius.value)||DEFAULT_RADIUS;
     const [clat, clng] = spHub.coords;
     const rows = [
@@ -7888,7 +7894,10 @@ function currentPanelStores() {
 }
 
 function printSidepanelList() {
-  if (!spHub) { alert('Open a hub first.'); return; }
+    if (!spHub) {
+    showMapToast('Open an RTS hub panel before printing this list.');
+    return;
+  }
 
   const rows = currentPanelStores();
   const [hlat, hlng] = spHub.coords;
@@ -7909,7 +7918,10 @@ function printSidepanelList() {
   }).join('');
 
   const w = window.open('', '_blank');
-  if (!w) { alert('Pop-up blocked. Please allow pop-ups for this site and try again.'); return; }
+    if (!w) {
+    showMapToast('Print window was blocked. Please allow pop-ups for this site and try again.');
+    return;
+  }
 
   w.document.write(`<!DOCTYPE html>
   <html><head>
@@ -8336,7 +8348,10 @@ Higher-ranked locations are stronger candidates for future RTS hiring or reposit
 }
 
 function exportGapCsv(){
-  if (!lastGap.length){ alert('Run the gap finder first.'); return; }
+    if (!lastGap.length){
+    showMapToast('Run the Gap Finder before exporting.');
+    return;
+  }
 
   const radiusMi = Math.max(1, Number(id('gapMiles').value)||50);
 
@@ -10602,7 +10617,10 @@ function buildCoveragePriorities(){
 
 function exportCoveragePrioritiesCsv(){
   const rows = lastCoveragePriorityRows.length ? lastCoveragePriorityRows : buildCoveragePriorityRows();
-  if (!rows.length){ alert('Open Coverage Priorities first.'); return; }
+    if (!rows.length){
+    showMapToast('Open Coverage Priorities before exporting.');
+    return;
+  }
   const by = coverageByAM?.checked ? 'AM' : 'RM';
   const groupLabel = by === 'RM' ? 'Regional Manager' : 'Area Manager';
   const data = [[
@@ -12136,8 +12154,8 @@ wireBtn('helpClose',()=> hideModal(document.getElementById('helpModal')));
     const st = JSON.parse(localStorage.getItem(LS_STATE) || '{}');
     const hash = btoa(unescape(encodeURIComponent(JSON.stringify(st))));
     const url = `${location.origin}${location.pathname}#${hash}`;
-    navigator.clipboard?.writeText(url);
-    alert('Snapshot link copied to clipboard.');
+        navigator.clipboard?.writeText(url);
+    showMapToast('Hub link copied to clipboard.');
   }
   id('snapBtn').onclick = saveSnapshot;
 
