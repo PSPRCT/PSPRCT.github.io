@@ -5376,7 +5376,18 @@ const markers = L.markerClusterGroup({
   const sidepanel = id('sidepanel');
   const spTitle = id('spTitle'); const spMeta = id('spMeta'); const spCounts = id('spCounts');
   // Legends now safe to sync because sidepanel exists
-window.addEventListener('resize', syncLegends);
+let v89ResizeTimer = null;
+window.addEventListener('resize', ()=>{
+  clearTimeout(v89ResizeTimer);
+  v89ResizeTimer = setTimeout(()=>{
+    try{
+      syncLegends();
+      map.invalidateSize();
+    }catch(err){
+      console.warn('Resize sync failed safely', err);
+    }
+  }, 90);
+});
 syncLegends();
   const spRowsEl = id('spRows'); const spSearch = id('spSearch');
   const spLink = id('spLink');
@@ -6750,7 +6761,14 @@ function applyDedicatedTeamPathsToStores(rows, stores){
 
   searchBox.addEventListener('input', ()=>{
     clearTimeout(pendingSearchTimer);
-    pendingSearchTimer = setTimeout(handleSearchInput, SEARCH_DEBOUNCE_MS);
+    pendingSearchTimer = setTimeout(()=>{
+      try{
+        handleSearchInput();
+      }catch(err){
+        console.warn('Search input failed safely', err);
+        hideResults();
+      }
+    }, SEARCH_DEBOUNCE_MS);
   });
   searchBox.addEventListener('keydown', (e)=>{
     const items = searchResults._data || [];
