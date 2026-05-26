@@ -5285,6 +5285,19 @@ function exportHubsJson(){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
 }
+    function showMapToast(message, ms=2600){
+    const host = document.getElementById('toasts');
+    if (!host) {
+      console.info(message);
+      return;
+    }
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = '<div class="row"><div>' + String(message || '') + '</div></div>';
+    host.appendChild(el);
+    setTimeout(()=>el.remove(), ms);
+  }
+
   function coverageDisplayLabel(v){
   if (v === 'Premium Only') return 'One Walmart Covered';
   if (v === 'Premium + Acosta') return 'One Walmart + Legacy Covered';
