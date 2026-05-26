@@ -3230,10 +3230,11 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 /* ===== v118 Leadership Summary Full Polish + Print Package ===== */
 #leadershipSummaryResults{
   display:grid;
-  gap:10px;
+  gap:12px;
   min-height:120px;
   overflow:auto;
   overscroll-behavior:contain;
+  padding-right:2px;
 }
 
 #leadershipSummaryResults:empty::before{
@@ -3260,7 +3261,8 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 #leadershipSummaryResults .ops-leader-brief,
 #leadershipSummaryResults .ops-priority-path-card,
 #leadershipSummaryResults .ops-action-tile{
-  margin-bottom:8px;
+  margin-bottom:10px;
+  box-shadow:0 4px 12px rgba(15,23,42,.06);
 }
 
 #leadershipSummaryResults table{
@@ -3294,23 +3296,26 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 #leadershipSummaryResults h2,
 #leadershipSummaryResults h3{
-  margin:4px 0 8px 0;
+  margin:2px 0 10px 0;
   color:#0f172a;
   letter-spacing:-.02em;
+  line-height:1.15;
 }
 
 #leadershipSummaryResults section{
-  border:1px solid #eef2f7;
+  border:1px solid #e2e8f0;
   border-radius:14px;
-  padding:10px;
+  padding:12px;
   background:#fff;
+  box-shadow:0 2px 8px rgba(15,23,42,.04);
 }
 
 #leadershipSummaryResults .val,
 #leadershipSummaryResults .metric,
 #leadershipSummaryResults .kpi{
-  font-weight:900;
+  font-weight:950;
   color:#0f172a;
+  letter-spacing:-.01em;
 }
 
 #leadershipSummaryResults .risk-chip,
