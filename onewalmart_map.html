@@ -18415,7 +18415,7 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     if (e.target && (e.target.id === 'resiliencyBtn' || e.target.closest && e.target.closest('#resiliencyBtn'))) schedule();
   }, true);
 
-  document.addEventListener('DOMContentLoaded', schedule);
+    document.addEventListener('DOMContentLoaded', schedule);
   setTimeout(schedule, 800);
   setTimeout(schedule, 2000);
 })();
