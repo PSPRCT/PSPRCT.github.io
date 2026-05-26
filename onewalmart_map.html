@@ -5251,8 +5251,17 @@ function removeHub(h){
     if (i>=0) { arr.splice(i,1); return true; }
     return false;
   };
-  if (!(removeFrom(premiumConfirmed) || removeFrom(premiumPending) || removeFrom(acostaHubs))){
-    alert('Could not find hub in any set.');
+    if (!(removeFrom(premiumConfirmed) || removeFrom(premiumPending) || removeFrom(acostaHubs))){
+    const host = document.getElementById('toasts');
+    if (host) {
+      const el = document.createElement('div');
+      el.className = 'toast';
+      el.innerHTML = '<div class="row"><div>Could not find this hub in the active RTS sets.</div></div>';
+      host.appendChild(el);
+      setTimeout(()=>el.remove(), 2600);
+    } else {
+      console.warn('Could not find hub in any set.', h);
+    }
     return;
   }
   renderHubs();
