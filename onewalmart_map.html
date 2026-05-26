@@ -18680,7 +18680,66 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   setTimeout(schedule, 800);
   setTimeout(schedule, 2000);
 })();
+})();
 </script>
 
+<script id="v89AProductionHardening">
+(function(){
+  if (window.__owProdHardeningV89A) return;
+  window.__owProdHardeningV89A = true;
+
+  function ready(fn){
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+    else fn();
+  }
+
+  function toast(msg){
+    const host = document.getElementById('toasts');
+    if (!host) return;
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = '<div class="row"><div>' + String(msg || 'Map notice') + '</div></div>';
+    host.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 3200);
+  }
+
+  ready(function(){
+    window.addEventListener('error', function(e){
+      console.warn('[One Walmart map warning]', e.message || e);
+      toast('Map warning detected. Check console if something looks off.');
+      const busy = document.getElementById('busy');
+      if (busy) busy.hidden = true;
+      document.querySelector('.mapwrap')?.classList.remove('marker-rendering');
+    });
+
+    window.addEventListener('unhandledrejection', function(e){
+      console.warn('[One Walmart promise warning]', e.reason || e);
+      toast('A background map task was interrupted safely.');
+      const busy = document.getElementById('busy');
+      if (busy) busy.hidden = true;
+      document.querySelector('.mapwrap')?.classList.remove('marker-rendering');
+    });
+
+    setTimeout(function(){
+      const busy = document.getElementById('busy');
+      if (busy && !busy.hidden){
+        busy.hidden = true;
+        toast('Startup guard cleared a stuck loading overlay.');
+      }
+      document.querySelector('.mapwrap')?.classList.remove('marker-rendering');
+    }, 30000);
+
+    document.addEventListener('keydown', function(e){
+      if (e.key !== 'Escape') return;
+      document.querySelectorAll('.dropdown-menu').forEach(function(menu){
+        menu.style.display = 'none';
+      });
+      document.querySelectorAll('.results.show').forEach(function(panel){
+        panel.classList.remove('show');
+      });
+    });
+  });
+})();
+</script>
 </body>
 </html>
