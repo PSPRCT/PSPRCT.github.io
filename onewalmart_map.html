@@ -6020,7 +6020,23 @@ if (analysisDrop) {
   saveState();
 };
 
-  tgCompare.onchange= ()=>{ compareMode = tgCompare.checked; pinnedHubs=[]; highlightLayer.clearLayers(); refreshComparePanel(); alert(compareMode ? 'Compare mode on: click hub markers to pin them.' : 'Compare mode off.'); saveState(); };
+    tgCompare.onchange= ()=>{
+    compareMode = tgCompare.checked;
+    pinnedHubs=[];
+    highlightLayer.clearLayers();
+    refreshComparePanel();
+
+    const host = document.getElementById('toasts');
+    if (host) {
+      const el = document.createElement('div');
+      el.className = 'toast';
+      el.innerHTML = '<div class="row"><div>' + (compareMode ? 'Compare mode on: click hub markers to pin them.' : 'Compare mode off.') + '</div></div>';
+      host.appendChild(el);
+      setTimeout(()=>el.remove(), 2400);
+    }
+
+    saveState();
+  };
   tgWithin.onchange = ()=>{ lastFilterChanged='tgWithin'; runFilter(); saveState(); };
 tgCluster.onchange = ()=>{ refreshLayerMode(); saveState(); };
 
