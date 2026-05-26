@@ -12327,11 +12327,20 @@ id('sandboxBtn').addEventListener('click', ()=>{
 
     const text = JSON.stringify(json, null, 2);
 
-    navigator.clipboard.writeText(text).then(()=>{
+        navigator.clipboard.writeText(text).then(()=>{
       msg.textContent = `JSON copied for ${city}, ${state}. Estimated net-new stores: ${estimatedNewStores}.`;
     }).catch(()=>{
-      msg.textContent = 'Copy failed. Manually copy from the alert.';
-      alert('Copy failed — manually copy this:\n\n' + text);
+      msg.textContent = 'Copy failed. JSON is shown below so you can manually copy it.';
+
+      const existing = document.getElementById('sandboxCopyFallback');
+      if (existing) existing.remove();
+
+      const pre = document.createElement('pre');
+      pre.id = 'sandboxCopyFallback';
+      pre.style.cssText = 'white-space:pre-wrap;max-height:220px;overflow:auto;border:1px solid #dbe3ea;border-radius:10px;background:#f8fafc;padding:8px;margin-top:8px;font-size:11px;';
+      pre.textContent = text;
+
+      msg.insertAdjacentElement('afterend', pre);
     });
   };
 });
