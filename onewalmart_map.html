@@ -16551,9 +16551,10 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   }
   function scoreClass(score){ return score >= 80 ? 'critical' : score >= 55 ? 'elevated' : score >= 25 ? 'watch' : 'contained'; }
 
-  function ensureButton(){
+    function ensureButton(){
     const menu = document.querySelector('#analysisDrop .dropdown-menu');
     if (!menu || $('resiliencyBtn')) return;
+
     const btn = document.createElement('button');
     btn.id = 'resiliencyBtn';
     btn.className = 'btn';
@@ -16561,7 +16562,17 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     btn.style.cssText = 'display:block;width:100%;margin:4px 0;text-align:left';
     btn.textContent = 'RTS Resiliency Simulator';
     btn.addEventListener('click', () => { populateHubSelect(); showModal(); });
-    menu.appendChild(btn);
+
+    const profileBtn = $('profileV116Btn');
+    const suggestBtn = $('suggestRtsBtn');
+
+    if (profileBtn && profileBtn.parentElement === menu) {
+      profileBtn.insertAdjacentElement('afterend', btn);
+    } else if (suggestBtn && suggestBtn.parentElement === menu) {
+      suggestBtn.insertAdjacentElement('afterend', btn);
+    } else {
+      menu.appendChild(btn);
+    }
   }
 
   function showModal(){ $('resiliencyModal')?.classList.add('show'); }
