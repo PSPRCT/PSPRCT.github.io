@@ -18531,11 +18531,24 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     btn.className = 'btn';
     btn.type = 'button';
     btn.style.cssText = 'display:block;width:100%;margin:4px 0;text-align:left';
-    btn.textContent = 'RTS Operational Profiles';
+        btn.textContent = 'RTS Operational Profiles';
     btn.title = 'Open RTS operational profile cards';
     btn.onclick = () => { openProfiles(); menu.style.display = 'none'; };
+
     const anchor = $('suggestRtsBtn');
-    if (anchor && anchor.parentElement === menu) anchor.insertAdjacentElement('afterend', btn); else menu.appendChild(btn);
+    if (anchor && anchor.parentElement === menu) {
+      anchor.insertAdjacentElement('afterend', btn);
+
+      if (!document.getElementById('profileV116Label')) {
+        const label = document.createElement('div');
+        label.id = 'profileV116Label';
+        label.className = 'analysis-menu-label';
+        label.textContent = 'Step 4 — Review RTS territory health';
+        btn.insertAdjacentElement('beforebegin', label);
+      }
+    } else {
+      menu.appendChild(btn);
+    }
   }
 
   function computeProfiles(){
