@@ -9985,7 +9985,7 @@ function renderComparePlansInline(){
 }
 function exportComparePlansCsv(){
   const plans = loadSavedPlans();
-  if (!plans.length){ alert('No saved plans to export.'); return; }
+    if (!plans.length){ showMapToast('No saved plans to export.'); return; }
   const data = [['Plan','Created','Section','Placement','Recommended Hub','Net New','Projected %','Decision','Notes']];
   plans.forEach(p=>{
     data.push([p.name,p.createdAt,'Plan Summary','','',p.impact?.projectedNewStores||0,`${p.impact?.projectedPct||0}%`,'','']);
@@ -10058,7 +10058,7 @@ function renderGapSummary(){
 }
 function exportGapSummaryCsv(){
   const rows = lastGapSummaryRows.length ? lastGapSummaryRows : buildGapSummaryRows();
-  if (!rows.length){ alert('No gap summary to export.'); return; }
+    if (!rows.length){ showMapToast('No gap summary to export.'); return; }
   const data = [['Group Type','Group','Total Stores','Current Gap','Current Gap %','Projected Covered','Projected Covered %','Remaining Gap','Remaining Gap %']];
   rows.forEach(r=>data.push([r.by,r.key,r.total,r.currentGap,`${r.currentGapPct}%`,r.coveredAfter,`${r.projectedCoveredPct}%`,r.remainingGap,`${r.remainingGapPct}%`]));
   exportCsvWithToast(data, `state_region_gap_summary_${Date.now()}.csv`);
@@ -10105,7 +10105,7 @@ function renderReplaceMarkedSwaps(){
 }
 function exportReplaceMarkedSwapsCsv(){
   const rows = lastReplaceSwapRows.length ? lastReplaceSwapRows : buildReplaceMarkedSwapRows();
-  if (!rows.length){ alert('No Replace-marked swaps to export.'); return; }
+    if (!rows.length){ showMapToast('No Replace-marked swaps to export.'); return; }
   const data = [['Current Rank','Replace-Marked Placement','Current Hub','Current Net New','Replacement Placement','Replacement Hub','Replacement Net New','Net Gain','Reason','Replacement Lat','Replacement Lng']];
   rows.forEach(x=>data.push([x.weak.rank||'',x.weak.placementLabel||'',x.weak.recommendedHub||'',x.weak.estimatedNewStores||0,x.replacement?.placementLabel||'',x.replacement?.recommendedHub||'',x.replacement?.estimatedNewStores||'',x.replacement?x.gain:'',x.note,x.replacement?.center?.lat||'',x.replacement?.center?.lng||'']));
   exportCsvWithToast(data, `replace_marked_swaps_${Date.now()}.csv`);
@@ -10233,7 +10233,7 @@ function renderWeakSwapFinder(){
 
 function exportWeakSwapCsv(){
   const rows = lastWeakSwapRows.length ? lastWeakSwapRows : buildWeakSwapRows();
-  if (!rows.length){ alert('No weak-pick swaps to export.'); return; }
+    if (!rows.length){ showMapToast('No weak-pick swaps to export.'); return; }
   const data = [[
     'Current Rank','Weak Pick','Weak Recommended Hub','Weak Net New','Weak Overlap','Suggested Replacement','Replacement Hub','Replacement Net New','Replacement Overlap','Net Gain','Reason','Replacement Lat','Replacement Lng'
   ]];
@@ -10353,7 +10353,7 @@ function exportLeadershipSummaryCsv(){
 
 function exportSuggestRtsCsv(){
   const rows = lastSuggestRows.length ? lastSuggestRows : buildSuggestRtsRows();
-  if (!rows.length){ alert('Run Suggest RTS City first.'); return; }
+    if (!rows.length){ showMapToast('Run Suggest RTS City first.'); return; }
   const data = [[
     'Rank','Optimal RTS Placement','Recommended Hub','Original Gap Label','Placement Source','Net New Stores','Total Reach','Overlap / Already Covered',
     'Running New Stores','Projected National Coverage %','Nearest Active RTS','Miles from RTS','Nearby Areas Rolled In','Center Lat','Center Lng'
