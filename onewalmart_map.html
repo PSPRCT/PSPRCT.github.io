@@ -17495,8 +17495,8 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     const elevated = rows.filter(r => r.cls === 'elevated').length;
     const top = rows[0];
     const text = 'RTS resiliency summary: ' + rows.length + ' active RTS hubs scored. ' + critical + ' critical and ' + elevated + ' elevated outage scenarios identified. Highest risk scenario: ' + (top ? top.hubName + ' with ' + top.exposed + ' exposed of ' + top.affected + ' affected stores (' + top.exposedPct + '%), top exposed RM ' + top.topRm + ', top exposed state ' + top.topState + '.' : 'none') + ' Recommended action: prioritize backup coverage for critical single-point hubs before relying on the network for outage continuity.';
-    if (navigator.clipboard) navigator.clipboard.writeText(text);
-    alert('Executive resiliency summary copied.');
+        if (navigator.clipboard) navigator.clipboard.writeText(text);
+    showMapToast('Executive resiliency summary copied.');
   }
   function enhance(){
     const toolbar = document.querySelector('.resil-toolbar');
@@ -17913,7 +17913,7 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   function csvCell(v){ return '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"'; }
   function exportQueue(){
     const rows = selectedOrBuilt();
-    if (!rows.length) return alert('No priority queue data available.');
+        if (!rows.length){ showMapToast('No priority queue data available.'); return; }
     const headers = ['Priority','Tier','RTS Hub','Weighted Score','Issue','Affected Stores','No Backup Stores','Fragile Backup Stores','Reassignable Stores','Fringe Stores','RM Count','AM Count','Max Backup Load','Recommended Action'];
     const lines = [headers.map(csvCell).join(',')].concat(rows.map((r,i) => [i+1,tierLabel(r.tier),nameHub(r.hub),r.score,r.issue,r.affected,r.exposed,r.fragile,r.reassignable,r.fringe,r.rms,r.ams,r.maxBackupLoad,r.action].map(csvCell).join(',')));
     const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8'});
@@ -17935,7 +17935,7 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   }
   function copySummary(){
     const txt = execSummaryText();
-    navigator.clipboard && navigator.clipboard.writeText(txt).then(() => alert('Executive summary copied.'), () => showSummaryBox(txt));
+        navigator.clipboard && navigator.clipboard.writeText(txt).then(() => showMapToast('Executive summary copied.'), () => showSummaryBox(txt));
     showSummaryBox(txt);
   }
   function showSummaryBox(txt){
