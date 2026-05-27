@@ -4285,7 +4285,10 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 <div class="analysis-menu-label">Step 4 — Review RTS territory health</div>
 <button id="profileV116Btn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left" title="Open RTS operational profile cards">RTS Operational Profiles</button>
-<button id="resiliencyBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left" title="Open RTS outage and backup coverage simulator">RTS Resiliency Simulator</button>
+<button id="resiliencyBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left" title="Advanced planning: simulate RTS outage and backup coverage">Advanced: RTS Resiliency Simulator</button>
+<div style="font-size:11px;color:#64748b;line-height:1.35;margin:2px 0 8px 0;">
+  Advanced planning tool for outage/backup modeling. Most managers can skip this.
+</div>
 
 <div class="analysis-menu-label">Help and workflow</div>
 <button id="analysisHelpShortcut" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Help / Workflow Guide</button>
@@ -16574,8 +16577,8 @@ if (!window.__quickViewReliabilityPatchInstalled) {
         btn.className = 'btn';
         btn.type = 'button';
         btn.style.cssText = 'display:block;width:100%;margin:4px 0;text-align:left';
-        btn.textContent = 'RTS Resiliency Simulator';
-        btn.title = 'Open RTS outage and backup coverage simulator';
+        btn.textContent = 'Advanced: RTS Resiliency Simulator';
+btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
 
         const anchor = $('profileV116Btn') || $('suggestRtsBtn');
         if (anchor && anchor.parentElement === menu) {
