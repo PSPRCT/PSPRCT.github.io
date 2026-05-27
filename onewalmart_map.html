@@ -763,7 +763,7 @@ select[multiple]{
 
 
 
-  /* Coverage Priorities */
+  /* Operational Focus Areas */
   .priority-card{border:1px solid var(--border);border-radius:12px;padding:10px;background:#f8fafc;margin-bottom:10px}
   .priority-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
   .priority-table{width:100%;border-collapse:collapse;font-size:13px}
@@ -2277,7 +2277,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   }
 }
 
-/* ===== v128 Coverage Priorities Workbench ===== */
+/* ===== v128 Operational Focus Areas Workbench ===== */
 
 .coverage-priorities-workbench .card{
   width:96vw !important;
@@ -2577,7 +2577,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   }
 }
 
-/* ===== v125 Dedicated Team Rollup Workbench ===== */
+/* ===== v125 Dedicated Team Exposure Workbench ===== */
 
 .dedicated-rollup-workbench .card{
   width:96vw !important;
@@ -3181,7 +3181,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   }
 }
 
-/* ===== v119 Suggest RTS City Workbench Cleanup ===== */
+/* ===== v119 Model New RTS Placement Workbench Cleanup ===== */
 .suggest-workbench-modal .card{
   max-width:1220px !important;
   width:96vw !important;
@@ -4226,7 +4226,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 </button>
 
 <button class="btn quick-action-btn" id="qaCoverage">
-  Coverage Priorities
+  Operational Focus Areas
   <span>Open operational gap analysis</span>
 </button>
 
@@ -4270,30 +4270,30 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
     <div class="dropdown" id="analysisDrop" style="position:relative">
       <button class="btn" type="button" title="Open map analysis tools">Analysis Tools ▾</button>
       <div class="dropdown-menu">
-        <div class="analysis-menu-note">Recommended workflow: find current gaps → confirm RM/AM ownership → prioritize leadership action → model RTS placement opportunities.</div>
+        <div class="analysis-menu-note">Recommended workflow: review uncovered stores → confirm manager ownership → identify highest-risk regions → evaluate new RTS placement opportunities.</div>
 
         <div class="analysis-menu-label">Current Operations</div>
 <button id="gapBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Current Gap Finder</button>
 
 <div class="analysis-menu-label">Manager / Leadership Review</div>
 <button id="rollupBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Manager Rollups</button>
-<button id="coverageBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Coverage Priorities</button>
+<button id="coverageBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Operational Focus Areas</button>
 
 <div class="analysis-menu-label">Dedicated Team Review</div>
-        <button id="dedRollupBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Dedicated Team Rollup</button>
+        <button id="dedRollupBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Dedicated Team Exposure</button>
 
         <div class="analysis-menu-label">Planning / Modeling</div>
-<button id="suggestRtsBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Suggest RTS City</button>
+<button id="suggestRtsBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Model New RTS Placement</button>
 
 <div class="analysis-menu-label">Advanced / Admin Tools</div>
-<button id="profileV116Btn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left" title="Open RTS operational profile cards">RTS Operational Profiles</button>
+<button id="profileV116Btn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left" title="Open RTS operational profile cards">RTS Territory Profiles</button>
 <button id="resiliencyBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left" title="Advanced planning: simulate RTS outage and backup coverage">Advanced: RTS Resiliency Simulator</button>
 <div style="font-size:11px;color:#64748b;line-height:1.35;margin:2px 0 8px 0;">
   Advanced planning tool for outage/backup modeling. Most managers can skip this.
 </div>
 
 <div class="analysis-menu-label">Help and workflow</div>
-<button id="analysisHelpShortcut" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Help / Workflow Guide</button>
+<button id="analysisHelpShortcut" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Help / How To Use This Map</button>
       </div>
     </div>
 
@@ -4360,7 +4360,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
     Prioritizes the current visible RTS coverage story so leaders can quickly move from risk signal to the right analysis tool.
   </div>
 
-  <button class="ops-focus-card ops-focus-action" id="focusRiskCard" type="button" title="Open Coverage Priorities ranked by manager risk">
+  <button class="ops-focus-card ops-focus-action" id="focusRiskCard" type="button" title="Open Operational Focus Areas ranked by manager risk">
   <div class="ops-focus-label">Highest Risk Manager</div>
   <div class="ops-focus-value" id="focusRiskRegion">—</div>
 </button>
@@ -4468,20 +4468,20 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
         <div class="help-card primary">
           <h4>Recommended leadership workflow</h4>
-          <p><b>Most managers should start with lookup, filters, Manager Rollups, and Coverage Priorities.</b> The deeper planning tools are mainly for Jeff, Daphney, and leadership planning review.</p>
+          <p><b>Most managers should start with lookup, filters, Manager Rollups, and Operational Focus Areas.</b> The deeper planning tools are mainly for Jeff, Daphney, and leadership planning review.</p>
           <ol>
             <li><b>Search or filter first</b> by store, city, state, RM, AM, RTS, or dedicated team.</li>
             <li><b>Use Operational Focus</b> to identify the most urgent visible risk signal.</li>
             <li><b>Open Current Gap Finder</b> to find concentrated uncovered areas.</li>
             <li><b>Use Manager Rollups</b> to confirm RM/AM ownership and exposure.</li>
-            <li><b>Use Coverage Priorities</b> to rank where leadership should act first.</li>
-            <li><b>Use Suggest RTS City</b> only after the gap and ownership story is clear.</li>
+            <li><b>Use Operational Focus Areas</b> to rank where leadership should act first.</li>
+            <li><b>Use Model New RTS Placement</b> only after the gap and ownership story is clear.</li>
           </ol>
         </div>
 
         <div class="help-card">
           <h4>Map basics</h4>
-          <p><b>Production note:</b> This map is data-heavy. Most AMs/RMs will mainly need search, filters, Quick Views, Manager Rollups, and Coverage Priorities.</p>
+          <p><b>Production note:</b> This map is data-heavy. Most AMs/RMs will mainly need search, filters, Quick Views, Manager Rollups, and Operational Focus Areas.</p>
           <ul>
             <li><b>Active RTS</b> hubs drive current coverage.</li>
             <li><b>Future RTS</b> hubs are planning references only and do not reduce current gaps.</li>
@@ -4496,9 +4496,9 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
           <ul>
             <li><b>Current Gap Finder:</b> concentrated uncovered store clusters.</li>
             <li><b>Manager Rollups:</b> RM/AM ownership, coverage totals, and exposure.</li>
-            <li><b>Coverage Priorities:</b> leadership action ranking by uncovered burden.</li>
-            <li><b>Dedicated Team Rollup:</b> Unilever, P&amp;G, and Tyson visibility separate from core One Walmart hierarchy.</li>
-            <li><b>Suggest RTS City:</b> planning-only placement modeling after gap review.</li>
+            <li><b>Operational Focus Areas:</b> leadership action ranking by uncovered burden.</li>
+            <li><b>Dedicated Team Exposure:</b> Unilever, P&amp;G, and Tyson visibility separate from core One Walmart hierarchy.</li>
+            <li><b>Model New RTS Placement:</b> planning-only placement modeling after gap review.</li>
             <li><b>Leadership Summary:</b> executive-ready summary for review and discussion.</li>
           </ul>
         </div>
@@ -4631,11 +4631,11 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   </div>
 </div>
 
-<!-- Coverage Priorities modal -->
+<!-- Operational Focus Areas modal -->
 <div class="modal coverage-priorities-workbench" id="coverageModal" aria-modal="true" role="dialog">
   <div class="card">
     <header>
-      <h3>Coverage Priorities by Manager — Action Ranking</h3>
+      <h3>Operational Focus Areas by Manager — Action Ranking</h3>
       <button id="coverageClose" class="btn" type="button">Close</button>
     </header>
     <div class="body" style="grid-template-columns:1fr;">
@@ -4690,11 +4690,11 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 
 
-<!-- Suggest RTS City modal -->
+<!-- Model New RTS Placement modal -->
 <div class="modal suggest-workbench-modal" id="suggestModal" aria-modal="true" role="dialog">
   <div class="card">
     <header>
-      <h3>Suggest RTS City</h3>
+      <h3>Model New RTS Placement</h3>
       <button id="suggestClose" class="btn" type="button">Close</button>
     </header>
     <div class="body" style="grid-template-columns:1fr;">
@@ -5049,11 +5049,11 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 </div>
 
 
-<!-- Dedicated Team Rollup modal -->
+<!-- Dedicated Team Exposure modal -->
 <div class="modal dedicated-rollup-workbench" id="dedRollupModal" aria-modal="true" role="dialog">
   <div class="card">
     <header>
-      <h3>Dedicated Team Rollup</h3>
+      <h3>Dedicated Team Exposure</h3>
       <button id="dedRollupClose" class="btn" type="button">Close</button>
     </header>
     <div class="body" style="grid-template-columns:1fr;">
@@ -5617,7 +5617,7 @@ function refreshOpsFocus(){
       ? buildCoveragePriorityRows()
       : [];
   } catch(e) {
-    console.warn('Operational Focus could not read Coverage Priorities ranking:', e);
+    console.warn('Operational Focus could not read Operational Focus Areas ranking:', e);
     priorityRows = [];
   } finally {
     if (coverageUseFilters) coverageUseFilters.checked = priorUseFilters;
@@ -5653,7 +5653,7 @@ function refreshOpsFocus(){
 
   const actionText =
     topGapPctForAction >= 50 && topUncoveredForAction >= 25 ? 'Prioritize manager review' :
-    (topGapPctForAction >= 30 && topUncoveredForAction >= 15) || topUncoveredForAction >= 50 ? 'Review coverage priorities' :
+    (topGapPctForAction >= 30 && topUncoveredForAction >= 15) || topUncoveredForAction >= 50 ? 'Review Operational Focus Areas' :
     gaps.length ? 'Monitor remaining gaps' :
     'Coverage stable';
 
@@ -5873,7 +5873,7 @@ on('change', amFilter,  ()=>{
   };
 
     if (id('qaCoverage')) id('qaCoverage').onclick = ()=>{
-    appContext.tool = 'Coverage Priorities';
+    appContext.tool = 'Operational Focus Areas';
     appContext.focus = 'Manager Risk Ranking';
     updateContextBreadcrumb();
     id('coverageBtn')?.click();
@@ -7475,7 +7475,7 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
   if (workloadClass === 'critical') action = 'Add backup RTS support nearby, review fringe-store travel burden, and confirm whether adjacent hubs can absorb part of the load.';
   else if (workloadClass === 'high') action = 'Consider secondary coverage overlap and validate whether the highest-fringe stores need split support.';
   else if (role === 'Gap-Adjacent Hub') action = 'Use Gap Finder to determine whether nearby uncovered stores can be solved by an added backup hub, future placement, or reassignment.';
-  else if (role === 'Dedicated Overlay Hub') action = 'Monitor dedicated overlay dependency in Dedicated Team Rollup; do not treat overlay exposure as a deduction from core coverage.';
+  else if (role === 'Dedicated Overlay Hub') action = 'Monitor dedicated overlay dependency in Dedicated Team Exposure; do not treat overlay exposure as a deduction from core coverage.';
 
    const statusChip = isFutureHub
     ? `<span class="sp-chip op-status planning"><b>Status:</b> Future / display-only</span>`
@@ -7538,7 +7538,7 @@ coverageRaw === 'Acosta Only'      ? 'cov-a'  : 'cov-u';
   if (backupNeed === 'High') primaryNextActions.push('Add backup RTS nearby or identify an adjacent hub that can absorb emergency coverage.');
   if (fringe.length >= 15 || fringePct >= .25) primaryNextActions.push('Review fringe stores at 60–75 miles for split support or route-balancing opportunities.');
   if (uncovered.length >= 15) primaryNextActions.push('Use Gap Finder for nearby uncovered stores before adding more load to this RTS.');
-  if (dedStoreSet.size >= 20) primaryNextActions.push('Monitor dedicated overlay dependency in Dedicated Team Rollup.');
+  if (dedStoreSet.size >= 20) primaryNextActions.push('Monitor dedicated overlay dependency in Dedicated Team Exposure.');
   if (!primaryNextActions.length) primaryNextActions.push('Continue normal monitoring; this hub is not currently flagged for operational support.');
 
   const recommendationTier = workloadClass === 'critical' ? 'Capacity review required'
@@ -8600,7 +8600,7 @@ function exportRollupsCsv(by, rows){
 }
 
 
-// ---------- Suggest RTS City ----------
+// ---------- Model New RTS Placement ----------
 const suggestModal = id('suggestModal');
 const suggestResults = id('suggestResults');
 
@@ -8964,7 +8964,7 @@ function dedupePlacementRows(rows, minMiles){
 
 
 function metroPlacementLabel(r){
-  // Display-only label for Suggest RTS City.
+  // Display-only label for Model New RTS Placement.
   // This prevents the top cards from showing a single suburb like Cypress/Spring
   // when the recommendation is really a larger metro-area placement.
   const suggested = String(r.suggestedArea || '').trim();
@@ -9946,7 +9946,7 @@ function renderComparePlans(){
       ">
         <b style="color:#0f172a">No saved plans yet.</b>
         <div style="margin-top:6px">
-          Use <b>Save Plan Snapshot</b> from Suggest RTS City after generating a plan, then return here to compare versions.
+          Use <b>Save Plan Snapshot</b> from Model New RTS Placement after generating a plan, then return here to compare versions.
         </div>
       </div>
     `;
@@ -10359,7 +10359,7 @@ function exportLeadershipSummaryCsv(){
 
 function exportSuggestRtsCsv(){
   const rows = lastSuggestRows.length ? lastSuggestRows : buildSuggestRtsRows();
-    if (!rows.length){ showMapToast('Run Suggest RTS City first.'); return; }
+    if (!rows.length){ showMapToast('Run Model New RTS Placement first.'); return; }
   const data = [[
     'Rank','Optimal RTS Placement','Recommended Hub','Original Gap Label','Placement Source','Net New Stores','Total Reach','Overlap / Already Covered',
     'Running New Stores','Projected National Coverage %','Nearest Active RTS','Miles from RTS','Nearby Areas Rolled In','Center Lat','Center Lng'
@@ -10385,10 +10385,10 @@ function exportSuggestRtsCsv(){
 
   exportCsvWithToast(data, `suggest_rts_city_optimized_${Date.now()}.csv`);
 }
-// ---------- /Suggest RTS City ----------
+// ---------- /Model New RTS Placement ----------
 
 
-// ---------- Coverage Priorities ----------
+// ---------- Operational Focus Areas ----------
 const coverageModal = id('coverageModal');
 const coverageBtn = id('coverageBtn');
 const coverageClose = id('coverageClose');
@@ -10639,7 +10639,7 @@ function buildCoveragePriorities(){
 function exportCoveragePrioritiesCsv(){
   const rows = lastCoveragePriorityRows.length ? lastCoveragePriorityRows : buildCoveragePriorityRows();
     if (!rows.length){
-    showMapToast('Open Coverage Priorities before exporting.');
+    showMapToast('Open Operational Focus Areas before exporting.');
     return;
   }
   const by = coverageByAM?.checked ? 'AM' : 'RM';
@@ -10666,7 +10666,7 @@ function exportCoveragePrioritiesCsv(){
 
   exportCsvWithToast(data, `coverage_priorities_by_${by.toLowerCase()}_${Date.now()}.csv`);
 }
-// ---------- /Coverage Priorities ----------
+// ---------- /Operational Focus Areas ----------
 
 
 
@@ -13950,7 +13950,7 @@ const leadershipSummaryLabel =
         title:`Resolve ${topDedicated.team} dedicated overlay gaps`,
         metric:`${fmt(topDedicated.gaps)} uncovered dedicated stores out of ${fmt(topDedicated.total)} in scope`,
         why:'Dedicated overlays are visibility layers, not exclusions from core coverage. Gaps here should be reviewed for client-specific exposure and manager communication.',
-        next:'Open Dedicated Team Rollup, filter to the team, then drill into the uncovered stores and responsible dedicated manager.'
+        next:'Open Dedicated Team Exposure, filter to the team, then drill into the uncovered stores and responsible dedicated manager.'
       });
       if (rescueCases + crossmarkGain > 0) priorityCandidates.push({
         tier:4,
@@ -13991,13 +13991,13 @@ const leadershipSummaryLabel =
         if (t.includes('dedicated')) return {
           owner:'Dedicated operations leadership + RTM',
           decision:'Validate dedicated-team backup ownership, confirm cross-trained RTS availability, and establish clear communication accountability for overlay-heavy operational markets.',
-          next:'Open Dedicated Team Rollup, prioritize uncovered overlay markets, confirm accountability ownership, and identify operational areas lacking sufficient backup RTS resilience.',
+          next:'Open Dedicated Team Exposure, prioritize uncovered overlay markets, confirm accountability ownership, and identify operational areas lacking sufficient backup RTS resilience.',
           outcome:'Clear executive visibility into dedicated-team operational exposure while preserving accurate core One Walmart coverage reporting and accountability alignment.',
           urgency:'Visibility Watch'
         };
         if (t.includes('flexibility')) return {
           owner:'Executive operations leadership',
-          decision:'Position cross-network RTS access as a strategic resiliency and staffing-strength advantage after core operational coverage priorities are stabilized.',
+          decision:'Position cross-network RTS access as a strategic resiliency and staffing-strength advantage after core operational Operational Focus Areas are stabilized.',
           next:'Position Operational Flexibility as a resiliency-strength narrative after coverage stabilization and workload priorities have been clearly established.',
           outcome:'Leadership understands that the One Walmart model strengthens staffing resiliency, improves backup flexibility, and preserves the integrity of the validated 75-mile operational coverage framework.',
          urgency:'Strategic Narrative'
@@ -14418,7 +14418,7 @@ const leadershipSummaryLabel =
     const footer = document.getElementById('actionFooter');
     if (footer) {
       const coverageGap = total ? (100 - pct).toFixed(1) : '0.0';
-      footer.innerHTML = `<b>Recommended next step:</b> Use Current Gap Finder or Suggest RTS City for the highest-gap state/manager above. <br><span class="ops-sub">Coverage gap: ${coverageGap}% across the current visible/filter scope. Transition/ownership-change analytics have been removed from the leadership workflow.</span>`;
+      footer.innerHTML = `<b>Recommended next step:</b> Use Current Gap Finder or Model New RTS Placement for the highest-gap state/manager above. <br><span class="ops-sub">Coverage gap: ${coverageGap}% across the current visible/filter scope. Transition/ownership-change analytics have been removed from the leadership workflow.</span>`;
     }
 
     refreshExecutiveRibbon?.();
@@ -14930,7 +14930,7 @@ const dedRollBtn = id('dedRollupBtn');
 if (dedRollBtn && !dedRollBtn.dataset.wired) {
   dedRollBtn.dataset.wired = '1';
   dedRollBtn.addEventListener('click', () => {
-    appContext.tool = 'Dedicated Team Rollup';
+    appContext.tool = 'Dedicated Team Exposure';
     appContext.focus = 'Dedicated Coverage';
     updateContextBreadcrumb();
 
@@ -15248,7 +15248,7 @@ if (!window.__quickViewReliabilityPatchInstalled) {
 
   async function renderDedicatedRollupExternal(){
     const out = $('dedRollupResults'); if (!out) return;
-    out.innerHTML = '<div class="ops-lazy-note">Loading dedicated team rollup…</div>';
+    out.innerHTML = '<div class="ops-lazy-note">Loading Dedicated Team Exposure…</div>';
     try{
       const [storesRaw, dedicatedRaw, rtsRaw] = await Promise.all([
         fetchJson('./onewalmart_store_data.json'),
@@ -18573,7 +18573,7 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
       btn.className = 'btn';
       btn.type = 'button';
       btn.style.cssText = 'display:block;width:100%;margin:4px 0;text-align:left';
-      btn.textContent = 'RTS Operational Profiles';
+      btn.textContent = 'RTS Territory Profiles';
       btn.title = 'Open RTS operational profile cards';
 
       const anchor = $('suggestRtsBtn');
