@@ -4283,6 +4283,9 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
         <div class="analysis-menu-label">Step 3 — Model placement opportunities</div>
 <button id="suggestRtsBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Suggest RTS City</button>
 
+<div class="analysis-menu-label">Step 4 — Review RTS territory health</div>
+<button id="profileV116Btn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left" title="Open RTS operational profile cards">RTS Operational Profiles</button>
+
 <div class="analysis-menu-label">Help and workflow</div>
 <button id="analysisHelpShortcut" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Help / Workflow Guide</button>
       </div>
@@ -12462,101 +12465,31 @@ const projectedCoveragePct = allStores.length
           <td>${htmlEscape(managerLabel(s.areaManager))}</td>
           <td>${htmlEscape(managerLabel(s.regionalManager))}</td>
         </tr>`).join('');
-    const win = window.open('', '_blank');
-   win.document.write(`
-      <html><head><title>Simulate New RTS — ${rMiles}mi</title>
-      <style>
-        body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px}
-        table{border-collapse:collapse;width:100%}
-        th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
-        th{background:#f3f4f6;text-align:left}
-        td:nth-child(5){text-align:right}
-        h2{margin:0 0 8px}
-        .meta{color:#555;margin-bottom:10px}
-      </style>
-
-<!-- ===== v110 Resiliency Refinement: backup chain + dependency heatmap + leadership brief ===== -->
-<style id="v110ResiliencyRefinementStyles">
-  #resiliencyModal .card{max-height:calc(100vh - 28px) !important;}
-  #resiliencyModal .card header{cursor:move;}
-  #resiliencyModal .card header .resil-v110-head-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
-  .resil-v110-brief{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:10px 12px;margin:10px 0;font-size:12.5px;line-height:1.4;}
-  .resil-v110-brief b{color:#0f172a;}
-  .resil-v110-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0;}
-  .resil-v110-action{border:1px solid #dbe3ea;border-radius:12px;background:#fff;padding:9px 10px;font-size:12.5px;line-height:1.35;}
-  .resil-v110-action b{display:block;color:#0f172a;margin-bottom:2px;}
-  .resil-v110-action.critical{border-color:#fecaca;background:#fff7f7;}
-  .resil-v110-action.elevated{border-color:#fed7aa;background:#fff7ed;}
-  .resil-v110-action.watch{border-color:#bfdbfe;background:#eff6ff;}
-  .resil-v110-dependency-legend{position:absolute;left:12px;bottom:58px;z-index:1250;background:rgba(255,255,255,.96);border:1px solid #dbe3ea;border-radius:14px;box-shadow:0 8px 22px rgba(15,23,42,.12);padding:9px 10px;font-size:12px;display:none;max-width:300px;}
-  .resil-v110-dependency-legend.show{display:block;}
-  .resil-v110-dependency-legend b{display:block;margin-bottom:4px;color:#0f172a;}
-  .resil-v110-chain-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
-  .resil-v110-chain-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px 10px;font-size:12.5px;line-height:1.35;}
-  .resil-v110-chain-card b{color:#0f172a;}
-  .resil-v110-chain-card .sub{color:#64748b;margin-top:3px;}
-  #resiliencyResetPosition{white-space:nowrap;}
-  @media(max-width:900px){.resil-v110-actions,.resil-v110-chain-grid{grid-template-columns:1fr;} #resiliencyModal .card header{cursor:default;}}
-</style>
-</head><body>
+        const win = window.open('', '_blank');
+    win.document.write(`
+      <html>
+      <head>
+        <title>Simulate New RTS — ${rMiles}mi</title>
+        <style>
+          body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px;color:#111}
+          table{border-collapse:collapse;width:100%}
+          th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}
+          th{background:#f3f4f6;text-align:left}
+          td:nth-child(5){text-align:right}
+          h2{margin:0 0 8px}
+          .meta{color:#555;margin-bottom:10px}
+        </style>
+      </head>
+      <body>
         <h2>Simulate New RTS</h2>
         <div class="meta">Center: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)} • Radius: <b>${rMiles} mi</b> • Stores shown: <b>${inRadius.length}</b></div>
         <table>
           <thead><tr><th>Store</th><th>Name</th><th>Address</th><th>Coverage</th><th>Distance (mi)</th><th>AM</th><th>RM</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
-        <script>window.print()<\\/script>
-      
-
-
-<style>
-/* ===== Immediate Performance + Clarity Pass ===== */
-#opsDrawer.ops-drawer{width:min(620px,94vw) !important;max-width:94vw !important;}
-#opsDrawer .ops-tabs{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #e5e7eb;padding:8px 10px;gap:7px;overflow-x:auto;scrollbar-width:none;}
-#opsDrawer .ops-tabs::-webkit-scrollbar{display:none;}
-#opsDrawer .ops-tab{font-size:12px;padding:6px 10px;white-space:nowrap;}
-#opsDrawer .ops-body{overflow:auto;overscroll-behavior:contain;}
-#opsDrawer .ops-card{margin-bottom:10px;}
-#opsDrawer .ops-table.ops-tight-table{font-size:11.5px;line-height:1.25;}
-#opsDrawer .ops-table.ops-tight-table th,#opsDrawer .ops-table.ops-tight-table td{padding:5px 5px;}
-.ops-blended-kpis-compact{grid-template-columns:1fr 1fr !important;}
-.ops-blended-kpis-compact .ops-blended-kpi{padding:8px;}
-.ops-blended-kpis-compact .ops-blended-kpi .val{font-size:18px;}
-.compact-popup{max-width:520px;min-width:340px;font-size:12.5px;}
-.compact-popup .store-popup-title{font-size:16px;}
-.compact-popup .store-popup-header{gap:8px;}
-.compact-popup .store-popup-delta{font-size:11px;padding:4px 8px;}
-.popup-section{border:1px solid #dbe3ea;border-radius:12px;background:#f8fafc;margin-top:9px;overflow:hidden;}
-.popup-section summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:900;padding:8px 10px;background:#fff;}
-.popup-section summary::-webkit-details-marker{display:none;}
-.popup-section summary::after{content:'▾';color:#64748b;font-size:12px;}
-.popup-section:not([open]) summary::after{content:'▸';}
-.popup-section summary span{font-size:11px;color:#64748b;font-weight:800;}
-.popup-section-body{padding:8px 10px;display:grid;gap:5px;}
-.compact-popup-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
-.compact-owner-row{padding:6px 0;border-top:1px solid #e5e7eb;}
-.compact-owner-row:first-child{border-top:0;}
-.compact-note{font-size:12px;padding:8px;margin-top:9px;}
-@media(max-width:900px){#opsDrawer.ops-drawer{width:min(560px,96vw) !important;} .compact-popup-grid{grid-template-columns:1fr;} .compact-popup{min-width:300px;}}
-
-/* ===== v106 RTS Scorecards: clearer hub risk and action cards ===== */
-.op-scorecard-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
-.op-scorecard-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:9px;}
-.op-scorecard-card .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950;}
-.op-scorecard-card .val{font-size:17px;font-weight:950;color:#0f172a;line-height:1.15;margin-top:2px;}
-.op-scorecard-card .sub{font-size:11.5px;color:#64748b;line-height:1.3;margin-top:4px;}
-.op-scorecard-card.risk{border-color:#fecaca;background:#fff7f7;}
-.op-scorecard-card.watch{border-color:#fed7aa;background:#fff7ed;}
-.op-scorecard-card.stable{border-color:#bbf7d0;background:#f0fdf4;}
-.op-next-action-list{display:grid;gap:6px;margin-top:8px;}
-.op-next-action-item{border:1px solid #dbe3ea;border-radius:12px;background:#fff;padding:8px 10px;font-size:12.5px;line-height:1.35;}
-.op-next-action-item b{color:#0f172a;}
-.op-scorecard-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin-top:9px;font-size:12.5px;line-height:1.35;}
-@media(max-width:720px){.op-scorecard-grid{grid-template-columns:1fr;}}
-
-</style>
-
-</body></html>`);
+        <script>window.print()<\/script>
+      </body>
+      </html>`);
     win.document.close();
   };
 }
@@ -18590,32 +18523,41 @@ if (!window.__quickViewReliabilityPatchInstalled) {
     $('profileV116ClearMap').onclick = clearProfileMap;
   }
 
-  function ensureButton(){
+   function ensureButton(){
     const menu = document.querySelector('#analysisDrop .dropdown-menu');
-    if (!menu || $('profileV116Btn')) return;
-    const btn = document.createElement('button');
-    btn.id = 'profileV116Btn';
-    btn.className = 'btn';
-    btn.type = 'button';
-    btn.style.cssText = 'display:block;width:100%;margin:4px 0;text-align:left';
-        btn.textContent = 'RTS Operational Profiles';
-    btn.title = 'Open RTS operational profile cards';
-    btn.onclick = () => { openProfiles(); menu.style.display = 'none'; };
+    if (!menu) return;
 
-    const anchor = $('suggestRtsBtn');
-    if (anchor && anchor.parentElement === menu) {
-      anchor.insertAdjacentElement('afterend', btn);
+    let btn = $('profileV116Btn');
 
-      if (!document.getElementById('profileV116Label')) {
-        const label = document.createElement('div');
-        label.id = 'profileV116Label';
-        label.className = 'analysis-menu-label';
-        label.textContent = 'Step 4 — Review RTS territory health';
-        btn.insertAdjacentElement('beforebegin', label);
+    if (!btn){
+      btn = document.createElement('button');
+      btn.id = 'profileV116Btn';
+      btn.className = 'btn';
+      btn.type = 'button';
+      btn.style.cssText = 'display:block;width:100%;margin:4px 0;text-align:left';
+      btn.textContent = 'RTS Operational Profiles';
+      btn.title = 'Open RTS operational profile cards';
+
+      const anchor = $('suggestRtsBtn');
+      if (anchor && anchor.parentElement === menu) {
+        anchor.insertAdjacentElement('afterend', btn);
+
+        if (!document.getElementById('profileV116Label')) {
+          const label = document.createElement('div');
+          label.id = 'profileV116Label';
+          label.className = 'analysis-menu-label';
+          label.textContent = 'Step 4 — Review RTS territory health';
+          btn.insertAdjacentElement('beforebegin', label);
+        }
+      } else {
+        menu.appendChild(btn);
       }
-    } else {
-      menu.appendChild(btn);
     }
+
+    btn.onclick = () => {
+      openProfiles();
+      menu.style.display = 'none';
+    };
   }
 
   function computeProfiles(){
