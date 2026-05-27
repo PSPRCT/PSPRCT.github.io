@@ -4286,7 +4286,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 <button id="suggestRtsBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Model New RTS Placement</button>
 
 <div class="analysis-menu-label">Advanced / Admin Tools</div>
-<button id="profileV116Btn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left" title="Open RTS operational profile cards">RTS Territory Profiles</button>
+<button id="profileV116Btn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left" title="Open RTS Territory Profiles">RTS Territory Profiles</button>
 <button id="resiliencyBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left" title="Advanced planning: simulate RTS outage and backup coverage">Advanced: RTS Resiliency Simulator</button>
 <div style="font-size:11px;color:#64748b;line-height:1.35;margin:2px 0 8px 0;">
   Advanced planning tool for outage/backup modeling. Most managers can skip this.
@@ -18462,7 +18462,7 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
 </script>
 
 
-<!-- ===== v116 RTS Operational Profile Cards (additive, no coverage logic changes) ===== -->
+<!-- ===== v116 RTS Territory Profile Cards (additive, no coverage logic changes) ===== -->
 <style>
   .profile-v116-note{border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;padding:9px 10px;margin:8px 0 10px;font-size:12.5px;line-height:1.35;}
   .profile-v116-tools{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px;align-items:center;}
@@ -18531,7 +18531,7 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
     div.setAttribute('role','dialog');
     div.innerHTML = `
       <div class="card" style="max-width:1220px;width:96vw">
-        <header><h3>RTS Operational Profile Cards — ${PROFILE_VERSION}</h3><button id="profileV116Close" class="btn" type="button">Close</button></header>
+        <header><h3>RTS Territory Profiles — ${PROFILE_VERSION}</h3><button id="profileV116Close" class="btn" type="button">Close</button></header>
         <div class="body" style="grid-template-columns:1fr;">
           <div class="profile-v116-note"><b>Purpose:</b> Profiles each active RTS hub as an operational territory, combining current load, fringe distance, no-backup stores, dedicated overlay exposure, nearby gaps, and backup options. This does <b>not</b> change coverage math.</div>
           <div class="profile-v116-tools">
@@ -18574,7 +18574,7 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
       btn.type = 'button';
       btn.style.cssText = 'display:block;width:100%;margin:4px 0;text-align:left';
       btn.textContent = 'RTS Territory Profiles';
-      btn.title = 'Open RTS operational profile cards';
+      btn.title = 'Open RTS territory profile cards';
 
       const anchor = $('suggestRtsBtn');
       if (anchor && anchor.parentElement === menu) {
