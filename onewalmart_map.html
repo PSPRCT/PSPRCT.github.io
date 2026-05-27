@@ -4999,7 +4999,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
         </div>
 
         <div>
-          <b>Guardrail:</b> Existing confirmed Premium and Acosta hubs are counted as already active before proposed placements are added.
+          <b>Guardrail:</b> Existing active RTS hubs are counted first. Proposed placements are layered on only for planning review.
         </div>
       </div>
       <div id="gapSummaryResults" style="max-height:65vh;overflow:auto"></div>
@@ -5196,7 +5196,7 @@ let managerCascadeCacheKey = '';
 let combinedRTS = [];
 
 // Compatibility aliases for existing map tools that still reference the old Premium/Acosta arrays.
-// For the post-5/31 map, all active RTS hubs live in premiumConfirmed; Acosta is intentionally empty.
+// Compatibility note: all active One Walmart RTS hubs live in premiumConfirmed for legacy function support.
 let premiumConfirmed = [];
 let premiumPending   = [];
 let acostaHubs       = [];
