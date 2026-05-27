@@ -17175,7 +17175,7 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
     if (!rt?.map || !rt?.L) return;
     clearDependencyHeatmap(false);
     const rows = dependencyRows(rt).filter(r => r.singlePoint || r.uncovered);
-    if (!rows.length){ alert('No single-point or uncovered dependency stores found for the current scope.'); return; }
+    if (!rows.length){ showMapToast('No single-point or uncovered dependency stores found for the current scope.'); return; }
     dependencyOn = true;
     const points = rows.map(r => [num(r.store.lat), num(r.store.lng), r.uncovered ? 1.0 : (r.fringe ? .85 : .55)]);
     if (rt.L.heatLayer){
@@ -17720,7 +17720,7 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
     const rt = runtime();
     if (!rt) return;
     const h = selectedHub(rt);
-    if (!h) return alert('No active RTS hub found for resiliency overlay.');
+    if (!h){ showMapToast('No active RTS hub found for resiliency overlay.'); return; }
     const rows = scenarioRows(rt, h);
     drawRows(rows, 'Selected Outage Overlay', nameHub(h) + ' outage: ' + rows.length + ' affected stores. Red stores have no active backup RTS inside 75 miles.');
     injectSummary(rows, nameHub(h));
@@ -17729,7 +17729,7 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
     const rt = runtime();
     if (!rt) return;
     const best = topRiskHub(rt);
-    if (!best) return alert('No active RTS hub found.');
+    if (!best){ showMapToast('No active RTS hub found.'); return; }
     const sel = $('resiliencyHubSelect');
     if (sel) sel.value = best.hub.id;
     drawRows(best.rows, 'Top Risk Outage Overlay', nameHub(best.hub) + ' is the highest current single-point outage scenario in this scope.');
@@ -17759,7 +17759,7 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
   }
   function csvCell(v){ return '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"'; }
   function exportOverlay(){
-    if (!overlayRows.length) return alert('No resiliency map overlay is active.');
+    if (!overlayRows.length){ showMapToast('No resiliency map overlay is active.'); return; }
     const headers = ['Store','Store Name','Address','City','State','Overlay Status','Outage RTS','Outage Miles','Backup RTS','Backup Miles','Backup Count','Regional Manager','Area Manager'];
     const lines = [headers.map(csvCell).join(',')].concat(overlayRows.map(r => {
       const s = r.store;
@@ -17924,7 +17924,7 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
   function tierLabel(t){ return t === 'critical' ? 'Critical' : t === 'high' ? 'High' : 'Watch'; }
   function renderQueue(){
     const box = $('resiliencyResults');
-    if (!box) return alert('Open the RTS Resiliency Simulator first.');
+    if (!box){ showMapToast('Open the RTS Resiliency Simulator first.'); return; }
     priorityRows = buildQueue(25);
     const critical = priorityRows.filter(r => r.tier === 'critical').length;
     const high = priorityRows.filter(r => r.tier === 'high').length;
