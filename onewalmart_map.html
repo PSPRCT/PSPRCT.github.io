@@ -4285,6 +4285,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 <div class="analysis-menu-label">Step 4 — Review RTS territory health</div>
 <button id="profileV116Btn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left" title="Open RTS operational profile cards">RTS Operational Profiles</button>
+<button id="resiliencyBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left" title="Open RTS outage and backup coverage simulator">RTS Resiliency Simulator</button>
 
 <div class="analysis-menu-label">Help and workflow</div>
 <button id="analysisHelpShortcut" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left">Help / Workflow Guide</button>
@@ -16561,11 +16562,43 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   }
   function scoreClass(score){ return score >= 80 ? 'critical' : score >= 55 ? 'elevated' : score >= 25 ? 'watch' : 'contained'; }
 
-    function ensureButton(){
-  }
+       function ensureButton(){
+      const menu = document.querySelector('#analysisDrop .dropdown-menu');
+      if (!menu) return;
+
+      let btn = $('resiliencyBtn');
+
+      if (!btn){
+        btn = document.createElement('button');
+        btn.id = 'resiliencyBtn';
+        btn.className = 'btn';
+        btn.type = 'button';
+        btn.style.cssText = 'display:block;width:100%;margin:4px 0;text-align:left';
+        btn.textContent = 'RTS Resiliency Simulator';
+        btn.title = 'Open RTS outage and backup coverage simulator';
+
+        const anchor = $('profileV116Btn') || $('suggestRtsBtn');
+        if (anchor && anchor.parentElement === menu) {
+          anchor.insertAdjacentElement('afterend', btn);
+        } else {
+          menu.appendChild(btn);
+        }
+      }
+
+      btn.onclick = () => {
+        populateHubSelect();
+        showModal();
+        setTimeout(() => {
+          try { document.querySelector('#resiliencyModal .resil-toolbar')?.scrollIntoView({block:'nearest'}); } catch(e) {}
+        }, 50);
+        menu.style.display = 'none';
+      };
+    }
 
   function showModal(){ $('resiliencyModal')?.classList.add('show'); }
-  function hideModal(){ $('resiliencyModal')?.classList.remove('show'); }
+    function hideModal(){ $('resiliencyModal')?.classList.remove('show'); }
+
+  $('resiliencyClose')?.addEventListener('click', hideModal);
 
   function populateHubSelect(){
     const rt = runtime();
