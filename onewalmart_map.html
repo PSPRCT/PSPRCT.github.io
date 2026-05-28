@@ -4290,14 +4290,14 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 <div style="font-size:11px;color:#94a3b8;line-height:1.35;margin:-2px 0 8px 0;">
   Used mainly for RTS placement analysis and future-state planning.
 </div>
-<button id="suggestRtsBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left;opacity:.88;font-size:12px;">Model New RTS Placement</button>
+<button id="suggestRtsBtn" data-tooltype="planning" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left;opacity:.88;font-size:12px;">Model New RTS Placement</button>
 
 <div class="analysis-menu-label" style="color:#64748b;margin-top:12px;padding-top:8px;border-top:1px solid rgba(148,163,184,.22);">Advanced / Admin Tools</div>
 <div style="font-size:11px;color:#94a3b8;line-height:1.35;margin:-2px 0 8px 0;">
   Detailed RTS territory and resiliency tools. Most managers can skip this section.
 </div>
-<button id="profileV116Btn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left;opacity:.88;font-size:12px;" title="Open RTS Territory Profiles">RTS Territory Profiles</button>
-<button id="resiliencyBtn" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left;opacity:.82;font-size:12px;" title="Advanced planning: simulate RTS outage and backup coverage">Advanced: RTS Resiliency Simulator</button>
+<button id="profileV116Btn" data-tooltype="advanced" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left;opacity:.88;font-size:12px;" title="Open RTS Territory Profiles">RTS Territory Profiles</button>
+<button id="resiliencyBtn" data-tooltype="advanced" class="btn" type="button" style="display:block;width:100%;margin:4px 0;text-align:left;opacity:.82;font-size:12px;" title="Advanced planning: simulate RTS outage and backup coverage">Advanced: RTS Resiliency Simulator</button>
 <div style="font-size:11px;color:#64748b;line-height:1.35;margin:2px 0 8px 0;">
   Advanced planning tool for outage/backup modeling. Most managers can skip this.
 </div>
@@ -16328,6 +16328,31 @@ if (!window.__quickViewReliabilityPatchInstalled) {
   #analysisDrop:not(.analysis-open) .dropdown-menu{
     display:none !important;
   }
+
+  button[data-tooltype="planning"]::after{
+content:"PLANNING";
+font-size:9px;
+font-weight:700;
+letter-spacing:.08em;
+margin-left:8px;
+padding:2px 5px;
+border-radius:999px;
+background:#e0f2fe;
+color:#0369a1;
+vertical-align:middle;
+}
+button[data-tooltype="advanced"]::after{
+content:"ADVANCED";
+font-size:9px;
+font-weight:700;
+letter-spacing:.08em;
+margin-left:8px;
+padding:2px 5px;
+border-radius:999px;
+background:#f1f5f9;
+color:#475569;
+vertical-align:middle;
+}
 
   #analysisDrop.analysis-open .dropdown-menu{
     display:grid !important;
