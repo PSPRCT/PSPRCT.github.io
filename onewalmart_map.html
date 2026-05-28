@@ -4340,7 +4340,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 <div class="summary" id="summary">
 <span class="chip"><span class="dot" style="background:var(--pa)"></span>RTS Coverage: <b id="k_pa">0</b></span>
 <span class="chip"><span class="dot" style="background:var(--p)"></span>Covered Stores: <b id="k_p">0</b></span>
-<span class="chip"><span class="dot" style="background:var(--a)"></span>Reference Coverage: <b id="k_a">0</b></span>
+<span class="chip"><span class="dot" style="background:var(--a)"></span>Reference RTS: <b id="k_a">0</b></span>
 <span class="chip"><span class="dot" style="background:var(--u)"></span>Current Gap / Uncovered: <b id="k_u">0</b></span>
 <span class="chip">Total: <b id="k_total">0</b></span>
 <span class="chip">RTS Hubs — <b id="k_confirmed">0</b> active / <b id="k_pending">0</b> future reference only</span>
@@ -5320,7 +5320,7 @@ function exportHubsJson(){
   function coverageDisplayLabel(v){
   if (v === 'Premium Only') return 'One Walmart Covered';
   if (v === 'Premium + Acosta') return 'One Walmart + Legacy Covered';
-  if (v === 'Acosta Only') return 'Legacy Covered';
+  if (v === 'Acosta Only') return 'Reference RTS';
   if (v === 'Uncovered') return 'Current Gap / Uncovered';
   return v || '';
 }
