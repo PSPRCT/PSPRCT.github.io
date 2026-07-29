@@ -19880,5 +19880,99 @@ body.audience-field #opsDrawer .ops-tab[data-pane="territory"]{display:none!impo
   else bootTerritory();
 })();
 </script>
+
+
+<!-- ===== FIXED-15: Ops tab reconciliation + Current vs Proposed Plan Comparison ===== -->
+<style id="phase15Styles">
+#opsPanePlancompare{display:none;padding-top:14px!important}
+#opsPanePlancompare.active,#opsPanePlancompare.show{display:block!important}
+.phase15-tab .phase15-dot{width:7px;height:7px;border-radius:50%;background:#7c3aed;display:inline-block;margin-right:5px}
+.phase15-card{border:1px solid #dbe3ea;border-radius:14px;background:#fff;padding:12px}
+.phase15-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end}
+.phase15-field{display:grid;gap:4px}.phase15-field label{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#64748b}.phase15-field select{width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:8px;background:#fff}
+.phase15-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}.phase15-metric{border:1px solid #dbe3ea;border-radius:12px;padding:10px;background:#f8fafc}.phase15-metric .k{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;font-weight:900}.phase15-metric .v{font-size:20px;font-weight:950;color:#0f172a;margin-top:3px}.phase15-metric .s{font-size:10px;color:#64748b;margin-top:2px}
+.phase15-actions{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}.phase15-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.phase15-panel{border:1px solid #dbe3ea;border-radius:12px;padding:10px;background:#fff}.phase15-panel h4{margin:0 0 8px;font-size:12px}.phase15-list{display:grid;gap:6px}.phase15-row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid #eef2f7;font-size:11px}.phase15-row:first-child{border-top:0}.phase15-row b{text-align:right}.phase15-empty{border:1px dashed #cbd5e1;border-radius:12px;background:#f8fafc;padding:14px;color:#475569;line-height:1.45}.phase15-table{width:100%;border-collapse:collapse;font-size:10.5px}.phase15-table th,.phase15-table td{padding:7px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top}.phase15-table th{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#64748b}.phase15-badge{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:900}.phase15-badge.a{background:#dbeafe;color:#1d4ed8}.phase15-badge.b{background:#f3e8ff;color:#7e22ce}.phase15-badge.shared{background:#dcfce7;color:#166534}
+body.audience-field #opsDrawer .ops-tab[data-pane="plancompare"]{display:none!important}
+@media(max-width:900px){.phase15-toolbar{grid-template-columns:1fr}.phase15-metrics{grid-template-columns:1fr 1fr}.phase15-grid{grid-template-columns:1fr}}
+</style>
+<script id="phase15Script">
+(function(){
+  'use strict';
+  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const runtime=()=>{try{return typeof window.__oneWalmartRuntime==='function'?(window.__oneWalmartRuntime()||{}):{}}catch{return {}}};
+  const PLAN_KEY='prt_saved_final_plans_v1';
+  let compareLayer=null;
+  const paneId={overview:'opsPaneOverview',blended:'opsPaneBlended',risk:'opsPaneRisk',workload:'opsPaneWorkload',actionplan:'opsPaneActionPlan',leadership:'opsPaneLeadership',datahealth:'opsPaneDatahealth',gapqueue:'opsPaneGapqueue',territory:'opsPaneTerritory',plancompare:'opsPanePlancompare'};
+
+  function normalizeOpsPane(tab){
+    const drawer=document.getElementById('opsDrawer'); if(!drawer||!tab)return;
+    const key=tab.dataset.pane, targetId=paneId[key]||('opsPane'+String(key||'').charAt(0).toUpperCase()+String(key||'').slice(1));
+    drawer.querySelectorAll('.ops-tab').forEach(t=>t.classList.toggle('active',t===tab));
+    drawer.querySelectorAll('.ops-pane').forEach(p=>{
+      const yes=p.id===targetId;
+      p.classList.toggle('active',yes);p.classList.toggle('show',yes);
+      p.style.display=yes?'block':'none';
+    });
+    if(key==='plancompare')renderPlanCompare();
+  }
+
+  function installUniversalTabFix(){
+    const drawer=document.getElementById('opsDrawer'),tabs=drawer?.querySelector('.ops-tabs');
+    if(!tabs||tabs.dataset.phase15Router==='1')return false;
+    tabs.dataset.phase15Router='1';
+    tabs.addEventListener('click',e=>{
+      const tab=e.target.closest('.ops-tab');if(!tab)return;
+      // Let each legacy/new tab run its own renderer first, then reconcile visibility.
+      setTimeout(()=>normalizeOpsPane(tab),0);
+    });
+    return true;
+  }
+
+  function plans(){try{return JSON.parse(localStorage.getItem(PLAN_KEY)||'[]')||[]}catch{return []}}
+  function planKey(r){return String(r?.metroKey||r?.key||r?.placementLabel||r?.recommendedHub||'')}
+  function center(r){const c=r?.center;if(c&&Number.isFinite(Number(c.lat))&&Number.isFinite(Number(c.lng)))return[Number(c.lat),Number(c.lng)];if(Array.isArray(c)&&c.length>=2)return[Number(c[0]),Number(c[1])];return null}
+  function ensureLayer(){const rt=runtime();if(!rt.map||!rt.L)return null;if(!compareLayer)compareLayer=rt.L.layerGroup().addTo(rt.map);return compareLayer}
+  function clearMap(){compareLayer?.clearLayers()}
+  function drawPlan(which){
+    const ps=plans(),id=document.getElementById(which==='a'?'phase15PlanA':'phase15PlanB')?.value,p=ps.find(x=>String(x.id)===String(id)),rt=runtime(),ly=ensureLayer();if(!p||!rt.map||!rt.L||!ly)return;
+    ly.clearLayers();const bounds=[];const color=which==='a'?'#2563eb':'#7c3aed';
+    (p.rows||[]).forEach((r,i)=>{const c=center(r);if(!c)return;bounds.push(c);rt.L.circle(c,{radius:75*1609.344,color,weight:1.2,fillColor:color,fillOpacity:.025,dashArray:'5 5'}).addTo(ly);rt.L.circleMarker(c,{radius:7,color:'#fff',weight:2,fillColor:color,fillOpacity:1}).bindTooltip(`${which.toUpperCase()} · ${r.placementLabel||r.recommendedHub||'Placement'} · +${r.estimatedNewStores||0}`).addTo(ly)});
+    if(bounds.length)rt.map.fitBounds(bounds,{padding:[35,35],maxZoom:6});document.getElementById('opsCloseBtn')?.click();setTimeout(()=>rt.map.invalidateSize?.(),120)
+  }
+  function drawDifferences(){
+    const ps=plans(),aid=document.getElementById('phase15PlanA')?.value,bid=document.getElementById('phase15PlanB')?.value,a=ps.find(x=>String(x.id)===String(aid)),b=ps.find(x=>String(x.id)===String(bid)),rt=runtime(),ly=ensureLayer();if(!a||!b||!rt.map||!rt.L||!ly)return;
+    ly.clearLayers();const ak=new Set((a.rows||[]).map(planKey)),bk=new Set((b.rows||[]).map(planKey)),bounds=[];
+    const add=(r,color,label)=>{const c=center(r);if(!c)return;bounds.push(c);rt.L.circleMarker(c,{radius:8,color:'#fff',weight:2,fillColor:color,fillOpacity:1}).bindTooltip(`${label} · ${r.placementLabel||r.recommendedHub||'Placement'} · +${r.estimatedNewStores||0}`).addTo(ly)};
+    (a.rows||[]).filter(r=>!bk.has(planKey(r))).forEach(r=>add(r,'#2563eb','Only in A'));
+    (b.rows||[]).filter(r=>!ak.has(planKey(r))).forEach(r=>add(r,'#7c3aed','Only in B'));
+    (a.rows||[]).filter(r=>bk.has(planKey(r))).forEach(r=>add(r,'#22c55e','Shared'));
+    if(bounds.length)rt.map.fitBounds(bounds,{padding:[35,35],maxZoom:6});document.getElementById('opsCloseBtn')?.click();setTimeout(()=>rt.map.invalidateSize?.(),120)
+  }
+  function renderPlanCompare(){
+    const box=document.getElementById('phase15Content');if(!box)return;const ps=plans();
+    if(!ps.length){box.innerHTML='<div class="phase15-empty"><b>No saved plan snapshots found.</b><br>Generate a proposed RTS placement plan and use <b>Save Plan Snapshot</b>, then return here to compare current and proposed options.</div>';return}
+    const sa=document.getElementById('phase15PlanA'),sb=document.getElementById('phase15PlanB');
+    const prevA=sa?.value,prevB=sb?.value,opts=ps.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+    if(sa){sa.innerHTML=opts;sa.value=prevA&&ps.some(p=>String(p.id)===prevA)?prevA:String(ps[Math.max(0,ps.length-2)].id)}
+    if(sb){sb.innerHTML=opts;sb.value=prevB&&ps.some(p=>String(p.id)===prevB)?prevB:String(ps[ps.length-1].id)}
+    const a=ps.find(p=>String(p.id)===String(sa?.value)),b=ps.find(p=>String(p.id)===String(sb?.value));if(!a||!b)return;
+    const ak=new Set((a.rows||[]).map(planKey)),bk=new Set((b.rows||[]).map(planKey)),onlyA=(a.rows||[]).filter(r=>!bk.has(planKey(r))),onlyB=(b.rows||[]).filter(r=>!ak.has(planKey(r))),shared=(a.rows||[]).filter(r=>bk.has(planKey(r)));
+    const rt=runtime(),all=Array.isArray(rt.allStores)?rt.allStores:[],currentCovered=all.filter(s=>String(s?.coverageType||'').toLowerCase()!=='uncovered').length,currentPct=all.length?currentCovered*100/all.length:0;
+    box.innerHTML=`<div class="phase15-metrics"><div class="phase15-metric"><div class="k">Current coverage</div><div class="v">${currentPct.toFixed(1)}%</div><div class="s">${currentCovered.toLocaleString()} of ${all.length.toLocaleString()} stores</div></div><div class="phase15-metric"><div class="k">Plan A projected</div><div class="v">${Number(a.impact?.projectedPct||0).toFixed(1)}%</div><div class="s">${esc(a.name)}</div></div><div class="phase15-metric"><div class="k">Plan B projected</div><div class="v">${Number(b.impact?.projectedPct||0).toFixed(1)}%</div><div class="s">${esc(b.name)}</div></div><div class="phase15-metric"><div class="k">Placement differences</div><div class="v">${onlyA.length+onlyB.length}</div><div class="s">${shared.length} shared placements</div></div></div><div class="phase15-actions"><button class="btn" data-p15="mapA" type="button">Map Plan A</button><button class="btn" data-p15="mapB" type="button">Map Plan B</button><button class="btn" data-p15="diff" type="button">Map Differences</button><button class="btn" data-p15="clear" type="button">Clear Comparison Map</button></div><div class="phase15-grid"><div class="phase15-panel"><h4>Plan summary</h4><div class="phase15-list"><div class="phase15-row"><span>Plan A placements</span><b>${(a.rows||[]).length}</b></div><div class="phase15-row"><span>Plan B placements</span><b>${(b.rows||[]).length}</b></div><div class="phase15-row"><span>Only in A</span><b>${onlyA.length}</b></div><div class="phase15-row"><span>Only in B</span><b>${onlyB.length}</b></div><div class="phase15-row"><span>Shared</span><b>${shared.length}</b></div></div></div><div class="phase15-panel"><h4>Coverage lift</h4><div class="phase15-list"><div class="phase15-row"><span>Plan A projected net-new</span><b>${Number(a.impact?.projectedNewStores||0).toLocaleString()}</b></div><div class="phase15-row"><span>Plan B projected net-new</span><b>${Number(b.impact?.projectedNewStores||0).toLocaleString()}</b></div><div class="phase15-row"><span>A lift vs current</span><b>${(Number(a.impact?.projectedPct||0)-currentPct).toFixed(1)} pts</b></div><div class="phase15-row"><span>B lift vs current</span><b>${(Number(b.impact?.projectedPct||0)-currentPct).toFixed(1)} pts</b></div></div></div></div><div class="phase15-panel" style="margin-top:10px"><h4>Placement differences</h4><div style="overflow:auto"><table class="phase15-table"><thead><tr><th>Bucket</th><th>Placement</th><th>Recommended hub</th><th>Net new</th><th>Projected %</th></tr></thead><tbody>${onlyA.map(r=>`<tr><td><span class="phase15-badge a">Only A</span></td><td>${esc(r.placementLabel||'')}</td><td>${esc(r.recommendedHub||'')}</td><td>${Number(r.estimatedNewStores||0)}</td><td>${Number(r.projectedCoveragePct||0).toFixed(1)}%</td></tr>`).join('')}${onlyB.map(r=>`<tr><td><span class="phase15-badge b">Only B</span></td><td>${esc(r.placementLabel||'')}</td><td>${esc(r.recommendedHub||'')}</td><td>${Number(r.estimatedNewStores||0)}</td><td>${Number(r.projectedCoveragePct||0).toFixed(1)}%</td></tr>`).join('')||'<tr><td colspan="5">No placement differences between these snapshots.</td></tr>'}</tbody></table></div></div>`
+  }
+  function installPlanCompare(){
+    const drawer=document.getElementById('opsDrawer'),tabs=drawer?.querySelector('.ops-tabs'),body=drawer?.querySelector('.ops-body');if(!drawer||!tabs||!body)return false;
+    if(!document.getElementById('opsPanePlancompare')){
+      tabs.insertAdjacentHTML('beforeend','<button class="ops-tab phase15-tab" data-pane="plancompare" type="button"><span class="phase15-dot"></span>Plan Compare</button>');
+      body.insertAdjacentHTML('beforeend','<div class="ops-pane" id="opsPanePlancompare"><div class="phase15-card"><div class="ops-section-title"><span>Current vs Proposed Plans</span><span class="ops-sub">saved snapshot comparison</span></div><div class="phase15-toolbar"><div class="phase15-field"><label for="phase15PlanA">Plan A</label><select id="phase15PlanA"></select></div><div class="phase15-field"><label for="phase15PlanB">Plan B</label><select id="phase15PlanB"></select></div><button id="phase15Refresh" class="btn" type="button">Refresh Plans</button></div><div id="phase15Content" style="margin-top:10px"></div></div></div>');
+      document.getElementById('phase15PlanA')?.addEventListener('change',renderPlanCompare);document.getElementById('phase15PlanB')?.addEventListener('change',renderPlanCompare);document.getElementById('phase15Refresh')?.addEventListener('click',renderPlanCompare);
+      document.getElementById('opsPanePlancompare')?.addEventListener('click',e=>{const a=e.target.closest('[data-p15]')?.dataset.p15;if(a==='mapA')drawPlan('a');else if(a==='mapB')drawPlan('b');else if(a==='diff')drawDifferences();else if(a==='clear')clearMap()});
+    }
+    return true;
+  }
+  function boot(){let n=0;const run=()=>{n++;const a=installUniversalTabFix(),b=installPlanCompare();if(a&&b)return true;return false};if(run())return;const t=setInterval(()=>{if(run()||n>160)clearInterval(t)},250);const mo=new MutationObserver(()=>{if(run())mo.disconnect()});mo.observe(document.documentElement,{childList:true,subtree:true});setTimeout(()=>mo.disconnect(),45000)}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+</script>
 </body>
 </html>
