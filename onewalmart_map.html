@@ -12942,24 +12942,91 @@ function refreshSandbox(){
   // sandbox follows Gap Finder's "Use current filters" so both always match
   const useFilt = !!id('gapUseFilters')?.checked;
   const inRadius = storesWithinUniverse([c.lat, c.lng], rMiles, useFilt);
-const uncoveredList = inRadius.filter(s => (s.coverageType||'') === 'Uncovered');
 
-// Net-new impact = stores currently uncovered that would become covered
-// if an active RTS were placed at this simulated location.
-const netNewCovered = uncoveredList.length;
-const currentCoveredTotal = allStores.filter(s => (s.coverageType||'') !== 'Uncovered').length;
-const projectedCoveredTotal = currentCoveredTotal + netNewCovered;
-const projectedCoveragePct = allStores.length
-  ? Math.round(projectedCoveredTotal * 1000 / allStores.length) / 10
-  : 0;
+  const operationalRadius = 75;
+  const activeNetworkHubs = [...(premiumConfirmed || []), ...(acostaHubs || [])]
+    .filter(h => h && Array.isArray(h.coords) && Number.isFinite(Number(h.coords[0])) && Number.isFinite(Number(h.coords[1])) && h.status !== 'pending');
+
+  const hubLabel = (h) => String(h?.name || h?.rtsName || h?.label || h?.city || h?.id || 'Active RTS');
+  const networkRows = inRadius.map(s => {
+    const simMiles = distMiles(c.lat, c.lng, Number(s.lat), Number(s.lng));
+    const ranked = activeNetworkHubs.map(h => ({
+      hub: h,
+      miles: distMiles(Number(s.lat), Number(s.lng), Number(h.coords[0]), Number(h.coords[1]))
+    })).sort((a,b) => a.miles - b.miles);
+    return {
+      store: s,
+      simMiles,
+      currentPrimary: ranked[0] || null,
+      currentBackup: ranked[1] || null
+    };
+  });
+
+  const netNewRows = networkRows.filter(r => (!r.currentPrimary || r.currentPrimary.miles > operationalRadius) && r.simMiles <= rMiles);
+  const sharedRows = networkRows.filter(r => r.currentPrimary && r.currentPrimary.miles <= operationalRadius && r.simMiles <= rMiles);
+  const closerRows = sharedRows.filter(r => r.simMiles < r.currentPrimary.miles);
+  const fringeImprovedRows = sharedRows.filter(r => r.currentPrimary.miles >= 60 && r.currentPrimary.miles <= operationalRadius && r.simMiles < r.currentPrimary.miles);
+  const singlePointStrengthenedRows = sharedRows.filter(r => (!r.currentBackup || r.currentBackup.miles > operationalRadius) && r.simMiles <= operationalRadius);
+  const redundantRows = sharedRows.filter(r => r.currentBackup && r.currentBackup.miles <= operationalRadius);
+
+  const reliefCounts = new Map();
+  closerRows.forEach(r => {
+    const key = hubLabel(r.currentPrimary?.hub);
+    reliefCounts.set(key, (reliefCounts.get(key) || 0) + 1);
+  });
+  const reliefLeaders = [...reliefCounts.entries()].sort((a,b) => b[1] - a[1]).slice(0, 5);
+
+  const netNewCovered = netNewRows.length;
+  const currentCoveredTotal = allStores.filter(s => (s.coverageType||'') !== 'Uncovered').length;
+  const projectedCoveredTotal = currentCoveredTotal + netNewCovered;
+  const projectedCoveragePct = allStores.length
+    ? Math.round(projectedCoveredTotal * 1000 / allStores.length) / 10
+    : 0;
+
+  const usefulImpact = netNewCovered + fringeImprovedRows.length + singlePointStrengthenedRows.length;
+  const overlapRatio = inRadius.length ? redundantRows.length / inRadius.length : 0;
+  let placementRating = 'Useful coverage support';
+  let placementReason = 'Adds a mix of new coverage, backup depth, or workload relief.';
+  if (netNewCovered >= 25 && overlapRatio < 0.55) {
+    placementRating = 'Strong placement';
+    placementReason = 'Creates substantial net-new coverage without excessive overlap.';
+  } else if (netNewCovered < 8 && closerRows.length >= 15) {
+    placementRating = 'Mostly workload relief';
+    placementReason = 'Adds limited new coverage but could materially rebalance nearby RTS workload.';
+  } else if (usefulImpact < 10 || overlapRatio >= 0.75) {
+    placementRating = 'High overlap / limited benefit';
+    placementReason = 'Most stores are already well covered and the location adds limited network improvement.';
+  }
 
   const totals = {'Premium + Acosta':0,'Premium Only':0,'Acosta Only':0,'Uncovered':0};
   inRadius.forEach(s=>{ totals[s.coverageType] = (totals[s.coverageType]||0)+1; });
 
+  const reliefHtml = reliefLeaders.length
+    ? reliefLeaders.map(([name,count]) => `<div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0;border-top:1px solid var(--border)"><span>${htmlEscape(name)}</span><b>${count} store${count===1?'':'s'}</b></div>`).join('')
+    : '<div style="color:var(--muted)">No current RTS would become farther than the simulated location for stores in this radius.</div>';
+
   id('sandboxStats').innerHTML = `
- <div><b>Projected net-new coverage:</b> ${netNewCovered} stores</div>
-<div><b>Projected national coverage:</b> ${projectedCoveredTotal} / ${allStores.length} stores (${projectedCoveragePct}%)</div>
-<div style="color:var(--muted);margin-top:4px">${uncoveredList.length} currently uncovered stores within <b>${rMiles} mi</b> of this simulated RTS location.</div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:9px 10px;border:1px solid var(--border);border-radius:10px;background:var(--panel2,#f8fafc)">
+      <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:900">Placement assessment</div><div style="font-size:18px;font-weight:950">${placementRating}</div><div style="color:var(--muted);margin-top:2px">${placementReason}</div></div>
+      <span class="sp-chip"><b>${rMiles} mi simulation</b></span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:8px">
+      <div style="border:1px solid var(--border);border-radius:10px;padding:8px"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:900">Net-new coverage</div><div style="font-size:20px;font-weight:950">${netNewCovered}</div><div style="color:var(--muted)">currently uncovered stores</div></div>
+      <div style="border:1px solid var(--border);border-radius:10px;padding:8px"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:900">Backup coverage gained</div><div style="font-size:20px;font-weight:950">${sharedRows.length}</div><div style="color:var(--muted)">existing covered stores gain another option</div></div>
+      <div style="border:1px solid var(--border);border-radius:10px;padding:8px"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:900">Primary relief potential</div><div style="font-size:20px;font-weight:950">${closerRows.length}</div><div style="color:var(--muted)">simulated RTS becomes closer</div></div>
+      <div style="border:1px solid var(--border);border-radius:10px;padding:8px"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:900">Fringe stores improved</div><div style="font-size:20px;font-weight:950">${fringeImprovedRows.length}</div><div style="color:var(--muted)">current nearest RTS is 60–75 miles away</div></div>
+      <div style="border:1px solid var(--border);border-radius:10px;padding:8px"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:900">Single-point strengthened</div><div style="font-size:20px;font-weight:950">${singlePointStrengthenedRows.length}</div><div style="color:var(--muted)">stores gain an in-radius backup</div></div>
+      <div style="border:1px solid var(--border);border-radius:10px;padding:8px"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:900">Redundant overlap</div><div style="font-size:20px;font-weight:950">${redundantRows.length}</div><div style="color:var(--muted)">already have two active RTS within 75 miles</div></div>
+    </div>
+
+    <div style="margin-top:8px;padding:8px 10px;border:1px solid var(--border);border-radius:10px">
+      <div style="font-weight:900;margin-bottom:4px">Current RTS potentially relieved</div>
+      ${reliefHtml}
+    </div>
+
+    <div style="margin-top:8px"><b>Projected national coverage:</b> ${projectedCoveredTotal} / ${allStores.length} stores (${projectedCoveragePct}%)</div>
+    <div style="color:var(--muted);margin-top:4px">Impact compares this simulated location against the current active RTS network using a 75-mile operating radius. The simulation circle remains set to <b>${rMiles} mi</b>.</div>
     <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
       <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium + Acosta']}"></span> Combined: <b>${totals['Premium + Acosta']||0}</b></span>
       <span class="sp-chip"><span class="dot" style="background:${COLORS['Premium Only']}"></span> Active RTS: <b>${totals['Premium Only']||0}</b></span>
