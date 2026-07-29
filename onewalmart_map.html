@@ -12018,6 +12018,47 @@ function openStorePopup(store) {
     return pad;
   };
 
+  const positionStoreForCentralPopup = (done) => {
+    const pad = getPopupSafePadding();
+    const size = map.getSize();
+    const safeLeft = pad.left;
+    const safeTop = pad.top;
+    const safeRight = Math.max(safeLeft + 120, size.x - pad.right);
+    const safeBottom = Math.max(safeTop + 120, size.y - pad.bottom);
+    const safeWidth = Math.max(120, safeRight - safeLeft);
+    const safeHeight = Math.max(120, safeBottom - safeTop);
+
+    // Keep the selected store in a popup-friendly anchor zone so the popup
+    // opens near the visual center of the safe map area on most screen sizes.
+    const desiredPoint = L.point(
+      Math.round(safeLeft + safeWidth * 0.42),
+      Math.round(safeTop + safeHeight * 0.68)
+    );
+
+    const currentPoint = map.latLngToContainerPoint(latlng);
+    const dx = Math.round(currentPoint.x - desiredPoint.x);
+    const dy = Math.round(currentPoint.y - desiredPoint.y);
+
+    if (Math.abs(dx) <= 12 && Math.abs(dy) <= 12) {
+      done();
+      return;
+    }
+
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      done();
+    };
+
+    map.once('moveend', finish);
+    map.panBy([dx, dy], {
+      animate: true,
+      duration: 0.25
+    });
+    setTimeout(finish, 380);
+  };
+
   // Close any currently open popup first.
   map.closePopup();
 
@@ -12085,7 +12126,7 @@ function openStorePopup(store) {
   const openOnce = () => {
     if (opened) return;
     opened = true;
-    openDirectPopup();
+    positionStoreForCentralPopup(openDirectPopup);
   };
 
   map.once('moveend', openOnce);
