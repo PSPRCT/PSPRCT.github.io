@@ -12720,6 +12720,7 @@ let sandboxOpen = false;
 let sandboxCircle = null;
 let sandboxMarker = null;
 let gapHighlightMarker = null;
+const sandboxImpactLayer = L.layerGroup().addTo(map);
 
 function closeSandbox(){
   sandboxOpen = false;
@@ -12739,6 +12740,7 @@ function clearSandboxPlacement(){
   if (sandboxCircle){ ringLayer.removeLayer(sandboxCircle); sandboxCircle = null; }
   if (sandboxMarker){ highlightLayer.removeLayer(sandboxMarker); sandboxMarker = null; }
   if (gapHighlightMarker){ map.removeLayer(gapHighlightMarker); gapHighlightMarker = null; }
+  sandboxImpactLayer.clearLayers();
   const stats=id('sandboxStats'); if(stats) stats.innerHTML='<span style="color:var(--muted)">Simulation cleared. Click the map to place a new location.</span>';
   showMapToast('Simulation cleared.');
 }
@@ -13131,6 +13133,18 @@ function refreshSandbox(){
       ${reliefHtml}
     </div>
 
+    <div style="margin-top:8px;padding:8px 10px;border:1px solid var(--border);border-radius:10px">
+      <div style="font-weight:900;margin-bottom:6px">Compare simulated placement to current network</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button id="sandboxShowNetNew" class="btn" type="button">Net-new (${netNewRows.length})</button>
+        <button id="sandboxShowBackup" class="btn" type="button">Backup gained (${sharedRows.length})</button>
+        <button id="sandboxShowRelief" class="btn" type="button">Primary relief (${closerRows.length})</button>
+        <button id="sandboxShowRedundant" class="btn" type="button">Redundant overlap (${redundantRows.length})</button>
+        <button id="sandboxClearImpact" class="btn" type="button">Clear highlights</button>
+      </div>
+      <div id="sandboxImpactDetails" style="margin-top:7px;color:var(--muted)">Choose a category to highlight those stores and compare the simulated RTS with their current RTS coverage.</div>
+    </div>
+
     <div style="margin-top:8px"><b>Projected national coverage:</b> ${projectedCoveredTotal} / ${allStores.length} stores (${projectedCoveragePct}%)</div>
     <div style="color:var(--muted);margin-top:4px">Impact compares this simulated location against the current active RTS network using a 75-mile operating radius. The simulation circle remains set to <b>${rMiles} mi</b>.</div>
     <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
@@ -13139,6 +13153,94 @@ function refreshSandbox(){
       <span class="sp-chip"><span class="dot" style="background:${COLORS['Acosta Only']}"></span> Legacy: <b>${totals['Acosta Only']||0}</b></span>
       <span class="sp-chip"><span class="dot" style="background:${COLORS['Uncovered']}"></span> Uncovered: <b>${totals['Uncovered']||0}</b></span>
     </div>`;
+
+
+  const impactDetails = id('sandboxImpactDetails');
+  const impactStoreLabel = (r) => `Store ${htmlEscape(r.store?.storeNumberStr || r.store?.storeNumber || '')} — ${htmlEscape(r.store?.city || '')}, ${htmlEscape(r.store?.state || '')}`;
+
+  function clearSandboxImpact(){
+    sandboxImpactLayer.clearLayers();
+    if (impactDetails) impactDetails.innerHTML = 'Highlights cleared. Choose another category to compare.';
+  }
+
+  function showSandboxImpact(rows, mode){
+    sandboxImpactLayer.clearLayers();
+    const bounds = [];
+    const simPoint = [c.lat, c.lng];
+    const palette = {
+      netNew: { color:'#dc2626', fill:'#fee2e2', label:'Net-new coverage' },
+      backup: { color:'#059669', fill:'#d1fae5', label:'Backup coverage gained' },
+      relief: { color:'#2563eb', fill:'#dbeafe', label:'Primary relief potential' },
+      redundant: { color:'#d97706', fill:'#fef3c7', label:'Redundant overlap' }
+    };
+    const cfg = palette[mode] || palette.netNew;
+
+    rows.forEach(r => {
+      const s = r.store;
+      if (!Number.isFinite(Number(s?.lat)) || !Number.isFinite(Number(s?.lng))) return;
+      const p = [Number(s.lat), Number(s.lng)];
+      bounds.push(p);
+      const marker = L.circleMarker(p, {
+        radius:8,
+        color:cfg.color,
+        weight:3,
+        fillColor:cfg.fill,
+        fillOpacity:.95
+      }).bindTooltip(`${impactStoreLabel(r)}<br>Simulated: ${r.simMiles.toFixed(1)} mi`, {sticky:true});
+      sandboxImpactLayer.addLayer(marker);
+
+      // Always show the proposed connection.
+      sandboxImpactLayer.addLayer(L.polyline([p, simPoint], {
+        color:'#2563eb', weight:2.5, opacity:.8, dashArray:'7 6', interactive:false
+      }));
+
+      // Comparison categories also show the current network relationship.
+      if (r.currentPrimary?.hub?.coords) {
+        const hp = [Number(r.currentPrimary.hub.coords[0]), Number(r.currentPrimary.hub.coords[1])];
+        bounds.push(hp);
+        sandboxImpactLayer.addLayer(L.polyline([p, hp], {
+          color:'#7c3aed', weight:2.5, opacity:.78, interactive:false
+        }));
+        sandboxImpactLayer.addLayer(L.circleMarker(hp, {
+          radius:6, color:'#7c3aed', weight:2, fillColor:'#fff', fillOpacity:1
+        }).bindTooltip(`Current primary: ${htmlEscape(hubLabel(r.currentPrimary.hub))} — ${r.currentPrimary.miles.toFixed(1)} mi`));
+      }
+      if (mode === 'redundant' && r.currentBackup?.hub?.coords) {
+        const bp = [Number(r.currentBackup.hub.coords[0]), Number(r.currentBackup.hub.coords[1])];
+        bounds.push(bp);
+        sandboxImpactLayer.addLayer(L.polyline([p, bp], {
+          color:'#64748b', weight:2, opacity:.68, dashArray:'3 5', interactive:false
+        }));
+        sandboxImpactLayer.addLayer(L.circleMarker(bp, {
+          radius:5, color:'#64748b', weight:2, fillColor:'#fff', fillOpacity:1
+        }).bindTooltip(`Current backup: ${htmlEscape(hubLabel(r.currentBackup.hub))} — ${r.currentBackup.miles.toFixed(1)} mi`));
+      }
+    });
+
+    if (sandboxMarker) bounds.push(simPoint);
+    if (bounds.length) {
+      try { map.fitBounds(L.latLngBounds(bounds), {padding:[45,45], maxZoom:9}); } catch(e) {}
+    }
+
+    if (impactDetails) {
+      if (!rows.length) {
+        impactDetails.innerHTML = `<b>${cfg.label}:</b> No stores are in this category for the current simulated location.`;
+      } else {
+        const list = rows.slice(0,20).map(r => {
+          const primary = r.currentPrimary ? `${htmlEscape(hubLabel(r.currentPrimary.hub))} (${r.currentPrimary.miles.toFixed(1)} mi)` : 'None within network';
+          const backup = r.currentBackup ? `${htmlEscape(hubLabel(r.currentBackup.hub))} (${r.currentBackup.miles.toFixed(1)} mi)` : 'None';
+          return `<div style="padding:5px 0;border-top:1px solid var(--border)"><b>${impactStoreLabel(r)}</b><br><span>Simulated ${r.simMiles.toFixed(1)} mi · Current primary ${primary}${mode==='redundant' ? ` · Current backup ${backup}` : ''}</span></div>`;
+        }).join('');
+        impactDetails.innerHTML = `<div><b>${cfg.label}: ${rows.length} store${rows.length===1?'':'s'}</b></div>${list}${rows.length>20?`<div style="padding-top:5px">Showing first 20 of ${rows.length}.</div>`:''}<div style="padding-top:6px"><span style="color:#2563eb;font-weight:800">Blue dashed</span> = simulated RTS · <span style="color:#7c3aed;font-weight:800">Purple solid</span> = current primary${mode==='redundant'?' · Gray dotted = current backup':''}</div>`;
+      }
+    }
+  }
+
+  id('sandboxShowNetNew')?.addEventListener('click', ()=>showSandboxImpact(netNewRows, 'netNew'));
+  id('sandboxShowBackup')?.addEventListener('click', ()=>showSandboxImpact(sharedRows, 'backup'));
+  id('sandboxShowRelief')?.addEventListener('click', ()=>showSandboxImpact(closerRows, 'relief'));
+  id('sandboxShowRedundant')?.addEventListener('click', ()=>showSandboxImpact(redundantRows, 'redundant'));
+  id('sandboxClearImpact')?.addEventListener('click', clearSandboxImpact);
 
   id('sandboxListBtn').onclick = ()=>{
     const rows = inRadius
