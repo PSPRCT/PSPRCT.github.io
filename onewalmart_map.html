@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<!-- One Walmart Coverage Map · FINAL-BASELINE-CORRECTED-3 · 2026-07-29 -->
+<!-- One Walmart Coverage Map · FINAL-BASELINE-CORRECTED-4 · 2026-07-29 -->
 <title>One Walmart RTS Coverage Command Center</title>
 <!-- v104 conservative cleanup: removed disabled Transition/Delta UI/marker engine and duplicate startup CSS; coverage logic unchanged. -->
 <!-- v105 Help + Leadership polish pass: refreshed help content and clarified leadership action path. Coverage logic, One Walmart alignment, Ops Intel calculations, and modal wiring preserved from v104. -->
@@ -10438,12 +10438,12 @@ function storePopupHTML(s){
         <div class="store-popup-delta simplified">${esc(viewLabel)}</div>
       </div>
       <div class="popup-action-bar" role="toolbar" aria-label="Store actions">
-        <button class="popup-action-btn primary" type="button" data-popup-action="copySummary" data-store-number="${escape(s.storeNumberStr || s.storeNumber || \'\')}">Copy Summary</button>
-        <button class="popup-action-btn" type="button" data-popup-action="copyLink" data-store-number="${escape(s.storeNumberStr || s.storeNumber || \'\')}">Copy Store Link</button>
-        <button class="popup-action-btn" type="button" data-popup-action="openMaps" data-store-number="${escape(s.storeNumberStr || s.storeNumber || \'\')}">Google Maps</button>
-        <button class="popup-action-btn" type="button" data-popup-action="showRoute" data-store-number="${escape(s.storeNumberStr || s.storeNumber || \'\')}">Show RTS Route</button>
-        <button class="popup-action-btn" type="button" data-popup-action="nearbyGaps" data-store-number="${escape(s.storeNumberStr || s.storeNumber || \'\')}">Nearby Gaps</button>
-        <button class="popup-action-btn" type="button" data-popup-action="addNote" data-store-number="${escape(s.storeNumberStr || s.storeNumber || \'\')}">Planning Note</button>
+        <button class="popup-action-btn primary" type="button" data-popup-action="copySummary" data-store-number="${escape(s.storeNumberStr || s.storeNumber || '')}">Copy Summary</button>
+        <button class="popup-action-btn" type="button" data-popup-action="copyLink" data-store-number="${escape(s.storeNumberStr || s.storeNumber || '')}">Copy Store Link</button>
+        <button class="popup-action-btn" type="button" data-popup-action="openMaps" data-store-number="${escape(s.storeNumberStr || s.storeNumber || '')}">Google Maps</button>
+        <button class="popup-action-btn" type="button" data-popup-action="showRoute" data-store-number="${escape(s.storeNumberStr || s.storeNumber || '')}">Show RTS Route</button>
+        <button class="popup-action-btn" type="button" data-popup-action="nearbyGaps" data-store-number="${escape(s.storeNumberStr || s.storeNumber || '')}">Nearby Gaps</button>
+        <button class="popup-action-btn" type="button" data-popup-action="addNote" data-store-number="${escape(s.storeNumberStr || s.storeNumber || '')}">Planning Note</button>
       </div>
       <div class="store-popup-scroll">
         <div class="op-summary-card coverage-glance-card">
