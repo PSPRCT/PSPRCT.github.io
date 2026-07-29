@@ -12101,7 +12101,9 @@ function openStorePopup(store) {
       closeButton: true,
       autoClose: true,
       closeOnClick: true,
-      keepInView: true,
+      // Center the popup when it first opens, but do not force the map
+      // back into position after the user starts dragging or zooming.
+      keepInView: false,
       offset: L.point(0, 8)
     })
       .setLatLng(latlng)
