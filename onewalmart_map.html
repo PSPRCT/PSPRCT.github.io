@@ -8163,38 +8163,6 @@ function printSidepanelList() {
 </style>
 
 
-<!-- FIXED-20 performance diagnostics -->
-<style>
-  #v20PerfBadge{
-    position:absolute;left:10px;top:10px;z-index:2100;display:none;
-    border:1px solid #cbd5e1;border-radius:10px;background:rgba(255,255,255,.94);
-    padding:7px 9px;font-size:11px;color:#334155;box-shadow:0 4px 14px rgba(15,23,42,.12);
-    pointer-events:none;
-  }
-  body.v20-show-performance #v20PerfBadge{display:block}
-</style>
-<div id="v20PerfBadge" aria-live="polite">Map ready</div>
-<script>
-(function(){
-  const started = performance.now();
-  const badge = document.getElementById('v20PerfBadge');
-  const update = () => {
-    if (!badge) return;
-    const markerCount =
-      (window.markerByStore?.size) ||
-      document.querySelectorAll('.leaflet-marker-icon,.leaflet-interactive').length;
-    badge.textContent = `Ready ${(performance.now()-started).toFixed(0)} ms · visible layers ${markerCount}`;
-  };
-  window.addEventListener('load',()=>setTimeout(update,250),{once:true});
-  document.addEventListener('keydown',e=>{
-    if(e.altKey && e.shiftKey && e.key.toLowerCase()==='p'){
-      document.body.classList.toggle('v20-show-performance');
-      update();
-    }
-  });
-})();
-</script>
-
 </body></html>`);
   w.document.close();
 }
@@ -20743,5 +20711,37 @@ body.audience-field #opsDrawer .ops-tab[data-pane="plancompare"]{display:none!im
 })();
 </script>
 
+
+<!-- FIXED-20 performance diagnostics -->
+<style>
+  #v20PerfBadge{
+    position:absolute;left:10px;top:10px;z-index:2100;display:none;
+    border:1px solid #cbd5e1;border-radius:10px;background:rgba(255,255,255,.94);
+    padding:7px 9px;font-size:11px;color:#334155;box-shadow:0 4px 14px rgba(15,23,42,.12);
+    pointer-events:none;
+  }
+  body.v20-show-performance #v20PerfBadge{display:block}
+</style>
+<div id="v20PerfBadge" aria-live="polite">Map ready</div>
+<script>
+(function(){
+  const started = performance.now();
+  const badge = document.getElementById('v20PerfBadge');
+  const update = () => {
+    if (!badge) return;
+    const markerCount =
+      (window.markerByStore?.size) ||
+      document.querySelectorAll('.leaflet-marker-icon,.leaflet-interactive').length;
+    badge.textContent = `Ready ${(performance.now()-started).toFixed(0)} ms · visible layers ${markerCount}`;
+  };
+  window.addEventListener('load',()=>setTimeout(update,250),{once:true});
+  document.addEventListener('keydown',e=>{
+    if(e.altKey && e.shiftKey && e.key.toLowerCase()==='p'){
+      document.body.classList.toggle('v20-show-performance');
+      update();
+    }
+  });
+})();
+</script>
 </body>
 </html>
