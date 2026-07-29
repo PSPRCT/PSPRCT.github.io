@@ -12765,12 +12765,34 @@ id('sandboxBtn').addEventListener('click', ()=>{
  This is a simulation only. Use Copy JSON, then update your source JSON file to make it permanent.
 </div>
 
-      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-        <input id="sandboxAddr" type="text" placeholder="e.g. 33.52,-86.80"
-          style="flex:1;min-width:260px;border:1px solid var(--border);border-radius:8px;padding:6px 8px"/>
-        <button id="sandboxGeocode" class="btn" type="button">Use coords</button>
+      <div style="margin-top:10px;border:1px solid var(--border);border-radius:10px;padding:10px;background:color-mix(in srgb,var(--panel) 94%,var(--blue) 6%)">
+        <div style="font-weight:900;margin-bottom:6px">Find a home address</div>
+        <div style="display:grid;grid-template-columns:minmax(220px,2fr) minmax(140px,1fr);gap:6px">
+          <input id="sandboxStreet" type="text" autocomplete="street-address" placeholder="Street address"
+            style="width:100%;min-width:0;border:1px solid var(--border);border-radius:8px;padding:7px 8px"/>
+          <input id="sandboxCity" type="text" autocomplete="address-level2" placeholder="City"
+            style="width:100%;min-width:0;border:1px solid var(--border);border-radius:8px;padding:7px 8px"/>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(120px,1fr) minmax(110px,1fr) auto;gap:6px;margin-top:6px;align-items:center">
+          <input id="sandboxState" type="text" autocomplete="address-level1" placeholder="State"
+            style="width:100%;min-width:0;border:1px solid var(--border);border-radius:8px;padding:7px 8px"/>
+          <input id="sandboxZip" type="text" inputmode="numeric" autocomplete="postal-code" placeholder="ZIP code"
+            style="width:100%;min-width:0;border:1px solid var(--border);border-radius:8px;padding:7px 8px"/>
+          <button id="sandboxFindAddress" class="btn" type="button">Find Address</button>
+        </div>
+        <div style="margin-top:6px;font-size:11px;color:var(--muted)">The address is sent only to the geocoding service to locate the simulation. It is not added to the share link or saved automatically.</div>
+        <div id="sandboxAddressMsg" role="status" aria-live="polite" style="margin-top:6px;font-size:12px;color:var(--muted)"></div>
       </div>
-      <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
+
+      <details style="margin-top:8px">
+        <summary style="cursor:pointer;font-weight:800">Advanced coordinates</summary>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+          <input id="sandboxAddr" type="text" placeholder="Latitude, longitude — e.g. 33.52,-86.80"
+            style="flex:1;min-width:260px;border:1px solid var(--border);border-radius:8px;padding:6px 8px"/>
+          <button id="sandboxGeocode" class="btn" type="button">Use coordinates</button>
+        </div>
+        <div id="sandboxGeoMsg" style="margin-top:4px;font-size:12px;color:var(--muted)"></div>
+      </details>
 
       <div style="margin-top:10px">
         <b>Radius:</b>
@@ -12814,17 +12836,101 @@ id('sandboxBtn').addEventListener('click', ()=>{
     refreshSandbox();
   });
 
+  const useSandboxLocation = (lat, lng) => {
+    placeSandbox([lat,lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+    map.setView([lat,lng], Math.max(map.getZoom(), 9), { animate:true });
+  };
+
   id('sandboxGeocode').onclick = ()=>{
     const s = id('sandboxAddr').value.trim();
     const out = id('sandboxGeoMsg');
     const m = s.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
     if (!m){ out.textContent='Enter coordinates like "33.52,-86.80".'; return; }
     const lat = parseFloat(m[1]), lng = parseFloat(m[2]);
-    if (lat<-90||lat>90||lng<-180||lng>180){ out.textContent='Out of range.'; return; }
-    out.textContent='';
-    placeSandbox([lat,lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
-    map.panInside([lat,lng], { paddingTopLeft:[20,20], paddingBottomRight:[20,20] });
+    if (lat<-90||lat>90||lng<-180||lng>180){ out.textContent='Coordinates are out of range.'; return; }
+    out.textContent='Coordinates located.';
+    useSandboxLocation(lat,lng);
   };
+
+  const findSandboxAddress = async ()=>{
+    const street = id('sandboxStreet')?.value.trim() || '';
+    const city = id('sandboxCity')?.value.trim() || '';
+    const state = id('sandboxState')?.value.trim() || '';
+    const postal = id('sandboxZip')?.value.trim() || '';
+    const msg = id('sandboxAddressMsg');
+    const btn = id('sandboxFindAddress');
+
+    if (!street || (!city && !postal)) {
+      msg.style.color = 'var(--red,#b42318)';
+      msg.textContent = 'Enter a street address and either a city or ZIP code.';
+      return;
+    }
+
+    const query = [street, city, state, postal, 'USA'].filter(Boolean).join(', ');
+    msg.style.color = 'var(--muted)';
+    msg.textContent = 'Finding address…';
+    btn.disabled = true;
+
+    try {
+      const params = new URLSearchParams({
+        q: query,
+        format: 'jsonv2',
+        addressdetails: '1',
+        limit: '5',
+        countrycodes: 'us'
+      });
+      const response = await fetch('https://nominatim.openstreetmap.org/search?' + params.toString(), {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!response.ok) throw new Error('Address service returned ' + response.status);
+      const results = await response.json();
+      if (!Array.isArray(results) || !results.length) {
+        msg.style.color = 'var(--red,#b42318)';
+        msg.textContent = 'No matching address was found. Check the spelling or use coordinates.';
+        return;
+      }
+
+      const normalizedStreet = street.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
+      const best = results.find(r => {
+        const a = r.address || {};
+        const candidate = [a.house_number, a.road].filter(Boolean).join(' ').toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
+        return candidate && (candidate === normalizedStreet || candidate.includes(normalizedStreet) || normalizedStreet.includes(candidate));
+      }) || results[0];
+
+      const lat = Number(best.lat), lng = Number(best.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new Error('Invalid coordinates returned');
+
+      const a = best.address || {};
+      const hasHouseNumber = !!a.house_number;
+      const exactType = ['house','residential','building','apartments','detached','yes'].includes(String(best.type || '').toLowerCase());
+      const exactish = hasHouseNumber || exactType;
+      const matched = best.display_name || query;
+
+      msg.style.color = exactish ? 'var(--green,#067647)' : 'var(--amber,#92400e)';
+      msg.innerHTML = exactish
+        ? `<b>Matched:</b> ${escape(matched)}`
+        : `<b>Approximate match:</b> ${escape(matched)}<br><span style="color:var(--muted)">Confirm the marker location before using the results.</span>`;
+
+      id('sandboxAddr').value = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+      useSandboxLocation(lat,lng);
+    } catch (err) {
+      console.error('Address lookup failed:', err);
+      msg.style.color = 'var(--red,#b42318)';
+      msg.textContent = 'Address lookup is unavailable right now. You can still click the map or enter coordinates.';
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  id('sandboxFindAddress').onclick = findSandboxAddress;
+  ['sandboxStreet','sandboxCity','sandboxState','sandboxZip'].forEach(key => {
+    id(key)?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        findSandboxAddress();
+      }
+    });
+  });
 
   // Move ring on map click while open
   map.off('click.__sandbox');
