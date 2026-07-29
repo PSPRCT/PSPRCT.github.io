@@ -4056,9 +4056,17 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 .glance-row b{display:block;font-size:12px;line-height:1.35;color:#0f172a;overflow-wrap:anywhere;}
 .selected-store-marker-wrap{background:transparent !important;border:0 !important;overflow:visible !important;}
 .selected-store-dot{position:absolute;left:5px;top:12px;width:22px;height:22px;border-radius:50%;background:#2563eb;border:4px solid #fff;box-shadow:0 0 0 2px #1d4ed8,0 5px 14px rgba(15,23,42,.28);}
-.selected-store-pulse{position:absolute;left:-2px;top:5px;width:36px;height:36px;border-radius:50%;border:3px solid rgba(37,99,235,.65);animation:selectedStorePulse 1.7s ease-out infinite;}
+.selected-store-pulse{position:absolute;left:-2px;top:5px;width:36px;height:36px;border-radius:50%;border:3px solid rgba(37,99,235,.65);animation:selectedStorePulse 1.7s ease-out 3;}
 .selected-store-label{position:absolute;left:35px;top:9px;white-space:nowrap;background:#0f172a;color:#fff;border:2px solid #fff;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:950;box-shadow:0 5px 14px rgba(15,23,42,.22);}
 @keyframes selectedStorePulse{0%{transform:scale(.65);opacity:1}75%,100%{transform:scale(1.35);opacity:0}}
+.popup-action-bar{display:flex;flex-wrap:wrap;gap:6px;padding:8px 2px 10px;border-bottom:1px solid #e2e8f0;background:#fff;position:sticky;top:0;z-index:3;}
+.popup-action-btn{border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:9px;padding:6px 8px;font-size:10.5px;font-weight:850;cursor:pointer;line-height:1.15;}
+.popup-action-btn:hover,.popup-action-btn:focus-visible{border-color:#2563eb;color:#1d4ed8;outline:none;box-shadow:0 0 0 3px rgba(37,99,235,.12);}
+.popup-action-btn.primary{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8;}
+.mapwrap.store-selected .leaflet-marker-pane{opacity:.42;transition:opacity .18s ease;}
+.mapwrap.store-selected .leaflet-tooltip-pane{opacity:1 !important;}
+.popup-planning-note{margin:8px 2px 0;padding:8px 9px;border:1px solid #bfdbfe;border-radius:9px;background:#eff6ff;color:#1e3a8a;font-size:11px;line-height:1.35;}
+
 @media(max-width:720px){
   .compact-popup.op-popup-v2{max-height:64vh;}
   .glance-row{grid-template-columns:1fr;gap:2px;}
@@ -5402,6 +5410,7 @@ const markers = L.markerClusterGroup({
 });
   const plainMarkers = L.layerGroup();
   const targetLayer    = L.layerGroup().addTo(map);
+  const popupActionLayer = L.layerGroup().addTo(map);
   const ringLayer      = L.layerGroup().addTo(map);
   const highlightLayer = L.layerGroup().addTo(map);
   const hubLayer       = L.layerGroup().addTo(map);
@@ -6454,6 +6463,9 @@ const storesFp  = `stores:${allStores.length}`;
   var searchIdx = []; let resIndex = -1; let targetPin=null; let targetConnector=null; let targetPopupRef=null; let targetConnectorUpdater=null;
   const hoverIcon  = L.divIcon({className:'', html:'<div class="hl"></div>', iconSize:[22,22], iconAnchor:[11,11]});
   let hoverMarker=null;
+  let activePopupStore = null;
+  let popupRouteLine = null;
+  let popupGapMarkers = [];
 
   function buildSearchIndex(){
     searchIdx = allStores.map(s => ({
@@ -6471,6 +6483,11 @@ const storesFp  = `stores:${allStores.length}`;
     if (targetPin){ targetLayer.removeLayer(targetPin); targetPin=null; }
     if (targetConnector){ targetLayer.removeLayer(targetConnector); targetConnector=null; }
     targetPopupRef = null;
+    activePopupStore = null;
+    document.querySelector('.mapwrap')?.classList.remove('store-selected');
+    popupActionLayer.clearLayers();
+    popupRouteLine = null;
+    popupGapMarkers = [];
   }
   function hideResults(){ searchResults.classList.remove('show'); searchResults.innerHTML=''; searchResults._data=[]; resIndex=-1; }
 
@@ -11942,6 +11959,15 @@ function storePopupHTML(s){
         <div class="store-popup-delta simplified">${esc(viewLabel)}</div>
       </div>
 
+      <div class="popup-action-bar" role="toolbar" aria-label="Store actions">
+        <button class="popup-action-btn primary" type="button" onclick="window.OneWalmartPopupActions?.copySummary()">Copy Summary</button>
+        <button class="popup-action-btn" type="button" onclick="window.OneWalmartPopupActions?.copyLink()">Copy Store Link</button>
+        <button class="popup-action-btn" type="button" onclick="window.OneWalmartPopupActions?.openMaps()">Google Maps</button>
+        <button class="popup-action-btn" type="button" onclick="window.OneWalmartPopupActions?.showRoute()">Show RTS Route</button>
+        <button class="popup-action-btn" type="button" onclick="window.OneWalmartPopupActions?.nearbyGaps()">Nearby Gaps</button>
+        <button class="popup-action-btn" type="button" onclick="window.OneWalmartPopupActions?.addNote()">Planning Note</button>
+      </div>
+
       <div class="store-popup-scroll">
         <div class="op-summary-card coverage-glance-card">
           <div class="op-summary-head">
@@ -12016,6 +12042,109 @@ function storePopupHTML(s){
 
   return m;
 }
+
+
+function popupActionStore(){ return activePopupStore; }
+function popupStoreNumber(s){ return String(s?.storeNumberStr || s?.storeNumber || '').trim(); }
+function popupAddress(s){ const a=String(s?.address||'').trim(), c=String(s?.city||'').trim(), st=String(s?.state||'').trim(); return a ? `${a}, ${c}, ${st}` : `${c}, ${st}`; }
+function popupNearestActiveRts(s){
+  if (!s) return null;
+  return [...(premiumConfirmed || []), ...(acostaHubs || [])]
+    .filter(h => h && h.status !== 'pending' && Array.isArray(h.coords))
+    .map(h => ({h, miles:distMiles(s.lat,s.lng,h.coords[0],h.coords[1])}))
+    .filter(x => Number.isFinite(x.miles))
+    .sort((a,b)=>a.miles-b.miles)[0] || null;
+}
+function popupCoverageText(s){
+  try{
+    const t = transitionCoverageForStore(s);
+    const c = activeAlignmentMode === 'current' ? t.current : t.future;
+    return c.covered ? `Covered by ${c.rts || 'active RTS'}${Number.isFinite(c.miles)?` at ${c.miles.toFixed(1)} mi`:''}` : 'Gap / uncovered — no active RTS within 75 mi';
+  }catch(e){ return s?.coverageType || 'Coverage unavailable'; }
+}
+function popupOwnerText(s){
+  const am = managerLabel(s?.areaManager) || '—';
+  const rm = managerLabel(s?.regionalManager) || '—';
+  return `AM: ${am} | RM: ${rm}`;
+}
+function popupDedicatedText(s){
+  try{
+    const paths=Array.isArray(s?.managerPaths)?s.managerPaths:[];
+    const teams=paths.filter(p=>isDedicatedTeamPath(p)).map(p=>{
+      const typ=getTeamType(p);
+      if(typ==='unilever') return 'Unilever';
+      if(typ==='pg') return 'P&G';
+      if(typ==='tyson') return 'Tyson';
+      return String(p?.teamName||p?.team||p?.managementGroupName||p?.ManagementGroupName||'').trim();
+    }).filter(Boolean);
+    return [...new Set(teams)].join(', ') || 'None shown';
+  }catch(e){ return 'None shown'; }
+}
+async function popupCopyText(text, success){
+  try{
+    await navigator.clipboard.writeText(text);
+    showMapToast(success || 'Copied.');
+  }catch(e){ prompt('Copy this text:', text); }
+}
+window.OneWalmartPopupActions = {
+  copySummary(){
+    const s=popupActionStore(); if(!s) return;
+    const txt=[
+      `Store ${popupStoreNumber(s)} — ${s.storeName || 'Walmart'}`,
+      `${popupAddress(s)}`,
+      `Coverage: ${popupCoverageText(s)}`,
+      `Ownership: ${popupOwnerText(s)}`,
+      `Dedicated presence: ${popupDedicatedText(s)}`
+    ].join('\n');
+    popupCopyText(txt,'Store summary copied.');
+  },
+  copyLink(){
+    const s=popupActionStore(); if(!s) return;
+    try{
+      const state={map:{center:{lat:Number(s.lat),lng:Number(s.lng)},zoom:(map.getSize().y<620||map.getSize().x<760?8:(map.getSize().y<820||map.getSize().x<1200?9:10))},toggles:{heat:tgHeat.checked,rings:tgRings.checked,overlap:tgOverlap.checked,compare:tgCompare.checked,within:tgWithin.checked,cluster:tgCluster.checked},filters:{cov:Array.from(covFilter.selectedOptions).map(o=>o.value),rm:Array.from(rmFilter.selectedOptions).map(o=>o.value),am:Array.from(amFilter.selectedOptions).map(o=>o.value),hub:Array.from(hubFilter.selectedOptions).map(o=>o.value)},radius:Number(radius.value)||DEFAULT_RADIUS,showConfirmed:showConfirmed.checked,showPending:showPending.checked,showLegacy:showAcosta.checked,openStore:popupStoreNumber(s)};
+      const url=location.origin+location.pathname+location.search+'#'+encodeURIComponent(JSON.stringify(state));
+      popupCopyText(url,'Store link copied.');
+    }catch(e){ popupCopyText(location.href,'Map link copied.'); }
+  },
+  openMaps(){
+    const s=popupActionStore(); if(!s) return;
+    const q=Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lng))?`${s.lat},${s.lng}`:`${popupAddress(s)}`;
+    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`,'_blank','noopener');
+  },
+  showRoute(){
+    const s=popupActionStore(); if(!s) return;
+    const n=popupNearestActiveRts(s);
+    popupActionLayer.clearLayers(); popupGapMarkers=[];
+    if(!n){ showMapToast('No active RTS location is available for routing.'); return; }
+    popupRouteLine=L.polyline([[s.lat,s.lng],n.h.coords],{color:'#7c3aed',weight:4,opacity:.9,dashArray:'10 7',interactive:false}).addTo(popupActionLayer);
+    L.circleMarker(n.h.coords,{radius:9,color:'#fff',weight:3,fillColor:'#7c3aed',fillOpacity:1,interactive:false}).addTo(popupActionLayer);
+    map.fitBounds(popupRouteLine.getBounds(),{paddingTopLeft:[50,120],paddingBottomRight:[180,50],maxZoom:9});
+    showMapToast(`${n.h.name || n.h.fullName || 'Nearest RTS'} is ${n.miles.toFixed(1)} miles away.`);
+  },
+  nearbyGaps(){
+    const s=popupActionStore(); if(!s) return;
+    popupActionLayer.clearLayers(); popupRouteLine=null;
+    const gaps=(allStores||[]).filter(x=>x!==s && String(x.coverageType||'').toLowerCase().includes('uncovered') && distMiles(s.lat,s.lng,x.lat,x.lng)<=75);
+    gaps.slice(0,250).forEach(x=>popupGapMarkers.push(L.circleMarker([x.lat,x.lng],{radius:6,color:'#fff',weight:2,fillColor:'#ef4444',fillOpacity:.9,interactive:false}).addTo(popupActionLayer)));
+    L.circle([s.lat,s.lng],{radius:75*1609.344,color:'#ef4444',weight:2,fill:false,opacity:.7,dashArray:'8 7',interactive:false}).addTo(popupActionLayer);
+    showMapToast(`${gaps.length} uncovered store${gaps.length===1?'':'s'} within 75 miles.`);
+  },
+  addNote(){
+    const s=popupActionStore(); if(!s) return;
+    const key='onewalmart_planning_note_'+popupStoreNumber(s);
+    const prior=localStorage.getItem(key)||'';
+    const note=prompt(`Planning note for Store ${popupStoreNumber(s)}:`,prior);
+    if(note===null) return;
+    if(note.trim()) localStorage.setItem(key,note.trim()); else localStorage.removeItem(key);
+    const popupEl=targetPopupRef?.getElement();
+    let box=popupEl?.querySelector('.popup-planning-note');
+    if(note.trim()){
+      if(!box){ box=document.createElement('div'); box.className='popup-planning-note'; popupEl?.querySelector('.store-popup-scroll')?.prepend(box); }
+      if(box) box.textContent='Planning note: '+note.trim();
+      showMapToast('Planning note saved in this browser.');
+    }else{ box?.remove(); showMapToast('Planning note removed.'); }
+  }
+};
 
 function openStorePopup(store) {
   if (!store) return;
@@ -12158,6 +12287,21 @@ function openStorePopup(store) {
       .setContent(html);
 
     popup.openOn(map);
+    activePopupStore = store;
+    document.querySelector('.mapwrap')?.classList.add('store-selected');
+
+    const savedPlanningNote = localStorage.getItem('onewalmart_planning_note_' + popupStoreNumber(store));
+    if (savedPlanningNote){
+      requestAnimationFrame(()=>{
+        const scroller = popup.getElement()?.querySelector('.store-popup-scroll');
+        if (scroller && !scroller.querySelector('.popup-planning-note')){
+          const noteBox=document.createElement('div');
+          noteBox.className='popup-planning-note';
+          noteBox.textContent='Planning note: '+savedPlanningNote;
+          scroller.prepend(noteBox);
+        }
+      });
+    }
 
     // Always begin at the popup header rather than retaining an old scroll position.
     requestAnimationFrame(() => {
@@ -12551,9 +12695,17 @@ function closeSandbox(){
     btn.classList.remove('active');
     btn.setAttribute('aria-expanded', 'false');
   }
+  // Keep the simulated marker and radius visible after the panel closes.
+  // Use the explicit Clear Simulation action when the placement should be removed.
+  map.off('click.__sandbox');
+}
+
+function clearSandboxPlacement(){
   if (sandboxCircle){ ringLayer.removeLayer(sandboxCircle); sandboxCircle = null; }
   if (sandboxMarker){ highlightLayer.removeLayer(sandboxMarker); sandboxMarker = null; }
-  map.off('click.__sandbox');
+  if (gapHighlightMarker){ map.removeLayer(gapHighlightMarker); gapHighlightMarker = null; }
+  const stats=id('sandboxStats'); if(stats) stats.innerHTML='<span style="color:var(--muted)">Simulation cleared. Click the map to place a new location.</span>';
+  showMapToast('Simulation cleared.');
 }
 
 // Open/close the sandbox panel
@@ -12596,6 +12748,7 @@ id('sandboxBtn').addEventListener('click', ()=>{
 
       <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
         <button id="sandboxCopyJson" class="btn" type="button">Copy JSON for This Location</button>
+        <button id="sandboxClear" class="btn" type="button">Clear Simulation</button>
       </div>
       <div id="sandboxAddMsg" style="margin-top:6px; font-size:12px; color:var(--muted)"></div>`;
     document.querySelector('.mapwrap').appendChild(d);
@@ -12611,9 +12764,14 @@ id('sandboxBtn').addEventListener('click', ()=>{
   id('sandboxClose').onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); closeSandbox(); };
   pn.onclick = (e)=> e.stopPropagation();
 
-  // Initial placement at current map center
-  const c0 = map.getCenter();
-  placeSandbox([c0.lat, c0.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+  // Preserve an existing simulated location when reopening the panel.
+  if (!sandboxCircle || !sandboxMarker){
+    const c0 = map.getCenter();
+    placeSandbox([c0.lat, c0.lng], Number(id('sandboxR').value)||DEFAULT_RADIUS);
+  } else {
+    refreshSandbox();
+  }
+  id('sandboxClear').onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); clearSandboxPlacement(); };
 
   // --- wiring (re)done each open ---
   id('sandboxR').addEventListener('input', ()=>{
