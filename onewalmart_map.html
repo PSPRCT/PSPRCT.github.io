@@ -19851,7 +19851,33 @@ body.audience-field #opsDrawer .ops-tab[data-pane="territory"]{display:none!impo
   function exportOne(id){const r=rows.find(x=>x.id===id);if(!r)return;const hdr=['RTS','Location','Stores 0-25','Stores 0-50','Stores 0-75','Fringe 60-75','Nearby gaps','Average miles','Maximum miles','Single-point stores','Backup depth pct','Dedicated exposure','Recommended action'],row=[r.name,r.loc,r.d25,r.d50,r.d75,r.fringe,r.gaps.length,r.avg.toFixed(1),r.max.toFixed(1),r.single,(r.backupDepth*100).toFixed(0),r.ded,r.action],csv=[hdr,row].map(x=>x.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`${r.name.replace(/[^a-z0-9]+/gi,'_').replace(/^_|_$/g,'')}_territory.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
   function activate(tab){const drawer=document.getElementById('opsDrawer');drawer?.querySelectorAll('.ops-tab').forEach(t=>t.classList.toggle('active',t===tab));drawer?.querySelectorAll('.ops-pane').forEach(p=>{const yes=p.id==='opsPaneTerritory';p.classList.toggle('show',yes);p.classList.toggle('active',yes);p.style.display=yes?'block':'none'});render()}
   function install(){const drawer=document.getElementById('opsDrawer'),tabs=drawer?.querySelector('.ops-tabs'),body=drawer?.querySelector('.ops-body');if(!drawer||!tabs||!body||document.getElementById('opsPaneTerritory'))return;tabs.insertAdjacentHTML('beforeend','<button class="ops-tab phase14-tab" data-pane="territory" type="button"><span class="phase14-dot"></span>Territory</button>');body.insertAdjacentHTML('beforeend',`<div class="ops-pane" id="opsPaneTerritory"><div class="ops-card"><div class="ops-section-title"><span>RTS Territory Explorer</span><span class="ops-sub">Geography, overlap, and risk</span></div><div class="phase14-selector-grid"><div class="phase14-field"><label for="phase14RtsSelect">Select RTS</label><select id="phase14RtsSelect"><option value="">Select an RTS</option></select></div><div class="phase14-field"><label for="phase14CompareSelect">Compare with</label><select id="phase14CompareSelect"><option value="">Optional comparison</option></select></div><button id="phase14ClearMap" class="btn" type="button">Clear Territory Map</button></div><div id="phase14Profile"></div></div></div>`);const tab=tabs.querySelector('.phase14-tab');tabs.addEventListener('click',e=>{const b=e.target.closest('.phase14-tab');if(!b)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();activate(b)},true);tab.onclick=e=>{e.preventDefault();activate(tab)};document.getElementById('phase14RtsSelect')?.addEventListener('change',()=>{render();const a=document.getElementById('phase14RtsSelect').value,b=document.getElementById('phase14CompareSelect').value;if(a&&b&&a!==b)compare(a,b)});document.getElementById('phase14CompareSelect')?.addEventListener('change',()=>{const a=document.getElementById('phase14RtsSelect').value,b=document.getElementById('phase14CompareSelect').value;if(a&&b&&a!==b)compare(a,b)});document.getElementById('phase14ClearMap')?.addEventListener('click',()=>layer?.clearLayers());document.getElementById('phase14Profile')?.addEventListener('click',e=>{const act=e.target.closest('[data-act]')?.dataset.act,cmp=e.target.closest('[data-compare]')?.dataset.compare,id=document.getElementById('phase14RtsSelect')?.value;if(act==='territory')showMap(id,'territory');else if(act==='gaps')showMap(id,'gaps');else if(act==='overlap')showMap(id,'overlap');else if(act==='export')exportOne(id);else if(cmp){document.getElementById('phase14CompareSelect').value=cmp;compare(id,cmp)}});let checks=0,t=setInterval(()=>{checks++;const rs=analyze();if(rs.length||checks>40){clearInterval(t);const opts='<option value="">Select an RTS</option>'+rows.map(r=>`<option value="${esc(r.id)}">${esc(r.name)}${r.loc?' — '+esc(r.loc):''}</option>`).join('');['phase14RtsSelect','phase14CompareSelect'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.innerHTML=(i?'<option value="">Optional comparison</option>':'<option value="">Select an RTS</option>')+rows.map(r=>`<option value="${esc(r.id)}">${esc(r.name)}${r.loc?' — '+esc(r.loc):''}</option>`).join('')});render()}},500)}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
+  function bootTerritory(){
+    let attempts=0;
+    const tryInstall=()=>{
+      attempts++;
+      install();
+      if(document.getElementById('opsPaneTerritory')) return true;
+      return false;
+    };
+
+    if(tryInstall()) return;
+
+    const timer=setInterval(()=>{
+      if(tryInstall() || attempts>=120) clearInterval(timer);
+    },250);
+
+    const observer=new MutationObserver(()=>{
+      if(tryInstall()){
+        observer.disconnect();
+        clearInterval(timer);
+      }
+    });
+    observer.observe(document.documentElement,{childList:true,subtree:true});
+    setTimeout(()=>observer.disconnect(),30000);
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootTerritory,{once:true});
+  else bootTerritory();
 })();
 </script>
 </body>
