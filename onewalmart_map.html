@@ -1442,6 +1442,10 @@ letter-spacing:.01em;
 
 .leaflet-popup-content{
   margin:10px 12px;
+  max-height:min(68vh, 640px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
 }
 .clean-mode #summary,.clean-mode #mgrRollupSummary,.clean-mode #dataStatus{display:none !important;}
 .clean-mode #floatingKpis{right:14px !important;}
@@ -11991,11 +11995,13 @@ function openStorePopup(store) {
   const isVisible = (el) => {
     if (!el) return false;
     const cs = window.getComputedStyle(el);
-    return cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity || 1) !== 0 && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
+    const rect = el.getBoundingClientRect();
+    return cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity || 1) !== 0 && rect.width > 0 && rect.height > 0;
   };
 
   const getPopupSafePadding = () => {
     const pad = { top: 30, right: 30, bottom: 30, left: 30 };
+    const mapRect = map.getContainer().getBoundingClientRect();
     const sidepanelOpen = sidepanel?.classList.contains('show');
 
     if (sidepanelOpen) {
@@ -12005,65 +12011,74 @@ function openStorePopup(store) {
     const hud = document.getElementById('floatingKpis');
     if (isVisible(hud)) {
       const rect = hud.getBoundingClientRect();
-      pad.top = Math.max(pad.top, Math.ceil(rect.bottom + 12));
-      pad.right = Math.max(pad.right, Math.ceil(window.innerWidth - rect.left + 12));
+      pad.top = Math.max(pad.top, Math.ceil(rect.bottom - mapRect.top + 12));
+      pad.right = Math.max(pad.right, Math.ceil(mapRect.right - rect.left + 12));
     }
 
     const rail = document.querySelector('.map-action-rail');
     if (isVisible(rail)) {
       const rect = rail.getBoundingClientRect();
-      pad.right = Math.max(pad.right, Math.ceil(window.innerWidth - rect.left + 12));
+      pad.right = Math.max(pad.right, Math.ceil(mapRect.right - rect.left + 12));
     }
 
     return pad;
   };
 
-  const positionStoreForCentralPopup = (done) => {
-    const pad = getPopupSafePadding();
+  const getResponsiveStoreZoom = () => {
     const size = map.getSize();
-    const safeLeft = pad.left;
-    const safeTop = pad.top;
-    const safeRight = Math.max(safeLeft + 120, size.x - pad.right);
-    const safeBottom = Math.max(safeTop + 120, size.y - pad.bottom);
-    const safeWidth = Math.max(120, safeRight - safeLeft);
-    const safeHeight = Math.max(120, safeBottom - safeTop);
+    if (size.y < 620 || size.x < 760) return 8;
+    if (size.y < 820 || size.x < 1200) return 9;
+    return 10;
+  };
 
-    // Keep the selected store in a popup-friendly anchor zone so the popup
-    // opens near the visual center of the safe map area on most screen sizes.
-    const desiredPoint = L.point(
-      Math.round(safeLeft + safeWidth * 0.42),
-      Math.round(safeTop + safeHeight * 0.68)
-    );
+  const centerOpenPopupOnce = (popup) => {
+    let attempts = 0;
 
-    const currentPoint = map.latLngToContainerPoint(latlng);
-    const dx = Math.round(currentPoint.x - desiredPoint.x);
-    const dy = Math.round(currentPoint.y - desiredPoint.y);
+    const centerIt = () => {
+      attempts += 1;
+      const popupEl = popup.getElement();
+      if (!popupEl) {
+        if (attempts < 4) requestAnimationFrame(centerIt);
+        return;
+      }
 
-    if (Math.abs(dx) <= 12 && Math.abs(dy) <= 12) {
-      done();
-      return;
-    }
+      const mapEl = map.getContainer();
+      const mapRect = mapEl.getBoundingClientRect();
+      const popupRect = popupEl.getBoundingClientRect();
+      const pad = getPopupSafePadding();
 
-    let finished = false;
-    const finish = () => {
-      if (finished) return;
-      finished = true;
-      done();
+      const safeLeft = mapRect.left + pad.left;
+      const safeTop = mapRect.top + pad.top;
+      const safeRight = Math.max(safeLeft + 160, mapRect.right - pad.right);
+      const safeBottom = Math.max(safeTop + 160, mapRect.bottom - pad.bottom);
+
+      const desiredX = (safeLeft + safeRight) / 2;
+      const desiredY = (safeTop + safeBottom) / 2;
+      const popupX = popupRect.left + popupRect.width / 2;
+      const popupY = popupRect.top + popupRect.height / 2;
+
+      const dx = Math.round(popupX - desiredX);
+      const dy = Math.round(popupY - desiredY);
+
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        // This is a one-time centering pan. keepInView remains false, so after
+        // opening the user can freely drag or zoom without the map snapping back.
+        map.panBy([dx, dy], {
+          animate: true,
+          duration: 0.28
+        });
+      }
     };
 
-    map.once('moveend', finish);
-    map.panBy([dx, dy], {
-      animate: true,
-      duration: 0.25
-    });
-    setTimeout(finish, 380);
+    requestAnimationFrame(() => requestAnimationFrame(centerIt));
   };
 
   // Close any currently open popup first.
   map.closePopup();
 
-  // Move to the store without depending on its clustered marker.
-  const targetZoom = Math.max(map.getZoom(), 10);
+  // Use a consistent, screen-aware zoom rather than preserving an overly
+  // close prior zoom level. This gives the popup enough surrounding context.
+  const targetZoom = getResponsiveStoreZoom();
 
   map.flyTo(latlng, targetZoom, {
     animate: true,
@@ -12090,19 +12105,13 @@ function openStorePopup(store) {
       `;
     }
 
-    const pad = getPopupSafePadding();
-
     const popup = L.popup({
       maxWidth: 520,
       minWidth: 340,
-      autoPan: true,
-      autoPanPaddingTopLeft: L.point(pad.left, pad.top),
-      autoPanPaddingBottomRight: L.point(pad.right, pad.bottom),
+      autoPan: false,
       closeButton: true,
       autoClose: true,
       closeOnClick: true,
-      // Center the popup when it first opens, but do not force the map
-      // back into position after the user starts dragging or zooming.
       keepInView: false,
       offset: L.point(0, 8)
     })
@@ -12110,6 +12119,7 @@ function openStorePopup(store) {
       .setContent(html);
 
     popup.openOn(map);
+    centerOpenPopupOnce(popup);
 
     // Highlight the selected location while marker rendering catches up.
     clearTarget();
@@ -12121,14 +12131,14 @@ function openStorePopup(store) {
     }).addTo(targetLayer);
   };
 
-  // Open after the map finishes moving, with a fallback in case
-  // moveend does not fire because the map is already at this location.
+  // Open after the map finishes moving, with a fallback in case moveend does
+  // not fire because the map is already centered at the requested location.
   let opened = false;
 
   const openOnce = () => {
     if (opened) return;
     opened = true;
-    positionStoreForCentralPopup(openDirectPopup);
+    openDirectPopup();
   };
 
   map.once('moveend', openOnce);
