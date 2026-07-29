@@ -4039,6 +4039,31 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   }
 }
 
+
+/* ===== Store popup usability + selected-location connection (main map) ===== */
+.leaflet-popup-content{max-height:none !important;overflow:visible !important;}
+.compact-popup.op-popup-v2{display:flex;flex-direction:column;max-height:min(72vh,650px);overflow:hidden;}
+.popup-sticky-header{flex:0 0 auto;background:#fff;padding:2px 2px 10px;border-bottom:1px solid #e2e8f0;position:relative;z-index:2;}
+.store-popup-scroll{min-height:0;overflow:auto;overscroll-behavior:contain;padding-right:5px;scrollbar-gutter:stable;}
+.popup-scroll-cue{flex:0 0 auto;text-align:center;font-size:10.5px;font-weight:850;color:#64748b;padding:6px 0 1px;border-top:1px solid #eef2f7;background:#fff;}
+.selected-location-note{display:inline-flex;align-items:center;gap:6px;margin-top:5px;font-size:10.5px;font-weight:850;color:#1d4ed8;}
+.selected-location-note span{width:8px;height:8px;border-radius:999px;background:#2563eb;box-shadow:0 0 0 4px rgba(37,99,235,.14);}
+.coverage-glance-card{padding:10px 11px !important;}
+.coverage-glance-card .op-summary-head{margin-bottom:7px;}
+.glance-row{display:grid !important;grid-template-columns:112px minmax(0,1fr);gap:10px;padding:7px 0;border-top:1px solid #dbeafe;align-items:start;}
+.glance-row:first-of-type{border-top:0;}
+.glance-row span{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;font-weight:900;}
+.glance-row b{display:block;font-size:12px;line-height:1.35;color:#0f172a;overflow-wrap:anywhere;}
+.selected-store-marker-wrap{background:transparent !important;border:0 !important;overflow:visible !important;}
+.selected-store-dot{position:absolute;left:5px;top:12px;width:22px;height:22px;border-radius:50%;background:#2563eb;border:4px solid #fff;box-shadow:0 0 0 2px #1d4ed8,0 5px 14px rgba(15,23,42,.28);}
+.selected-store-pulse{position:absolute;left:-2px;top:5px;width:36px;height:36px;border-radius:50%;border:3px solid rgba(37,99,235,.65);animation:selectedStorePulse 1.7s ease-out infinite;}
+.selected-store-label{position:absolute;left:35px;top:9px;white-space:nowrap;background:#0f172a;color:#fff;border:2px solid #fff;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:950;box-shadow:0 5px 14px rgba(15,23,42,.22);}
+@keyframes selectedStorePulse{0%{transform:scale(.65);opacity:1}75%,100%{transform:scale(1.35);opacity:0}}
+@media(max-width:720px){
+  .compact-popup.op-popup-v2{max-height:64vh;}
+  .glance-row{grid-template-columns:1fr;gap:2px;}
+  .selected-store-label{font-size:10px;padding:4px 7px;}
+}
 </style>
 </head>
 <body>
@@ -12129,7 +12154,14 @@ function openStorePopup(store) {
       .setContent(html);
 
     popup.openOn(map);
-    centerOpenPopupOnce(popup);
+
+    // Always begin at the popup header rather than retaining an old scroll position.
+    requestAnimationFrame(() => {
+      const popupEl = popup.getElement();
+      const scroller = popupEl?.querySelector('.store-popup-scroll');
+      if (scroller) scroller.scrollTop = 0;
+      centerOpenPopupOnce(popup);
+    });
 
     // Make the popup-to-store relationship unmistakable.
     clearTarget();
@@ -12143,6 +12175,7 @@ function openStorePopup(store) {
     });
 
     targetPin = L.marker(latlng, {
+      pane: 'tooltipPane',
       icon: selectedIcon,
       interactive: false,
       keyboard: false,
@@ -12150,6 +12183,7 @@ function openStorePopup(store) {
     }).addTo(targetLayer);
 
     targetConnector = L.polyline([latlng, latlng], {
+      pane: 'tooltipPane',
       color: '#2563eb',
       weight: 3,
       opacity: .9,
