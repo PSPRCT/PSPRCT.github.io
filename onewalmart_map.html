@@ -5378,6 +5378,9 @@ function exportHubsJson(){
   let managerRollupByStore = new Map();
   let filteredStores = [];
   const markerByStore = new Map();
+  // FIXED-20: persistent marker cache. Layers may be cleared/re-added, but the
+  // Leaflet marker objects themselves are reused across filter refreshes.
+  const storeMarkerCache = new Map();
 
   let PENDING_OPEN_HUB_ID = null;
   let PENDING_PIN_IDS = [];
@@ -6999,45 +7002,63 @@ withinOK = activeHubsNow.some(h => distMiles(s.lat, s.lng, h.coords[0], h.coords
   }
 
   function makeStoreMarker(s){
-    const m = L.circleMarker([s.lat,s.lng], {
-      radius:5,
-      weight:1,
-      fillOpacity:.9,
-      color:'#fff',
-      fillColor: COLORS[s.coverageType] || '#999',
-      bubblingMouseEvents:false,
-      renderer: storeRenderer
-    });
+    const cacheKey = String(s.storeNumberStr || s.storeNumber || `${s.lat},${s.lng}`);
+    let m = storeMarkerCache.get(cacheKey);
+
+    if (!m){
+      m = L.circleMarker([s.lat,s.lng], {
+        radius:5,
+        weight:1,
+        fillOpacity:.9,
+        color:'#fff',
+        fillColor: COLORS[s.coverageType] || '#999',
+        bubblingMouseEvents:false,
+        renderer: storeRenderer
+      });
+
+      // Popup HTML stays lazy and reads the marker's current store record.
+      m.bindPopup(() => {
+        const currentStore = m.store;
+        try {
+          return storePopupHTML(currentStore);
+        } catch (err) {
+          console.error('Store popup failed:', currentStore, err);
+          return `
+            <div style="min-width:260px">
+              <b>Store ${escape(currentStore?.storeNumberStr || currentStore?.storeNumber || '')}</b><br>
+              ${escape(currentStore?.storeName || '')}<br>
+              ${escape(currentStore?.city || '')}, ${escape(currentStore?.state || '')}<br>
+              <span style="color:#b42318">Popup detail failed to load.</span>
+            </div>
+          `;
+        }
+      }, {
+        maxWidth:520,
+        minWidth:340,
+        autoPan:true,
+        closeButton:true
+      });
+
+      m.on('click', function(e){
+        if (e.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
+        this.openPopup();
+      });
+
+      storeMarkerCache.set(cacheKey, m);
+    } else {
+      const ll = m.getLatLng();
+      if (ll.lat !== Number(s.lat) || ll.lng !== Number(s.lng)) {
+        m.setLatLng([s.lat,s.lng]);
+      }
+      m.setStyle({
+        fillColor: COLORS[s.coverageType] || '#999',
+        fillOpacity:.9,
+        color:'#fff',
+        weight:1
+      });
+    }
 
     m.store = s;
-
-    // Popup HTML stays lazy: it is generated only when the user opens the store.
-    m.bindPopup(() => {
-      try {
-        return storePopupHTML(s);
-      } catch (err) {
-        console.error('Store popup failed:', s, err);
-        return `
-          <div style="min-width:260px">
-            <b>Store ${escape(s.storeNumberStr || s.storeNumber || '')}</b><br>
-            ${escape(s.storeName || '')}<br>
-            ${escape(s.city || '')}, ${escape(s.state || '')}<br>
-            <span style="color:#b42318">Popup detail failed to load.</span>
-          </div>
-        `;
-      }
-    }, {
-      maxWidth:520,
-      minWidth:340,
-      autoPan:true,
-      closeButton:true
-    });
-
-    m.on('click', function(e){
-      if (e.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
-      this.openPopup();
-    });
-
     markerByStore.set(s.storeNumberStr, m);
     return m;
   }
@@ -8140,6 +8161,39 @@ function printSidepanelList() {
 @media(max-width:720px){.op-scorecard-grid{grid-template-columns:1fr;}}
 
 </style>
+
+
+<!-- FIXED-20 performance diagnostics -->
+<style>
+  #v20PerfBadge{
+    position:absolute;left:10px;top:10px;z-index:2100;display:none;
+    border:1px solid #cbd5e1;border-radius:10px;background:rgba(255,255,255,.94);
+    padding:7px 9px;font-size:11px;color:#334155;box-shadow:0 4px 14px rgba(15,23,42,.12);
+    pointer-events:none;
+  }
+  body.v20-show-performance #v20PerfBadge{display:block}
+</style>
+<div id="v20PerfBadge" aria-live="polite">Map ready</div>
+<script>
+(function(){
+  const started = performance.now();
+  const badge = document.getElementById('v20PerfBadge');
+  const update = () => {
+    if (!badge) return;
+    const markerCount =
+      (window.markerByStore?.size) ||
+      document.querySelectorAll('.leaflet-marker-icon,.leaflet-interactive').length;
+    badge.textContent = `Ready ${(performance.now()-started).toFixed(0)} ms · visible layers ${markerCount}`;
+  };
+  window.addEventListener('load',()=>setTimeout(update,250),{once:true});
+  document.addEventListener('keydown',e=>{
+    if(e.altKey && e.shiftKey && e.key.toLowerCase()==='p'){
+      document.body.classList.toggle('v20-show-performance');
+      update();
+    }
+  });
+})();
+</script>
 
 </body></html>`);
   w.document.close();
@@ -15482,7 +15536,18 @@ const leadershipSummaryLabel =
   }
 
   removeTransitionAndDeltaTabs();
-  const transitionTabObserver = new MutationObserver(removeTransitionAndDeltaTabs);
+  let transitionCleanupTimer=0;
+  const transitionTabObserver = new MutationObserver((records)=>{
+    const relevant=records.some(r=>Array.from(r.addedNodes).some(n=>
+      n.nodeType===1 && (
+        n.matches?.('#opsDrawer,.ops-tab') ||
+        n.querySelector?.('#opsDrawer,.ops-tab')
+      )
+    ));
+    if(!relevant)return;
+    clearTimeout(transitionCleanupTimer);
+    transitionCleanupTimer=setTimeout(removeTransitionAndDeltaTabs,100);
+  });
   transitionTabObserver.observe(document.body, { childList:true, subtree:true });
 /* ===== Dedicated Gap Command package ===== */
 function activeDedicatedPathsForStore(store){
@@ -20074,8 +20139,20 @@ body.audience-leadership #opsDrawer .ops-tab[data-pane="gapqueue"]{display:none 
     let saved='planning';
     try{saved=localStorage.getItem(STORAGE_KEY)||'planning';}catch(_){}
     applyMode(saved,false);
-    // Re-tag elements added later by existing scripts, including Ops Intel tabs.
-    const observer=new MutationObserver(()=>{tagAudienceElements();});
+    // Re-tag dynamic tools in one debounced pass rather than scanning the full
+    // page after every marker, cluster, or popup mutation.
+    let audienceTagTimer=0;
+    const observer=new MutationObserver((records)=>{
+      const relevant=records.some(r=>Array.from(r.addedNodes).some(n=>
+        n.nodeType===1 && (
+          n.matches?.('#opsDrawer,.ops-tab,[id^="opsPane"],#sandboxPanel,.modal') ||
+          n.querySelector?.('#opsDrawer,.ops-tab,[id^="opsPane"],#sandboxPanel,.modal')
+        )
+      ));
+      if(!relevant)return;
+      clearTimeout(audienceTagTimer);
+      audienceTagTimer=setTimeout(tagAudienceElements,120);
+    });
     observer.observe(document.body,{childList:true,subtree:true});
     window.OneWalmartAudienceMode={apply:mode=>applyMode(mode,true),current:()=>['field','leadership','planning'].find(m=>document.body.classList.contains('audience-'+m))||'planning'};
   }
@@ -20548,20 +20625,25 @@ body.audience-field #opsDrawer .ops-tab[data-pane="plancompare"]{display:none!im
   }
 
   function makeOpsTabsKeyboardFriendly(){
-    const tabs = document.querySelectorAll('#opsDrawer .ops-tab');
-    tabs.forEach((tab,i) => {
+    const tabs = Array.from(document.querySelectorAll('#opsDrawer .ops-tab'));
+    tabs.forEach((tab) => {
       tab.setAttribute('role','tab');
       tab.setAttribute('aria-selected', tab.classList.contains('active') ? 'true' : 'false');
+      if (tab.dataset.v19KeyboardReady === '1') return;
+      tab.dataset.v19KeyboardReady = '1';
       tab.addEventListener('keydown', e => {
         if (!['ArrowRight','ArrowLeft','Home','End'].includes(e.key)) return;
         e.preventDefault();
+        const currentTabs = Array.from(document.querySelectorAll('#opsDrawer .ops-tab'))
+          .filter(t => t.offsetParent !== null);
+        const i = Math.max(0, currentTabs.indexOf(tab));
         let next = i;
-        if (e.key === 'ArrowRight') next = (i + 1) % tabs.length;
-        if (e.key === 'ArrowLeft') next = (i - 1 + tabs.length) % tabs.length;
+        if (e.key === 'ArrowRight') next = (i + 1) % currentTabs.length;
+        if (e.key === 'ArrowLeft') next = (i - 1 + currentTabs.length) % currentTabs.length;
         if (e.key === 'Home') next = 0;
-        if (e.key === 'End') next = tabs.length - 1;
-        tabs[next]?.focus();
-        tabs[next]?.click();
+        if (e.key === 'End') next = currentTabs.length - 1;
+        currentTabs[next]?.focus();
+        currentTabs[next]?.click();
       });
     });
   }
@@ -20593,22 +20675,56 @@ body.audience-field #opsDrawer .ops-tab[data-pane="plancompare"]{display:none!im
     announce('Open panel closed');
   });
 
-  const observer = new MutationObserver(() => {
+  let v19EnhanceQueued = false;
+  const enhanceKnownInterfaces = (roots=[]) => {
     installGuideButton();
     installGlossary();
-    decorateTerms();
-    installDirectPopupQualityHelp();
+
+    const targets = roots.length ? roots : [
+      document.getElementById('sandboxStats'),
+      document.getElementById('opsDrawer'),
+      document.querySelector('.leaflet-popup-pane')
+    ].filter(Boolean);
+
+    targets.forEach(root => {
+      decorateTerms(root);
+      installDirectPopupQualityHelp(root);
+    });
+
     describeSimulation();
     makeOpsTabsKeyboardFriendly();
+  };
+
+  const queueInterfaceEnhancement = (roots=[]) => {
+    if (v19EnhanceQueued) return;
+    v19EnhanceQueued = true;
+    const run = () => {
+      v19EnhanceQueued = false;
+      enhanceKnownInterfaces(roots);
+    };
+    if ('requestIdleCallback' in window) requestIdleCallback(run, {timeout:350});
+    else setTimeout(run, 80);
+  };
+
+  const observer = new MutationObserver((records) => {
+    const roots = [];
+    for (const record of records){
+      for (const node of record.addedNodes){
+        if (node.nodeType !== 1) continue;
+        const el = node;
+        // Ignore Leaflet marker/cluster churn. Only enhance interfaces that can
+        // actually contain help labels or newly-created Ops tabs.
+        if (
+          el.matches?.('#sandboxStats,#opsDrawer,.leaflet-popup,.leaflet-popup-content,.ops-tab') ||
+          el.querySelector?.('#sandboxStats,#opsDrawer,.leaflet-popup,.leaflet-popup-content,.ops-tab')
+        ) roots.push(el);
+      }
+    }
+    if (roots.length) queueInterfaceEnhancement(roots);
   });
   observer.observe(document.body,{childList:true,subtree:true});
 
-  installGuideButton();
-  installGlossary();
-  decorateTerms();
-  installDirectPopupQualityHelp();
-  describeSimulation();
-  makeOpsTabsKeyboardFriendly();
+  enhanceKnownInterfaces();
 
   // Announce common simulation and filter updates without changing calculations.
   document.addEventListener('click', e => {
