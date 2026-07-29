@@ -11987,8 +11987,36 @@ function openStorePopup(store) {
   }
 
   const latlng = L.latLng(lat, lng);
-  const sidepanelOpen = sidepanel?.classList.contains('show');
-  const rightPadding = sidepanelOpen ? 480 : 30;
+
+  const isVisible = (el) => {
+    if (!el) return false;
+    const cs = window.getComputedStyle(el);
+    return cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity || 1) !== 0 && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
+  };
+
+  const getPopupSafePadding = () => {
+    const pad = { top: 30, right: 30, bottom: 30, left: 30 };
+    const sidepanelOpen = sidepanel?.classList.contains('show');
+
+    if (sidepanelOpen) {
+      pad.right = Math.max(pad.right, 480);
+    }
+
+    const hud = document.getElementById('floatingKpis');
+    if (isVisible(hud)) {
+      const rect = hud.getBoundingClientRect();
+      pad.top = Math.max(pad.top, Math.ceil(rect.bottom + 12));
+      pad.right = Math.max(pad.right, Math.ceil(window.innerWidth - rect.left + 12));
+    }
+
+    const rail = document.querySelector('.map-action-rail');
+    if (isVisible(rail)) {
+      const rect = rail.getBoundingClientRect();
+      pad.right = Math.max(pad.right, Math.ceil(window.innerWidth - rect.left + 12));
+    }
+
+    return pad;
+  };
 
   // Close any currently open popup first.
   map.closePopup();
@@ -12021,16 +12049,19 @@ function openStorePopup(store) {
       `;
     }
 
+    const pad = getPopupSafePadding();
+
     const popup = L.popup({
       maxWidth: 520,
       minWidth: 340,
       autoPan: true,
-      autoPanPaddingTopLeft: L.point(30, 30),
-      autoPanPaddingBottomRight: L.point(rightPadding, 30),
+      autoPanPaddingTopLeft: L.point(pad.left, pad.top),
+      autoPanPaddingBottomRight: L.point(pad.right, pad.bottom),
       closeButton: true,
       autoClose: true,
       closeOnClick: true,
-      keepInView: true
+      keepInView: true,
+      offset: L.point(0, 8)
     })
       .setLatLng(latlng)
       .setContent(html);
