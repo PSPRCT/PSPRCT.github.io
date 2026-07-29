@@ -4159,7 +4159,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
     <div class="summary" id="datasetBadge"></div>
     <div class="summary" id="alignmentToggle">
       <span class="chip"><b>Alignment:</b></span>
-      <label class="toggle"><input type="radio" name="alignmentMode" value="future" checked> Future One Walmart</label>
+      <label class="toggle"><input type="radio" name="alignmentMode" value="future" checked> One Walmart Alignment</label>
       <label class="toggle"><input type="radio" name="alignmentMode" value="current"> Current Alignment</label>
     </div>
     <div class="summary" id="coreTeamToggle">
@@ -4321,7 +4321,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
 
 <main class="map-stage">
 <div style="display:none;padding:6px 10px;color:var(--fg);font-size:12px;background:#f8fafc;border-top:1px solid #eef0f3;border-bottom:1px solid #eef0f3">
-  <b>Future-State One Walmart Map:</b> PSP alignment reflects the post-5/31 One Walmart structure. Dedicated teams — Unilever, P&amp;G, and Tyson — are shown separately where applicable.
+  <b>One Walmart Operating Model:</b> PSP alignment reflects the structure effective June 1, 2026. Dedicated teams — Unilever, P&amp;G, and Tyson — are shown separately where applicable.
 </div>
 <div id="dataStatus" style="display:none;padding:6px 10px;color:var(--fg);font-size:12px"></div>
 <div id="launchStatus" class="launch-status"><span class="launch-dot"></span><span class="launch-step">Starting map</span><span class="launch-sub">Base map first; analytics load only when opened.</span></div>
@@ -4404,7 +4404,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
     <div class="kpiBox"><div class="kpiLabel">Visible</div><div class="kpiValue" id="floatVisible">0</div></div>
     <div class="kpiBox"><div class="kpiLabel">Gaps</div><div class="kpiValue" id="floatGaps">0</div></div>
     <div class="kpiBox"><div class="kpiLabel">RTS</div><div class="kpiValue" id="floatRts">0</div></div>
-    <div class="kpiBox"><div class="kpiLabel">Mode</div><div class="kpiValue" id="floatMode">Future</div></div>
+    <div class="kpiBox"><div class="kpiLabel">Mode</div><div class="kpiValue" id="floatMode">One Walmart</div></div>
   </div>
 
     <!-- Overlap legend (hidden by default; JS toggles it) -->
@@ -5751,7 +5751,7 @@ function refreshExecutiveRibbon(){
     if (id('floatVisible')) id('floatVisible').textContent = visible.toLocaleString();
     if (id('floatGaps')) id('floatGaps').textContent = gaps.toLocaleString();
     if (id('floatRts')) id('floatRts').textContent = String((premiumConfirmed?.length || 0) + (acostaHubs?.length || 0));
-      if (id('floatMode')) id('floatMode').textContent = activeAlignmentMode === 'current' ? 'Current' : 'Future';
+      if (id('floatMode')) id('floatMode').textContent = activeAlignmentMode === 'current' ? 'Legacy' : 'One Walmart';
 
        if (typeof refreshExecutiveRibbon === 'function') {
       requestAnimationFrame(refreshExecutiveRibbon);
@@ -6422,7 +6422,7 @@ const storesFp  = `stores:${allStores.length}`;
   }
 
   // ---------- Search ----------
-  var searchIdx = []; let resIndex = -1; let targetPin=null; const targetIcon = L.divIcon({className:'', html:'<div style="background:#2f71ff;border:2px solid #fff;border-radius:50%;width:18px;height:18px;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>', iconSize:[18,18], iconAnchor:[9,9]});
+  var searchIdx = []; let resIndex = -1; let targetPin=null; let targetConnector=null; let targetPopupRef=null; let targetConnectorUpdater=null;
   const hoverIcon  = L.divIcon({className:'', html:'<div class="hl"></div>', iconSize:[22,22], iconAnchor:[11,11]});
   let hoverMarker=null;
 
@@ -6434,7 +6434,15 @@ const storesFp  = `stores:${allStores.length}`;
   }
   function showHover(lat,lng){ if(hoverMarker) highlightLayer.removeLayer(hoverMarker); hoverMarker=L.marker([lat,lng],{icon:hoverIcon}).addTo(highlightLayer); }
   function hideHover(){ if(hoverMarker){ highlightLayer.removeLayer(hoverMarker); hoverMarker=null; } }
-  function clearTarget(){ if (targetPin){ targetLayer.removeLayer(targetPin); targetPin=null; } }
+  function clearTarget(){
+    if (targetConnectorUpdater){
+      map.off('move zoom resize', targetConnectorUpdater);
+      targetConnectorUpdater = null;
+    }
+    if (targetPin){ targetLayer.removeLayer(targetPin); targetPin=null; }
+    if (targetConnector){ targetLayer.removeLayer(targetConnector); targetConnector=null; }
+    targetPopupRef = null;
+  }
   function hideResults(){ searchResults.classList.remove('show'); searchResults.innerHTML=''; searchResults._data=[]; resIndex=-1; }
 
   function showResults(list){
@@ -11855,7 +11863,7 @@ function storePopupHTML(s){
   const futureCovered = t.future.covered;
   const currentMiles = t.current.miles;
   const futureMiles = t.future.miles;
-  const viewLabel = activeAlignmentMode === 'current' ? 'Current Alignment' : 'Future One Walmart';
+  const viewLabel = activeAlignmentMode === 'current' ? 'Legacy Alignment' : 'One Walmart Alignment';
   const activeCoverage = activeAlignmentMode === 'current' ? t.current : t.future;
   const gapBadge = gapSeverityForStore(s);
 
@@ -11885,36 +11893,36 @@ function storePopupHTML(s){
   const complexity = complexityScore >= 5 ? 'High Complexity' : complexityScore >= 3 ? 'Complex' : complexityScore >= 1 ? 'Moderate' : 'Simple';
   const quality = !activeCoverage.covered ? 'Coverage Gap' : fringe ? 'Fringe Reach' : backupCount > 1 ? 'Stable + Backup' : 'Stable';
 
-  const summaryBullets = [
-    activeCoverage.covered
-      ? `Covered by ${activeCoverage.rts || 'active RTS'}${Number.isFinite(activeCoverage.miles) ? ` at ${activeCoverage.miles.toFixed(1)} mi` : ''}.`
-      : `No active RTS within the 75-mile operating radius.`,
-    `One Walmart owner: ${futureCore[0]?.am || '—'} / ${futureCore[0]?.rm || '—'}.`,
-    dedTeamNames.length ? `Dedicated-team presence: ${dedTeamNames.join(', ')}.` : `No dedicated-team overlay shown.`,
-    backupCount > 1 ? `${backupCount - 1} backup RTS option${backupCount - 1 === 1 ? '' : 's'} within 75 miles.` : `Limited backup RTS visibility within 75 miles.`,
-    `${complexity} store profile; coverage quality: ${quality}.`
-  ];
+  const coverageAtGlance = activeCoverage.covered
+    ? `${quality} — ${activeCoverage.rts || 'active RTS'}${Number.isFinite(activeCoverage.miles) ? ` is ${activeCoverage.miles.toFixed(1)} miles away` : ''}`
+    : `Coverage Gap — no active RTS within 75 miles`;
+  const ownershipAtGlance = `${futureCore[0]?.am || '—'} / ${futureCore[0]?.rm || '—'}`;
+  const dedicatedAtGlance = dedTeamNames.length ? dedTeamNames.join(', ') : 'None shown';
 
-  const referenceLine = `Current RTS ${currentCovered ? 'covered' : 'gap'}${Number.isFinite(currentMiles) ? ` (${currentMiles.toFixed(1)} mi)` : ''}; Future RTS ${futureCovered ? 'covered' : 'gap'}${Number.isFinite(futureMiles) ? ` (${futureMiles.toFixed(1)} mi)` : ''}.`;
+  const referenceLine = `Legacy RTS ${currentCovered ? 'covered' : 'gap'}${Number.isFinite(currentMiles) ? ` (${currentMiles.toFixed(1)} mi)` : ''}; One Walmart RTS ${futureCovered ? 'covered' : 'gap'}${Number.isFinite(futureMiles) ? ` (${futureMiles.toFixed(1)} mi)` : ''}.`;
 
   return `
     <div class="store-popup-shell leadership-popup compact-popup op-popup-v2">
-      <div class="store-popup-header">
+      <div class="store-popup-header popup-sticky-header">
         <div>
-          <div class="store-popup-title">Store ${esc(s?.storeNumberStr || s?.storeNumber || '')}</div>
+          <div class="store-popup-title">Store ${esc(s?.storeNumberStr || s?.storeNumber || '')} · ${esc(s?.city || '')}, ${esc(s?.state || '')}</div>
           <div class="store-popup-sub">${esc(s?.storeName || 'Walmart')}</div>
           <div class="store-popup-sub">${esc(addressLine(s))}</div>
+          <div class="selected-location-note"><span></span>Selected map location</div>
         </div>
         <div class="store-popup-delta simplified">${esc(viewLabel)}</div>
       </div>
 
-      <div class="op-summary-card">
-        <div class="op-summary-head">
-          <div><span>Operational Summary</span><b>${esc(complexity)}</b></div>
-          <div class="quality-chip ${activeCoverage.covered ? (fringe ? 'watch' : 'stable') : 'gap'}">${esc(quality)}</div>
+      <div class="store-popup-scroll">
+        <div class="op-summary-card coverage-glance-card">
+          <div class="op-summary-head">
+            <div><span>Coverage at a Glance</span><b>${esc(complexity)}</b></div>
+            <div class="quality-chip ${activeCoverage.covered ? (fringe ? 'watch' : 'stable') : 'gap'}">${esc(quality)}</div>
+          </div>
+          <div class="glance-row"><span>Coverage</span><b>${esc(coverageAtGlance)}</b></div>
+          <div class="glance-row"><span>Ownership</span><b>${esc(ownershipAtGlance)}</b></div>
+          <div class="glance-row"><span>Dedicated presence</span><b>${esc(dedicatedAtGlance)}</b></div>
         </div>
-        <ul>${summaryBullets.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
-      </div>
 
       <details class="popup-section coverage-section" open>
         <summary>RTS Coverage <span>${activeCoverage.covered ? 'Covered' : 'Gap'}</span></summary>
@@ -11926,7 +11934,7 @@ function storePopupHTML(s){
         </div>
       </details>
 
-      ${renderSection('One Walmart Operational Alignment', futureCore, 'No future One Walmart owner found', true, futureCore.length ? 'primary' : 'none')}
+      ${renderSection('One Walmart Operational Alignment', futureCore, 'No One Walmart owner found', true, futureCore.length ? 'primary' : 'none')}
 
       <details class="popup-section" ${futureDedicatedGroups.length ? 'open' : ''}>
         <summary>Dedicated Teams Active Here <span>${futureDedicatedGroups.length ? futureDedicatedGroups.map(g=>esc(g.team)).join(' / ') : 'none'}</span></summary>
@@ -11937,9 +11945,11 @@ function storePopupHTML(s){
       ${currentDedicatedGroups.length ? `<details class="popup-section"><summary>Legacy Dedicated Reference <span>${currentDedicatedGroups.length} team${currentDedicatedGroups.length === 1 ? '' : 's'}</span></summary><div class="popup-section-body">${groupedDedicatedHtml(currentDedicatedGroups)}</div></details>` : ''}
 
       <div class="store-popup-summary simplified-note compact-note">
-        <div><b>Alignment note:</b> Premium + Acosta + Crossmark PSP roll into One Walmart. Dedicated teams remain separate and are consolidated above.</div>
+        <div><b>Alignment note:</b> Premium + Acosta + Crossmark PSP have operated as One Walmart since June 1, 2026. Dedicated teams remain separate and are consolidated above.</div>
         <div class="store-popup-sub"><b>RTS reference:</b> ${esc(referenceLine)}</div>
       </div>
+      </div>
+      <div class="popup-scroll-cue">Scroll for more ↓</div>
     </div>
   `;
 }
@@ -12121,14 +12131,52 @@ function openStorePopup(store) {
     popup.openOn(map);
     centerOpenPopupOnce(popup);
 
-    // Highlight the selected location while marker rendering catches up.
+    // Make the popup-to-store relationship unmistakable.
     clearTarget();
 
+    const storeNumber = String(store.storeNumberStr || store.storeNumber || '').trim();
+    const selectedIcon = L.divIcon({
+      className: 'selected-store-marker-wrap',
+      html: `<div class="selected-store-pulse"></div><div class="selected-store-dot"></div><div class="selected-store-label">Store ${escape(storeNumber)}</div>`,
+      iconSize: [132, 46],
+      iconAnchor: [16, 23]
+    });
+
     targetPin = L.marker(latlng, {
-      icon: targetIcon,
+      icon: selectedIcon,
       interactive: false,
-      keyboard: false
+      keyboard: false,
+      zIndexOffset: 5000
     }).addTo(targetLayer);
+
+    targetConnector = L.polyline([latlng, latlng], {
+      color: '#2563eb',
+      weight: 3,
+      opacity: .9,
+      dashArray: '7 6',
+      interactive: false
+    }).addTo(targetLayer);
+
+    targetPopupRef = popup;
+    targetConnectorUpdater = () => {
+      if (!targetPopupRef || !targetConnector) return;
+      const popupEl = targetPopupRef.getElement();
+      if (!popupEl) return;
+      const mapRect = map.getContainer().getBoundingClientRect();
+      const popupRect = popupEl.getBoundingClientRect();
+      const markerPt = map.latLngToContainerPoint(latlng);
+      const left = popupRect.left - mapRect.left;
+      const top = popupRect.top - mapRect.top;
+      const right = popupRect.right - mapRect.left;
+      const bottom = popupRect.bottom - mapRect.top;
+      const edgePt = L.point(
+        Math.max(left, Math.min(markerPt.x, right)),
+        Math.max(top, Math.min(markerPt.y, bottom))
+      );
+      targetConnector.setLatLngs([latlng, map.containerPointToLatLng(edgePt)]);
+    };
+    map.on('move zoom resize', targetConnectorUpdater);
+    requestAnimationFrame(() => requestAnimationFrame(targetConnectorUpdater));
   };
 
   // Open after the map finishes moving, with a fallback in case moveend does
@@ -12143,6 +12191,8 @@ function openStorePopup(store) {
 
   map.once('moveend', openOnce);
   setTimeout(openOnce, 650);
+
+  map.once('popupclose', () => clearTarget());
 }
 
   // ---------- Views / Snapshots / State ----------
@@ -12714,7 +12764,35 @@ const projectedCoveragePct = allStores.length
           h2{margin:0 0 8px}
           .meta{color:#555;margin-bottom:10px}
         </style>
-      </head>
+      <style>
+
+/* ===== Store popup usability + selected-location connection ===== */
+.leaflet-popup-content{max-height:none !important;overflow:visible !important;}
+.compact-popup.op-popup-v2{display:flex;flex-direction:column;max-height:min(72vh,650px);overflow:hidden;}
+.popup-sticky-header{flex:0 0 auto;background:#fff;padding:2px 2px 10px;border-bottom:1px solid #e2e8f0;position:relative;z-index:2;}
+.store-popup-scroll{min-height:0;overflow:auto;overscroll-behavior:contain;padding-right:3px;scrollbar-gutter:stable;}
+.popup-scroll-cue{flex:0 0 auto;text-align:center;font-size:10.5px;font-weight:850;color:#64748b;padding:6px 0 1px;border-top:1px solid #eef2f7;background:#fff;}
+.selected-location-note{display:inline-flex;align-items:center;gap:6px;margin-top:5px;font-size:10.5px;font-weight:850;color:#1d4ed8;}
+.selected-location-note span{width:8px;height:8px;border-radius:999px;background:#2563eb;box-shadow:0 0 0 4px rgba(37,99,235,.14);}
+.coverage-glance-card{padding:10px 11px !important;}
+.coverage-glance-card .op-summary-head{margin-bottom:7px;}
+.glance-row{display:grid;grid-template-columns:112px 1fr;gap:10px;padding:6px 0;border-top:1px solid #dbeafe;align-items:start;}
+.glance-row:first-of-type{border-top:0;}
+.glance-row span{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;font-weight:900;}
+.glance-row b{font-size:12px;line-height:1.3;color:#0f172a;}
+.selected-store-marker-wrap{background:transparent !important;border:0 !important;overflow:visible !important;}
+.selected-store-dot{position:absolute;left:5px;top:12px;width:22px;height:22px;border-radius:50%;background:#2563eb;border:4px solid #fff;box-shadow:0 0 0 2px #1d4ed8,0 5px 14px rgba(15,23,42,.28);}
+.selected-store-pulse{position:absolute;left:-2px;top:5px;width:36px;height:36px;border-radius:50%;border:3px solid rgba(37,99,235,.65);animation:selectedStorePulse 1.7s ease-out infinite;}
+.selected-store-label{position:absolute;left:35px;top:9px;white-space:nowrap;background:#0f172a;color:#fff;border:2px solid #fff;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:950;box-shadow:0 5px 14px rgba(15,23,42,.22);}
+@keyframes selectedStorePulse{0%{transform:scale(.65);opacity:1}75%,100%{transform:scale(1.35);opacity:0}}
+@media(max-width:720px){
+  .compact-popup.op-popup-v2{max-height:64vh;}
+  .glance-row{grid-template-columns:1fr;gap:2px;}
+  .selected-store-label{font-size:10px;padding:4px 7px;}
+}
+
+</style>
+</head>
       <body>
         <h2>Simulate New RTS</h2>
         <div class="meta">Center: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)} • Radius: <b>${rMiles} mi</b> • Stores shown: <b>${inRadius.length}</b></div>
