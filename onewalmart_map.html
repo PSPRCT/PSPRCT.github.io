@@ -12319,6 +12319,10 @@ function openStorePopup(store) {
       .setLatLng(latlng)
       .setContent(html);
 
+    // Clear the previous selected-store state before assigning the newly opened store.
+    // clearTarget() also resets activePopupStore, so it must run first.
+    clearTarget();
+
     popup.openOn(map);
     activePopupStore = store;
     document.querySelector('.mapwrap')?.classList.add('store-selected');
@@ -12345,8 +12349,6 @@ function openStorePopup(store) {
     });
 
     // Make the popup-to-store relationship unmistakable.
-    clearTarget();
-
     const storeNumber = String(store.storeNumberStr || store.storeNumber || '').trim();
     const selectedIcon = L.divIcon({
       className: 'selected-store-marker-wrap',
