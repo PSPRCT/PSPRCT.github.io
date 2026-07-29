@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<!-- One Walmart Coverage Map · FINAL-BASELINE · 2026-07-29 -->
+<!-- One Walmart Coverage Map · FINAL-BASELINE-CORRECTED · 2026-07-29 -->
 <title>One Walmart RTS Coverage Command Center</title>
 <!-- v104 conservative cleanup: removed disabled Transition/Delta UI/marker engine and duplicate startup CSS; coverage logic unchanged. -->
 <!-- v105 Help + Leadership polish pass: refreshed help content and clarified leadership action path. Coverage logic, One Walmart alignment, Ops Intel calculations, and modal wiring preserved from v104. -->
@@ -10509,7 +10509,9 @@ function storePopupHTML(s){
   });
   return m;
 }
-function popupActionStore(){ return activePopupStore; }
+function popupActionStore(){
+  return activePopupStore || targetPopupRef?._oneWalmartStore || null;
+}
 function popupStoreNumber(s){ return String(s?.storeNumberStr || s?.storeNumber || '').trim(); }
 function popupAddress(s){ const a=String(s?.address||'').trim(), c=String(s?.city||'').trim(), st=String(s?.state||'').trim(); return a ? `${a}, ${c}, ${st}` : `${c}, ${st}`; }
 function popupNearestActiveRts(s){
@@ -10637,6 +10639,34 @@ if (!window.__oneWalmartPopupActionHandlerInstalled) {
     }
   }, true);
 }
+
+// Defensive popup-local listener. Leaflet recreates popup DOM nodes, so this
+// attaches once per opened popup and avoids relying solely on document bubbling.
+map.on('popupopen', function(event) {
+  const popupEl = event?.popup?.getElement?.();
+  if (!popupEl || popupEl.dataset.popupActionsReady === '1') return;
+  popupEl.dataset.popupActionsReady = '1';
+  popupEl.addEventListener('click', function(clickEvent) {
+    const button = clickEvent.target.closest?.('[data-popup-action]');
+    if (!button) return;
+    clickEvent.preventDefault();
+    clickEvent.stopPropagation();
+    const actionName = button.getAttribute('data-popup-action');
+    const action = window.OneWalmartPopupActions?.[actionName];
+    if (typeof action !== 'function') {
+      console.warn('Popup action is unavailable:', actionName);
+      showMapToast('That store action is temporarily unavailable.');
+      return;
+    }
+    try {
+      action.call(window.OneWalmartPopupActions);
+    } catch (error) {
+      console.error('Popup action failed:', actionName, error);
+      showMapToast('That store action could not be completed.');
+    }
+  });
+});
+
 function openStorePopup(store) {
   if (!store) return;
   const lat = Number(store.lat);
@@ -10754,6 +10784,7 @@ function openStorePopup(store) {
     // Clear the previous selected-store state before assigning the newly opened store.
     // clearTarget() also resets activePopupStore, so it must run first.
     clearTarget();
+    popup._oneWalmartStore = store;
     popup.openOn(map);
     activePopupStore = store;
     document.querySelector('.mapwrap')?.classList.add('store-selected');
@@ -10830,7 +10861,9 @@ function openStorePopup(store) {
   };
   map.once('moveend', openOnce);
   setTimeout(openOnce, 650);
-  map.once('popupclose', () => clearTarget());
+  map.once('popupclose', (event) => {
+    if (!targetPopupRef || event?.popup === targetPopupRef) clearTarget();
+  });
 }
   // ---------- Views / Snapshots / State ----------
   function saveState(){
@@ -15850,7 +15883,8 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
       btn.title = 'Score every active RTS as an outage scenario';
       btn.addEventListener('click', renderDashboard);
       const run = $('resiliencyRun');
-      toolbar.insertBefore(btn, run || toolbar.firstChild);
+      if (run && run.parentNode === toolbar) toolbar.insertBefore(btn, run);
+      else toolbar.appendChild(btn);
     }
     const title = document.querySelector('#resiliencyModal header h3');
     if (title && !/v109/.test(title.textContent)) title.textContent = 'RTS Resiliency Simulator — v109';
@@ -16275,7 +16309,10 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
       const exp = document.createElement('button'); exp.id = 'resiliencyRiskRegisterExport'; exp.type = 'button'; exp.className = 'btn'; exp.textContent = 'Export Risk Register'; exp.title = 'Export all RTS outage scores'; exp.addEventListener('click', exportRegister);
       const copy = document.createElement('button'); copy.id = 'resiliencyCopyBrief'; copy.type = 'button'; copy.className = 'btn'; copy.textContent = 'Copy Exec Summary'; copy.title = 'Copy a short leadership-ready summary'; copy.addEventListener('click', copyBrief);
       const run = $('resiliencyRun');
-      [dash, reg, exp, copy].forEach(b => toolbar.insertBefore(b, run || null));
+      [dash, reg, exp, copy].forEach(b => {
+        if (run && run.parentNode === toolbar) toolbar.insertBefore(b, run);
+        else toolbar.appendChild(b);
+      });
     }
   }
   document.addEventListener('click', e => {
@@ -16499,7 +16536,10 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
       const exp = document.createElement('button'); exp.id = 'resiliencyV112Export'; exp.type = 'button'; exp.className = 'btn'; exp.textContent = 'Export Overlay'; exp.addEventListener('click', exportOverlay);
       const clear = document.createElement('button'); clear.id = 'resiliencyV112Clear'; clear.type = 'button'; clear.className = 'btn'; clear.textContent = 'Clear Map Overlay'; clear.addEventListener('click', clearOverlay);
       const run = $('resiliencyRun');
-      [selected, top, single, exp, clear].forEach(b => toolbar.insertBefore(b, run || null));
+      [selected, top, single, exp, clear].forEach(b => {
+        if (run && run.parentNode === toolbar) toolbar.insertBefore(b, run);
+        else toolbar.appendChild(b);
+      });
     }
   }
   document.addEventListener('click', e => {
@@ -16775,7 +16815,10 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
       const m = document.createElement('button'); m.id = 'resiliencyV113MapTopBtn'; m.type = 'button'; m.className = 'btn'; m.textContent = 'Map Top 5 Priorities'; m.addEventListener('click', mapTop);
       const c = document.createElement('button'); c.id = 'resiliencyV113CopyBtn'; c.type = 'button'; c.className = 'btn'; c.textContent = 'Copy Exec Summary'; c.addEventListener('click', copySummary);
       const run = $('resiliencyRun');
-      [q,m,c].forEach(b => toolbar.insertBefore(b, run || null));
+      [q,m,c].forEach(b => {
+        if (run && run.parentNode === toolbar) toolbar.insertBefore(b, run);
+        else toolbar.appendChild(b);
+      });
     }
   }
   document.addEventListener('click', e => {
@@ -16998,7 +17041,9 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
     if (title && !/v114/.test(title.textContent)) title.textContent = title.textContent.replace(/\\s+—\\s+v\\d+/g,'') + ' — v114';
     if (toolbar && !$('capV114Btn')){
       const b = document.createElement('button'); b.id='capV114Btn'; b.type='button'; b.className='btn'; b.textContent='Capacity Dashboard'; b.title='Show RTS load forecasting and capacity risk scoring'; b.addEventListener('click', renderDashboard);
-      const run = $('resiliencyRun'); toolbar.insertBefore(b, run || null);
+      const run = $('resiliencyRun');
+      if (run && run.parentNode === toolbar) toolbar.insertBefore(b, run);
+      else toolbar.appendChild(b);
     }
   }
   document.addEventListener('click', e => {
@@ -18602,7 +18647,7 @@ body.audience-field #opsDrawer .ops-tab[data-pane="plancompare"]{display:none!im
       ? pass('Store popup bridge','Store popups can be opened from search and Action Queue actions.')
       : fail('Store popup bridge','The public store-popup function is unavailable.'));
     const popupApi=window.OneWalmartPopupActions||{};
-    const popupActions=['copySummary','copyLink','googleMaps','showRoute','nearbyGaps','planningNote'];
+    const popupActions=['copySummary','copyLink','openMaps','showRoute','nearbyGaps','addNote'];
     const readyActions=popupActions.filter(k=>typeof popupApi[k]==='function');
     checks.push(readyActions.length===popupActions.length
       ? pass('Popup actions',`All ${popupActions.length} popup actions are registered.`)
