@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<!-- One Walmart Coverage Map · FINAL-PRODUCTION · 2026-07-29 -->
+<!-- One Walmart Coverage Map · FINAL-BASELINE · 2026-07-29 -->
 <title>One Walmart RTS Coverage Command Center</title>
 <!-- v104 conservative cleanup: removed disabled Transition/Delta UI/marker engine and duplicate startup CSS; coverage logic unchanged. -->
 <!-- v105 Help + Leadership polish pass: refreshed help content and clarified leadership action path. Coverage logic, One Walmart alignment, Ops Intel calculations, and modal wiring preserved from v104. -->
@@ -3591,6 +3591,11 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
   .glance-row{grid-template-columns:1fr;gap:2px;}
   .selected-store-label{font-size:10px;padding:4px 7px;}
 }
+
+  body.audience-field .legacy-alignment-control,
+  body.audience-leadership .legacy-alignment-control{
+    display:none!important;
+  }
 </style>
 </head>
 <body>
@@ -3704,7 +3709,7 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
     <div class="summary" id="alignmentToggle">
       <span class="chip"><b>Alignment:</b></span>
       <label class="toggle"><input type="radio" name="alignmentMode" value="future" checked> One Walmart Alignment</label>
-      <label class="toggle"><input type="radio" name="alignmentMode" value="current"> Current Alignment</label>
+      <label class="toggle legacy-alignment-control"><input type="radio" name="alignmentMode" value="current"> Legacy Alignment — Before June 1</label>
     </div>
     <div class="summary" id="coreTeamToggle">
       <span class="chip"><b>Core Team:</b></span>
@@ -11159,7 +11164,7 @@ id('sandboxBtn').addEventListener('click', ()=>{
             style="width:100%;min-width:0;border:1px solid var(--border);border-radius:8px;padding:7px 8px"/>
           <button id="sandboxFindAddress" class="btn" type="button">Find Address</button>
         </div>
-        <div style="margin-top:6px;font-size:11px;color:var(--muted)">The address is sent only to the geocoding service to locate the simulation. It is not added to the share link or saved automatically.</div>
+        <div style="margin-top:6px;font-size:11px;color:var(--muted)">Privacy note: the address is sent only to the geocoding service to locate this simulation. It is not added to the share link, saved automatically, or included in exports unless you deliberately save the placement.</div>
         <div id="sandboxAddressMsg" role="status" aria-live="polite" style="margin-top:6px;font-size:12px;color:var(--muted)"></div>
       </div>
       <details style="margin-top:8px">
@@ -17602,6 +17607,12 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
       <div class="phase11-metric"><div class="label">Quality flags</div><div class="value">${fmt(st.issues)}</div><div class="sub">coordinates, duplicates, ownership</div></div>
       <div class="phase11-metric"><div class="label">Session load</div><div class="value" style="font-size:15px">${sessionLoadedAt.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</div><div class="sub">${sessionLoadedAt.toLocaleDateString()}</div></div>
     </div><div class="ops-card"><div class="ops-section-title"><span>Source and Quality Checks</span><span class="ops-sub">green / review / unavailable</span></div><div class="phase11-health-list">${rows.map(r=>`<div class="phase11-health-row"><span class="phase11-status-dot ${r[0]}"></span><div class="phase11-health-name">${esc(r[1])}</div><div class="phase11-health-detail">${r[3]==='duplicates'?`<button class="phase11-health-drill" id="phase11DuplicateToggle" type="button">${esc(r[2])} · View records</button>`:esc(r[2])}</div></div>`).join('')}</div><div id="phase11DuplicatePanel"></div></div>
+    <div class="ops-card"><div class="ops-section-title"><span>Production Baseline</span><span class="ops-sub">application build</span></div>
+      <div style="color:#334155;font-size:12px;line-height:1.45">
+        <b>Final production baseline:</b> July 29, 2026.<br>
+        This is the application-build date. Source-data freshness is shown separately in the Data Health checks above.
+      </div>
+    </div>
     <div class="ops-card"><div class="ops-section-title"><span>Performance Diagnostics</span><span class="ops-sub">optional troubleshooting</span></div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div style="color:#475569;font-size:12px;line-height:1.4;max-width:560px">
@@ -18468,10 +18479,13 @@ body.audience-field #opsDrawer .ops-tab[data-pane="plancompare"]{display:none!im
 <!-- FIXED-20 performance diagnostics -->
 <style>
   #v20PerfBadge{
-    position:absolute;left:10px;top:10px;z-index:2100;display:none;
-    border:1px solid #cbd5e1;border-radius:10px;background:rgba(255,255,255,.94);
-    padding:7px 9px;font-size:11px;color:#334155;box-shadow:0 4px 14px rgba(15,23,42,.12);
-    pointer-events:none;
+    position:fixed;right:150px;bottom:16px;z-index:12000;display:none;
+    border:1px solid #cbd5e1;border-radius:10px;background:rgba(255,255,255,.96);
+    padding:8px 10px;font-size:11px;font-weight:800;color:#334155;
+    box-shadow:0 6px 18px rgba(15,23,42,.18);pointer-events:none;
+  }
+  @media(max-width:760px){
+    #v20PerfBadge{right:12px;bottom:48px;max-width:calc(100vw - 24px)}
   }
   body.v20-show-performance #v20PerfBadge{display:block}
 </style>
