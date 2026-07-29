@@ -19245,10 +19245,10 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
   const managerName=v=>{try{return typeof managerLabel==='function'?(managerLabel(v)||''):String(v||'')}catch{return String(v||'')}};
 
   function sourceState(){
-    const stores=Array.isArray(allStores)?allStores:[];
-    const current=Array.isArray(currentStores)?currentStores:[];
-    const future=Array.isArray(futureStores)?futureStores:[];
-    const active=[...(Array.isArray(premiumConfirmed)?premiumConfirmed:[]),...(Array.isArray(acostaHubs)?acostaHubs:[])].filter(h=>h?.status!=='pending');
+    const stores=(typeof allStores!=='undefined'&&Array.isArray(allStores))?allStores:[];
+    const current=(typeof currentStores!=='undefined'&&Array.isArray(currentStores))?currentStores:[];
+    const future=(typeof futureStores!=='undefined'&&Array.isArray(futureStores))?futureStores:[];
+    const active=[...((typeof premiumConfirmed!=='undefined'&&Array.isArray(premiumConfirmed))?premiumConfirmed:[]),...((typeof acostaHubs!=='undefined'&&Array.isArray(acostaHubs))?acostaHubs:[])].filter(h=>h?.status!=='pending');
     const dedicated=Array.isArray(window.dedicatedTeamRows)?window.dedicatedTeamRows:[];
     const statusText=String(document.getElementById('dataStatus')?.textContent||document.getElementById('status')?.textContent||'');
     const fallback=/fallback test data/i.test(statusText)||stores.length<100;
@@ -19322,7 +19322,7 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
     return 'Review coverage stability';
   }
   function buildQueue(){
-    const source=queueScope==='filtered'&&Array.isArray(filteredStores)?filteredStores:(Array.isArray(allStores)?allStores:[]);
+    const source=queueScope==='filtered'&&(typeof filteredStores!=='undefined'&&Array.isArray(filteredStores))?filteredStores:((typeof allStores!=='undefined'&&Array.isArray(allStores))?allStores:[]);
     const statuses=readJson(STATUS_KEY),notes=readJson(NOTES_KEY);
     return source.filter(validCoord).map(s=>{
       const n=nearestFor(s); const ownerAM=managerName(s?.areaManager); const ownerRM=managerName(s?.regionalManager); const ownerMissing=!ownerAM&&!ownerRM;
@@ -19351,11 +19351,11 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
   }
 
   function updateFilterOptions(){
-    const states=[...new Set((Array.isArray(allStores)?allStores:[]).map(s=>String(s?.state||'')).filter(Boolean))].sort();
+    const states=[...new Set(((typeof allStores!=='undefined'&&Array.isArray(allStores))?allStores:[]).map(s=>String(s?.state||'')).filter(Boolean))].sort();
     const el=document.getElementById('phase11StateFilter'); if(el){const keep=el.value;el.innerHTML='<option value="all">All states</option>'+states.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');el.value=states.includes(keep)?keep:'all'}
   }
   function openStore(key){
-    const s=(Array.isArray(allStores)?allStores:[]).find(x=>storeKey(x)===String(key)); if(!s)return;
+    const s=((typeof allStores!=='undefined'&&Array.isArray(allStores))?allStores:[]).find(x=>storeKey(x)===String(key)); if(!s)return;
     document.getElementById('opsDrawer')?.classList.remove('show'); document.querySelector('.mapwrap')?.classList.remove('command-drawer-open');
     try{openStorePopup(s)}catch(e){console.error('Unable to open store from action queue',e)}
   }
@@ -19372,7 +19372,8 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
     if(document.getElementById('opsPaneDatahealth'))return;
     tabs.insertAdjacentHTML('beforeend','<button class="ops-tab phase11-tab" data-pane="datahealth" type="button"><span class="phase11-dot"></span>Data Health</button><button class="ops-tab phase11-tab" data-pane="gapqueue" type="button"><span class="phase11-dot"></span>Action Queue</button>');
     body.insertAdjacentHTML('beforeend',`<div class="ops-pane" id="opsPaneDatahealth"><div id="phase11HealthContent"></div></div><div class="ops-pane" id="opsPaneGapqueue"><div class="ops-card"><div class="ops-section-title"><span>Gap Action Queue</span><span class="ops-sub">uncovered + fringe reach</span></div><div class="phase11-toolbar"><input id="phase11QueueSearch" type="search" placeholder="Search store, market, manager, or RTS"><select id="phase11RiskFilter"><option value="all">All priorities</option><option value="critical">Critical</option><option value="high">High</option><option value="watch">Watch</option></select><select id="phase11StateFilter"><option value="all">All states</option></select><select id="phase11StatusFilter"><option value="all">All statuses</option><option>New</option><option>Reviewed</option><option>Action Needed</option><option>On Hold</option><option>Resolved</option></select><select id="phase11Scope"><option value="all">All loaded stores</option><option value="filtered">Current filters</option></select><button id="phase11QueueRefresh" class="btn" type="button">Refresh</button><button id="phase11QueueExport" class="btn" type="button">Export CSV</button></div><div class="phase11-meta"><span id="phase11QueueMeta">Preparing queue…</span><span>Status and notes save in this browser.</span></div><div id="phase11QueueContent"></div></div></div>`);
-    updateFilterOptions(); renderHealth(); renderQueue();
+    // Bind the new tabs before doing any data rendering. This ensures the tabs remain
+    // functional even if an optional dataset is absent or a health check encounters an error.
     // These tabs are inserted after the original Ops Intel click handlers were bound,
     // so activate their panes explicitly using delegated clicks.
     const activatePhase11Pane=(btn)=>{
@@ -19394,8 +19395,8 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
       const bodyHost=drawer.querySelector('.ops-body');
       if(bodyHost)bodyHost.scrollTop=0;
       target.scrollTop=0;
-      if(pane==='datahealth')renderHealth();
-      if(pane==='gapqueue')renderQueue();
+      if(pane==='datahealth'){try{renderHealth();}catch(e){console.error(e);const h=document.getElementById('phase11HealthContent');if(h)h.innerHTML='<div class="phase11-alert bad"><b>Data Health could not render.</b> Open the browser console for the specific source error.</div>';}}
+      if(pane==='gapqueue'){try{renderQueue();}catch(e){console.error(e);const h=document.getElementById('phase11QueueContent');if(h)h.innerHTML='<div class="phase11-alert bad"><b>Action Queue could not render.</b> Open the browser console for the specific source error.</div>';}}
     };
 
     // Capture the click before older Ops Intel handlers can process or reset it.
@@ -19416,6 +19417,12 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
         activatePhase11Pane(btn);
       };
     });
+
+    // Render independently so one optional-data issue cannot prevent tab activation.
+    try{updateFilterOptions();}catch(e){console.warn('Phase 11 filter setup failed',e);}
+    try{renderHealth();}catch(e){console.warn('Phase 11 Data Health render failed',e);}
+    try{renderQueue();}catch(e){console.warn('Phase 11 Action Queue render failed',e);}
+
     ['phase11QueueSearch','phase11RiskFilter','phase11StateFilter','phase11StatusFilter'].forEach(id=>document.getElementById(id)?.addEventListener(id==='phase11QueueSearch'?'input':'change',renderQueue));
     document.getElementById('phase11Scope')?.addEventListener('change',e=>{queueScope=e.target.value;renderQueue()});
     document.getElementById('phase11QueueRefresh')?.addEventListener('click',()=>{updateFilterOptions();renderHealth();renderQueue()});
