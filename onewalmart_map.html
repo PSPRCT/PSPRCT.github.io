@@ -19191,6 +19191,19 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
 
 <style id="phase11DataActionStyles">
 /* ===== FIXED-11: Data Health + Gap Action Queue ===== */
+/* Keep every Ops Intel tab visible instead of clipping the final tabs. */
+#opsDrawer .ops-tabs{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  align-items:center !important;
+  overflow:visible !important;
+  white-space:normal !important;
+  row-gap:6px !important;
+  max-height:none !important;
+}
+#opsDrawer .ops-tab{
+  flex:0 0 auto !important;
+}
 .ops-tab.phase11-tab{position:relative;}
 .ops-tab.phase11-tab .phase11-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;background:#94a3b8;vertical-align:1px;}
 .ops-tab.phase11-tab .phase11-dot.good{background:#22c55e}.ops-tab.phase11-tab .phase11-dot.warn{background:#f59e0b}.ops-tab.phase11-tab .phase11-dot.bad{background:#ef4444}
@@ -19358,7 +19371,20 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
     tabs.insertAdjacentHTML('beforeend','<button class="ops-tab phase11-tab" data-pane="datahealth" type="button"><span class="phase11-dot"></span>Data Health</button><button class="ops-tab phase11-tab" data-pane="gapqueue" type="button"><span class="phase11-dot"></span>Action Queue</button>');
     body.insertAdjacentHTML('beforeend',`<div class="ops-pane" id="opsPaneDatahealth"><div id="phase11HealthContent"></div></div><div class="ops-pane" id="opsPaneGapqueue"><div class="ops-card"><div class="ops-section-title"><span>Gap Action Queue</span><span class="ops-sub">uncovered + fringe reach</span></div><div class="phase11-toolbar"><input id="phase11QueueSearch" type="search" placeholder="Search store, market, manager, or RTS"><select id="phase11RiskFilter"><option value="all">All priorities</option><option value="critical">Critical</option><option value="high">High</option><option value="watch">Watch</option></select><select id="phase11StateFilter"><option value="all">All states</option></select><select id="phase11StatusFilter"><option value="all">All statuses</option><option>New</option><option>Reviewed</option><option>Action Needed</option><option>On Hold</option><option>Resolved</option></select><select id="phase11Scope"><option value="all">All loaded stores</option><option value="filtered">Current filters</option></select><button id="phase11QueueRefresh" class="btn" type="button">Refresh</button><button id="phase11QueueExport" class="btn" type="button">Export CSV</button></div><div class="phase11-meta"><span id="phase11QueueMeta">Preparing queue…</span><span>Status and notes save in this browser.</span></div><div id="phase11QueueContent"></div></div></div>`);
     updateFilterOptions(); renderHealth(); renderQueue();
-    tabs.addEventListener('click',e=>{const btn=e.target.closest('.ops-tab');if(!btn)return;const pane=btn.dataset.pane;if(pane==='datahealth')setTimeout(renderHealth,0);if(pane==='gapqueue')setTimeout(renderQueue,0)});
+    // These tabs are inserted after the original Ops Intel click handlers were bound,
+    // so activate their panes explicitly using delegated clicks.
+    tabs.addEventListener('click',e=>{
+      const btn=e.target.closest('.ops-tab');
+      if(!btn || !btn.classList.contains('phase11-tab')) return;
+      const pane=btn.dataset.pane;
+      drawer.querySelectorAll('.ops-tab').forEach(b=>b.classList.toggle('active',b===btn));
+      drawer.querySelectorAll('.ops-pane').forEach(p=>{p.classList.remove('active');p.classList.remove('show')});
+      const target=drawer.querySelector(`#opsPane${pane.charAt(0).toUpperCase()+pane.slice(1)}`);
+      target?.classList.add('active');
+      target?.classList.add('show');
+      if(pane==='datahealth') requestAnimationFrame(renderHealth);
+      if(pane==='gapqueue') requestAnimationFrame(renderQueue);
+    });
     ['phase11QueueSearch','phase11RiskFilter','phase11StateFilter','phase11StatusFilter'].forEach(id=>document.getElementById(id)?.addEventListener(id==='phase11QueueSearch'?'input':'change',renderQueue));
     document.getElementById('phase11Scope')?.addEventListener('change',e=>{queueScope=e.target.value;renderQueue()});
     document.getElementById('phase11QueueRefresh')?.addEventListener('click',()=>{updateFilterOptions();renderHealth();renderQueue()});
