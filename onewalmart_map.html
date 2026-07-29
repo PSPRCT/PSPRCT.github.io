@@ -20249,5 +20249,353 @@ body.audience-field #opsDrawer .ops-tab[data-pane="plancompare"]{display:none!im
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
 </script>
+
+<!-- ===== FIXED-19: Guidance, definitions, accessibility, and simulation explanation ===== -->
+<style>
+  .v19-sr-only{
+    position:absolute!important;width:1px!important;height:1px!important;padding:0!important;
+    margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;
+    white-space:nowrap!important;border:0!important;
+  }
+  .v19-help-trigger{
+    display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;
+    margin-left:5px;border:1px solid #94a3b8;border-radius:999px;background:#fff;
+    color:#334155;font-size:11px;font-weight:950;cursor:help;vertical-align:middle;
+  }
+  .v19-term-tip{
+    position:fixed;z-index:12000;max-width:300px;padding:9px 10px;border:1px solid #cbd5e1;
+    border-radius:10px;background:#fff;color:#0f172a;box-shadow:0 10px 28px rgba(15,23,42,.18);
+    font-size:12px;line-height:1.4;display:none;pointer-events:none;
+  }
+  .v19-guide-launch{
+    margin-left:6px;
+  }
+  .v19-walkthrough{
+    position:fixed;inset:0;z-index:11500;background:rgba(15,23,42,.36);
+    display:none;align-items:center;justify-content:center;padding:18px;
+  }
+  .v19-walkthrough.show{display:flex}
+  .v19-walk-card{
+    width:min(560px,96vw);border:1px solid #cbd5e1;border-radius:16px;background:#fff;
+    box-shadow:0 18px 48px rgba(15,23,42,.25);padding:18px;
+  }
+  .v19-walk-card h3{margin:0 0 8px;font-size:20px}
+  .v19-walk-card p{margin:0;color:#475569;line-height:1.45}
+  .v19-walk-progress{display:flex;gap:6px;margin:14px 0}
+  .v19-walk-dot{height:7px;flex:1;border-radius:999px;background:#e2e8f0}
+  .v19-walk-dot.active{background:#2563eb}
+  .v19-walk-actions{display:flex;justify-content:space-between;gap:8px;margin-top:16px}
+  .v19-glossary{
+    margin-top:14px;border:1px solid #cbd5e1;border-radius:14px;padding:12px;background:#f8fafc;
+  }
+  .v19-glossary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .v19-glossary-item{border:1px solid #e2e8f0;border-radius:10px;background:#fff;padding:9px}
+  .v19-glossary-item b{display:block;margin-bottom:3px}
+  .v19-sim-reason{
+    margin-top:8px;padding:9px 10px;border:1px solid #bfdbfe;border-radius:10px;
+    background:#eff6ff;color:#1e3a8a;font-size:12px;line-height:1.4;
+  }
+  .v19-focus-visible:focus,
+  button:focus-visible,
+  [role="tab"]:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  summary:focus-visible{
+    outline:3px solid rgba(37,99,235,.45)!important;
+    outline-offset:2px!important;
+  }
+  @media(max-width:700px){
+    .v19-glossary-grid{grid-template-columns:1fr}
+  }
+  @media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{
+      scroll-behavior:auto!important;
+      animation-duration:.01ms!important;
+      animation-iteration-count:1!important;
+      transition-duration:.01ms!important;
+    }
+  }
+</style>
+
+<div id="v19Live" class="v19-sr-only" aria-live="polite" aria-atomic="true"></div>
+<div id="v19Tip" class="v19-term-tip" role="tooltip"></div>
+
+<div id="v19Walkthrough" class="v19-walkthrough" role="dialog" aria-modal="true" aria-labelledby="v19WalkTitle">
+  <div class="v19-walk-card">
+    <h3 id="v19WalkTitle">Map quick start</h3>
+    <p id="v19WalkText"></p>
+    <div id="v19WalkProgress" class="v19-walk-progress" aria-hidden="true"></div>
+    <div class="v19-walk-actions">
+      <button id="v19WalkClose" class="btn" type="button">Close guide</button>
+      <div style="display:flex;gap:8px">
+        <button id="v19WalkBack" class="btn" type="button">Back</button>
+        <button id="v19WalkNext" class="btn" type="button">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const live = $('v19Live');
+  const announce = (message) => {
+    if (!live) return;
+    live.textContent = '';
+    setTimeout(() => { live.textContent = message; }, 20);
+  };
+
+  const definitions = {
+    'Fringe Reach': 'A store is covered, but its nearest active RTS is approximately 60–75 miles away. The store is within the operating radius but has limited margin for travel or backup support.',
+    'Single-Point Coverage': 'A store has only one active RTS within 75 miles. If that RTS becomes unavailable, the store may lose in-range coverage.',
+    'Backup Coverage Gained': 'An already-covered store would gain an additional active RTS within the selected simulation radius.',
+    'Primary Relief Potential': 'The simulated RTS would be closer to the store than its current nearest active RTS, creating a possible territory or workload shift.',
+    'Redundant Overlap': 'The store already has at least two active RTS within 75 miles, so another placement adds limited resiliency compared with a true gap or single-point store.',
+    'Coverage Resiliency': 'The share of stores with more than one active RTS option within 75 miles. Higher resiliency means fewer stores depend on a single person.',
+    'Dedicated Presence': 'Unilever, P&G, or Tyson teams associated with the store. Dedicated-team visibility is separate from the core One Walmart RTS coverage calculation.',
+    'Net-New Coverage': 'Currently uncovered stores that would become covered by the simulated RTS placement.',
+    'Current Gap': 'A store with no active RTS within the selected 75-mile operating radius.',
+    'Planning Note': 'A browser-saved note tied to the selected store. It remains local to this browser unless separately exported.'
+  };
+
+  function addHelpButton(node, term){
+    if (!node || node.querySelector?.('.v19-help-trigger')) return;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'v19-help-trigger';
+    b.dataset.v19Term = term;
+    b.setAttribute('aria-label', `Explain ${term}`);
+    b.textContent = '?';
+    node.appendChild(b);
+  }
+
+  function decorateTerms(root=document){
+    const selectors = [
+      ['[data-v19-help="fringe"]','Fringe Reach'],
+      ['[data-v19-help="single"]','Single-Point Coverage'],
+      ['[data-v19-help="backup"]','Backup Coverage Gained'],
+      ['[data-v19-help="relief"]','Primary Relief Potential'],
+      ['[data-v19-help="redundant"]','Redundant Overlap'],
+      ['[data-v19-help="resiliency"]','Coverage Resiliency'],
+      ['[data-v19-help="dedicated"]','Dedicated Presence'],
+      ['[data-v19-help="netnew"]','Net-New Coverage']
+    ];
+    selectors.forEach(([sel,term]) => root.querySelectorAll?.(sel).forEach(n => addHelpButton(n,term)));
+
+    root.querySelectorAll?.('#sandboxStats div, .store-popup-shell div, #opsDrawer div').forEach(n => {
+      if (n.children.length > 3) return;
+      const t = (n.textContent || '').trim();
+      Object.keys(definitions).forEach(term => {
+        if (t === term || t.startsWith(term + ':')) addHelpButton(n, term);
+      });
+    });
+  }
+
+  const tip = $('v19Tip');
+  function showTip(button){
+    const term = button?.dataset?.v19Term;
+    if (!term || !definitions[term] || !tip) return;
+    tip.innerHTML = `<b>${term}</b><br>${definitions[term]}`;
+    tip.style.display = 'block';
+    const r = button.getBoundingClientRect();
+    const left = Math.min(window.innerWidth - 315, Math.max(10, r.left - 130));
+    const top = Math.min(window.innerHeight - 120, r.bottom + 8);
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+    announce(`${term}: ${definitions[term]}`);
+  }
+  function hideTip(){ if (tip) tip.style.display = 'none'; }
+
+  document.addEventListener('mouseover', e => {
+    const b = e.target.closest?.('.v19-help-trigger');
+    if (b) showTip(b);
+  });
+  document.addEventListener('mouseout', e => {
+    if (e.target.closest?.('.v19-help-trigger')) hideTip();
+  });
+  document.addEventListener('focusin', e => {
+    const b = e.target.closest?.('.v19-help-trigger');
+    if (b) showTip(b);
+  });
+  document.addEventListener('focusout', e => {
+    if (e.target.closest?.('.v19-help-trigger')) hideTip();
+  });
+  document.addEventListener('click', e => {
+    const b = e.target.closest?.('.v19-help-trigger');
+    if (b) {
+      e.preventDefault();
+      e.stopPropagation();
+      showTip(b);
+    }
+  });
+
+  const steps = [
+    ['Search for a store', 'Use the main search box to enter a store number, city/state, or RTS name. Select a result to open its coverage and ownership details.'],
+    ['Review current coverage', 'The store popup shows whether the store is covered, fringe, or a gap; the nearest RTS; backup options; operational ownership; and dedicated-team presence.'],
+    ['Review gaps and actions', 'Use Current Gaps, Operational Focus Areas, or the Action Queue to move from a map signal to a specific operational follow-up.'],
+    ['Test a proposed RTS', 'Open Simulate New RTS, click the map or enter a home address, then review net-new coverage, backup gains, workload relief, and overlap.'],
+    ['Inspect the impact', 'Use the simulator comparison buttons to highlight net-new stores, backup gains, primary relief, or redundant overlap against the current active RTS network.'],
+    ['Save and compare plans', 'For larger staffing scenarios, save plan snapshots and use Plan Compare. Use the Territory tab for one-RTS geographic analysis rather than workload ranking.']
+  ];
+  let stepIndex = 0;
+  let priorFocus = null;
+
+  function renderWalk(){
+    $('v19WalkText').textContent = steps[stepIndex][1];
+    $('v19WalkTitle').textContent = `${stepIndex + 1}. ${steps[stepIndex][0]}`;
+    $('v19WalkBack').disabled = stepIndex === 0;
+    $('v19WalkNext').textContent = stepIndex === steps.length - 1 ? 'Finish' : 'Next';
+    $('v19WalkProgress').innerHTML = steps.map((_,i) => `<span class="v19-walk-dot ${i===stepIndex?'active':''}"></span>`).join('');
+    announce(`Guide step ${stepIndex + 1} of ${steps.length}: ${steps[stepIndex][0]}`);
+  }
+  function openWalk(){
+    priorFocus = document.activeElement;
+    stepIndex = 0;
+    renderWalk();
+    $('v19Walkthrough').classList.add('show');
+    $('v19WalkNext').focus();
+  }
+  function closeWalk(){
+    $('v19Walkthrough').classList.remove('show');
+    priorFocus?.focus?.();
+  }
+  $('v19WalkNext').addEventListener('click', () => {
+    if (stepIndex >= steps.length - 1) closeWalk();
+    else { stepIndex += 1; renderWalk(); }
+  });
+  $('v19WalkBack').addEventListener('click', () => {
+    if (stepIndex > 0) { stepIndex -= 1; renderWalk(); }
+  });
+  $('v19WalkClose').addEventListener('click', closeWalk);
+
+  function installGuideButton(){
+    const existing = $('v19GuideBtn');
+    if (existing) return;
+    const help = $('helpBtn');
+    if (!help) return;
+    const b = document.createElement('button');
+    b.id = 'v19GuideBtn';
+    b.type = 'button';
+    b.className = 'btn planning-help-secondary v19-guide-launch';
+    b.textContent = 'Quick Start';
+    b.title = 'Step-by-step map walkthrough';
+    b.addEventListener('click', openWalk);
+    help.insertAdjacentElement('afterend', b);
+  }
+
+  function installGlossary(){
+    const modal = $('helpModal');
+    const body = modal?.querySelector('.card .body');
+    if (!body || $('v19Glossary')) return;
+    const wrap = document.createElement('section');
+    wrap.id = 'v19Glossary';
+    wrap.className = 'v19-glossary';
+    wrap.innerHTML = `
+      <h4 style="margin:0 0 8px">Coverage and planning definitions</h4>
+      <div class="v19-glossary-grid">
+        ${Object.entries(definitions).map(([term,desc]) =>
+          `<div class="v19-glossary-item"><b>${term}</b><span>${desc}</span></div>`
+        ).join('')}
+      </div>`;
+    body.appendChild(wrap);
+  }
+
+  function describeSimulation(){
+    const stats = $('sandboxStats');
+    if (!stats || stats.querySelector('.v19-sim-reason')) return;
+    const assessment = [...stats.querySelectorAll('div')].find(n =>
+      (n.textContent || '').trim().toLowerCase() === 'placement assessment'
+    );
+    if (!assessment) return;
+    const ratingWrap = assessment.parentElement;
+    const rating = ratingWrap?.children?.[1]?.textContent?.trim() || 'Placement assessment';
+    const reason = ratingWrap?.children?.[2]?.textContent?.trim() || '';
+    const explainer = document.createElement('div');
+    explainer.className = 'v19-sim-reason';
+    explainer.innerHTML = `<b>Why this rating:</b> ${reason || 'The rating balances gap closure, backup support, workload relief, and redundant overlap.'} Use the category buttons below to see the stores included in each metric.`;
+    ratingWrap?.parentElement?.insertAdjacentElement('afterend', explainer);
+  }
+
+  function makeOpsTabsKeyboardFriendly(){
+    const tabs = document.querySelectorAll('#opsDrawer .ops-tab');
+    tabs.forEach((tab,i) => {
+      tab.setAttribute('role','tab');
+      tab.setAttribute('aria-selected', tab.classList.contains('active') ? 'true' : 'false');
+      tab.addEventListener('keydown', e => {
+        if (!['ArrowRight','ArrowLeft','Home','End'].includes(e.key)) return;
+        e.preventDefault();
+        let next = i;
+        if (e.key === 'ArrowRight') next = (i + 1) % tabs.length;
+        if (e.key === 'ArrowLeft') next = (i - 1 + tabs.length) % tabs.length;
+        if (e.key === 'Home') next = 0;
+        if (e.key === 'End') next = tabs.length - 1;
+        tabs[next]?.focus();
+        tabs[next]?.click();
+      });
+    });
+  }
+
+  document.addEventListener('click', e => {
+    const tab = e.target.closest?.('#opsDrawer .ops-tab');
+    if (tab) {
+      document.querySelectorAll('#opsDrawer .ops-tab').forEach(t =>
+        t.setAttribute('aria-selected', t === tab ? 'true' : 'false')
+      );
+      announce(`${tab.textContent.trim()} tab opened`);
+    }
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    hideTip();
+    if ($('v19Walkthrough')?.classList.contains('show')) {
+      e.preventDefault();
+      closeWalk();
+      return;
+    }
+    document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
+    document.querySelectorAll('.leaflet-popup-close-button').forEach(b => {
+      if (b.offsetParent !== null) b.click();
+    });
+    const ops = $('opsDrawer');
+    if (ops?.classList.contains('show')) $('opsCloseBtn')?.click();
+    announce('Open panel closed');
+  });
+
+  const observer = new MutationObserver(() => {
+    installGuideButton();
+    installGlossary();
+    decorateTerms();
+    describeSimulation();
+    makeOpsTabsKeyboardFriendly();
+  });
+  observer.observe(document.body,{childList:true,subtree:true});
+
+  installGuideButton();
+  installGlossary();
+  decorateTerms();
+  describeSimulation();
+  makeOpsTabsKeyboardFriendly();
+
+  // Announce common simulation and filter updates without changing calculations.
+  document.addEventListener('click', e => {
+    const id = e.target?.id || '';
+    const messages = {
+      sandboxShowNetNew:'Net-new stores highlighted on the map.',
+      sandboxShowBackup:'Stores gaining backup coverage highlighted on the map.',
+      sandboxShowRelief:'Primary relief stores highlighted on the map.',
+      sandboxShowRedundant:'Redundant overlap stores highlighted on the map.',
+      sandboxClearImpact:'Simulation impact highlights cleared.',
+      sandboxFindAddress:'Searching for the entered address.',
+      sandboxClear:'Simulation cleared.'
+    };
+    if (messages[id]) announce(messages[id]);
+  });
+})();
+</script>
+
 </body>
 </html>
