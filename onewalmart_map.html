@@ -20380,13 +20380,14 @@ body.audience-field #opsDrawer .ops-tab[data-pane="plancompare"]{display:none!im
       const label = (badge.textContent || '').trim();
       let term = '';
 
-      // Use the badge's coverage class before its wording. Some uncovered
-      // classifications include the word "fringe" (for example,
-      // "Isolated Rural / Fringe Gap") but are still true coverage gaps.
-      if (badge.classList.contains('high')) term = 'Coverage Gap';
+      // Determine meaning from the actual label first. Some uncovered
+      // classifications intentionally use the word "fringe" while still
+      // ending in "Gap" (for example, "Isolated Rural / Fringe Gap").
+      // Those must explain a coverage gap, not covered Fringe Reach.
+      if (/gap|uncovered/i.test(label)) term = 'Coverage Gap';
+      else if (/fringe reach/i.test(label)) term = 'Fringe Reach';
+      else if (badge.classList.contains('high')) term = 'Coverage Gap';
       else if (badge.classList.contains('near')) term = 'Fringe Reach';
-      else if (/gap|uncovered/i.test(label)) term = 'Coverage Gap';
-      else if (/fringe/i.test(label)) term = 'Fringe Reach';
 
       if (!term) return;
       const help = document.createElement('button');
