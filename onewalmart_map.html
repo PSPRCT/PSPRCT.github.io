@@ -19204,7 +19204,9 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
 #opsDrawer .ops-tab{
   flex:0 0 auto !important;
 }
-.ops-tab.phase11-tab{position:relative;}
+.ops-tab.phase11-tab{position:relative;pointer-events:auto !important;cursor:pointer !important;}
+#opsPaneDatahealth,#opsPaneGapqueue{display:none;}
+#opsPaneDatahealth.active,#opsPaneGapqueue.active,#opsPaneDatahealth.show,#opsPaneGapqueue.show{display:block !important;}
 .ops-tab.phase11-tab .phase11-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;background:#94a3b8;vertical-align:1px;}
 .ops-tab.phase11-tab .phase11-dot.good{background:#22c55e}.ops-tab.phase11-tab .phase11-dot.warn{background:#f59e0b}.ops-tab.phase11-tab .phase11-dot.bad{background:#ef4444}
 .phase11-grid{display:grid;grid-template-columns:repeat(4,minmax(110px,1fr));gap:8px;margin-bottom:10px}
@@ -19373,17 +19375,46 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
     updateFilterOptions(); renderHealth(); renderQueue();
     // These tabs are inserted after the original Ops Intel click handlers were bound,
     // so activate their panes explicitly using delegated clicks.
-    tabs.addEventListener('click',e=>{
-      const btn=e.target.closest('.ops-tab');
-      if(!btn || !btn.classList.contains('phase11-tab')) return;
+    const activatePhase11Pane=(btn)=>{
+      if(!btn)return;
       const pane=btn.dataset.pane;
+      const targetId=pane==='datahealth'?'opsPaneDatahealth':'opsPaneGapqueue';
+      const target=drawer.querySelector('#'+targetId);
+      if(!target)return;
+
       drawer.querySelectorAll('.ops-tab').forEach(b=>b.classList.toggle('active',b===btn));
-      drawer.querySelectorAll('.ops-pane').forEach(p=>{p.classList.remove('active');p.classList.remove('show')});
-      const target=drawer.querySelector(`#opsPane${pane.charAt(0).toUpperCase()+pane.slice(1)}`);
-      target?.classList.add('active');
-      target?.classList.add('show');
-      if(pane==='datahealth') requestAnimationFrame(renderHealth);
-      if(pane==='gapqueue') requestAnimationFrame(renderQueue);
+      drawer.querySelectorAll('.ops-pane').forEach(p=>{
+        const selected=p===target;
+        p.classList.toggle('active',selected);
+        p.classList.toggle('show',selected);
+        p.hidden=!selected;
+        p.style.display=selected?'block':'none';
+      });
+
+      const bodyHost=drawer.querySelector('.ops-body');
+      if(bodyHost)bodyHost.scrollTop=0;
+      target.scrollTop=0;
+      if(pane==='datahealth')renderHealth();
+      if(pane==='gapqueue')renderQueue();
+    };
+
+    // Capture the click before older Ops Intel handlers can process or reset it.
+    tabs.addEventListener('click',e=>{
+      const btn=e.target.closest('.phase11-tab');
+      if(!btn)return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      activatePhase11Pane(btn);
+    },true);
+
+    // Direct handlers are a fallback for browsers that behave differently with delegated clicks.
+    tabs.querySelectorAll('.phase11-tab').forEach(btn=>{
+      btn.onclick=(e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+        activatePhase11Pane(btn);
+      };
     });
     ['phase11QueueSearch','phase11RiskFilter','phase11StateFilter','phase11StatusFilter'].forEach(id=>document.getElementById(id)?.addEventListener(id==='phase11QueueSearch'?'input':'change',renderQueue));
     document.getElementById('phase11Scope')?.addEventListener('change',e=>{queueScope=e.target.value;renderQueue()});
