@@ -5240,10 +5240,13 @@ window.__oneWalmartRuntime = function(){
   return {
     allStores,
     filteredStores,
+    currentStores,
+    futureStores,
     premiumConfirmed,
     premiumPending,
     acostaHubs,
     combinedRTS,
+    dedicatedTeamRows: Array.isArray(window.dedicatedTeamRows) ? window.dedicatedTeamRows : [],
     map,
     L,
     radius: Number(radius?.value) || DEFAULT_RADIUS,
@@ -19243,13 +19246,15 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
   const readJson=(k)=>{try{return JSON.parse(localStorage.getItem(k)||'{}')||{}}catch{return {}}};
   const writeJson=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){console.warn('Unable to save action queue state',e)}};
   const managerName=v=>{try{return typeof managerLabel==='function'?(managerLabel(v)||''):String(v||'')}catch{return String(v||'')}};
+  const runtime=()=>{try{return typeof window.__oneWalmartRuntime==='function'?(window.__oneWalmartRuntime()||{}):{}}catch(e){console.warn('Phase 11 runtime bridge unavailable',e);return {}}};
 
   function sourceState(){
-    const stores=(typeof allStores!=='undefined'&&Array.isArray(allStores))?allStores:[];
-    const current=(typeof currentStores!=='undefined'&&Array.isArray(currentStores))?currentStores:[];
-    const future=(typeof futureStores!=='undefined'&&Array.isArray(futureStores))?futureStores:[];
-    const active=[...((typeof premiumConfirmed!=='undefined'&&Array.isArray(premiumConfirmed))?premiumConfirmed:[]),...((typeof acostaHubs!=='undefined'&&Array.isArray(acostaHubs))?acostaHubs:[])].filter(h=>h?.status!=='pending');
-    const dedicated=Array.isArray(window.dedicatedTeamRows)?window.dedicatedTeamRows:[];
+    const rt=runtime();
+    const stores=Array.isArray(rt.allStores)?rt.allStores:[];
+    const current=Array.isArray(rt.currentStores)?rt.currentStores:[];
+    const future=Array.isArray(rt.futureStores)?rt.futureStores:[];
+    const active=[...(Array.isArray(rt.premiumConfirmed)?rt.premiumConfirmed:[]),...(Array.isArray(rt.acostaHubs)?rt.acostaHubs:[])].filter(h=>h?.status!=='pending');
+    const dedicated=Array.isArray(rt.dedicatedTeamRows)?rt.dedicatedTeamRows:(Array.isArray(window.dedicatedTeamRows)?window.dedicatedTeamRows:[]);
     const statusText=String(document.getElementById('dataStatus')?.textContent||document.getElementById('status')?.textContent||'');
     const fallback=/fallback test data/i.test(statusText)||stores.length<100;
     const missingCoords=stores.filter(s=>!validCoord(s)).length;
@@ -19322,7 +19327,8 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
     return 'Review coverage stability';
   }
   function buildQueue(){
-    const source=queueScope==='filtered'&&(typeof filteredStores!=='undefined'&&Array.isArray(filteredStores))?filteredStores:((typeof allStores!=='undefined'&&Array.isArray(allStores))?allStores:[]);
+    const rt=runtime();
+    const source=queueScope==='filtered'&&Array.isArray(rt.filteredStores)?rt.filteredStores:(Array.isArray(rt.allStores)?rt.allStores:[]);
     const statuses=readJson(STATUS_KEY),notes=readJson(NOTES_KEY);
     return source.filter(validCoord).map(s=>{
       const n=nearestFor(s); const ownerAM=managerName(s?.areaManager); const ownerRM=managerName(s?.regionalManager); const ownerMissing=!ownerAM&&!ownerRM;
@@ -19351,11 +19357,13 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
   }
 
   function updateFilterOptions(){
-    const states=[...new Set(((typeof allStores!=='undefined'&&Array.isArray(allStores))?allStores:[]).map(s=>String(s?.state||'')).filter(Boolean))].sort();
+    const rt=runtime();
+    const states=[...new Set((Array.isArray(rt.allStores)?rt.allStores:[]).map(s=>String(s?.state||'')).filter(Boolean))].sort();
     const el=document.getElementById('phase11StateFilter'); if(el){const keep=el.value;el.innerHTML='<option value="all">All states</option>'+states.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');el.value=states.includes(keep)?keep:'all'}
   }
   function openStore(key){
-    const s=((typeof allStores!=='undefined'&&Array.isArray(allStores))?allStores:[]).find(x=>storeKey(x)===String(key)); if(!s)return;
+    const rt=runtime();
+    const s=(Array.isArray(rt.allStores)?rt.allStores:[]).find(x=>storeKey(x)===String(key)); if(!s)return;
     document.getElementById('opsDrawer')?.classList.remove('show'); document.querySelector('.mapwrap')?.classList.remove('command-drawer-open');
     try{openStorePopup(s)}catch(e){console.error('Unable to open store from action queue',e)}
   }
@@ -19422,6 +19430,18 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
     try{updateFilterOptions();}catch(e){console.warn('Phase 11 filter setup failed',e);}
     try{renderHealth();}catch(e){console.warn('Phase 11 Data Health render failed',e);}
     try{renderQueue();}catch(e){console.warn('Phase 11 Action Queue render failed',e);}
+
+    // The map datasets load asynchronously. Recheck briefly so the new panels
+    // populate as soon as the same runtime data used by the map becomes available.
+    let phase11ReadyChecks=0;
+    const phase11ReadyTimer=setInterval(()=>{
+      phase11ReadyChecks+=1;
+      const rt=runtime();
+      if((Array.isArray(rt.allStores)&&rt.allStores.length)||(phase11ReadyChecks>=40)){
+        clearInterval(phase11ReadyTimer);
+        try{updateFilterOptions();renderHealth();renderQueue();}catch(e){console.warn('Phase 11 delayed data refresh failed',e);}
+      }
+    },500);
 
     ['phase11QueueSearch','phase11RiskFilter','phase11StateFilter','phase11StatusFilter'].forEach(id=>document.getElementById(id)?.addEventListener(id==='phase11QueueSearch'?'input':'change',renderQueue));
     document.getElementById('phase11Scope')?.addEventListener('change',e=>{queueScope=e.target.value;renderQueue()});
