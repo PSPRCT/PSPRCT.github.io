@@ -19476,5 +19476,145 @@ btn.title = 'Advanced planning: simulate RTS outage and backup coverage';
 })();
 </script>
 
+
+
+<!-- ===== FIXED-12: Audience Modes ===== -->
+<style id="audienceModeStyles">
+#audienceModeBar{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:7px 10px;background:#fff;border-bottom:1px solid #e5e7eb;
+  font-size:12px;position:relative;z-index:1200;
+}
+#audienceModeBar .audience-label{
+  color:#64748b;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.06em;
+}
+#audienceModeBar .audience-help{margin-left:auto;color:#64748b;font-size:11px;line-height:1.25;}
+.audience-mode-btn{
+  appearance:none;border:1px solid #cbd5e1;background:#fff;color:#0f172a;
+  border-radius:999px;padding:6px 11px;font-weight:850;cursor:pointer;line-height:1;
+}
+.audience-mode-btn:hover{border-color:#94a3b8;background:#f8fafc;}
+.audience-mode-btn.active{background:#0f172a;color:#fff;border-color:#0f172a;box-shadow:0 0 0 2px rgba(15,23,42,.08);}
+#audienceModeNotice{
+  display:none;padding:6px 10px;background:#eff6ff;border-bottom:1px solid #bfdbfe;
+  color:#1e3a8a;font-size:11px;line-height:1.3;
+}
+body.audience-field #audienceModeNotice,
+body.audience-leadership #audienceModeNotice{display:block;}
+body.audience-field .aud-field-hide,
+body.audience-leadership .aud-lead-hide{display:none !important;}
+/* Ops Intel tab visibility by audience. Planning/Admin remains unrestricted. */
+body.audience-field #opsDrawer .ops-tab[data-pane="blended"],
+body.audience-field #opsDrawer .ops-tab[data-pane="workload"],
+body.audience-field #opsDrawer .ops-tab[data-pane="actionplan"],
+body.audience-field #opsDrawer .ops-tab[data-pane="leadership"],
+body.audience-field #opsDrawer .ops-tab[data-pane="datahealth"],
+body.audience-field #opsDrawer .ops-tab[data-pane="gapqueue"]{display:none !important;}
+body.audience-leadership #opsDrawer .ops-tab[data-pane="blended"],
+body.audience-leadership #opsDrawer .ops-tab[data-pane="workload"],
+body.audience-leadership #opsDrawer .ops-tab[data-pane="gapqueue"]{display:none !important;}
+/* Audience modes are a visibility layer only; no map calculations or filters are changed. */
+@media(max-width:900px){
+  #audienceModeBar{gap:6px;padding:6px 8px;}
+  .audience-mode-btn{padding:6px 9px;font-size:11px;}
+  #audienceModeBar .audience-help{width:100%;margin-left:0;}
+}
+</style>
+<script id="audienceModeScript">
+(function(){
+  'use strict';
+  const STORAGE_KEY='onewalmart_audience_mode_v1';
+  const MODES={
+    field:{label:'Field Operations',notice:'Field Operations mode: essential store search, coverage, ownership, and gap-review tools are shown. Calculations and active filters are unchanged.'},
+    leadership:{label:'Leadership',notice:'Leadership mode: executive KPIs, gaps, action planning, and leadership summaries are emphasized. Calculations and active filters are unchanged.'},
+    planning:{label:'Planning / Admin',notice:''}
+  };
+  const $=id=>document.getElementById(id);
+  const q=(s,r=document)=>r.querySelector(s);
+  const qa=(s,r=document)=>Array.from(r.querySelectorAll(s));
+
+  function nearestSection(id){return $(id)?.closest('section.control-section')||null;}
+  function tagAudienceElements(){
+    const dedicated=$('dedicatedFilterSection');
+    if(dedicated){dedicated.classList.add('aud-field-hide','aud-lead-hide');}
+    const mapLayers=nearestSection('sandboxBtn');
+    if(mapLayers){mapLayers.classList.add('aud-field-hide','aud-lead-hide');}
+    const rtsVisibility=nearestSection('showConfirmed');
+    if(rtsVisibility){rtsVisibility.classList.add('aud-lead-hide');}
+    const planningPanel=q('.planning-tools-panel');
+    if(planningPanel){planningPanel.classList.add('aud-field-hide','aud-lead-hide');}
+    const workflow=q('.planning-workflow-strip');
+    if(workflow){workflow.classList.add('aud-lead-hide');}
+    const alignment=$('alignmentToggle');
+    if(alignment){alignment.classList.add('aud-field-hide','aud-lead-hide');}
+    const core=$('coreTeamToggle');
+    if(core){core.classList.add('aud-field-hide','aud-lead-hide');}
+    qa('[data-tooltype="planning"],[data-tooltype="advanced"]').forEach(el=>el.classList.add('aud-field-hide','aud-lead-hide'));
+  }
+
+  function ensureBar(){
+    if($('audienceModeBar'))return;
+    const viewBar=$('opcxViewBar');
+    const context=$('opcxContextBanner');
+    const bar=document.createElement('div');
+    bar.id='audienceModeBar';
+    bar.setAttribute('role','group');
+    bar.setAttribute('aria-label','Audience mode');
+    bar.innerHTML=`<span class="audience-label">Audience</span>
+      <button class="audience-mode-btn" type="button" data-audience="field">Field Operations</button>
+      <button class="audience-mode-btn" type="button" data-audience="leadership">Leadership</button>
+      <button class="audience-mode-btn" type="button" data-audience="planning">Planning / Admin</button>
+      <span class="audience-help">Changes visible tools only—not coverage logic, filters, or data.</span>`;
+    const notice=document.createElement('div');
+    notice.id='audienceModeNotice';
+    if(context?.parentNode){context.parentNode.insertBefore(bar,context);context.parentNode.insertBefore(notice,context);}
+    else if(viewBar?.parentNode){viewBar.parentNode.insertBefore(bar,viewBar.nextSibling);viewBar.parentNode.insertBefore(notice,bar.nextSibling);}
+    else{document.body.insertBefore(bar,document.body.firstChild);document.body.insertBefore(notice,bar.nextSibling);}
+    bar.addEventListener('click',e=>{const b=e.target.closest('[data-audience]');if(b)applyMode(b.dataset.audience,true);});
+  }
+
+  function ensureVisibleOpsPane(mode){
+    const drawer=$('opsDrawer');
+    if(!drawer?.classList.contains('show'))return;
+    const active=q('.ops-tab.active',drawer);
+    if(!active||getComputedStyle(active).display==='none'){
+      const preferred=mode==='leadership'?'leadership':mode==='field'?'overview':'overview';
+      const tab=q(`.ops-tab[data-pane="${preferred}"]`,drawer)||q('.ops-tab:not([style*="display: none"])',drawer);
+      tab?.click();
+    }
+  }
+
+  function applyMode(mode,save){
+    if(!MODES[mode])mode='planning';
+    document.body.classList.remove('audience-field','audience-leadership','audience-planning');
+    document.body.classList.add('audience-'+mode);
+    qa('.audience-mode-btn').forEach(b=>{
+      const active=b.dataset.audience===mode;
+      b.classList.toggle('active',active);
+      b.setAttribute('aria-pressed',active?'true':'false');
+    });
+    const notice=$('audienceModeNotice');
+    if(notice)notice.textContent=MODES[mode].notice;
+    if(save){try{localStorage.setItem(STORAGE_KEY,mode);}catch(_){}}
+    ensureVisibleOpsPane(mode);
+    setTimeout(()=>{try{window.dispatchEvent(new Event('resize'));}catch(_){}},80);
+  }
+
+  function init(){
+    ensureBar();
+    tagAudienceElements();
+    let saved='planning';
+    try{saved=localStorage.getItem(STORAGE_KEY)||'planning';}catch(_){}
+    applyMode(saved,false);
+    // Re-tag elements added later by existing scripts, including Ops Intel tabs.
+    const observer=new MutationObserver(()=>{tagAudienceElements();});
+    observer.observe(document.body,{childList:true,subtree:true});
+    window.OneWalmartAudienceMode={apply:mode=>applyMode(mode,true),current:()=>['field','leadership','planning'].find(m=>document.body.classList.contains('audience-'+m))||'planning'};
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,0),{once:true});
+  else setTimeout(init,0);
+})();
+</script>
+
 </body>
 </html>
