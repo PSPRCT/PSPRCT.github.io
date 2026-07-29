@@ -20358,6 +20358,7 @@ body.audience-field #opsDrawer .ops-tab[data-pane="plancompare"]{display:none!im
     'Dedicated Presence': 'Unilever, P&G, or Tyson teams associated with the store. Dedicated-team visibility is separate from the core One Walmart RTS coverage calculation.',
     'Net-New Coverage': 'Currently uncovered stores that would become covered by the simulated RTS placement.',
     'Current Gap': 'A store with no active RTS within the selected 75-mile operating radius.',
+    'Coverage Gap': 'This store is uncovered because no active RTS is within 75 miles. Labels such as isolated rural gap, sparse coverage gap, or fringe gap describe the pattern of nearby uncovered stores—not covered Fringe Reach status.',
     'Planning Note': 'A browser-saved note tied to the selected store. It remains local to this browser unless separately exported.'
   };
 
@@ -20378,8 +20379,15 @@ body.audience-field #opsDrawer .ops-tab[data-pane="plancompare"]{display:none!im
       if (badge.querySelector('.v19-help-trigger')) return;
       const label = (badge.textContent || '').trim();
       let term = '';
-      if (/fringe/i.test(label)) term = 'Fringe Reach';
-      else if (/gap|uncovered/i.test(label)) term = 'Current Gap';
+
+      // Use the badge's coverage class before its wording. Some uncovered
+      // classifications include the word "fringe" (for example,
+      // "Isolated Rural / Fringe Gap") but are still true coverage gaps.
+      if (badge.classList.contains('high')) term = 'Coverage Gap';
+      else if (badge.classList.contains('near')) term = 'Fringe Reach';
+      else if (/gap|uncovered/i.test(label)) term = 'Coverage Gap';
+      else if (/fringe/i.test(label)) term = 'Fringe Reach';
+
       if (!term) return;
       const help = document.createElement('button');
       help.type = 'button';
