@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<!-- One Walmart Coverage Map · FINAL-BASELINE-CORRECTED · 2026-07-29 -->
+<!-- One Walmart Coverage Map · FINAL-BASELINE-CORRECTED-2 · 2026-07-29 -->
 <title>One Walmart RTS Coverage Command Center</title>
 <!-- v104 conservative cleanup: removed disabled Transition/Delta UI/marker engine and duplicate startup CSS; coverage logic unchanged. -->
 <!-- v105 Help + Leadership polish pass: refreshed help content and clarified leadership action path. Coverage logic, One Walmart alignment, Ops Intel calculations, and modal wiring preserved from v104. -->
@@ -10438,12 +10438,12 @@ function storePopupHTML(s){
         <div class="store-popup-delta simplified">${esc(viewLabel)}</div>
       </div>
       <div class="popup-action-bar" role="toolbar" aria-label="Store actions">
-        <button class="popup-action-btn primary" type="button" data-popup-action="copySummary">Copy Summary</button>
-        <button class="popup-action-btn" type="button" data-popup-action="copyLink">Copy Store Link</button>
-        <button class="popup-action-btn" type="button" data-popup-action="openMaps">Google Maps</button>
-        <button class="popup-action-btn" type="button" data-popup-action="showRoute">Show RTS Route</button>
-        <button class="popup-action-btn" type="button" data-popup-action="nearbyGaps">Nearby Gaps</button>
-        <button class="popup-action-btn" type="button" data-popup-action="addNote">Planning Note</button>
+        <button class="popup-action-btn primary" type="button" data-popup-action="copySummary" data-store-number="${escape(store.storeNumberStr || store.storeNumber || '')}">Copy Summary</button>
+        <button class="popup-action-btn" type="button" data-popup-action="copyLink" data-store-number="${escape(store.storeNumberStr || store.storeNumber || '')}">Copy Store Link</button>
+        <button class="popup-action-btn" type="button" data-popup-action="openMaps" data-store-number="${escape(store.storeNumberStr || store.storeNumber || '')}">Google Maps</button>
+        <button class="popup-action-btn" type="button" data-popup-action="showRoute" data-store-number="${escape(store.storeNumberStr || store.storeNumber || '')}">Show RTS Route</button>
+        <button class="popup-action-btn" type="button" data-popup-action="nearbyGaps" data-store-number="${escape(store.storeNumberStr || store.storeNumber || '')}">Nearby Gaps</button>
+        <button class="popup-action-btn" type="button" data-popup-action="addNote" data-store-number="${escape(store.storeNumberStr || store.storeNumber || '')}">Planning Note</button>
       </div>
       <div class="store-popup-scroll">
         <div class="op-summary-card coverage-glance-card">
@@ -10511,6 +10511,42 @@ function storePopupHTML(s){
 }
 function popupActionStore(){
   return activePopupStore || targetPopupRef?._oneWalmartStore || null;
+}
+function popupActionStoreFromButton(button){
+  const storeNumber = String(button?.dataset?.storeNumber || '').trim();
+  if (storeNumber){
+    const matched = (allStores || []).find(s =>
+      String(s?.storeNumberStr || s?.storeNumber || '').trim() === storeNumber
+    );
+    if (matched) return matched;
+  }
+  return popupActionStore();
+}
+function runPopupActionFromButton(button){
+  const actionName = button?.getAttribute?.('data-popup-action');
+  const action = window.OneWalmartPopupActions?.[actionName];
+  const store = popupActionStoreFromButton(button);
+
+  if (!store){
+    console.warn('Popup action has no store context:', actionName);
+    showMapToast('The selected store could not be resolved. Please reopen the popup.');
+    return;
+  }
+  if (typeof action !== 'function'){
+    console.warn('Popup action is unavailable:', actionName);
+    showMapToast('That store action is temporarily unavailable.');
+    return;
+  }
+
+  activePopupStore = store;
+  if (targetPopupRef) targetPopupRef._oneWalmartStore = store;
+
+  try {
+    action.call(window.OneWalmartPopupActions);
+  } catch (error) {
+    console.error('Popup action failed:', actionName, error);
+    showMapToast('That store action could not be completed.');
+  }
 }
 function popupStoreNumber(s){ return String(s?.storeNumberStr || s?.storeNumber || '').trim(); }
 function popupAddress(s){ const a=String(s?.address||'').trim(), c=String(s?.city||'').trim(), st=String(s?.state||'').trim(); return a ? `${a}, ${c}, ${st}` : `${c}, ${st}`; }
@@ -10612,60 +10648,18 @@ window.OneWalmartPopupActions = {
     }else{ box?.remove(); showMapToast('Planning note removed.'); }
   }
 };
-// Use one delegated click handler for popup actions. Leaflet rebuilds popup HTML
-// whenever a store opens, so direct inline handlers can be unreliable.
+// One bubble-phase delegated handler for popup actions. Each button carries
+// its store number, so actions do not depend on transient Leaflet popup state.
 if (!window.__oneWalmartPopupActionHandlerInstalled) {
   window.__oneWalmartPopupActionHandlerInstalled = true;
   document.addEventListener('click', function(event) {
-    const button = event.target.closest?.('[data-popup-action]');
+    const button = event.target.closest?.('.leaflet-popup [data-popup-action]');
     if (!button) return;
-    const popup = button.closest('.leaflet-popup');
-    if (!popup) return;
     event.preventDefault();
     event.stopPropagation();
-    event.stopImmediatePropagation();
-    const actionName = button.getAttribute('data-popup-action');
-    const action = window.OneWalmartPopupActions?.[actionName];
-    if (typeof action !== 'function') {
-      console.warn('Popup action is unavailable:', actionName);
-      showMapToast('That store action is temporarily unavailable.');
-      return;
-    }
-    try {
-      action.call(window.OneWalmartPopupActions);
-    } catch (error) {
-      console.error('Popup action failed:', actionName, error);
-      showMapToast('That store action could not be completed.');
-    }
-  }, true);
+    runPopupActionFromButton(button);
+  }, false);
 }
-
-// Defensive popup-local listener. Leaflet recreates popup DOM nodes, so this
-// attaches once per opened popup and avoids relying solely on document bubbling.
-map.on('popupopen', function(event) {
-  const popupEl = event?.popup?.getElement?.();
-  if (!popupEl || popupEl.dataset.popupActionsReady === '1') return;
-  popupEl.dataset.popupActionsReady = '1';
-  popupEl.addEventListener('click', function(clickEvent) {
-    const button = clickEvent.target.closest?.('[data-popup-action]');
-    if (!button) return;
-    clickEvent.preventDefault();
-    clickEvent.stopPropagation();
-    const actionName = button.getAttribute('data-popup-action');
-    const action = window.OneWalmartPopupActions?.[actionName];
-    if (typeof action !== 'function') {
-      console.warn('Popup action is unavailable:', actionName);
-      showMapToast('That store action is temporarily unavailable.');
-      return;
-    }
-    try {
-      action.call(window.OneWalmartPopupActions);
-    } catch (error) {
-      console.error('Popup action failed:', actionName, error);
-      showMapToast('That store action could not be completed.');
-    }
-  });
-});
 
 function openStorePopup(store) {
   if (!store) return;
