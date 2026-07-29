@@ -11960,12 +11960,12 @@ function storePopupHTML(s){
       </div>
 
       <div class="popup-action-bar" role="toolbar" aria-label="Store actions">
-        <button class="popup-action-btn primary" type="button" onclick="window.OneWalmartPopupActions?.copySummary()">Copy Summary</button>
-        <button class="popup-action-btn" type="button" onclick="window.OneWalmartPopupActions?.copyLink()">Copy Store Link</button>
-        <button class="popup-action-btn" type="button" onclick="window.OneWalmartPopupActions?.openMaps()">Google Maps</button>
-        <button class="popup-action-btn" type="button" onclick="window.OneWalmartPopupActions?.showRoute()">Show RTS Route</button>
-        <button class="popup-action-btn" type="button" onclick="window.OneWalmartPopupActions?.nearbyGaps()">Nearby Gaps</button>
-        <button class="popup-action-btn" type="button" onclick="window.OneWalmartPopupActions?.addNote()">Planning Note</button>
+        <button class="popup-action-btn primary" type="button" data-popup-action="copySummary">Copy Summary</button>
+        <button class="popup-action-btn" type="button" data-popup-action="copyLink">Copy Store Link</button>
+        <button class="popup-action-btn" type="button" data-popup-action="openMaps">Google Maps</button>
+        <button class="popup-action-btn" type="button" data-popup-action="showRoute">Show RTS Route</button>
+        <button class="popup-action-btn" type="button" data-popup-action="nearbyGaps">Nearby Gaps</button>
+        <button class="popup-action-btn" type="button" data-popup-action="addNote">Planning Note</button>
       </div>
 
       <div class="store-popup-scroll">
@@ -12145,6 +12145,39 @@ window.OneWalmartPopupActions = {
     }else{ box?.remove(); showMapToast('Planning note removed.'); }
   }
 };
+
+// Use one delegated click handler for popup actions. Leaflet rebuilds popup HTML
+// whenever a store opens, so direct inline handlers can be unreliable.
+if (!window.__oneWalmartPopupActionHandlerInstalled) {
+  window.__oneWalmartPopupActionHandlerInstalled = true;
+  document.addEventListener('click', function(event) {
+    const button = event.target.closest?.('[data-popup-action]');
+    if (!button) return;
+
+    const popup = button.closest('.leaflet-popup');
+    if (!popup) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    const actionName = button.getAttribute('data-popup-action');
+    const action = window.OneWalmartPopupActions?.[actionName];
+
+    if (typeof action !== 'function') {
+      console.warn('Popup action is unavailable:', actionName);
+      showMapToast('That store action is temporarily unavailable.');
+      return;
+    }
+
+    try {
+      action.call(window.OneWalmartPopupActions);
+    } catch (error) {
+      console.error('Popup action failed:', actionName, error);
+      showMapToast('That store action could not be completed.');
+    }
+  }, true);
+}
 
 function openStorePopup(store) {
   if (!store) return;
