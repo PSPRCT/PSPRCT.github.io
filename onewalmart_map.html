@@ -3597,6 +3597,75 @@ body.opcx-gaps .opcx-viewbar{border-bottom-color:#fecaca;background:#fff7f7;}
     display:none!important;
   }
 </style>
+
+<style>
+/* ===== City search + smaller store popup fix · 2026-07-30 ===== */
+.leaflet-popup-content-wrapper {
+  max-width:470px !important;
+}
+.leaflet-popup-content {
+  width:440px !important;
+  max-width:440px !important;
+  margin:8px 10px !important;
+}
+.store-popup-shell,
+.compact-popup.op-popup-v2 {
+  min-width:0 !important;
+  width:100% !important;
+  max-width:440px !important;
+  max-height:62vh !important;
+}
+.store-popup-title {
+  font-size:16px !important;
+}
+.store-popup-sub {
+  font-size:12px !important;
+}
+.popup-sticky-header {
+  padding-bottom:7px !important;
+}
+.popup-action-bar {
+  gap:4px !important;
+  padding:6px 2px 7px !important;
+}
+.popup-action-btn {
+  padding:5px 7px !important;
+  font-size:10px !important;
+}
+.op-summary-card,
+.store-popup-card,
+.coverage-glance-card {
+  padding:8px 9px !important;
+}
+.glance-row {
+  grid-template-columns:96px minmax(0,1fr) !important;
+  gap:7px !important;
+  padding:5px 0 !important;
+}
+.nearest-rts-row {
+  grid-template-columns:66px 1fr auto !important;
+  gap:6px !important;
+  padding:5px 7px !important;
+}
+.store-popup-scroll {
+  max-height:calc(62vh - 150px) !important;
+  overflow-y:auto !important;
+}
+@media (max-width:720px) {
+  .leaflet-popup-content {
+    width:min(390px, calc(100vw - 54px)) !important;
+    max-width:calc(100vw - 54px) !important;
+  }
+  .store-popup-shell,
+  .compact-popup.op-popup-v2 {
+    max-width:100% !important;
+    max-height:60vh !important;
+  }
+  .store-popup-scroll {
+    max-height:calc(60vh - 145px) !important;
+  }
+}
+</style>
 </head>
 <body>
 <div class="topbar compact-mainbar">
@@ -5935,27 +6004,17 @@ function applyDedicatedTeamPathsToStores(rows, stores){
     hideResults(); hideHover();
     if(!d) return;
     if(d.kind==='STORE' || d.kind==='NEAR'){ openStorePopup(d.store); return; }
-    if (d.kind === 'CITY' || d.kind === 'HUB') {
-    const latlng = [Number(d.lat), Number(d.lng)];
-
-    // Always center and zoom to the selected city
-    map.flyTo(latlng, 10, {
-        animate: true,
-        duration: 0.75
-    });
-
-    showPinPopup(latlng, `
+    if(d.kind==='CITY' || d.kind==='HUB'){
+      const latlng = [d.lat,d.lng];
+      showPinPopup(latlng, `
         <div style="font-size:13px;line-height:1.35;min-width:220px">
-            <div style="font-weight:800;margin-bottom:4px">${escape(d.label)}</div>
-            <div style="color:var(--muted)">
-                Lat: ${Number(d.lat).toFixed(4)},
-                Lng: ${Number(d.lng).toFixed(4)}
-            </div>
+          <div style="font-weight:800;margin-bottom:4px">${escape(d.label)}</div>
+          <div style="color:var(--muted)">Lat: ${Number(d.lat).toFixed(4)}, Lng: ${Number(d.lng).toFixed(4)}</div>
         </div>
-    `);
-
-    return;
-}
+      `);
+      map.flyTo(latlng, 10, { animate:true, duration:0.75 });
+      return;
+    }
   }
   function showPinPopup(latlng, html){
     if(!targetPin){ targetPin = L.marker(latlng,{icon:targetIcon}).addTo(targetLayer); }
