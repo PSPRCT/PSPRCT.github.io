@@ -10833,8 +10833,8 @@ function openStorePopup(store) {
       `;
     }
     const popup = L.popup({
-      maxWidth: 520,
-      minWidth: 340,
+      maxWidth: 420,
+      minWidth: 320,
       autoPan: false,
       closeButton: true,
       autoClose: true,
@@ -18655,6 +18655,128 @@ body.audience-field #opsDrawer .ops-tab[data-pane="plancompare"]{display:none!im
   .regression-note{border:1px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e3a8a;padding:9px;font-size:12px;line-height:1.4;margin-bottom:10px}
   .regression-errors{white-space:pre-wrap;max-height:180px;overflow:auto;border:1px solid #fecaca;border-radius:10px;background:#fef2f2;color:#991b1b;padding:9px;font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
   @media(max-width:760px){.regression-summary{grid-template-columns:1fr 1fr}.regression-row{grid-template-columns:18px 1fr}.regression-detail{grid-column:2}}
+
+/* ===== Compact store popup v2 ===== */
+.leaflet-popup-content-wrapper{
+  max-width:420px !important;
+}
+.leaflet-popup-content{
+  width:400px !important;
+  max-width:400px !important;
+  margin:7px 9px !important;
+}
+.store-popup-shell,
+.compact-popup.op-popup-v2{
+  min-width:0 !important;
+  width:100% !important;
+  max-width:400px !important;
+  max-height:500px !important;
+}
+.store-popup-title{
+  font-size:17px !important;
+  line-height:1.15 !important;
+}
+.store-popup-sub{
+  font-size:11.5px !important;
+  line-height:1.2 !important;
+}
+.selected-location-note{
+  margin-top:3px !important;
+  font-size:10px !important;
+}
+.popup-sticky-header{
+  padding:1px 1px 6px !important;
+}
+.store-popup-delta{
+  padding:3px 7px !important;
+  font-size:10px !important;
+}
+.popup-action-bar{
+  gap:3px !important;
+  padding:5px 1px 6px !important;
+}
+.popup-action-btn{
+  padding:4px 6px !important;
+  font-size:9.5px !important;
+  border-radius:8px !important;
+}
+.store-popup-scroll{
+  max-height:365px !important;
+  overflow-y:auto !important;
+  padding-right:3px !important;
+}
+.op-summary-card,
+.store-popup-card,
+.coverage-glance-card{
+  padding:7px 8px !important;
+  margin-top:7px !important;
+}
+.op-summary-head{
+  margin-bottom:4px !important;
+}
+.op-summary-head span{
+  font-size:9.5px !important;
+}
+.op-summary-head b{
+  font-size:15px !important;
+}
+.quality-chip{
+  padding:3px 7px !important;
+  font-size:10.5px !important;
+}
+.glance-row{
+  grid-template-columns:88px minmax(0,1fr) !important;
+  gap:6px !important;
+  padding:4px 0 !important;
+}
+.glance-row span{
+  font-size:9.5px !important;
+}
+.glance-row b{
+  font-size:11px !important;
+  line-height:1.25 !important;
+}
+.popup-section summary{
+  padding:7px 8px !important;
+  font-size:12px !important;
+}
+.popup-section-body{
+  padding:7px 8px !important;
+}
+.nearest-rts-row{
+  grid-template-columns:58px 1fr auto !important;
+  gap:5px !important;
+  padding:4px 6px !important;
+}
+.nearest-rts-row span{
+  font-size:9.5px !important;
+}
+.nearest-rts-row b,
+.nearest-rts-row em{
+  font-size:10.5px !important;
+}
+.popup-scroll-cue{
+  padding:4px 0 0 !important;
+  font-size:9.5px !important;
+}
+@media(max-width:720px){
+  .leaflet-popup-content{
+    width:min(360px,82vw) !important;
+    max-width:82vw !important;
+  }
+  .store-popup-shell,
+  .compact-popup.op-popup-v2{
+    max-width:82vw !important;
+    max-height:460px !important;
+  }
+  .store-popup-scroll{
+    max-height:330px !important;
+  }
+  .glance-row{
+    grid-template-columns:78px minmax(0,1fr) !important;
+  }
+}
+
 </style>
 <script id="finalRegressionScript">
 (function(){
