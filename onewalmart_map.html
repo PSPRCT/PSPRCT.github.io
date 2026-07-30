@@ -5935,17 +5935,27 @@ function applyDedicatedTeamPathsToStores(rows, stores){
     hideResults(); hideHover();
     if(!d) return;
     if(d.kind==='STORE' || d.kind==='NEAR'){ openStorePopup(d.store); return; }
-    if(d.kind==='CITY' || d.kind==='HUB'){
-      const latlng = [d.lat,d.lng];
-      showPinPopup(latlng, `
+    if (d.kind === 'CITY' || d.kind === 'HUB') {
+    const latlng = [Number(d.lat), Number(d.lng)];
+
+    // Always center and zoom to the selected city
+    map.flyTo(latlng, 10, {
+        animate: true,
+        duration: 0.75
+    });
+
+    showPinPopup(latlng, `
         <div style="font-size:13px;line-height:1.35;min-width:220px">
-          <div style="font-weight:800;margin-bottom:4px">${escape(d.label)}</div>
-          <div style="color:var(--muted)">Lat: ${Number(d.lat).toFixed(4)}, Lng: ${Number(d.lng).toFixed(4)}</div>
+            <div style="font-weight:800;margin-bottom:4px">${escape(d.label)}</div>
+            <div style="color:var(--muted)">
+                Lat: ${Number(d.lat).toFixed(4)},
+                Lng: ${Number(d.lng).toFixed(4)}
+            </div>
         </div>
-      `);
-      map.panInside(latlng, { paddingTopLeft:[20,20], paddingBottomRight:[20,20] });
-      return;
-    }
+    `);
+
+    return;
+}
   }
   function showPinPopup(latlng, html){
     if(!targetPin){ targetPin = L.marker(latlng,{icon:targetIcon}).addTo(targetLayer); }
