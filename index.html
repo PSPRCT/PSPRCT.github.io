@@ -91,8 +91,78 @@ function territoryProfiles(){const rows=activeRTS().map(r=>{const inside=stores.
 function compareTerritories(){const opts=activeRTS().map(r=>`<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('');openModal('Compare RTS Territories',`<div class="tools"><label>RTS A <select id="cmpA">${opts}</select></label><label>RTS B <select id="cmpB">${opts}</select></label><button class="btn" onclick="window.runCompare()">Compare</button></div><div id="cmpResults"></div>`)}
 window.runCompare=()=>{const a=activeRTS().find(r=>String(r.id)==$('cmpA').value),b=activeRTS().find(r=>String(r.id)==$('cmpB').value),rad=Number($('radius').value),A=stores.filter(s=>hav(s.lat,s.lng,a.lat,a.lng)<=rad),B=stores.filter(s=>hav(s.lat,s.lng,b.lat,b.lng)<=rad),idsA=new Set(A.map(s=>s.siteId)),shared=B.filter(s=>idsA.has(s.siteId));$('cmpResults').innerHTML=`<div class="grid2"><div class="metric"><small>${esc(a.name)}</small><b>${A.length}</b></div><div class="metric"><small>${esc(b.name)}</small><b>${B.length}</b></div><div class="metric"><small>Shared stores</small><b>${shared.length}</b></div><div class="metric"><small>Combined unique</small><b>${new Set([...A,...B].map(s=>s.siteId)).size}</b></div></div>`}
 function resiliency(){const rows=activeRTS().map(r=>{const owned=stores.filter(s=>s.nearest[0]?.id===r.id),lost=owned.filter(s=>!s.nearest[1]||s.nearest[1].distance>Number($('radius').value));return {r,owned:owned.length,lost:lost.length,backup:owned.length-lost.length}}).sort((a,b)=>b.lost-a.lost);openModal('RTS Resiliency Simulator',`<div class="callout">Shows what happens if an RTS becomes unavailable. “At risk” stores have no second RTS within the selected radius.</div><div class="tablewrap"><table><thead><tr><th>RTS</th><th>Nearest-Owned</th><th>Backup-Covered</th><th>At Risk</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(x.r.name)}</td><td>${x.owned}</td><td>${x.backup}</td><td>${x.lost}</td></tr>`).join('')}</tbody></table></div>`)}
-function search(){const q=$('search').value.trim().toLowerCase();selectedSearch=-1;if(!q){$('results').classList.remove('show');return}const rh=activeRTS().filter(r=>`${r.name} ${r.email} ${r.rtm}`.toLowerCase().includes(q)).slice(0,8).map(r=>({type:'RTS',obj:r,title:r.name,sub:r.email})),sh=stores.filter(s=>`${s.storeNumber} ${s.siteId} ${s.retailer} ${s.address} ${s.city} ${s.state} ${s.zip} ${s.manager}`.toLowerCase().includes(q)).slice(0,30).map(s=>({type:'Store',obj:s,title:`${s.retailer} #${s.storeNumber||'—'}`,sub:`${s.address?s.address+' · ':''}${s.city}, ${s.state} ${s.zip} · SiteID ${s.siteId}`})),hits=[...rh,...sh].slice(0,35);$('results').innerHTML=hits.map((h,i)=>`<div class="res" data-i="${i}"><b>${h.type} · ${esc(h.title)}</b><span>${esc(h.sub)}</span></div>`).join('');$('results').classList.toggle('show',hits.length>0);[...$('results').children].forEach((e,i)=>e.onclick=()=>selectHit(hits[i]));$('search')._hits=hits}
-function selectHit(h){if(h.type==='Store'){map.flyTo([h.obj.lat,h.obj.lng],12,{duration:.7});setTimeout(()=>markerById.get(h.obj.siteId)?.openPopup(),450)}else openTerritory(h.obj.id);$('results').classList.remove('show')}
+function search(){
+ const raw=$('search').value.trim(),q=raw.toLowerCase();
+ selectedSearch=-1;
+ if(!q){$('results').classList.remove('show');return}
+
+ // Build city/state summary results first so a city search behaves like a location search,
+ // rather than simply showing the first matching store.
+ const cityGroups=new Map();
+ stores.forEach(s=>{
+   const city=(s.city||'').trim(),state=(s.state||'').trim();
+   if(!city)return;
+   const label=`${city}, ${state}`;
+   const cityOnly=city.toLowerCase();
+   const cityState=label.toLowerCase();
+   if(cityOnly.includes(q)||cityState.includes(q)){
+     const key=cityState;
+     if(!cityGroups.has(key))cityGroups.set(key,{city,state,stores:[]});
+     cityGroups.get(key).stores.push(s);
+   }
+ });
+ const cityHits=[...cityGroups.values()]
+   .sort((a,b)=>{
+     const ae=a.city.toLowerCase()===q?0:a.city.toLowerCase().startsWith(q)?1:2;
+     const be=b.city.toLowerCase()===q?0:b.city.toLowerCase().startsWith(q)?1:2;
+     return ae-be||b.stores.length-a.stores.length||a.city.localeCompare(b.city);
+   })
+   .slice(0,8)
+   .map(g=>({
+     type:'City',
+     obj:g,
+     title:`${g.city}, ${g.state}`,
+     sub:`${g.stores.length.toLocaleString()} matching store${g.stores.length===1?'':'s'}`
+   }));
+
+ const rh=activeRTS()
+   .filter(r=>`${r.name} ${r.email} ${r.rtm}`.toLowerCase().includes(q))
+   .slice(0,8)
+   .map(r=>({type:'RTS',obj:r,title:r.name,sub:r.email}));
+
+ const sh=stores
+   .filter(s=>`${s.storeNumber} ${s.siteId} ${s.retailer} ${s.address} ${s.city} ${s.state} ${s.zip} ${s.manager}`.toLowerCase().includes(q))
+   .slice(0,30)
+   .map(s=>({
+     type:'Store',
+     obj:s,
+     title:`${s.retailer} #${s.storeNumber||'—'}`,
+     sub:`${s.address?s.address+' · ':''}${s.city}, ${s.state} ${s.zip} · SiteID ${s.siteId}`
+   }));
+
+ const hits=[...cityHits,...rh,...sh].slice(0,40);
+ $('results').innerHTML=hits.map((h,i)=>`<div class="res" data-i="${i}"><b>${h.type} · ${esc(h.title)}</b><span>${esc(h.sub)}</span></div>`).join('');
+ $('results').classList.toggle('show',hits.length>0);
+ [...$('results').children].forEach((e,i)=>e.onclick=()=>selectHit(hits[i]));
+ $('search')._hits=hits;
+}
+function selectHit(h){
+ if(h.type==='City'){
+   const pts=h.obj.stores.map(s=>[s.lat,s.lng]);
+   if(pts.length===1){
+     map.flyTo(pts[0],12,{duration:.7});
+     setTimeout(()=>markerById.get(h.obj.stores[0].siteId)?.openPopup(),450);
+   }else if(pts.length){
+     map.flyToBounds(pts,{padding:[45,45],maxZoom:11,duration:.75});
+   }
+ }else if(h.type==='Store'){
+   map.flyTo([h.obj.lat,h.obj.lng],12,{duration:.7});
+   setTimeout(()=>markerById.get(h.obj.siteId)?.openPopup(),450);
+ }else{
+   openTerritory(h.obj.id);
+ }
+ $('results').classList.remove('show');
+}
 function init(){stores=RAW_STORES.filter(s=>Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lng))).map(s=>calculate({...s,lat:Number(s.lat),lng:Number(s.lng)}));stores.forEach(s=>markerById.set(s.siteId,storeMarker(s)));options('fRetailer',uniq(stores.map(s=>s.retailer)));options('fState',uniq(stores.map(s=>s.state)));options('fManager',uniq(stores.map(s=>s.manager)));options('fRts',uniq(activeRTS().map(r=>r.name)));drawRts();applyFilters();fit();$('status').style.display='none'}
 ['fCoverage','fRetailer','fState','fManager','fRts','cluster','heat','overlap','within'].forEach(id=>$(id).addEventListener('change',applyFilters));$('showRts').onchange=drawRts;$('showRings').onchange=drawRts;$('radius').oninput=()=>{$('radiusLbl').textContent=$('radius').value;recompute()};
 $('fit').onclick=fit;$('home').onclick=()=>map.setView(HOME.center,HOME.zoom);$('reset').onclick=()=>{['fCoverage','fRetailer','fState','fManager','fRts'].forEach(x=>$(x).value='');$('cluster').checked=true;$('heat').checked=$('overlap').checked=$('within').checked=$('showRings').checked=false;$('showRts').checked=true;$('radius').value=75;$('radiusLbl').textContent=75;highlightLayer.clearLayers();simLayer.clearLayers();recompute();map.setView(HOME.center,HOME.zoom)};$('clearFilters').onclick=()=>{['fCoverage','fRetailer','fState','fManager','fRts'].forEach(x=>$(x).value='');applyFilters()};$('gapsOnly').onclick=$('railGaps').onclick=()=>{$('fCoverage').value='gap';applyFilters();fit()};$('coveredOnly').onclick=()=>{$('fCoverage').value='covered';applyFilters();fit()};
