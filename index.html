@@ -26,11 +26,301 @@ body{display:flex;flex-direction:column;overflow:hidden}.top{height:48px;display
 .leaflet-popup-content{width:420px!important;max-width:420px!important;margin:8px 10px!important}.popup{max-height:60vh;overflow:auto;padding-right:4px}.popup h2{font-size:16px;margin:0}.sub{font-size:11.5px;color:var(--muted);margin:2px 0 7px}.badge{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:10.5px;font-weight:900;border:1px solid #cbd5e1}.badge.covered{background:#ecfdf5;border-color:#86efac;color:#166534}.badge.gap{background:#fef2f2;border-color:#fca5a5;color:#991b1b}.popcard{border:1px solid var(--line);border-radius:10px;background:#fbfdff;padding:7px;margin-top:6px}.popcard strong{display:block;font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:3px}.near{display:grid;grid-template-columns:1fr auto;gap:6px;padding:4px 0;border-top:1px solid #eef2f7;font-size:11.5px}.near:first-child{border-top:0}.popactions{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
 .status{position:absolute;inset:0;z-index:5000;background:rgba(255,255,255,.88);display:flex;align-items:center;justify-content:center}.status div{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 16px 40px rgba(15,23,42,.16);font-weight:850}
 @media(max-width:900px){.brand{display:none}.controls{position:absolute;z-index:3000;top:0;bottom:0;width:min(370px,92vw)}.workspace.closed .controls{transform:translateX(-102%);width:min(370px,92vw)}.hud{display:none}.rail{top:55px}.leaflet-popup-content{width:min(370px,calc(100vw - 58px))!important}}
+
+/* ===== Sprint 2: Professional popup, territory drawer, KPI expansion, hover summaries ===== */
+body.territory-focus .leaflet-marker-pane .leaflet-marker-icon{
+  opacity:.16;
+  transition:opacity .18s ease;
+}
+body.territory-focus .leaflet-marker-pane .territory-focus-marker{
+  opacity:1 !important;
+}
+.popup.sprint2-popup{
+  display:flex;
+  flex-direction:column;
+  max-height:64vh;
+  overflow:hidden;
+}
+.s2-popup-head{
+  padding:1px 1px 8px;
+  border-bottom:1px solid #e2e8f0;
+}
+.s2-popup-headline{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:8px;
+}
+.s2-popup-title{
+  font-size:17px;
+  font-weight:950;
+  line-height:1.15;
+  color:#0f172a;
+}
+.s2-popup-address{
+  margin-top:5px;
+  color:#334155;
+  font-size:11.5px;
+  line-height:1.35;
+}
+.s2-popup-meta{
+  margin-top:5px;
+  color:#64748b;
+  font-size:10.5px;
+}
+.s2-popup-scroll{
+  min-height:0;
+  overflow:auto;
+  padding-right:4px;
+}
+.s2-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+  margin-top:7px;
+}
+.s2-card{
+  border:1px solid #e2e8f0;
+  border-radius:10px;
+  background:#fbfdff;
+  padding:7px 8px;
+}
+.s2-card.full{
+  grid-column:1 / -1;
+}
+.s2-label{
+  display:block;
+  font-size:9.5px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  font-weight:950;
+  color:#64748b;
+  margin-bottom:3px;
+}
+.s2-value{
+  color:#0f172a;
+  font-size:11.5px;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+.s2-nearest{
+  display:grid;
+  gap:4px;
+}
+.s2-near-row{
+  display:grid;
+  grid-template-columns:20px minmax(0,1fr) auto;
+  gap:6px;
+  align-items:center;
+  border:1px solid #e2e8f0;
+  background:#fff;
+  border-radius:9px;
+  padding:5px 6px;
+  font-size:11px;
+}
+.s2-near-row.primary{
+  border-color:#86efac;
+  background:#f0fdf4;
+}
+.s2-rank{
+  width:20px;
+  height:20px;
+  border-radius:999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:#0f172a;
+  color:#fff;
+  font-weight:950;
+  font-size:10px;
+}
+.s2-near-name{
+  font-weight:900;
+  color:#0f172a;
+}
+.s2-near-email{
+  display:block;
+  color:#64748b;
+  font-size:9.8px;
+  overflow-wrap:anywhere;
+}
+.s2-near-dist{
+  font-weight:950;
+  color:#334155;
+  white-space:nowrap;
+}
+.s2-popup-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+  padding-top:7px;
+  margin-top:7px;
+  border-top:1px solid #e2e8f0;
+}
+.s2-popup-actions .btn{
+  flex:1 1 115px;
+}
+.s2-drawer-hero{
+  border:1px solid #bfdbfe;
+  background:linear-gradient(180deg,#eff6ff 0%,#f8fbff 100%);
+  border-radius:13px;
+  padding:10px;
+}
+.s2-drawer-title{
+  font-size:18px;
+  font-weight:950;
+  color:#0f172a;
+  line-height:1.15;
+}
+.s2-drawer-sub{
+  margin-top:3px;
+  color:#475569;
+  font-size:11.5px;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+.s2-score{
+  display:inline-flex;
+  margin-top:7px;
+  border-radius:999px;
+  padding:4px 8px;
+  font-size:10.5px;
+  font-weight:950;
+  border:1px solid #cbd5e1;
+  background:#fff;
+}
+.s2-score.excellent{background:#ecfdf5;border-color:#86efac;color:#166534}
+.s2-score.good{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8}
+.s2-score.fair{background:#fffbeb;border-color:#fde68a;color:#92400e}
+.s2-score.weak{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
+.s2-kpi-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+}
+.s2-kpi{
+  border:1px solid #e2e8f0;
+  border-radius:11px;
+  background:#fff;
+  padding:8px;
+}
+.s2-kpi small{
+  display:block;
+  color:#64748b;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  font-size:9.5px;
+  font-weight:900;
+}
+.s2-kpi b{
+  display:block;
+  color:#0f172a;
+  font-size:19px;
+  line-height:1.15;
+  margin-top:2px;
+}
+.s2-kpi span{
+  display:block;
+  color:#64748b;
+  font-size:10.5px;
+  margin-top:2px;
+}
+.s2-list-card{
+  border:1px solid #e2e8f0;
+  border-radius:11px;
+  background:#fff;
+  padding:8px;
+}
+.s2-list-card h4{
+  margin:0 0 6px;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  color:#64748b;
+}
+.s2-bar-row{
+  display:grid;
+  grid-template-columns:110px 1fr 36px;
+  gap:6px;
+  align-items:center;
+  margin:4px 0;
+  font-size:10.5px;
+}
+.s2-bar-label{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.s2-bar{
+  height:7px;
+  border-radius:999px;
+  background:#f1f5f9;
+  overflow:hidden;
+}
+.s2-bar span{
+  display:block;
+  height:100%;
+  background:#2563eb;
+  border-radius:999px;
+}
+.s2-hover{
+  background:#fff;
+  border:1px solid #dbe3ea;
+  border-radius:10px;
+  padding:7px 8px;
+  box-shadow:0 6px 18px rgba(15,23,42,.14);
+  min-width:170px;
+}
+.s2-hover b{
+  display:block;
+  font-size:12px;
+}
+.s2-hover span{
+  display:block;
+  color:#64748b;
+  font-size:10px;
+  margin-top:2px;
+}
+.s2-hover-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:4px;
+  margin-top:5px;
+}
+.s2-hover-grid div{
+  border:1px solid #eef2f7;
+  border-radius:8px;
+  padding:4px 5px;
+  background:#f8fafc;
+}
+.s2-hover-grid small{
+  display:block;
+  color:#64748b;
+  font-size:8.5px;
+  text-transform:uppercase;
+}
+.s2-hover-grid strong{
+  font-size:11px;
+}
+.s2-mini-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:10.5px;
+}
+.s2-mini-table th,.s2-mini-table td{
+  padding:6px;
+  border-bottom:1px solid #eef2f7;
+}
+@media(max-width:720px){
+  .s2-grid,.s2-kpi-grid{grid-template-columns:1fr}
+  .s2-card.full{grid-column:auto}
+}
+
 </style></head><body>
 <div class="top"><button id="panelBtn" class="btn">☰ Controls</button><div class="brand">Premium Merchandising Coverage Command Center<small>RTS territory, coverage and placement planning</small></div><div class="search"><input id="search" placeholder="Search store #, SiteID, address, city, manager or RTS…"><div id="results" class="results"></div></div><button id="clearSearch" class="btn">Clear</button></div>
 <div class="workspace" id="workspace"><aside class="controls">
 <div class="panel-head"><span>Map Controls</span><button id="hidePanel" class="btn">Hide</button></div>
-<section class="section"><h3>Coverage Snapshot</h3><div class="body grid2"><div class="metric"><small>Stores</small><b id="kStores">0</b></div><div class="metric"><small>Active RTS</small><b id="kRts">0</b></div><div class="metric"><small>Covered</small><b id="kCovered">0</b></div><div class="metric"><small>Gaps</small><b id="kGaps">0</b></div><div class="metric"><small>Coverage</small><b id="kPct">0%</b></div><div class="metric"><small>Avg nearest</small><b id="kAvg">0</b></div></div></section>
+<section class="section"><h3>Coverage Snapshot</h3><div class="body grid2"><div class="metric"><small>Stores</small><b id="kStores">0</b></div><div class="metric"><small>Active RTS</small><b id="kRts">0</b></div><div class="metric"><small>Covered</small><b id="kCovered">0</b></div><div class="metric"><small>Gaps</small><b id="kGaps">0</b></div><div class="metric"><small>Coverage</small><b id="kPct">0%</b></div><div class="metric"><small>Avg nearest</small><b id="kAvg">0</b></div><div class="metric"><small>Avg territory</small><b id="kAvgTerritory">0</b></div><div class="metric"><small>Largest territory</small><b id="kLargestTerritory">0</b></div><div class="metric"><small>Smallest territory</small><b id="kSmallestTerritory">0</b></div><div class="metric"><small>Median territory</small><b id="kMedianTerritory">0</b></div></div></section>
 <section class="section"><h3>View</h3><div class="body"><div class="actions"><button id="fit" class="btn">Fit Results</button><button id="home" class="btn">Home</button><button id="reset" class="btn">Reset</button></div><div class="actions"><button id="gapsOnly" class="btn">Current Gaps</button><button id="coveredOnly" class="btn">Covered Stores</button></div></div></section>
 <section class="section"><h3>Filters</h3><div class="body"><div class="field"><label>Coverage</label><select id="fCoverage"><option value="">All</option><option value="covered">Covered</option><option value="gap">Gap / Uncovered</option></select></div><div class="field"><label>Retailer</label><select id="fRetailer"><option value="">All retailers</option></select></div><div class="field"><label>State</label><select id="fState"><option value="">All states</option></select></div><div class="field"><label>Manager</label><select id="fManager"><option value="">All managers</option></select></div><div class="field"><label>Nearest RTS</label><select id="fRts"><option value="">All RTS</option></select></div><button id="clearFilters" class="btn">Clear Filters</button></div></section>
 <section class="section"><h3>RTS Visibility & Radius</h3><div class="body"><label class="toggle"><input id="showRts" type="checkbox" checked>Active RTS hubs</label><label class="toggle"><input id="showRings" type="checkbox">Coverage rings</label><div class="field"><label>Radius: <b id="radiusLbl">75</b> miles</label><input id="radius" type="range" min="25" max="150" step="5" value="75"></div></div></section>
@@ -60,23 +350,201 @@ function recompute(){stores.forEach(calculate);applyFilters();drawRts();updateMe
 function uniq(a){return [...new Set(a.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b)))}
 function options(id,vals){const e=$(id);vals.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;e.appendChild(o)})}
 function storeMarker(s){const color=s.covered?'#16a34a':'#dc2626',icon=L.divIcon({className:'',html:`<div class="store-dot" style="background:${color}"></div>`,iconSize:[11,11],iconAnchor:[5,5]});const m=L.marker([s.lat,s.lng],{icon}).bindPopup(()=>storePopup(s),{maxWidth:440,autoPanPadding:[80,80]});m.on('click',()=>{map.flyTo([s.lat,s.lng],Math.max(11,map.getZoom()),{duration:.55})});return m}
-function storePopup(s){const addr=s.address?esc(s.address):'<span style="color:#94a3b8">Street address unavailable in the matched master list</span>';const near=s.nearest.map((r,i)=>`<div class="near"><span><b>${i?'Option '+(i+1):'Nearest RTS'}:</b> ${esc(r.name)}<br>${esc(r.email)}</span><b>${r.distance.toFixed(1)} mi</b></div>`).join('');return `<div class="popup"><h2>${esc(s.retailer)} #${esc(s.storeNumber||'—')}</h2><div class="sub">${addr}<br>${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)} · SiteID ${esc(s.siteId)}</div><span class="badge ${s.covered?'covered':'gap'}">${s.covered?'Covered within '+$('radius').value+' miles':'Current gap / uncovered'}</span><div class="popcard"><strong>Manager</strong>${esc(s.manager||'Not listed')}${s.managerEmail?`<br>${esc(s.managerEmail)}`:''}</div><div class="popcard"><strong>Nearest Premium Merchandising RTS</strong>${near}</div><div class="popactions"><button class="btn" onclick="window.openTerritory('${esc(s.nearest[0]?.id||'')}')">Open RTS Territory</button><button class="btn" onclick="window.simulateAt(${s.lat},${s.lng})">Simulate RTS Here</button></div></div>`}
-function drawRts(){rtsLayer.clearLayers();ringLayer.clearLayers();if($('showRts').checked)activeRTS().forEach(r=>{const icon=L.divIcon({className:'',html:'<div class="rts-icon"></div>',iconSize:[22,22],iconAnchor:[11,11]});L.marker([r.lat,r.lng],{icon}).on('click',()=>openTerritory(r.id)).bindTooltip(r.name).addTo(rtsLayer)});if($('showRings').checked)activeRTS().forEach(r=>L.circle([r.lat,r.lng],{radius:Number($('radius').value)*1609.344,color:'#7c3aed',weight:1,fillOpacity:.025,interactive:false}).addTo(ringLayer))}
+function storePopup(s){
+ const addr=s.address?esc(s.address):'<span style="color:#94a3b8">Street address unavailable in matched master list</span>';
+ const nearest=s.nearest.map((r,i)=>`<div class="s2-near-row ${i===0?'primary':''}">
+   <span class="s2-rank">${i+1}</span>
+   <span><span class="s2-near-name">${esc(r.name)}</span><span class="s2-near-email">${esc(r.email)}</span></span>
+   <span class="s2-near-dist">${r.distance.toFixed(1)} mi</span>
+ </div>`).join('');
+ const nearestName=s.nearest[0]?.name||'No active RTS';
+ const nearestDistance=s.nearest[0]?.distance;
+ return `<div class="popup sprint2-popup">
+   <div class="s2-popup-head">
+     <div class="s2-popup-headline">
+       <div class="s2-popup-title">${esc(s.retailer)} #${esc(s.storeNumber||'—')}</div>
+       <span class="badge ${s.covered?'covered':'gap'}">${s.covered?'Covered':'Gap'}</span>
+     </div>
+     <div class="s2-popup-address">📍 ${addr}<br>${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}</div>
+     <div class="s2-popup-meta">Store # ${esc(s.storeNumber||'—')} · SiteID ${esc(s.siteId)}</div>
+   </div>
+   <div class="s2-popup-scroll">
+     <div class="s2-grid">
+       <div class="s2-card">
+         <span class="s2-label">Manager</span>
+         <div class="s2-value">${esc(s.manager||'Not listed')}${s.managerEmail?`<br>${esc(s.managerEmail)}`:''}</div>
+       </div>
+       <div class="s2-card">
+         <span class="s2-label">Coverage status</span>
+         <div class="s2-value">${s.covered?`Within ${$('radius').value} miles`:'Outside current radius'}${Number.isFinite(nearestDistance)?`<br>${nearestDistance.toFixed(1)} mi to ${esc(nearestName)}`:''}</div>
+       </div>
+       <div class="s2-card full">
+         <span class="s2-label">Nearest Premium Merchandising RTS</span>
+         <div class="s2-nearest">${nearest}</div>
+       </div>
+     </div>
+   </div>
+   <div class="s2-popup-actions">
+     <button class="btn primary" onclick="window.openTerritory('${esc(s.nearest[0]?.id||'')}')">Open RTS Territory</button>
+     <button class="btn" onclick="window.simulateAt(${s.lat},${s.lng})">Simulate RTS Here</button>
+     <button class="btn" onclick="window.showNearbyStores('${esc(s.siteId)}')">View Nearby Stores</button>
+   </div>
+ </div>`;
+}
+function drawRts(){
+ rtsLayer.clearLayers();
+ ringLayer.clearLayers();
+ if($('showRts').checked)activeRTS().forEach(r=>{
+   const owned=stores.filter(s=>s.nearest[0]?.id===r.id);
+   const inside=stores.filter(s=>hav(s.lat,s.lng,r.lat,r.lng)<=Number($('radius').value));
+   const coveredOwned=owned.filter(s=>s.covered).length;
+   const coveragePct=owned.length?coveredOwned/owned.length*100:0;
+   const icon=L.divIcon({className:'',html:'<div class="rts-icon"></div>',iconSize:[22,22],iconAnchor:[11,11]});
+   const hover=`<div class="s2-hover">
+     <b>${esc(r.name)}</b>
+     <span>Premium Merchandising RTS</span>
+     <div class="s2-hover-grid">
+       <div><small>Nearest-owned</small><strong>${owned.length}</strong></div>
+       <div><small>Inside radius</small><strong>${inside.length}</strong></div>
+       <div><small>Coverage</small><strong>${coveragePct.toFixed(1)}%</strong></div>
+       <div><small>Radius</small><strong>${$('radius').value} mi</strong></div>
+     </div>
+     <span style="margin-top:5px">Click to open territory review</span>
+   </div>`;
+   L.marker([r.lat,r.lng],{icon})
+     .on('click',()=>openTerritory(r.id))
+     .bindTooltip(hover,{direction:'top',offset:[0,-10],opacity:1,className:''})
+     .addTo(rtsLayer);
+ });
+ if($('showRings').checked)activeRTS().forEach(r=>L.circle([r.lat,r.lng],{
+   radius:Number($('radius').value)*1609.344,color:'#7c3aed',weight:1,fillOpacity:.025,interactive:false
+ }).addTo(ringLayer));
+}
 function applyFilters(){const c=$('fCoverage').value,ret=$('fRetailer').value,st=$('fState').value,mgr=$('fManager').value,rr=$('fRts').value,rad=Number($('radius').value);filtered=stores.filter(s=>(!c||(c==='covered'?s.covered:!s.covered))&&(!ret||s.retailer===ret)&&(!st||s.state===st)&&(!mgr||s.manager===mgr)&&(!rr||s.nearest[0]?.name===rr)&&(!$('within').checked||s.nearest.some(r=>r.distance<=rad)));renderStores();updateMetrics()}
 function renderStores(){clusterLayer.clearLayers();plainLayer.clearLayers();const ms=filtered.map(s=>markerById.get(s.siteId));if($('cluster').checked){clusterLayer.addLayers(ms);if(!map.hasLayer(clusterLayer))map.addLayer(clusterLayer);if(map.hasLayer(plainLayer))map.removeLayer(plainLayer)}else{ms.forEach(m=>plainLayer.addLayer(m));if(!map.hasLayer(plainLayer))map.addLayer(plainLayer);if(map.hasLayer(clusterLayer))map.removeLayer(clusterLayer)}drawHeat();drawOverlap()}
-function updateMetrics(){const covered=filtered.filter(s=>s.covered).length,gaps=filtered.length-covered,pct=filtered.length?covered/filtered.length*100:0,avg=filtered.length?filtered.reduce((a,s)=>a+(s.nearest[0]?.distance||0),0)/filtered.length:0;$('kStores').textContent=stores.length.toLocaleString();$('kRts').textContent=activeRTS().length;$('kCovered').textContent=stores.filter(s=>s.covered).length.toLocaleString();$('kGaps').textContent=stores.filter(s=>!s.covered).length.toLocaleString();$('kPct').textContent=(stores.filter(s=>s.covered).length/stores.length*100).toFixed(1)+'%';$('kAvg').textContent=avg.toFixed(1)+' mi';$('hVisible').textContent=filtered.length.toLocaleString();$('hPct').textContent=pct.toFixed(1)+'%';$('hGaps').textContent=gaps.toLocaleString()}
+function updateMetrics(){
+ const covered=filtered.filter(s=>s.covered).length,gaps=filtered.length-covered,pct=filtered.length?covered/filtered.length*100:0;
+ const avg=filtered.length?filtered.reduce((a,s)=>a+(s.nearest[0]?.distance||0),0)/filtered.length:0;
+ const territoryCounts=activeRTS().map(r=>stores.filter(s=>s.nearest[0]?.id===r.id).length).sort((a,b)=>a-b);
+ const avgTerr=territoryCounts.length?territoryCounts.reduce((a,b)=>a+b,0)/territoryCounts.length:0;
+ const medianTerr=territoryCounts.length?(territoryCounts.length%2?territoryCounts[(territoryCounts.length-1)/2]:(territoryCounts[territoryCounts.length/2-1]+territoryCounts[territoryCounts.length/2])/2):0;
+ $('kStores').textContent=stores.length.toLocaleString();
+ $('kRts').textContent=activeRTS().length;
+ $('kCovered').textContent=stores.filter(s=>s.covered).length.toLocaleString();
+ $('kGaps').textContent=stores.filter(s=>!s.covered).length.toLocaleString();
+ $('kPct').textContent=(stores.filter(s=>s.covered).length/stores.length*100).toFixed(1)+'%';
+ $('kAvg').textContent=avg.toFixed(1)+' mi';
+ $('kAvgTerritory').textContent=Math.round(avgTerr).toLocaleString();
+ $('kLargestTerritory').textContent=(territoryCounts.at(-1)||0).toLocaleString();
+ $('kSmallestTerritory').textContent=(territoryCounts[0]||0).toLocaleString();
+ $('kMedianTerritory').textContent=Math.round(medianTerr).toLocaleString();
+ $('hVisible').textContent=filtered.length.toLocaleString();
+ $('hPct').textContent=pct.toFixed(1)+'%';
+ $('hGaps').textContent=gaps.toLocaleString();
+}
 function drawHeat(){if(heatLayer){map.removeLayer(heatLayer);heatLayer=null}if($('heat').checked){heatLayer=L.heatLayer(filtered.map(s=>[s.lat,s.lng,s.covered?.45:1]),{radius:20,blur:16,maxZoom:10}).addTo(map)}}
 function drawOverlap(){highlightLayer.clearLayers();if(!$('overlap').checked)return;filtered.filter(s=>s.coverCount>=2).forEach(s=>L.circleMarker([s.lat,s.lng],{radius:7,color:'#111',weight:2,fillOpacity:0,interactive:false}).addTo(highlightLayer))}
 function fit(){if(!filtered.length)return;map.fitBounds(filtered.map(s=>[s.lat,s.lng]),{padding:[25,25],maxZoom:11})}
 function csv(rows,name){if(!rows.length)return;const keys=Object.keys(rows[0]),q=v=>`"${String(v??'').replace(/"/g,'""')}"`,blob=new Blob([[keys.map(q).join(','),...rows.map(r=>keys.map(k=>q(r[k])).join(','))].join('\n')],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href)}
 function storeRows(rows){return rows.map(s=>({SiteID:s.siteId,Retailer:s.retailer,StoreNumber:s.storeNumber,Address:s.address||'',City:s.city,State:s.state,ZIP:s.zip,Manager:s.manager,ManagerEmail:s.managerEmail,Coverage:s.covered?'Covered':'Gap',NearestRTS:s.nearest[0]?.name||'',DistanceMiles:s.nearest[0]?.distance?.toFixed(1)||''}))}
 function showDrawer(title,html){$('drawerTitle').textContent=title;$('drawerContent').innerHTML=html;$('drawer').classList.add('show')}
-function openTerritory(id){const r=activeRTS().find(x=>String(x.id)===String(id));if(!r)return;const rad=Number($('radius').value),inside=stores.filter(s=>hav(s.lat,s.lng,r.lat,r.lng)<=rad),nearest=stores.filter(s=>s.nearest[0]?.id===r.id),avg=inside.length?inside.reduce((a,s)=>a+hav(s.lat,s.lng,r.lat,r.lng),0)/inside.length:0,farthest=[...inside].sort((a,b)=>hav(b.lat,b.lng,r.lat,r.lng)-hav(a.lat,a.lng,r.lat,r.lng))[0];highlightLayer.clearLayers();inside.forEach(s=>L.circleMarker([s.lat,s.lng],{radius:5,color:s.covered?'#16a34a':'#dc2626',weight:2,fillOpacity:.7}).addTo(highlightLayer));map.flyTo([r.lat,r.lng],7,{duration:.6});const retailers=Object.entries(inside.reduce((o,s)=>(o[s.retailer]=(o[s.retailer]||0)+1,o),{})).sort((a,b)=>b[1]-a[1]).slice(0,8);showDrawer(`RTS Territory — ${r.name}`,`<div class="callout"><b>${esc(r.name)}</b><br>${esc(r.email)}<br>${esc(r.rtm||'')}</div><div class="grid2"><div class="metric"><small>Inside ${rad} mi</small><b>${inside.length}</b></div><div class="metric"><small>Nearest-owned</small><b>${nearest.length}</b></div><div class="metric"><small>Avg distance</small><b>${avg.toFixed(1)} mi</b></div><div class="metric"><small>Farthest</small><b>${farthest?hav(farthest.lat,farthest.lng,r.lat,r.lng).toFixed(1):0} mi</b></div></div><div class="popcard"><strong>Retailer mix</strong>${retailers.map(x=>`${esc(x[0])}: ${x[1]}`).join('<br>')}</div><div class="actions"><button class="btn" onclick="window.exportTerritory('${esc(r.id)}')">Export Territory</button><button class="btn" onclick="window.clearHighlight()">Clear Highlight</button></div><div class="tablewrap"><table><thead><tr><th>Store</th><th>Location</th><th>Distance</th></tr></thead><tbody>${inside.sort((a,b)=>hav(a.lat,a.lng,r.lat,r.lng)-hav(b.lat,b.lng,r.lat,r.lng)).slice(0,500).map(s=>`<tr><td>${esc(s.retailer)} #${esc(s.storeNumber)}</td><td>${esc(s.city)}, ${esc(s.state)}</td><td>${hav(s.lat,s.lng,r.lat,r.lng).toFixed(1)} mi</td></tr>`).join('')}</tbody></table></div>`)}
-window.openTerritory=openTerritory;window.clearHighlight=()=>highlightLayer.clearLayers();window.exportTerritory=id=>{const r=activeRTS().find(x=>String(x.id)===String(id)),rad=Number($('radius').value);csv(storeRows(stores.filter(s=>hav(s.lat,s.lng,r.lat,r.lng)<=rad)),`territory_${r.name.replace(/\W+/g,'_')}.csv`)}
+function territoryQuality(owned,inside,avg,farthest,overlapCount){
+ const coverage=owned.length?owned.filter(s=>s.covered).length/owned.length*100:0;
+ let score=100;
+ if(avg>45)score-=25;else if(avg>32)score-=14;else if(avg>22)score-=6;
+ if(farthest>90)score-=20;else if(farthest>75)score-=10;
+ if(coverage<70)score-=25;else if(coverage<85)score-=12;
+ if(owned.length>330)score-=12;else if(owned.length<90)score-=8;
+ if(overlapCount>inside.length*.5)score-=8;
+ if(score>=82)return {label:'Excellent',cls:'excellent'};
+ if(score>=68)return {label:'Good',cls:'good'};
+ if(score>=52)return {label:'Fair',cls:'fair'};
+ return {label:'Weak',cls:'weak'};
+}
+function openTerritory(id){
+ const r=activeRTS().find(x=>String(x.id)===String(id));
+ if(!r)return;
+ const rad=Number($('radius').value);
+ const inside=stores.filter(s=>hav(s.lat,s.lng,r.lat,r.lng)<=rad);
+ const owned=stores.filter(s=>s.nearest[0]?.id===r.id);
+ const ownedCovered=owned.filter(s=>s.covered).length;
+ const avg=inside.length?inside.reduce((a,s)=>a+hav(s.lat,s.lng,r.lat,r.lng),0)/inside.length:0;
+ const farthestObj=[...inside].sort((a,b)=>hav(b.lat,b.lng,r.lat,r.lng)-hav(a.lat,a.lng,r.lat,r.lng))[0];
+ const farthest=farthestObj?hav(farthestObj.lat,farthestObj.lng,r.lat,r.lng):0;
+ const overlapCount=inside.filter(s=>s.coverCount>=2).length;
+ const q=territoryQuality(owned,inside,avg,farthest,overlapCount);
+ const retailers=Object.entries(inside.reduce((o,s)=>(o[s.retailer]=(o[s.retailer]||0)+1,o),{})).sort((a,b)=>b[1]-a[1]).slice(0,8);
+ const managers=Object.entries(inside.reduce((o,s)=>(o[s.manager||'Not listed']=(o[s.manager||'Not listed']||0)+1,o),{})).sort((a,b)=>b[1]-a[1]).slice(0,8);
+ const maxRetail=Math.max(1,...retailers.map(x=>x[1])),maxMgr=Math.max(1,...managers.map(x=>x[1]));
+ const avgTerritory=stores.length/Math.max(1,activeRTS().length);
+ const workloadDelta=avgTerritory?((owned.length-avgTerritory)/avgTerritory*100):0;
+
+ document.body.classList.add('territory-focus');
+ highlightLayer.clearLayers();
+ inside.forEach(s=>{
+   const cm=L.circleMarker([s.lat,s.lng],{
+     radius:s.nearest[0]?.id===r.id?6:4,
+     color:s.nearest[0]?.id===r.id?'#2563eb':'#16a34a',
+     weight:s.nearest[0]?.id===r.id?2.5:1.5,
+     fillOpacity:s.nearest[0]?.id===r.id?.82:.52,
+     className:'territory-focus-marker'
+   }).addTo(highlightLayer);
+ });
+ map.flyTo([r.lat,r.lng],7,{duration:.6});
+
+ showDrawer(`RTS Territory — ${r.name}`,`
+   <div class="s2-drawer-hero">
+     <div class="s2-drawer-title">${esc(r.name)}</div>
+     <div class="s2-drawer-sub">${esc(r.email)}${r.rtm?`<br>RTM: ${esc(r.rtm)}`:''}</div>
+     <span class="s2-score ${q.cls}">Territory quality: ${q.label}</span>
+   </div>
+   <div class="s2-kpi-grid">
+     <div class="s2-kpi"><small>Nearest-owned stores</small><b>${owned.length}</b><span>${workloadDelta>=0?'▲':'▼'} ${Math.abs(workloadDelta).toFixed(1)}% vs team average</span></div>
+     <div class="s2-kpi"><small>Inside ${rad} miles</small><b>${inside.length}</b><span>All stores within radius</span></div>
+     <div class="s2-kpi"><small>Owned coverage</small><b>${owned.length?(ownedCovered/owned.length*100).toFixed(1):'0.0'}%</b><span>${ownedCovered} covered of ${owned.length}</span></div>
+     <div class="s2-kpi"><small>Average drive</small><b>${avg.toFixed(1)} mi</b><span>Average to stores in radius</span></div>
+     <div class="s2-kpi"><small>Farthest store</small><b>${farthest.toFixed(1)} mi</b><span>${farthestObj?`${esc(farthestObj.city)}, ${esc(farthestObj.state)}`:'—'}</span></div>
+     <div class="s2-kpi"><small>Overlap stores</small><b>${overlapCount}</b><span>Covered by 2+ RTS</span></div>
+   </div>
+   <div class="s2-list-card">
+     <h4>Retailer mix</h4>
+     ${retailers.map(x=>`<div class="s2-bar-row"><span class="s2-bar-label">${esc(x[0])}</span><span class="s2-bar"><span style="width:${x[1]/maxRetail*100}%"></span></span><b>${x[1]}</b></div>`).join('')}
+   </div>
+   <div class="s2-list-card">
+     <h4>Manager mix</h4>
+     ${managers.map(x=>`<div class="s2-bar-row"><span class="s2-bar-label">${esc(x[0])}</span><span class="s2-bar"><span style="width:${x[1]/maxMgr*100}%"></span></span><b>${x[1]}</b></div>`).join('')}
+   </div>
+   <div class="actions">
+     <button class="btn primary" onclick="window.exportTerritory('${esc(r.id)}')">Export Territory</button>
+     <button class="btn" onclick="window.print()">Print</button>
+     <button class="btn" onclick="window.clearHighlight()">Clear Highlight</button>
+   </div>
+   <div class="tablewrap"><table class="s2-mini-table"><thead><tr><th>Store</th><th>Location</th><th>Distance</th></tr></thead><tbody>
+   ${inside.sort((a,b)=>hav(a.lat,a.lng,r.lat,r.lng)-hav(b.lat,b.lng,r.lat,r.lng)).slice(0,500).map(s=>`<tr><td>${esc(s.retailer)} #${esc(s.storeNumber)}</td><td>${esc(s.city)}, ${esc(s.state)}</td><td>${hav(s.lat,s.lng,r.lat,r.lng).toFixed(1)} mi</td></tr>`).join('')}
+   </tbody></table></div>
+ `);
+}
+window.openTerritory=openTerritory;window.clearHighlight=()=>{highlightLayer.clearLayers();document.body.classList.remove('territory-focus')};window.exportTerritory=id=>{const r=activeRTS().find(x=>String(x.id)===String(id)),rad=Number($('radius').value);csv(storeRows(stores.filter(s=>hav(s.lat,s.lng,r.lat,r.lng)<=rad)),`territory_${r.name.replace(/\W+/g,'_')}.csv`)}
 function simulateAt(lat,lng){simLayer.clearLayers();const icon=L.divIcon({className:'',html:'<div class="sim-icon"></div>',iconSize:[24,24],iconAnchor:[12,12]});simMarker=L.marker([lat,lng],{icon,draggable:true}).addTo(simLayer);simMarker.on('drag',updateSimulation);simMarker.on('dragend',updateSimulation);updateSimulation();simMode=false}
 window.simulateAt=simulateAt;
 function updateSimulation(){if(!simMarker)return;const p=simMarker.getLatLng(),rad=Number($('radius').value),gaps=stores.filter(s=>!s.covered),gained=gaps.filter(s=>hav(s.lat,s.lng,p.lat,p.lng)<=rad),current=stores.filter(s=>s.covered).length,after=current+gained.length;showDrawer('Simulated New RTS',`<div class="callout">Drag the blue RTS marker to test another location. This planning result does not alter production coverage.</div><div class="grid2"><div class="metric"><small>Current coverage</small><b>${(current/stores.length*100).toFixed(1)}%</b></div><div class="metric"><small>After placement</small><b>${(after/stores.length*100).toFixed(1)}%</b></div><div class="metric"><small>New stores covered</small><b>${gained.length}</b></div><div class="metric"><small>Gaps remaining</small><b>${stores.length-after}</b></div></div><div class="popcard"><strong>Proposed coordinates</strong>${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</div><button class="btn" onclick="window.exportSimulation()">Export Impact</button>`);window._simGained=gained}
 window.exportSimulation=()=>csv(storeRows(window._simGained||[]),'simulated_rts_impact.csv');
+
+window.showNearbyStores=function(siteId){
+ const s=stores.find(x=>String(x.siteId)===String(siteId));
+ if(!s)return;
+ const rows=stores.filter(x=>x.siteId!==s.siteId)
+   .map(x=>({store:x,distance:hav(s.lat,s.lng,x.lat,x.lng)}))
+   .sort((a,b)=>a.distance-b.distance)
+   .slice(0,25);
+ showDrawer(`Nearby Stores — ${s.retailer} #${s.storeNumber||'—'}`,`
+   <div class="callout">The 25 closest mapped stores to ${esc(s.address||`${s.city}, ${s.state}`)}.</div>
+   <div class="tablewrap"><table><thead><tr><th>Store</th><th>Address / Location</th><th>Distance</th></tr></thead><tbody>
+   ${rows.map(x=>`<tr><td>${esc(x.store.retailer)} #${esc(x.store.storeNumber||'—')}</td><td>${esc(x.store.address||'')}<br>${esc(x.store.city)}, ${esc(x.store.state)} ${esc(x.store.zip)}</td><td>${x.distance.toFixed(1)} mi</td></tr>`).join('')}
+   </tbody></table></div>
+ `);
+};
+
 function startSimulation(){simMode=true;showDrawer('Simulate New RTS','<div class="callout">Click anywhere on the map to place a draggable simulated RTS marker.</div>')}
 map.on('click',e=>{if(simMode)simulateAt(e.latlng.lat,e.latlng.lng)});
 function openModal(title,html){$('modalTitle').textContent=title;$('modalContent').innerHTML=html;$('modal').classList.add('show')}
@@ -165,8 +633,8 @@ function selectHit(h){
 }
 function init(){stores=RAW_STORES.filter(s=>Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lng))).map(s=>calculate({...s,lat:Number(s.lat),lng:Number(s.lng)}));stores.forEach(s=>markerById.set(s.siteId,storeMarker(s)));options('fRetailer',uniq(stores.map(s=>s.retailer)));options('fState',uniq(stores.map(s=>s.state)));options('fManager',uniq(stores.map(s=>s.manager)));options('fRts',uniq(activeRTS().map(r=>r.name)));drawRts();applyFilters();fit();$('status').style.display='none'}
 ['fCoverage','fRetailer','fState','fManager','fRts','cluster','heat','overlap','within'].forEach(id=>$(id).addEventListener('change',applyFilters));$('showRts').onchange=drawRts;$('showRings').onchange=drawRts;$('radius').oninput=()=>{$('radiusLbl').textContent=$('radius').value;recompute()};
-$('fit').onclick=fit;$('home').onclick=()=>map.setView(HOME.center,HOME.zoom);$('reset').onclick=()=>{['fCoverage','fRetailer','fState','fManager','fRts'].forEach(x=>$(x).value='');$('cluster').checked=true;$('heat').checked=$('overlap').checked=$('within').checked=$('showRings').checked=false;$('showRts').checked=true;$('radius').value=75;$('radiusLbl').textContent=75;highlightLayer.clearLayers();simLayer.clearLayers();recompute();map.setView(HOME.center,HOME.zoom)};$('clearFilters').onclick=()=>{['fCoverage','fRetailer','fState','fManager','fRts'].forEach(x=>$(x).value='');applyFilters()};$('gapsOnly').onclick=$('railGaps').onclick=()=>{$('fCoverage').value='gap';applyFilters();fit()};$('coveredOnly').onclick=()=>{$('fCoverage').value='covered';applyFilters();fit()};
+$('fit').onclick=fit;$('home').onclick=()=>map.setView(HOME.center,HOME.zoom);$('reset').onclick=()=>{['fCoverage','fRetailer','fState','fManager','fRts'].forEach(x=>$(x).value='');$('cluster').checked=true;$('heat').checked=$('overlap').checked=$('within').checked=$('showRings').checked=false;$('showRts').checked=true;$('radius').value=75;$('radiusLbl').textContent=75;window.clearHighlight();simLayer.clearLayers();recompute();map.setView(HOME.center,HOME.zoom)};$('clearFilters').onclick=()=>{['fCoverage','fRetailer','fState','fManager','fRts'].forEach(x=>$(x).value='');applyFilters()};$('gapsOnly').onclick=$('railGaps').onclick=()=>{$('fCoverage').value='gap';applyFilters();fit()};$('coveredOnly').onclick=()=>{$('fCoverage').value='covered';applyFilters();fit()};
 $('simulateBtn').onclick=$('railSim').onclick=startSimulation;$('modelBtn').onclick=$('railModel').onclick=modelPlacement;$('gapFinderBtn').onclick=openGapFinder;$('territoryBtn').onclick=$('railTerritory').onclick=territoryProfiles;$('compareBtn').onclick=compareTerritories;$('resiliencyBtn').onclick=resiliency;$('managerBtn').onclick=()=>rollup('manager','Manager Rollups');$('retailerBtn').onclick=()=>rollup('retailer','Retailer Rollups');
 $('exportStores').onclick=()=>csv(storeRows(filtered),'visible_stores.csv');$('exportGaps').onclick=()=>csv(storeRows(stores.filter(s=>!s.covered)),'current_coverage_gaps.csv');
-$('panelBtn').onclick=$('hidePanel').onclick=()=>{$('workspace').classList.toggle('closed');setTimeout(()=>map.invalidateSize(),220)};$('drawerClose').onclick=()=>$('drawer').classList.remove('show');$('modalClose').onclick=()=>$('modal').classList.remove('show');$('search').oninput=search;$('clearSearch').onclick=()=>{$('search').value='';$('results').classList.remove('show')};$('search').onkeydown=e=>{if(e.key==='Enter'&&($('search')._hits||[]).length){e.preventDefault();selectHit(($('search')._hits||[])[0])}};document.addEventListener('click',e=>{if(!e.target.closest('.search'))$('results').classList.remove('show')});init();
+$('panelBtn').onclick=$('hidePanel').onclick=()=>{$('workspace').classList.toggle('closed');setTimeout(()=>map.invalidateSize(),220)};$('drawerClose').onclick=()=>{$('drawer').classList.remove('show');window.clearHighlight()};$('modalClose').onclick=()=>$('modal').classList.remove('show');$('search').oninput=search;$('clearSearch').onclick=()=>{$('search').value='';$('results').classList.remove('show')};$('search').onkeydown=e=>{if(e.key==='Enter'&&($('search')._hits||[]).length){e.preventDefault();selectHit(($('search')._hits||[])[0])}};document.addEventListener('click',e=>{if(!e.target.closest('.search'))$('results').classList.remove('show')});init();
 </script></body></html>
