@@ -440,16 +440,42 @@ body.territory-focus .leaflet-marker-pane .territory-focus-marker{
   .exec-two{grid-template-columns:1fr}
 }
 
+
+/* ===== Sprint 4 ===== */
+.filter-scope-note{margin:0 7px 7px;border:1px solid #dbeafe;background:#eff6ff;color:#1e3a8a;border-radius:9px;padding:7px 8px;font-size:10.5px;line-height:1.35}
+.filter-scope-note b{color:#0f172a}
+.balance-grid{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:8px;margin-bottom:10px}
+.balance-card{border:1px solid #e2e8f0;border-radius:13px;padding:10px;background:#fff}
+.balance-card small{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:950}
+.balance-card b{display:block;margin-top:3px;font-size:21px;color:#0f172a}
+.balance-card span{display:block;margin-top:3px;color:#64748b;font-size:10.5px}
+.balance-rec{border:1px solid #e2e8f0;border-left:4px solid #2563eb;border-radius:12px;background:#fff;padding:9px 10px;margin-bottom:7px}
+.balance-rec.high{border-left-color:#dc2626;background:#fff7f7}.balance-rec.watch{border-left-color:#f59e0b;background:#fffbeb}.balance-rec.good{border-left-color:#16a34a;background:#f0fdf4}
+.balance-rec h4{margin:0;font-size:12.5px}.balance-rec p{margin:4px 0 0;font-size:11px;line-height:1.38;color:#475569}
+.report-shell{display:grid;gap:12px}.report-header{border:1px solid #dbeafe;border-radius:15px;background:linear-gradient(180deg,#eff6ff,#f8fbff);padding:14px}
+.report-header h1{margin:0;font-size:22px}.report-header p{margin:5px 0 0;color:#475569;font-size:12px}
+.report-section{border:1px solid #e2e8f0;border-radius:14px;background:#fff;padding:12px}.report-section h2{margin:0 0 8px;font-size:14px}
+.report-callout{border-left:4px solid #2563eb;border-radius:10px;background:#eff6ff;padding:9px 10px;font-size:12px;line-height:1.45;color:#1e3a8a}
+.report-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+@media(max-width:900px){.balance-grid{grid-template-columns:1fr 1fr}}
+@media print{
+ body *{visibility:hidden}#modal,#modal *{visibility:visible}
+ #modal{position:absolute!important;inset:0!important;display:block!important;background:#fff!important;padding:0!important}
+ #modal .card{width:100%!important;max-width:none!important;max-height:none!important;box-shadow:none!important;border-radius:0!important}
+ #modal header,.report-actions{display:none!important}#modalContent{overflow:visible!important}
+ .report-section,.report-header{break-inside:avoid}
+}
+
 </style></head><body>
 <div class="top"><button id="panelBtn" class="btn">☰ Controls</button><div class="brand">Premium Merchandising Coverage Command Center<small>RTS territory, coverage and placement planning</small></div><div class="search"><input id="search" placeholder="Search store #, SiteID, address, city, manager or RTS…"><div id="results" class="results"></div></div><button id="clearSearch" class="btn">Clear</button></div>
 <div class="workspace" id="workspace"><aside class="controls">
 <div class="panel-head"><span>Map Controls</span><button id="hidePanel" class="btn">Hide</button></div>
-<section class="section"><h3>Coverage Snapshot</h3><div class="body grid2"><div class="metric"><small>Stores</small><b id="kStores">0</b></div><div class="metric"><small>Active RTS</small><b id="kRts">0</b></div><div class="metric"><small>Covered</small><b id="kCovered">0</b></div><div class="metric"><small>Gaps</small><b id="kGaps">0</b></div><div class="metric"><small>Coverage</small><b id="kPct">0%</b></div><div class="metric"><small>Avg nearest</small><b id="kAvg">0</b></div><div class="metric"><small>Avg territory</small><b id="kAvgTerritory">0</b></div><div class="metric"><small>Largest territory</small><b id="kLargestTerritory">0</b></div><div class="metric"><small>Smallest territory</small><b id="kSmallestTerritory">0</b></div><div class="metric"><small>Median territory</small><b id="kMedianTerritory">0</b></div></div></section>
+<section class="section"><h3>Coverage Snapshot</h3><div class="body grid2"><div class="metric"><small>Stores</small><b id="kStores">0</b></div><div class="metric"><small>Active RTS</small><b id="kRts">0</b></div><div class="metric"><small>Covered</small><b id="kCovered">0</b></div><div class="metric"><small>Gaps</small><b id="kGaps">0</b></div><div class="metric"><small>Coverage</small><b id="kPct">0%</b></div><div class="metric"><small>Avg nearest</small><b id="kAvg">0</b></div><div class="metric"><small>Avg territory</small><b id="kAvgTerritory">0</b></div><div class="metric"><small>Largest territory</small><b id="kLargestTerritory">0</b></div><div class="metric"><small>Smallest territory</small><b id="kSmallestTerritory">0</b></div><div class="metric"><small>Median territory</small><b id="kMedianTerritory">0</b></div></div><div class="filter-scope-note"><b>Live scope:</b> All snapshot metrics update with the current Coverage, Retailer, State, Manager, and Nearest RTS filters.</div></section>
 <section class="section"><h3>View</h3><div class="body"><div class="actions"><button id="fit" class="btn">Fit Results</button><button id="home" class="btn">Home</button><button id="reset" class="btn">Reset</button></div><div class="actions"><button id="gapsOnly" class="btn">Current Gaps</button><button id="coveredOnly" class="btn">Covered Stores</button></div></div></section>
 <section class="section"><h3>Filters</h3><div class="body"><div class="field"><label>Coverage</label><select id="fCoverage"><option value="">All</option><option value="covered">Covered</option><option value="gap">Gap / Uncovered</option></select></div><div class="field"><label>Retailer</label><select id="fRetailer"><option value="">All retailers</option></select></div><div class="field"><label>State</label><select id="fState"><option value="">All states</option></select></div><div class="field"><label>Manager</label><select id="fManager"><option value="">All managers</option></select></div><div class="field"><label>Nearest RTS</label><select id="fRts"><option value="">All RTS</option></select></div><button id="clearFilters" class="btn">Clear Filters</button></div></section>
 <section class="section"><h3>RTS Visibility & Radius</h3><div class="body"><label class="toggle"><input id="showRts" type="checkbox" checked>Active RTS hubs</label><label class="toggle"><input id="showRings" type="checkbox">Coverage rings</label><div class="field"><label>Radius: <b id="radiusLbl">75</b> miles</label><input id="radius" type="range" min="25" max="150" step="5" value="75"></div></div></section>
 <section class="section"><h3>Map Layers</h3><div class="body"><label class="toggle"><input id="cluster" type="checkbox" checked>Cluster stores</label><label class="toggle"><input id="heat" type="checkbox">Store density heatmap</label><label class="toggle"><input id="territories" type="checkbox">Nearest-RTS territory boundaries</label><label class="toggle"><input id="territoryLabels" type="checkbox">Territory labels</label><label class="toggle"><input id="overlap" type="checkbox">Highlight 2+ RTS overlap</label><label class="toggle"><input id="within" type="checkbox">Stores inside visible radius</label></div></section>
-<section class="section"><h3>Planning & Analysis</h3><div class="body"><button id="executiveBtn" class="btn primary">Executive Coverage Dashboard</button><button id="simulateBtn" class="btn">Simulate New RTS</button><button id="modelBtn" class="btn">Model New RTS Placement</button><button id="gapFinderBtn" class="btn">Current Gap Finder</button><button id="territoryBtn" class="btn">RTS Territory Profiles</button><button id="compareBtn" class="btn">Compare RTS Territories</button><button id="resiliencyBtn" class="btn">RTS Resiliency Simulator</button><button id="managerBtn" class="btn">Manager Rollups</button><button id="retailerBtn" class="btn">Retailer Rollups</button></div></section>
+<section class="section"><h3>Planning & Analysis</h3><div class="body"><button id="executiveBtn" class="btn primary">Executive Coverage Dashboard</button><button id="leadershipReportBtn" class="btn">Printable Leadership Report</button><button id="balanceBtn" class="btn">Territory Balancer</button><button id="hiringPlanBtn" class="btn">Hiring Recommendation Plan</button><button id="simulateBtn" class="btn">Simulate New RTS</button><button id="modelBtn" class="btn">Model New RTS Placement</button><button id="gapFinderBtn" class="btn">Current Gap Finder</button><button id="territoryBtn" class="btn">RTS Territory Profiles</button><button id="compareBtn" class="btn">Compare RTS Territories</button><button id="resiliencyBtn" class="btn">RTS Resiliency Simulator</button><button id="managerBtn" class="btn">Manager Rollups</button><button id="retailerBtn" class="btn">Retailer Rollups</button></div></section>
 <section class="section"><h3>Exports</h3><div class="body"><button id="exportStores" class="btn">Export Visible Stores</button><button id="exportGaps" class="btn">Export Current Gaps</button></div></section>
 </aside>
 <main class="mapstage"><div id="map" class="map"></div>
@@ -588,22 +614,26 @@ function drawTerritories(){
 function applyFilters(){const c=$('fCoverage').value,ret=$('fRetailer').value,st=$('fState').value,mgr=$('fManager').value,rr=$('fRts').value,rad=Number($('radius').value);filtered=stores.filter(s=>(!c||(c==='covered'?s.covered:!s.covered))&&(!ret||s.retailer===ret)&&(!st||s.state===st)&&(!mgr||s.manager===mgr)&&(!rr||s.nearest[0]?.name===rr)&&(!$('within').checked||s.nearest.some(r=>r.distance<=rad)));renderStores();updateMetrics();drawTerritories()}
 function renderStores(){clusterLayer.clearLayers();plainLayer.clearLayers();const ms=filtered.map(s=>markerById.get(s.siteId));if($('cluster').checked){clusterLayer.addLayers(ms);if(!map.hasLayer(clusterLayer))map.addLayer(clusterLayer);if(map.hasLayer(plainLayer))map.removeLayer(plainLayer)}else{ms.forEach(m=>plainLayer.addLayer(m));if(!map.hasLayer(plainLayer))map.addLayer(plainLayer);if(map.hasLayer(clusterLayer))map.removeLayer(clusterLayer)}drawHeat();drawOverlap()}
 function updateMetrics(){
- const covered=filtered.filter(s=>s.covered).length,gaps=filtered.length-covered,pct=filtered.length?covered/filtered.length*100:0;
- const avg=filtered.length?filtered.reduce((a,s)=>a+(s.nearest[0]?.distance||0),0)/filtered.length:0;
- const territoryCounts=activeRTS().map(r=>stores.filter(s=>s.nearest[0]?.id===r.id).length).sort((a,b)=>a-b);
+ const scope=filtered;
+ const covered=scope.filter(s=>s.covered).length;
+ const gaps=scope.length-covered;
+ const pct=scope.length?covered/scope.length*100:0;
+ const avg=scope.length?scope.reduce((a,s)=>a+(s.nearest[0]?.distance||0),0)/scope.length:0;
+ const servingRts=activeRTS().filter(r=>scope.some(s=>s.nearest[0]?.id===r.id));
+ const territoryCounts=servingRts.map(r=>scope.filter(s=>s.nearest[0]?.id===r.id).length).filter(Boolean).sort((a,b)=>a-b);
  const avgTerr=territoryCounts.length?territoryCounts.reduce((a,b)=>a+b,0)/territoryCounts.length:0;
  const medianTerr=territoryCounts.length?(territoryCounts.length%2?territoryCounts[(territoryCounts.length-1)/2]:(territoryCounts[territoryCounts.length/2-1]+territoryCounts[territoryCounts.length/2])/2):0;
- $('kStores').textContent=stores.length.toLocaleString();
- $('kRts').textContent=activeRTS().length;
- $('kCovered').textContent=stores.filter(s=>s.covered).length.toLocaleString();
- $('kGaps').textContent=stores.filter(s=>!s.covered).length.toLocaleString();
- $('kPct').textContent=(stores.filter(s=>s.covered).length/stores.length*100).toFixed(1)+'%';
+ $('kStores').textContent=scope.length.toLocaleString();
+ $('kRts').textContent=servingRts.length.toLocaleString();
+ $('kCovered').textContent=covered.toLocaleString();
+ $('kGaps').textContent=gaps.toLocaleString();
+ $('kPct').textContent=pct.toFixed(1)+'%';
  $('kAvg').textContent=avg.toFixed(1)+' mi';
  $('kAvgTerritory').textContent=Math.round(avgTerr).toLocaleString();
  $('kLargestTerritory').textContent=(territoryCounts.at(-1)||0).toLocaleString();
  $('kSmallestTerritory').textContent=(territoryCounts[0]||0).toLocaleString();
  $('kMedianTerritory').textContent=Math.round(medianTerr).toLocaleString();
- $('hVisible').textContent=filtered.length.toLocaleString();
+ $('hVisible').textContent=scope.length.toLocaleString();
  $('hPct').textContent=pct.toFixed(1)+'%';
  $('hGaps').textContent=gaps.toLocaleString();
 }
@@ -734,6 +764,97 @@ function territoryProfiles(){const rows=activeRTS().map(r=>{const inside=stores.
 function compareTerritories(){const opts=activeRTS().map(r=>`<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('');openModal('Compare RTS Territories',`<div class="tools"><label>RTS A <select id="cmpA">${opts}</select></label><label>RTS B <select id="cmpB">${opts}</select></label><button class="btn" onclick="window.runCompare()">Compare</button></div><div id="cmpResults"></div>`)}
 window.runCompare=()=>{const a=activeRTS().find(r=>String(r.id)==$('cmpA').value),b=activeRTS().find(r=>String(r.id)==$('cmpB').value),rad=Number($('radius').value),A=stores.filter(s=>hav(s.lat,s.lng,a.lat,a.lng)<=rad),B=stores.filter(s=>hav(s.lat,s.lng,b.lat,b.lng)<=rad),idsA=new Set(A.map(s=>s.siteId)),shared=B.filter(s=>idsA.has(s.siteId));$('cmpResults').innerHTML=`<div class="grid2"><div class="metric"><small>${esc(a.name)}</small><b>${A.length}</b></div><div class="metric"><small>${esc(b.name)}</small><b>${B.length}</b></div><div class="metric"><small>Shared stores</small><b>${shared.length}</b></div><div class="metric"><small>Combined unique</small><b>${new Set([...A,...B].map(s=>s.siteId)).size}</b></div></div>`}
 function resiliency(){const rows=activeRTS().map(r=>{const owned=stores.filter(s=>s.nearest[0]?.id===r.id),lost=owned.filter(s=>!s.nearest[1]||s.nearest[1].distance>Number($('radius').value));return {r,owned:owned.length,lost:lost.length,backup:owned.length-lost.length}}).sort((a,b)=>b.lost-a.lost);openModal('RTS Resiliency Simulator',`<div class="callout">Shows what happens if an RTS becomes unavailable. “At risk” stores have no second RTS within the selected radius.</div><div class="tablewrap"><table><thead><tr><th>RTS</th><th>Nearest-Owned</th><th>Backup-Covered</th><th>At Risk</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(x.r.name)}</td><td>${x.owned}</td><td>${x.backup}</td><td>${x.lost}</td></tr>`).join('')}</tbody></table></div>`)}
+
+
+function currentScope(){return filtered}
+function scopeLabel(){
+ const p=[];
+ if($('fCoverage').value)p.push($('fCoverage').value==='covered'?'Covered':'Gaps');
+ if($('fRetailer').value)p.push($('fRetailer').value);
+ if($('fState').value)p.push($('fState').value);
+ if($('fManager').value)p.push($('fManager').value);
+ if($('fRts').value)p.push($('fRts').value);
+ return p.length?p.join(' · '):'All Premium Merchandising stores';
+}
+function territoryBalanceRows(scope=currentScope()){
+ const serving=activeRTS().filter(r=>scope.some(s=>s.nearest[0]?.id===r.id));
+ const avg=scope.length/Math.max(1,serving.length);
+ return serving.map(r=>{
+   const owned=scope.filter(s=>s.nearest[0]?.id===r.id);
+   const covered=owned.filter(s=>s.covered).length,outside=owned.length-covered;
+   const avgDist=owned.length?owned.reduce((a,s)=>a+(s.nearest[0]?.distance||0),0)/owned.length:0;
+   const ratio=owned.length/Math.max(1,avg);
+   const backupRisk=owned.filter(s=>!s.nearest[1]||s.nearest[1].distance>Number($('radius').value)).length;
+   let level='good',action='Balanced — continue monitoring.';
+   if(ratio>=1.5||outside>=80||backupRisk>=70){level='high';action='Evaluate added RTS capacity, boundary adjustment, or a new placement near the largest uncovered concentration.'}
+   else if(ratio>=1.2||outside>=35||backupRisk>=30){level='watch';action='Review uncovered edge stores and neighboring RTS capacity before the next staffing decision.'}
+   else if(ratio<=.5){level='watch';action='Light territory: review whether this RTS can absorb nearby stores or support a neighboring high-load territory.'}
+   return {r,owned:owned.length,covered,outside,coverage:owned.length?covered/owned.length*100:0,avgDist,ratio,backupRisk,level,action};
+ }).sort((a,b)=>({high:2,watch:1,good:0}[b.level]-{high:2,watch:1,good:0}[a.level])||b.outside-a.outside);
+}
+function territoryBalancer(){
+ const rows=territoryBalanceRows(),high=rows.filter(x=>x.level==='high').length,watch=rows.filter(x=>x.level==='watch').length;
+ const avg=rows.length?rows.reduce((a,x)=>a+x.owned,0)/rows.length:0;
+ openModal('Territory Balancer',`
+ <div class="callout"><b>Scope:</b> ${esc(scopeLabel())}. Workload uses nearest-owned stores in the filtered scope. Recommendations are planning guidance only.</div>
+ <div class="balance-grid">
+  <div class="balance-card"><small>Serving RTS</small><b>${rows.length}</b><span>RTS represented in scope</span></div>
+  <div class="balance-card"><small>Average territory</small><b>${Math.round(avg)}</b><span>Nearest-owned stores</span></div>
+  <div class="balance-card"><small>High priority</small><b>${high}</b><span>Capacity or gap review</span></div>
+  <div class="balance-card"><small>Watch list</small><b>${watch}</b><span>Monitor or rebalance</span></div>
+ </div>
+ <div class="tools"><button class="btn" onclick="window.exportBalance()">Export Balance Review</button></div>
+ ${rows.map(x=>`<div class="balance-rec ${x.level}"><h4>${esc(x.r.name)} — ${x.owned} nearest-owned stores</h4><p><b>${x.coverage.toFixed(1)}% owned coverage</b> · ${x.outside} outside radius · ${x.avgDist.toFixed(1)} mi average distance · ${x.backupRisk} without backup RTS inside radius.</p><p>${esc(x.action)}</p><div style="margin-top:6px"><button class="btn" onclick="window.openTerritory('${esc(x.r.id)}');document.getElementById('modal').classList.remove('show')">Open Territory</button></div></div>`).join('')}`);
+ window._balanceRows=rows;
+}
+window.exportBalance=()=>csv((window._balanceRows||[]).map(x=>({RTS:x.r.name,Email:x.r.email,NearestOwned:x.owned,Covered:x.covered,OutsideRadius:x.outside,CoveragePercent:x.coverage.toFixed(1),AverageDistanceMiles:x.avgDist.toFixed(1),BackupRiskStores:x.backupRisk,Priority:x.level,Recommendation:x.action})),'premium_merchandising_territory_balance.csv');
+
+function buildHiringPlan(scope=currentScope(),limit=20){
+ let uncovered=scope.filter(s=>!s.covered),chosen=[];
+ for(let i=0;i<limit&&uncovered.length;i++){
+   let best=null;
+   for(const c of uncovered){const gain=uncovered.filter(s=>hav(c.lat,c.lng,s.lat,s.lng)<=75);if(!best||gain.length>best.gain.length)best={c,gain}}
+   if(!best||best.gain.length<5)break;
+   const managers=Object.entries(best.gain.reduce((o,s)=>(o[s.manager||'Not listed']=(o[s.manager||'Not listed']||0)+1,o),{})).sort((a,b)=>b[1]-a[1]);
+   const retailers=Object.entries(best.gain.reduce((o,s)=>(o[s.retailer||'Unknown']=(o[s.retailer||'Unknown']||0)+1,o),{})).sort((a,b)=>b[1]-a[1]);
+   chosen.push({rank:i+1,lat:best.c.lat,lng:best.c.lng,city:best.c.city,state:best.c.state,gain:best.gain.length,topManager:managers[0]?.[0]||'',topRetailer:retailers[0]?.[0]||''});
+   const ids=new Set(best.gain.map(s=>s.siteId));uncovered=uncovered.filter(s=>!ids.has(s.siteId));
+ }
+ return chosen;
+}
+function hiringRecommendationPlan(){
+ const scope=currentScope(),currentCovered=scope.filter(s=>s.covered).length,plan=buildHiringPlan(scope,20);let cumulative=0;
+ openModal('Hiring Recommendation Plan',`
+ <div class="callout"><b>Scope:</b> ${esc(scopeLabel())}. Each suggestion targets the largest remaining uncovered cluster within 75 miles. Planning estimate only.</div>
+ <div class="tools"><button class="btn" onclick="window.exportHiringPlan()">Export Hiring Plan</button><button class="btn" onclick="window.showHiringPlanOnMap()">Show Suggestions on Map</button></div>
+ <div class="tablewrap"><table><thead><tr><th>Rank</th><th>Suggested Area</th><th>Net-New Stores</th><th>Cumulative Coverage</th><th>Primary Manager</th><th>Primary Retailer</th><th>Action</th></tr></thead><tbody>
+ ${plan.map(x=>{cumulative+=x.gain;const after=(currentCovered+cumulative)/Math.max(1,scope.length)*100;return `<tr><td>${x.rank}</td><td>${esc(x.city)}, ${esc(x.state)}</td><td>${x.gain}</td><td>${after.toFixed(1)}%</td><td>${esc(x.topManager)}</td><td>${esc(x.topRetailer)}</td><td><button class="btn" onclick="window.simulateAt(${x.lat},${x.lng});document.getElementById('modal').classList.remove('show')">Simulate</button></td></tr>`}).join('')}
+ </tbody></table></div>`);
+ window._hiringPlan=plan;
+}
+window.exportHiringPlan=()=>csv((window._hiringPlan||[]).map(x=>({Rank:x.rank,City:x.city,State:x.state,Latitude:x.lat,Longitude:x.lng,NetNewStores:x.gain,PrimaryManager:x.topManager,PrimaryRetailer:x.topRetailer})),'premium_merchandising_hiring_recommendations.csv');
+window.showHiringPlanOnMap=()=>{
+ simLayer.clearLayers();(window._hiringPlan||[]).forEach(x=>{const icon=L.divIcon({className:'',html:`<div class="sim-icon" style="display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:950">${x.rank}</div>`,iconSize:[24,24],iconAnchor:[12,12]});L.marker([x.lat,x.lng],{icon}).bindTooltip(`#${x.rank} ${x.city}, ${x.state}<br>+${x.gain} stores`).on('click',()=>simulateAt(x.lat,x.lng)).addTo(simLayer)});$('modal').classList.remove('show');if((window._hiringPlan||[]).length)map.fitBounds(window._hiringPlan.map(x=>[x.lat,x.lng]),{padding:[35,35],maxZoom:7});
+};
+
+function leadershipReport(){
+ const scope=currentScope(),covered=scope.filter(s=>s.covered).length,gaps=scope.length-covered,pct=scope.length?covered/scope.length*100:0;
+ const high=territoryBalanceRows(scope).filter(x=>x.level==='high').slice(0,8);
+ const states=Object.values(scope.reduce((o,s)=>{const k=s.state||'Unknown';o[k]??={name:k,total:0,gaps:0};o[k].total++;if(!s.covered)o[k].gaps++;return o},{})).sort((a,b)=>b.gaps-a.gaps).slice(0,8);
+ const plan=buildHiringPlan(scope,8),serving=new Set(scope.map(s=>s.nearest[0]?.id).filter(Boolean)).size;
+ openModal('Printable Leadership Report',`
+ <div class="report-actions"><button class="btn primary" onclick="window.print()">Print / Save as PDF</button><button class="btn" onclick="window.exportLeadershipSummary()">Export Summary CSV</button></div>
+ <div class="report-shell">
+  <div class="report-header"><h1>Premium Merchandising RTS Coverage Summary</h1><p>Scope: ${esc(scopeLabel())} · Coverage radius: ${$('radius').value} miles</p></div>
+  <div class="exec-grid"><div class="exec-kpi"><small>Stores reviewed</small><b>${scope.length.toLocaleString()}</b><span>Current filtered scope</span></div><div class="exec-kpi"><small>Coverage</small><b>${pct.toFixed(1)}%</b><span>${covered.toLocaleString()} covered</span></div><div class="exec-kpi"><small>Current gaps</small><b>${gaps.toLocaleString()}</b><span>Outside selected radius</span></div><div class="exec-kpi"><small>Serving RTS</small><b>${serving}</b><span>Nearest RTS in scope</span></div></div>
+  <section class="report-section"><h2>Leadership interpretation</h2><div class="report-callout">${pct>=80?'Coverage is broadly stable. Focus on isolated edge gaps, backup coverage, and workload balance.':pct>=60?'Coverage is mixed. Target concentrated gaps and high-load territories.':'Coverage is materially constrained. Prioritize concentrated hiring opportunities and high-load RTS territories.'}</div></section>
+  <section class="report-section"><h2>Highest-gap states</h2><table><thead><tr><th>State</th><th>Stores</th><th>Gaps</th><th>Coverage</th></tr></thead><tbody>${states.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.total}</td><td>${x.gaps}</td><td>${((x.total-x.gaps)/x.total*100).toFixed(1)}%</td></tr>`).join('')}</tbody></table></section>
+  <section class="report-section"><h2>RTS territories requiring review</h2>${high.length?high.map(x=>`<div class="balance-rec ${x.level}"><h4>${esc(x.r.name)}</h4><p>${x.owned} nearest-owned stores · ${x.coverage.toFixed(1)}% owned coverage · ${x.outside} outside radius. ${esc(x.action)}</p></div>`).join(''):'<p>No high-priority territories were identified in this scope.</p>'}</section>
+  <section class="report-section"><h2>Top hiring opportunities</h2><table><thead><tr><th>Rank</th><th>Suggested Area</th><th>Net-New Stores</th><th>Primary Manager</th><th>Primary Retailer</th></tr></thead><tbody>${plan.map(x=>`<tr><td>${x.rank}</td><td>${esc(x.city)}, ${esc(x.state)}</td><td>${x.gain}</td><td>${esc(x.topManager)}</td><td>${esc(x.topRetailer)}</td></tr>`).join('')}</tbody></table></section>
+ </div>`);
+ window._leadershipSummary=[{Scope:scopeLabel(),Stores:scope.length,Covered:covered,Gaps:gaps,CoveragePercent:pct.toFixed(1),ServingRTS:serving,HighPriorityTerritories:high.length,TopHiringArea:plan[0]?`${plan[0].city}, ${plan[0].state}`:'',TopHiringNetNew:plan[0]?.gain||0}];
+}
+window.exportLeadershipSummary=()=>csv(window._leadershipSummary||[],'premium_merchandising_leadership_summary.csv');
 
 function executiveDashboard(){
  const total=stores.length,covered=stores.filter(s=>s.covered).length,gaps=total-covered,pct=total?covered/total*100:0;
@@ -869,7 +990,7 @@ function selectHit(h){
 function init(){stores=RAW_STORES.filter(s=>Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lng))).map(s=>calculate({...s,lat:Number(s.lat),lng:Number(s.lng)}));stores.forEach(s=>markerById.set(s.siteId,storeMarker(s)));options('fRetailer',uniq(stores.map(s=>s.retailer)));options('fState',uniq(stores.map(s=>s.state)));options('fManager',uniq(stores.map(s=>s.manager)));options('fRts',uniq(activeRTS().map(r=>r.name)));drawRts();applyFilters();drawTerritories();fit();$('status').style.display='none'}
 ['fCoverage','fRetailer','fState','fManager','fRts','cluster','heat','overlap','within','territories','territoryLabels'].forEach(id=>$(id).addEventListener('change',applyFilters));$('showRts').onchange=drawRts;$('territories').onchange=drawTerritories;$('territoryLabels').onchange=drawTerritories;$('showRings').onchange=drawRts;$('radius').oninput=()=>{$('radiusLbl').textContent=$('radius').value;recompute()};
 $('fit').onclick=fit;$('home').onclick=()=>map.setView(HOME.center,HOME.zoom);$('reset').onclick=()=>{['fCoverage','fRetailer','fState','fManager','fRts'].forEach(x=>$(x).value='');$('cluster').checked=true;$('heat').checked=$('territories').checked=$('territoryLabels').checked=$('overlap').checked=$('within').checked=$('showRings').checked=false;$('showRts').checked=true;$('radius').value=75;$('radiusLbl').textContent=75;window.clearHighlight();simLayer.clearLayers();recompute();map.setView(HOME.center,HOME.zoom)};$('clearFilters').onclick=()=>{['fCoverage','fRetailer','fState','fManager','fRts'].forEach(x=>$(x).value='');applyFilters()};$('gapsOnly').onclick=$('railGaps').onclick=()=>{$('fCoverage').value='gap';applyFilters();fit()};$('coveredOnly').onclick=()=>{$('fCoverage').value='covered';applyFilters();fit()};
-$('executiveBtn').onclick=executiveDashboard;$('simulateBtn').onclick=$('railSim').onclick=startSimulation;$('modelBtn').onclick=$('railModel').onclick=modelPlacement;$('gapFinderBtn').onclick=openGapFinder;$('territoryBtn').onclick=$('railTerritory').onclick=territoryProfiles;$('compareBtn').onclick=compareTerritories;$('resiliencyBtn').onclick=resiliency;$('managerBtn').onclick=()=>rollup('manager','Manager Rollups');$('retailerBtn').onclick=()=>rollup('retailer','Retailer Rollups');
+$('executiveBtn').onclick=executiveDashboard;$('leadershipReportBtn').onclick=leadershipReport;$('balanceBtn').onclick=territoryBalancer;$('hiringPlanBtn').onclick=hiringRecommendationPlan;$('simulateBtn').onclick=$('railSim').onclick=startSimulation;$('modelBtn').onclick=$('railModel').onclick=modelPlacement;$('gapFinderBtn').onclick=openGapFinder;$('territoryBtn').onclick=$('railTerritory').onclick=territoryProfiles;$('compareBtn').onclick=compareTerritories;$('resiliencyBtn').onclick=resiliency;$('managerBtn').onclick=()=>rollup('manager','Manager Rollups');$('retailerBtn').onclick=()=>rollup('retailer','Retailer Rollups');
 $('exportStores').onclick=()=>csv(storeRows(filtered),'visible_stores.csv');$('exportGaps').onclick=()=>csv(storeRows(stores.filter(s=>!s.covered)),'current_coverage_gaps.csv');
 $('panelBtn').onclick=$('hidePanel').onclick=()=>{$('workspace').classList.toggle('closed');setTimeout(()=>map.invalidateSize(),220)};$('drawerClose').onclick=()=>{$('drawer').classList.remove('show');window.clearHighlight()};$('modalClose').onclick=()=>$('modal').classList.remove('show');$('search').oninput=search;$('clearSearch').onclick=()=>{$('search').value='';$('results').classList.remove('show')};$('search').onkeydown=e=>{if(e.key==='Enter'&&($('search')._hits||[]).length){e.preventDefault();selectHit(($('search')._hits||[])[0])}};document.addEventListener('click',e=>{if(!e.target.closest('.search'))$('results').classList.remove('show')});init();
 </script></body></html>
